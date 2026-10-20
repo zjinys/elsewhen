@@ -55,11 +55,11 @@ pub use wiki_chat::*;
 /// guidance 段已在 D4 启用（prompt 可选要求 + wash 护栏）；emotion 分片待 D5）。
 /// v1/v2 为历史读兼容标识；「event-analysis」（无后缀）为 v3 之前的现行写法。
 mod analysis_queue;
-mod analysis_schema;
-mod companion_flow;
-mod period_stats;
-mod records;
-mod review_flow;
+pub mod analysis_schema;
+pub mod companion_flow;
+pub mod period_stats;
+pub mod records;
+pub mod review_flow;
 
 pub(crate) use analysis_queue::*;
 pub use analysis_schema::*;

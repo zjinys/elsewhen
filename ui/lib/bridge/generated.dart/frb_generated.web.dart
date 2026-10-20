@@ -6,9 +6,10 @@
 // Static analysis wrongly picks the IO variant, thus ignore this
 // ignore_for_file: argument_type_not_assignable
 
-import 'api.dart';
+import 'api/analysis_schema.dart';
 import 'api/chat_proposals.dart';
 import 'api/chat_runs.dart';
+import 'api/companion_flow.dart';
 import 'api/conversations.dart';
 import 'api/db_maintenance.dart';
 import 'api/entities.dart';
@@ -21,12 +22,20 @@ import 'api/knowledge_digest.dart';
 import 'api/knowledge_workflows.dart';
 import 'api/mcp.dart';
 import 'api/page_marks.dart';
+import 'api/period_stats.dart';
 import 'api/provider_config.dart';
 import 'api/provider_reachability.dart';
+import 'api/records.dart';
 import 'api/relations.dart';
-import 'api/review_report.dart';
+import 'api/review_flow.dart';
+import 'api/review_report/detect.dart';
+import 'api/review_report/store.dart';
 import 'api/rules.dart';
-import 'api/sync.dart';
+import 'api/sync/conflicts.dart';
+import 'api/sync/datasets.dart';
+import 'api/sync/handoff.dart';
+import 'api/sync/invite.dart';
+import 'api/sync/join.dart';
 import 'api/theme.dart';
 import 'api/todos.dart';
 import 'api/tweet.dart';
@@ -39,16 +48,17 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'frb_generated.dart';
-import 'knowledge.dart';
+import 'knowledge/health.dart';
 import 'knowledge/maintenance.dart';
 import 'knowledge/organization.dart';
 import 'knowledge/queue.dart';
 import 'knowledge/review.dart';
+import 'knowledge/select.dart';
 import 'knowledge/workflows.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
 
-import 'storage/knowledge.dart';
+import 'storage/knowledge/core.dart';
 
 abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustLibApiImplPlatform({
@@ -5845,12 +5855,12 @@ class RustLibWire implements BaseWire {
     adopt,
   );
 
-  void wire__crate__api__sync__advance_sync_enrollment(
+  void wire__crate__api__sync__join__advance_sync_enrollment(
     NativePortType port_,
     String role,
     String operation_id,
     String invitation_id,
-  ) => wasmModule.wire__crate__api__sync__advance_sync_enrollment(
+  ) => wasmModule.wire__crate__api__sync__join__advance_sync_enrollment(
     port_,
     role,
     operation_id,
@@ -5869,22 +5879,22 @@ class RustLibWire implements BaseWire {
     reason,
   );
 
-  void wire__crate__api__sync__approve_owner_sync_invitation(
+  void wire__crate__api__sync__invite__approve_owner_sync_invitation(
     NativePortType port_,
     String invitation_id,
     String preview_token,
     bool acknowledge_provider_key_sharing,
-  ) => wasmModule.wire__crate__api__sync__approve_owner_sync_invitation(
+  ) => wasmModule.wire__crate__api__sync__invite__approve_owner_sync_invitation(
     port_,
     invitation_id,
     preview_token,
     acknowledge_provider_key_sharing,
   );
 
-  void wire__crate__api__sync__approve_processor_handoff(
+  void wire__crate__api__sync__datasets__approve_processor_handoff(
     NativePortType port_,
     JSAny proof,
-  ) => wasmModule.wire__crate__api__sync__approve_processor_handoff(
+  ) => wasmModule.wire__crate__api__sync__datasets__approve_processor_handoff(
     port_,
     proof,
   );
@@ -5908,11 +5918,11 @@ class RustLibWire implements BaseWire {
     base_url,
   );
 
-  void wire__crate__api__begin_url_input(
+  void wire__crate__api__records__begin_url_input(
     NativePortType port_,
     String raw_text,
     String? idempotency_key,
-  ) => wasmModule.wire__crate__api__begin_url_input(
+  ) => wasmModule.wire__crate__api__records__begin_url_input(
     port_,
     raw_text,
     idempotency_key,
@@ -5936,11 +5946,11 @@ class RustLibWire implements BaseWire {
     offset,
   );
 
-  void wire__crate__api__build_hash(NativePortType port_) =>
-      wasmModule.wire__crate__api__build_hash(port_);
+  void wire__crate__api__review_flow__build_hash(NativePortType port_) =>
+      wasmModule.wire__crate__api__review_flow__build_hash(port_);
 
-  void wire__crate__api__sync__build_seq(NativePortType port_) =>
-      wasmModule.wire__crate__api__sync__build_seq(port_);
+  void wire__crate__api__sync__handoff__build_seq(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__handoff__build_seq(port_);
 
   void wire__crate__api__chat_runs__cancel_chat_run(
     NativePortType port_,
@@ -5952,21 +5962,27 @@ class RustLibWire implements BaseWire {
     run_id,
   );
 
-  void wire__crate__api__sync__cancel_owner_sync_invitation(
+  void wire__crate__api__sync__invite__cancel_owner_sync_invitation(
     NativePortType port_,
     String invitation_id,
-  ) => wasmModule.wire__crate__api__sync__cancel_owner_sync_invitation(
+  ) => wasmModule.wire__crate__api__sync__invite__cancel_owner_sync_invitation(
     port_,
     invitation_id,
   );
 
-  void wire__crate__api__sync__check_app_update(
+  void wire__crate__api__sync__handoff__check_app_update(
     NativePortType port_,
     String relay_url,
-  ) => wasmModule.wire__crate__api__sync__check_app_update(port_, relay_url);
+  ) => wasmModule.wire__crate__api__sync__handoff__check_app_update(
+    port_,
+    relay_url,
+  );
 
-  void wire__crate__api__check_companion_revisit(NativePortType port_) =>
-      wasmModule.wire__crate__api__check_companion_revisit(port_);
+  void wire__crate__api__companion_flow__check_companion_revisit(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__companion_flow__check_companion_revisit(
+    port_,
+  );
 
   void wire__crate__api__wiki__compose_page_reference_supplement(
     NativePortType port_,
@@ -6010,9 +6026,11 @@ class RustLibWire implements BaseWire {
     expected_snapshot_id,
   );
 
-  void wire__crate__api__sync__confirm_processor_takeover(
+  void wire__crate__api__sync__datasets__confirm_processor_takeover(
     NativePortType port_,
-  ) => wasmModule.wire__crate__api__sync__confirm_processor_takeover(port_);
+  ) => wasmModule.wire__crate__api__sync__datasets__confirm_processor_takeover(
+    port_,
+  );
 
   void wire__crate__api__todos__confirm_reminder(
     NativePortType port_,
@@ -6024,14 +6042,14 @@ class RustLibWire implements BaseWire {
     device_id,
   );
 
-  void wire__crate__api__sync__confirm_sync_enrollment(
+  void wire__crate__api__sync__join__confirm_sync_enrollment(
     NativePortType port_,
     String role,
     String operation_id,
     String invitation_id,
     String token,
     JSAny protected_revision,
-  ) => wasmModule.wire__crate__api__sync__confirm_sync_enrollment(
+  ) => wasmModule.wire__crate__api__sync__join__confirm_sync_enrollment(
     port_,
     role,
     operation_id,
@@ -6040,21 +6058,21 @@ class RustLibWire implements BaseWire {
     protected_revision,
   );
 
-  void wire__crate__api__sync__confirm_sync_join_key(
+  void wire__crate__api__sync__join__confirm_sync_join_key(
     NativePortType port_,
     String token,
     JSAny protected_revision,
-  ) => wasmModule.wire__crate__api__sync__confirm_sync_join_key(
+  ) => wasmModule.wire__crate__api__sync__join__confirm_sync_join_key(
     port_,
     token,
     protected_revision,
   );
 
-  void wire__crate__api__sync__confirm_sync_key(
+  void wire__crate__api__sync__invite__confirm_sync_key(
     NativePortType port_,
     String token,
     JSAny protected_revision,
-  ) => wasmModule.wire__crate__api__sync__confirm_sync_key(
+  ) => wasmModule.wire__crate__api__sync__invite__confirm_sync_key(
     port_,
     token,
     protected_revision,
@@ -6091,11 +6109,11 @@ class RustLibWire implements BaseWire {
     String phase,
   ) => wasmModule.wire__crate__api__goals__create_goal(port_, content, phase);
 
-  void wire__crate__api__sync__create_owner_sync_invitation(
+  void wire__crate__api__sync__invite__create_owner_sync_invitation(
     NativePortType port_,
     String relay_url,
     bool acknowledge_provider_key_sharing,
-  ) => wasmModule.wire__crate__api__sync__create_owner_sync_invitation(
+  ) => wasmModule.wire__crate__api__sync__invite__create_owner_sync_invitation(
     port_,
     relay_url,
     acknowledge_provider_key_sharing,
@@ -6217,12 +6235,12 @@ class RustLibWire implements BaseWire {
     String id,
   ) => wasmModule.wire__crate__api__entities__delete_entity_fact(port_, id);
 
-  void wire__crate__api__delete_event_emotion(
+  void wire__crate__api__companion_flow__delete_event_emotion(
     NativePortType port_,
     String id,
     String? target,
     String feeling,
-  ) => wasmModule.wire__crate__api__delete_event_emotion(
+  ) => wasmModule.wire__crate__api__companion_flow__delete_event_emotion(
     port_,
     id,
     target,
@@ -6252,19 +6270,19 @@ class RustLibWire implements BaseWire {
     String slug,
   ) => wasmModule.wire__crate__api__wiki__delete_wiki_page(port_, slug);
 
-  void wire__crate__api__sync__discard_sync_join_staging(
+  void wire__crate__api__sync__join__discard_sync_join_staging(
     NativePortType port_,
     String entry_id,
-  ) => wasmModule.wire__crate__api__sync__discard_sync_join_staging(
+  ) => wasmModule.wire__crate__api__sync__join__discard_sync_join_staging(
     port_,
     entry_id,
   );
 
-  void wire__crate__api__review_report__dismiss_deviation(
+  void wire__crate__api__review_report__store__dismiss_deviation(
     NativePortType port_,
     String report_id,
     int index,
-  ) => wasmModule.wire__crate__api__review_report__dismiss_deviation(
+  ) => wasmModule.wire__crate__api__review_report__store__dismiss_deviation(
     port_,
     report_id,
     index,
@@ -6286,14 +6304,14 @@ class RustLibWire implements BaseWire {
     conversation_id,
   );
 
-  void wire__crate__api__sync__download_update_apk(
+  void wire__crate__api__sync__handoff__download_update_apk(
     NativePortType port_,
     String relay_url,
     String build_hash,
     String apk_sha256,
     JSAny apk_size,
     String dest_dir,
-  ) => wasmModule.wire__crate__api__sync__download_update_apk(
+  ) => wasmModule.wire__crate__api__sync__handoff__download_update_apk(
     port_,
     relay_url,
     build_hash,
@@ -6377,12 +6395,12 @@ class RustLibWire implements BaseWire {
     String url,
   ) => wasmModule.wire__crate__api__tweet__find_tweet_source_page(port_, url);
 
-  void wire__crate__api__finish_url_input(
+  void wire__crate__api__records__finish_url_input(
     NativePortType port_,
     String input_id,
     String? wiki_page_slug,
     bool failed,
-  ) => wasmModule.wire__crate__api__finish_url_input(
+  ) => wasmModule.wire__crate__api__records__finish_url_input(
     port_,
     input_id,
     wiki_page_slug,
@@ -6399,10 +6417,13 @@ class RustLibWire implements BaseWire {
     messages,
   );
 
-  void wire__crate__api__generate_daily_review(
+  void wire__crate__api__period_stats__generate_daily_review(
     NativePortType port_,
     String date,
-  ) => wasmModule.wire__crate__api__generate_daily_review(port_, date);
+  ) => wasmModule.wire__crate__api__period_stats__generate_daily_review(
+    port_,
+    date,
+  );
 
   void wire__crate__api__conversations__generate_reply(
     NativePortType port_,
@@ -6428,8 +6449,9 @@ class RustLibWire implements BaseWire {
     port_,
   );
 
-  void wire__crate__api__get_analysis_job_stats(NativePortType port_) =>
-      wasmModule.wire__crate__api__get_analysis_job_stats(port_);
+  void wire__crate__api__review_flow__get_analysis_job_stats(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__review_flow__get_analysis_job_stats(port_);
 
   void wire__crate__api__chat_runs__get_chat_input_queue(
     NativePortType port_,
@@ -6461,8 +6483,9 @@ class RustLibWire implements BaseWire {
     parent_id,
   );
 
-  void wire__crate__api__get_companion_prefs(NativePortType port_) =>
-      wasmModule.wire__crate__api__get_companion_prefs(port_);
+  void wire__crate__api__companion_flow__get_companion_prefs(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__companion_flow__get_companion_prefs(port_);
 
   void wire__crate__api__conversations__get_conversation(
     NativePortType port_,
@@ -6472,10 +6495,13 @@ class RustLibWire implements BaseWire {
     conversation_id,
   );
 
-  void wire__crate__api__get_daily_overview(
+  void wire__crate__api__period_stats__get_daily_overview(
     NativePortType port_,
     String date,
-  ) => wasmModule.wire__crate__api__get_daily_overview(port_, date);
+  ) => wasmModule.wire__crate__api__period_stats__get_daily_overview(
+    port_,
+    date,
+  );
 
   void wire__crate__api__conversations__get_daily_token_usage(
     NativePortType port_,
@@ -6493,10 +6519,13 @@ class RustLibWire implements BaseWire {
     source_slug,
   );
 
-  void wire__crate__api__get_event_analysis_detail(
+  void wire__crate__api__review_flow__get_event_analysis_detail(
     NativePortType port_,
     String event_id,
-  ) => wasmModule.wire__crate__api__get_event_analysis_detail(port_, event_id);
+  ) => wasmModule.wire__crate__api__review_flow__get_event_analysis_detail(
+    port_,
+    event_id,
+  );
 
   void wire__crate__api__knowledge__get_knowledge_citations(
     NativePortType port_,
@@ -6545,8 +6574,9 @@ class RustLibWire implements BaseWire {
     conversation_id,
   );
 
-  void wire__crate__api__sync__get_local_sync_state(NativePortType port_) =>
-      wasmModule.wire__crate__api__sync__get_local_sync_state(port_);
+  void wire__crate__api__sync__invite__get_local_sync_state(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__sync__invite__get_local_sync_state(port_);
 
   void wire__crate__api__conversations__get_message_chain(
     NativePortType port_,
@@ -6564,25 +6594,33 @@ class RustLibWire implements BaseWire {
     message_id,
   );
 
-  void wire__crate__api__get_message_recordability(
+  void wire__crate__api__review_flow__get_message_recordability(
     NativePortType port_,
     String message_id,
-  ) =>
-      wasmModule.wire__crate__api__get_message_recordability(port_, message_id);
+  ) => wasmModule.wire__crate__api__review_flow__get_message_recordability(
+    port_,
+    message_id,
+  );
 
   void wire__crate__api__web_search__get_network_settings(
     NativePortType port_,
   ) => wasmModule.wire__crate__api__web_search__get_network_settings(port_);
 
-  void wire__crate__api__get_period_stats(
+  void wire__crate__api__period_stats__get_period_stats(
     NativePortType port_,
     String period_type,
     String date,
-  ) => wasmModule.wire__crate__api__get_period_stats(port_, period_type, date);
+  ) => wasmModule.wire__crate__api__period_stats__get_period_stats(
+    port_,
+    period_type,
+    date,
+  );
 
-  void wire__crate__api__sync__get_processor_handoff_state(
+  void wire__crate__api__sync__datasets__get_processor_handoff_state(
     NativePortType port_,
-  ) => wasmModule.wire__crate__api__sync__get_processor_handoff_state(port_);
+  ) => wasmModule.wire__crate__api__sync__datasets__get_processor_handoff_state(
+    port_,
+  );
 
   void wire__crate__api__rules__get_rule_trigger_mode(NativePortType port_) =>
       wasmModule.wire__crate__api__rules__get_rule_trigger_mode(port_);
@@ -6596,16 +6634,17 @@ class RustLibWire implements BaseWire {
         message_id,
       );
 
-  void wire__crate__api__sync__get_sync_join_state(
+  void wire__crate__api__sync__join__get_sync_join_state(
     NativePortType port_,
     String operation_id,
-  ) => wasmModule.wire__crate__api__sync__get_sync_join_state(
+  ) => wasmModule.wire__crate__api__sync__join__get_sync_join_state(
     port_,
     operation_id,
   );
 
-  void wire__crate__api__sync__get_sync_roster(NativePortType port_) =>
-      wasmModule.wire__crate__api__sync__get_sync_roster(port_);
+  void wire__crate__api__sync__datasets__get_sync_roster(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__sync__datasets__get_sync_roster(port_);
 
   void wire__crate__api__theme__get_theme_prefs(NativePortType port_) =>
       wasmModule.wire__crate__api__theme__get_theme_prefs(port_);
@@ -6643,23 +6682,23 @@ class RustLibWire implements BaseWire {
     String url,
   ) => wasmModule.wire__crate__api__tweet__guess_import_kind(port_, url);
 
-  void wire__crate__api__init_bridge(
+  void wire__crate__api__records__init_bridge(
     NativePortType port_,
     String? database_path,
-  ) => wasmModule.wire__crate__api__init_bridge(port_, database_path);
+  ) => wasmModule.wire__crate__api__records__init_bridge(port_, database_path);
 
-  void wire__crate__api__sync__inspect_owner_sync_invitation(
+  void wire__crate__api__sync__invite__inspect_owner_sync_invitation(
     NativePortType port_,
     String invitation_id,
-  ) => wasmModule.wire__crate__api__sync__inspect_owner_sync_invitation(
+  ) => wasmModule.wire__crate__api__sync__invite__inspect_owner_sync_invitation(
     port_,
     invitation_id,
   );
 
-  void wire__crate__api__sync__inspect_sync_join_approval(
+  void wire__crate__api__sync__join__inspect_sync_join_approval(
     NativePortType port_,
     String operation_id,
-  ) => wasmModule.wire__crate__api__sync__inspect_sync_join_approval(
+  ) => wasmModule.wire__crate__api__sync__join__inspect_sync_join_approval(
     port_,
     operation_id,
   );
@@ -6688,24 +6727,24 @@ class RustLibWire implements BaseWire {
     zip_path,
   );
 
-  void wire__crate__api__sync__install_sync_join_key(
+  void wire__crate__api__sync__join__install_sync_join_key(
     NativePortType port_,
     String token,
     JSAny key,
     JSAny protected_revision,
-  ) => wasmModule.wire__crate__api__sync__install_sync_join_key(
+  ) => wasmModule.wire__crate__api__sync__join__install_sync_join_key(
     port_,
     token,
     key,
     protected_revision,
   );
 
-  void wire__crate__api__sync__install_sync_key(
+  void wire__crate__api__sync__invite__install_sync_key(
     NativePortType port_,
     String token,
     JSAny key,
     JSAny protected_revision,
-  ) => wasmModule.wire__crate__api__sync__install_sync_key(
+  ) => wasmModule.wire__crate__api__sync__invite__install_sync_key(
     port_,
     token,
     key,
@@ -6738,8 +6777,8 @@ class RustLibWire implements BaseWire {
     port_,
   );
 
-  void wire__crate__api__list_analyses(NativePortType port_) =>
-      wasmModule.wire__crate__api__list_analyses(port_);
+  void wire__crate__api__review_flow__list_analyses(NativePortType port_) =>
+      wasmModule.wire__crate__api__review_flow__list_analyses(port_);
 
   void wire__crate__api__conversations__list_archived_conversations(
     NativePortType port_,
@@ -6814,20 +6853,21 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
   ) => wasmModule.wire__crate__api__conversations__list_conversations(port_);
 
-  void wire__crate__api__list_daily_entries(
+  void wire__crate__api__records__list_daily_entries(
     NativePortType port_,
     String date,
-  ) => wasmModule.wire__crate__api__list_daily_entries(port_, date);
+  ) => wasmModule.wire__crate__api__records__list_daily_entries(port_, date);
 
-  void wire__crate__api__review_report__list_deviation_reports(
+  void wire__crate__api__review_report__store__list_deviation_reports(
     NativePortType port_,
     String period_type,
     int limit,
-  ) => wasmModule.wire__crate__api__review_report__list_deviation_reports(
-    port_,
-    period_type,
-    limit,
-  );
+  ) =>
+      wasmModule.wire__crate__api__review_report__store__list_deviation_reports(
+        port_,
+        period_type,
+        limit,
+      );
 
   void wire__crate__api__entities__list_entity_aliases(
     NativePortType port_,
@@ -6849,8 +6889,9 @@ class RustLibWire implements BaseWire {
     entity_slug,
   );
 
-  void wire__crate__api__list_event_emotions(NativePortType port_) =>
-      wasmModule.wire__crate__api__list_event_emotions(port_);
+  void wire__crate__api__companion_flow__list_event_emotions(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__companion_flow__list_event_emotions(port_);
 
   void wire__crate__api__rules__list_event_rule_hits(
     NativePortType port_,
@@ -6858,8 +6899,8 @@ class RustLibWire implements BaseWire {
   ) =>
       wasmModule.wire__crate__api__rules__list_event_rule_hits(port_, event_id);
 
-  void wire__crate__api__list_events(NativePortType port_) =>
-      wasmModule.wire__crate__api__list_events(port_);
+  void wire__crate__api__review_flow__list_events(NativePortType port_) =>
+      wasmModule.wire__crate__api__review_flow__list_events(port_);
 
   void wire__crate__api__knowledge__list_knowledge_background_runs(
     NativePortType port_,
@@ -6956,13 +6997,19 @@ class RustLibWire implements BaseWire {
     conversation_id,
   );
 
-  void wire__crate__api__sync__list_object_conflicts(NativePortType port_) =>
-      wasmModule.wire__crate__api__sync__list_object_conflicts(port_);
+  void wire__crate__api__sync__conflicts__list_object_conflicts(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__sync__conflicts__list_object_conflicts(
+    port_,
+  );
 
-  void wire__crate__api__list_page_guidance(
+  void wire__crate__api__companion_flow__list_page_guidance(
     NativePortType port_,
     String slug,
-  ) => wasmModule.wire__crate__api__list_page_guidance(port_, slug);
+  ) => wasmModule.wire__crate__api__companion_flow__list_page_guidance(
+    port_,
+    slug,
+  );
 
   void wire__crate__api__page_marks__list_page_marks(
     NativePortType port_,
@@ -6980,8 +7027,9 @@ class RustLibWire implements BaseWire {
     conversation_id,
   );
 
-  void wire__crate__api__sync__list_pending_sync_joins(NativePortType port_) =>
-      wasmModule.wire__crate__api__sync__list_pending_sync_joins(port_);
+  void wire__crate__api__sync__join__list_pending_sync_joins(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__sync__join__list_pending_sync_joins(port_);
 
   void wire__crate__api__rules__list_recent_chat_rule_hits(
     NativePortType port_,
@@ -6991,11 +7039,15 @@ class RustLibWire implements BaseWire {
     limit,
   );
 
-  void wire__crate__api__list_recent_events(
+  void wire__crate__api__review_flow__list_recent_events(
     NativePortType port_,
     JSAny days,
     JSAny limit,
-  ) => wasmModule.wire__crate__api__list_recent_events(port_, days, limit);
+  ) => wasmModule.wire__crate__api__review_flow__list_recent_events(
+    port_,
+    days,
+    limit,
+  );
 
   void wire__crate__api__rules__list_recent_rule_hits(
     NativePortType port_,
@@ -7020,15 +7072,18 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__rules__list_rules(NativePortType port_) =>
       wasmModule.wire__crate__api__rules__list_rules(port_);
 
-  void wire__crate__api__sync__list_sync_datasets(NativePortType port_) =>
-      wasmModule.wire__crate__api__sync__list_sync_datasets(port_);
-
-  void wire__crate__api__sync__list_sync_enrollments(NativePortType port_) =>
-      wasmModule.wire__crate__api__sync__list_sync_enrollments(port_);
-
-  void wire__crate__api__sync__list_sync_provider_conflicts(
+  void wire__crate__api__sync__datasets__list_sync_datasets(
     NativePortType port_,
-  ) => wasmModule.wire__crate__api__sync__list_sync_provider_conflicts(port_);
+  ) => wasmModule.wire__crate__api__sync__datasets__list_sync_datasets(port_);
+
+  void wire__crate__api__sync__join__list_sync_enrollments(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__sync__join__list_sync_enrollments(port_);
+
+  void wire__crate__api__sync__datasets__list_sync_provider_conflicts(
+    NativePortType port_,
+  ) => wasmModule
+      .wire__crate__api__sync__datasets__list_sync_provider_conflicts(port_);
 
   void wire__crate__api__fonts__list_system_fonts(NativePortType port_) =>
       wasmModule.wire__crate__api__fonts__list_system_fonts(port_);
@@ -7061,8 +7116,11 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__user_skills__list_user_skills(NativePortType port_) =>
       wasmModule.wire__crate__api__user_skills__list_user_skills(port_);
 
-  void wire__crate__api__sync__list_wiki_page_conflicts(NativePortType port_) =>
-      wasmModule.wire__crate__api__sync__list_wiki_page_conflicts(port_);
+  void wire__crate__api__sync__conflicts__list_wiki_page_conflicts(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__sync__conflicts__list_wiki_page_conflicts(
+    port_,
+  );
 
   void wire__crate__api__wiki__list_wiki_page_derivatives(
     NativePortType port_,
@@ -7083,16 +7141,17 @@ class RustLibWire implements BaseWire {
     String? area,
   ) => wasmModule.wire__crate__api__wiki__list_wiki_pages(port_, kind, area);
 
-  void wire__crate__api__sync__lock_local_sync(NativePortType port_) =>
-      wasmModule.wire__crate__api__sync__lock_local_sync(port_);
+  void wire__crate__api__sync__invite__lock_local_sync(NativePortType port_) =>
+      wasmModule.wire__crate__api__sync__invite__lock_local_sync(port_);
 
-  void wire__crate__api__review_report__mark_deviation_report_read(
+  void wire__crate__api__review_report__store__mark_deviation_report_read(
     NativePortType port_,
     String id,
-  ) => wasmModule.wire__crate__api__review_report__mark_deviation_report_read(
-    port_,
-    id,
-  );
+  ) => wasmModule
+      .wire__crate__api__review_report__store__mark_deviation_report_read(
+        port_,
+        id,
+      );
 
   void wire__crate__api__entities__merge_entity(
     NativePortType port_,
@@ -7149,13 +7208,13 @@ class RustLibWire implements BaseWire {
     snapshot_ids,
   );
 
-  void wire__crate__api__sync__prepare_sync_join_key(
+  void wire__crate__api__sync__join__prepare_sync_join_key(
     NativePortType port_,
     String preview_token,
     String name,
     String platform,
     bool acknowledge_provider_key_sharing,
-  ) => wasmModule.wire__crate__api__sync__prepare_sync_join_key(
+  ) => wasmModule.wire__crate__api__sync__join__prepare_sync_join_key(
     port_,
     preview_token,
     name,
@@ -7163,20 +7222,20 @@ class RustLibWire implements BaseWire {
     acknowledge_provider_key_sharing,
   );
 
-  void wire__crate__api__sync__prepare_sync_join_resume(
+  void wire__crate__api__sync__join__prepare_sync_join_resume(
     NativePortType port_,
     String entry_id,
-  ) => wasmModule.wire__crate__api__sync__prepare_sync_join_resume(
+  ) => wasmModule.wire__crate__api__sync__join__prepare_sync_join_resume(
     port_,
     entry_id,
   );
 
-  void wire__crate__api__sync__prepare_sync_key_request(
+  void wire__crate__api__sync__invite__prepare_sync_key_request(
     NativePortType port_,
     String? name,
     String? platform,
     bool acknowledge_provider_key_sharing,
-  ) => wasmModule.wire__crate__api__sync__prepare_sync_key_request(
+  ) => wasmModule.wire__crate__api__sync__invite__prepare_sync_key_request(
     port_,
     name,
     platform,
@@ -7203,10 +7262,10 @@ class RustLibWire implements BaseWire {
     content_md,
   );
 
-  void wire__crate__api__sync__preview_sync_join(
+  void wire__crate__api__sync__join__preview_sync_join(
     NativePortType port_,
     String invitation_code,
-  ) => wasmModule.wire__crate__api__sync__preview_sync_join(
+  ) => wasmModule.wire__crate__api__sync__join__preview_sync_join(
     port_,
     invitation_code,
   );
@@ -7236,10 +7295,13 @@ class RustLibWire implements BaseWire {
     revision_id,
   );
 
-  void wire__crate__api__reanalyze_event(
+  void wire__crate__api__review_flow__reanalyze_event(
     NativePortType port_,
     String event_id,
-  ) => wasmModule.wire__crate__api__reanalyze_event(port_, event_id);
+  ) => wasmModule.wire__crate__api__review_flow__reanalyze_event(
+    port_,
+    event_id,
+  );
 
   void wire__crate__api__knowledge__reconsolidate_knowledge_page(
     NativePortType port_,
@@ -7249,25 +7311,31 @@ class RustLibWire implements BaseWire {
     slug,
   );
 
-  void wire__crate__api__record_event(NativePortType port_, String raw_text) =>
-      wasmModule.wire__crate__api__record_event(port_, raw_text);
+  void wire__crate__api__records__record_event(
+    NativePortType port_,
+    String raw_text,
+  ) => wasmModule.wire__crate__api__records__record_event(port_, raw_text);
 
   void wire__crate__api__wiki__refresh_project_page(
     NativePortType port_,
     String slug,
   ) => wasmModule.wire__crate__api__wiki__refresh_project_page(port_, slug);
 
-  void wire__crate__api__sync__release_sync_join(
+  void wire__crate__api__sync__join__release_sync_join(
     NativePortType port_,
     String operation_id,
-  ) =>
-      wasmModule.wire__crate__api__sync__release_sync_join(port_, operation_id);
+  ) => wasmModule.wire__crate__api__sync__join__release_sync_join(
+    port_,
+    operation_id,
+  );
 
-  void wire__crate__api__sync__release_sync_key_request(
+  void wire__crate__api__sync__invite__release_sync_key_request(
     NativePortType port_,
     String token,
-  ) =>
-      wasmModule.wire__crate__api__sync__release_sync_key_request(port_, token);
+  ) => wasmModule.wire__crate__api__sync__invite__release_sync_key_request(
+    port_,
+    token,
+  );
 
   void wire__crate__api__knowledge__remove_knowledge_relation(
     NativePortType port_,
@@ -7289,12 +7357,12 @@ class RustLibWire implements BaseWire {
     title,
   );
 
-  void wire__crate__api__sync__rename_sync_device(
+  void wire__crate__api__sync__datasets__rename_sync_device(
     NativePortType port_,
     String device_id,
     String new_name,
     JSAny expected_vault_revision,
-  ) => wasmModule.wire__crate__api__sync__rename_sync_device(
+  ) => wasmModule.wire__crate__api__sync__datasets__rename_sync_device(
     port_,
     device_id,
     new_name,
@@ -7337,31 +7405,32 @@ class RustLibWire implements BaseWire {
     accept,
   );
 
-  void wire__crate__api__sync__resolve_object_conflict(
+  void wire__crate__api__sync__conflicts__resolve_object_conflict(
     NativePortType port_,
     String op_id,
     String? expected_local_updated_at,
     bool accept_remote,
-  ) => wasmModule.wire__crate__api__sync__resolve_object_conflict(
+  ) => wasmModule.wire__crate__api__sync__conflicts__resolve_object_conflict(
     port_,
     op_id,
     expected_local_updated_at,
     accept_remote,
   );
 
-  void wire__crate__api__sync__resolve_sync_provider_conflict(
+  void wire__crate__api__sync__datasets__resolve_sync_provider_conflict(
     NativePortType port_,
     String revision_id,
     String expected_local_revision,
     String expected_remote_revision,
     bool accept_remote,
-  ) => wasmModule.wire__crate__api__sync__resolve_sync_provider_conflict(
-    port_,
-    revision_id,
-    expected_local_revision,
-    expected_remote_revision,
-    accept_remote,
-  );
+  ) => wasmModule
+      .wire__crate__api__sync__datasets__resolve_sync_provider_conflict(
+        port_,
+        revision_id,
+        expected_local_revision,
+        expected_remote_revision,
+        accept_remote,
+      );
 
   void wire__crate__api__knowledge__resolve_topic_organization(
     NativePortType port_,
@@ -7373,12 +7442,12 @@ class RustLibWire implements BaseWire {
     accept,
   );
 
-  void wire__crate__api__sync__resolve_wiki_page_conflict(
+  void wire__crate__api__sync__conflicts__resolve_wiki_page_conflict(
     NativePortType port_,
     String op_id,
     String? expected_local_updated_at,
     bool accept_remote,
-  ) => wasmModule.wire__crate__api__sync__resolve_wiki_page_conflict(
+  ) => wasmModule.wire__crate__api__sync__conflicts__resolve_wiki_page_conflict(
     port_,
     op_id,
     expected_local_updated_at,
@@ -7393,11 +7462,11 @@ class RustLibWire implements BaseWire {
     conversation_id,
   );
 
-  void wire__crate__api__sync__revoke_sync_member(
+  void wire__crate__api__sync__datasets__revoke_sync_member(
     NativePortType port_,
     String device_id,
     JSAny expected_revision,
-  ) => wasmModule.wire__crate__api__sync__revoke_sync_member(
+  ) => wasmModule.wire__crate__api__sync__datasets__revoke_sync_member(
     port_,
     device_id,
     expected_revision,
@@ -7411,13 +7480,13 @@ class RustLibWire implements BaseWire {
     provider,
   );
 
-  void wire__crate__api__save_daily_review(
+  void wire__crate__api__period_stats__save_daily_review(
     NativePortType port_,
     String date,
     String result_json,
     String prompt_version,
     JSAny source_event_ids,
-  ) => wasmModule.wire__crate__api__save_daily_review(
+  ) => wasmModule.wire__crate__api__period_stats__save_daily_review(
     port_,
     date,
     result_json,
@@ -7571,18 +7640,21 @@ class RustLibWire implements BaseWire {
     input_message_id,
   );
 
-  void wire__crate__api__sync__select_default_sync_dataset(
+  void wire__crate__api__sync__datasets__select_default_sync_dataset(
     NativePortType port_,
     JSAny expected_catalog_revision,
-  ) => wasmModule.wire__crate__api__sync__select_default_sync_dataset(
+  ) => wasmModule.wire__crate__api__sync__datasets__select_default_sync_dataset(
     port_,
     expected_catalog_revision,
   );
 
-  void wire__crate__api__sync__select_sync_dataset(
+  void wire__crate__api__sync__datasets__select_sync_dataset(
     NativePortType port_,
     String entry_id,
-  ) => wasmModule.wire__crate__api__sync__select_sync_dataset(port_, entry_id);
+  ) => wasmModule.wire__crate__api__sync__datasets__select_sync_dataset(
+    port_,
+    entry_id,
+  );
 
   void wire__crate__api__conversations__send_message(
     NativePortType port_,
@@ -7598,26 +7670,26 @@ class RustLibWire implements BaseWire {
     parent_message_id,
   );
 
-  void wire__crate__api__sync__send_owner_sync_approval(
+  void wire__crate__api__sync__invite__send_owner_sync_approval(
     NativePortType port_,
     String invitation_id,
-  ) => wasmModule.wire__crate__api__sync__send_owner_sync_approval(
+  ) => wasmModule.wire__crate__api__sync__invite__send_owner_sync_approval(
     port_,
     invitation_id,
   );
 
-  void wire__crate__api__sync__send_sync_join_proof(
+  void wire__crate__api__sync__join__send_sync_join_proof(
     NativePortType port_,
     String operation_id,
-  ) => wasmModule.wire__crate__api__sync__send_sync_join_proof(
+  ) => wasmModule.wire__crate__api__sync__join__send_sync_join_proof(
     port_,
     operation_id,
   );
 
-  void wire__crate__api__sync__send_sync_join_request(
+  void wire__crate__api__sync__join__send_sync_join_request(
     NativePortType port_,
     String operation_id,
-  ) => wasmModule.wire__crate__api__sync__send_sync_join_request(
+  ) => wasmModule.wire__crate__api__sync__join__send_sync_join_request(
     port_,
     operation_id,
   );
@@ -7633,11 +7705,11 @@ class RustLibWire implements BaseWire {
         revision_token,
       );
 
-  void wire__crate__api__set_companion_prefs(
+  void wire__crate__api__companion_flow__set_companion_prefs(
     NativePortType port_,
     bool enabled,
     JSAny interval_days,
-  ) => wasmModule.wire__crate__api__set_companion_prefs(
+  ) => wasmModule.wire__crate__api__companion_flow__set_companion_prefs(
     port_,
     enabled,
     interval_days,
@@ -7653,23 +7725,23 @@ class RustLibWire implements BaseWire {
     archived,
   );
 
-  void wire__crate__api__set_event_recordability(
+  void wire__crate__api__review_flow__set_event_recordability(
     NativePortType port_,
     String event_id,
     bool recordable,
-  ) => wasmModule.wire__crate__api__set_event_recordability(
+  ) => wasmModule.wire__crate__api__review_flow__set_event_recordability(
     port_,
     event_id,
     recordable,
   );
 
-  void wire__crate__api__set_guidance_feedback(
+  void wire__crate__api__companion_flow__set_guidance_feedback(
     NativePortType port_,
     String analysis_id,
     String slug,
     String? note,
     String? feedback,
-  ) => wasmModule.wire__crate__api__set_guidance_feedback(
+  ) => wasmModule.wire__crate__api__companion_flow__set_guidance_feedback(
     port_,
     analysis_id,
     slug,
@@ -7819,24 +7891,24 @@ class RustLibWire implements BaseWire {
     idempotency_key,
   );
 
-  void wire__crate__api__submit_conversation_input(
+  void wire__crate__api__records__submit_conversation_input(
     NativePortType port_,
     String conversation_id,
     String raw_text,
     String? idempotency_key,
-  ) => wasmModule.wire__crate__api__submit_conversation_input(
+  ) => wasmModule.wire__crate__api__records__submit_conversation_input(
     port_,
     conversation_id,
     raw_text,
     idempotency_key,
   );
 
-  void wire__crate__api__submit_input(
+  void wire__crate__api__records__submit_input(
     NativePortType port_,
     String raw_text,
     String source,
     String? idempotency_key,
-  ) => wasmModule.wire__crate__api__submit_input(
+  ) => wasmModule.wire__crate__api__records__submit_input(
     port_,
     raw_text,
     source,
@@ -7882,9 +7954,10 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
   ) => wasmModule.wire__crate__api__knowledge__tick_knowledge_insights(port_);
 
-  void wire__crate__api__review_report__tick_periodic_reports(
+  void wire__crate__api__review_report__detect__tick_periodic_reports(
     NativePortType port_,
-  ) => wasmModule.wire__crate__api__review_report__tick_periodic_reports(port_);
+  ) => wasmModule
+      .wire__crate__api__review_report__detect__tick_periodic_reports(port_);
 
   void wire__crate__api__knowledge_workflows__topic_organization_history(
     NativePortType port_,
@@ -7897,8 +7970,8 @@ class RustLibWire implements BaseWire {
         offset,
       );
 
-  void wire__crate__api__trigger_analysis(NativePortType port_) =>
-      wasmModule.wire__crate__api__trigger_analysis(port_);
+  void wire__crate__api__review_flow__trigger_analysis(NativePortType port_) =>
+      wasmModule.wire__crate__api__review_flow__trigger_analysis(port_);
 
   void wire__crate__api__knowledge_digest__trigger_knowledge_digest(
     NativePortType port_,
@@ -7906,8 +7979,9 @@ class RustLibWire implements BaseWire {
     port_,
   );
 
-  void wire__crate__api__sync__trigger_network_sync(NativePortType port_) =>
-      wasmModule.wire__crate__api__sync__trigger_network_sync(port_);
+  void wire__crate__api__sync__join__trigger_network_sync(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__sync__join__trigger_network_sync(port_);
 
   void wire__crate__api__entities__undo_entity_merge(
     NativePortType port_,
@@ -8071,10 +8145,10 @@ class RustLibWire implements BaseWire {
     queue_id,
   );
 
-  void wire__crate__api__sync__yield_sync_processor(
+  void wire__crate__api__sync__datasets__yield_sync_processor(
     NativePortType port_,
     String to_device_id,
-  ) => wasmModule.wire__crate__api__sync__yield_sync_processor(
+  ) => wasmModule.wire__crate__api__sync__datasets__yield_sync_processor(
     port_,
     to_device_id,
   );
@@ -8129,7 +8203,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     bool adopt,
   );
 
-  external void wire__crate__api__sync__advance_sync_enrollment(
+  external void wire__crate__api__sync__join__advance_sync_enrollment(
     NativePortType port_,
     String role,
     String operation_id,
@@ -8143,14 +8217,14 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String reason,
   );
 
-  external void wire__crate__api__sync__approve_owner_sync_invitation(
+  external void wire__crate__api__sync__invite__approve_owner_sync_invitation(
     NativePortType port_,
     String invitation_id,
     String preview_token,
     bool acknowledge_provider_key_sharing,
   );
 
-  external void wire__crate__api__sync__approve_processor_handoff(
+  external void wire__crate__api__sync__datasets__approve_processor_handoff(
     NativePortType port_,
     JSAny proof,
   );
@@ -8170,7 +8244,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String base_url,
   );
 
-  external void wire__crate__api__begin_url_input(
+  external void wire__crate__api__records__begin_url_input(
     NativePortType port_,
     String raw_text,
     String? idempotency_key,
@@ -8186,9 +8260,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny offset,
   );
 
-  external void wire__crate__api__build_hash(NativePortType port_);
+  external void wire__crate__api__review_flow__build_hash(NativePortType port_);
 
-  external void wire__crate__api__sync__build_seq(NativePortType port_);
+  external void wire__crate__api__sync__handoff__build_seq(
+    NativePortType port_,
+  );
 
   external void wire__crate__api__chat_runs__cancel_chat_run(
     NativePortType port_,
@@ -8196,17 +8272,19 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String run_id,
   );
 
-  external void wire__crate__api__sync__cancel_owner_sync_invitation(
+  external void wire__crate__api__sync__invite__cancel_owner_sync_invitation(
     NativePortType port_,
     String invitation_id,
   );
 
-  external void wire__crate__api__sync__check_app_update(
+  external void wire__crate__api__sync__handoff__check_app_update(
     NativePortType port_,
     String relay_url,
   );
 
-  external void wire__crate__api__check_companion_revisit(NativePortType port_);
+  external void wire__crate__api__companion_flow__check_companion_revisit(
+    NativePortType port_,
+  );
 
   external void wire__crate__api__wiki__compose_page_reference_supplement(
     NativePortType port_,
@@ -8232,7 +8310,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? expected_snapshot_id,
   );
 
-  external void wire__crate__api__sync__confirm_processor_takeover(
+  external void wire__crate__api__sync__datasets__confirm_processor_takeover(
     NativePortType port_,
   );
 
@@ -8242,7 +8320,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String device_id,
   );
 
-  external void wire__crate__api__sync__confirm_sync_enrollment(
+  external void wire__crate__api__sync__join__confirm_sync_enrollment(
     NativePortType port_,
     String role,
     String operation_id,
@@ -8251,13 +8329,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny protected_revision,
   );
 
-  external void wire__crate__api__sync__confirm_sync_join_key(
+  external void wire__crate__api__sync__join__confirm_sync_join_key(
     NativePortType port_,
     String token,
     JSAny protected_revision,
   );
 
-  external void wire__crate__api__sync__confirm_sync_key(
+  external void wire__crate__api__sync__invite__confirm_sync_key(
     NativePortType port_,
     String token,
     JSAny protected_revision,
@@ -8284,7 +8362,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String phase,
   );
 
-  external void wire__crate__api__sync__create_owner_sync_invitation(
+  external void wire__crate__api__sync__invite__create_owner_sync_invitation(
     NativePortType port_,
     String relay_url,
     bool acknowledge_provider_key_sharing,
@@ -8362,7 +8440,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String id,
   );
 
-  external void wire__crate__api__delete_event_emotion(
+  external void wire__crate__api__companion_flow__delete_event_emotion(
     NativePortType port_,
     String id,
     String? target,
@@ -8394,12 +8472,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String slug,
   );
 
-  external void wire__crate__api__sync__discard_sync_join_staging(
+  external void wire__crate__api__sync__join__discard_sync_join_staging(
     NativePortType port_,
     String entry_id,
   );
 
-  external void wire__crate__api__review_report__dismiss_deviation(
+  external void wire__crate__api__review_report__store__dismiss_deviation(
     NativePortType port_,
     String report_id,
     int index,
@@ -8415,7 +8493,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String conversation_id,
   );
 
-  external void wire__crate__api__sync__download_update_apk(
+  external void wire__crate__api__sync__handoff__download_update_apk(
     NativePortType port_,
     String relay_url,
     String build_hash,
@@ -8478,7 +8556,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String url,
   );
 
-  external void wire__crate__api__finish_url_input(
+  external void wire__crate__api__records__finish_url_input(
     NativePortType port_,
     String input_id,
     String? wiki_page_slug,
@@ -8491,7 +8569,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny messages,
   );
 
-  external void wire__crate__api__generate_daily_review(
+  external void wire__crate__api__period_stats__generate_daily_review(
     NativePortType port_,
     String date,
   );
@@ -8512,7 +8590,9 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
   );
 
-  external void wire__crate__api__get_analysis_job_stats(NativePortType port_);
+  external void wire__crate__api__review_flow__get_analysis_job_stats(
+    NativePortType port_,
+  );
 
   external void wire__crate__api__chat_runs__get_chat_input_queue(
     NativePortType port_,
@@ -8532,14 +8612,16 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String parent_id,
   );
 
-  external void wire__crate__api__get_companion_prefs(NativePortType port_);
+  external void wire__crate__api__companion_flow__get_companion_prefs(
+    NativePortType port_,
+  );
 
   external void wire__crate__api__conversations__get_conversation(
     NativePortType port_,
     String conversation_id,
   );
 
-  external void wire__crate__api__get_daily_overview(
+  external void wire__crate__api__period_stats__get_daily_overview(
     NativePortType port_,
     String date,
   );
@@ -8554,7 +8636,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String source_slug,
   );
 
-  external void wire__crate__api__get_event_analysis_detail(
+  external void wire__crate__api__review_flow__get_event_analysis_detail(
     NativePortType port_,
     String event_id,
   );
@@ -8589,7 +8671,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String conversation_id,
   );
 
-  external void wire__crate__api__sync__get_local_sync_state(
+  external void wire__crate__api__sync__invite__get_local_sync_state(
     NativePortType port_,
   );
 
@@ -8603,7 +8685,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String message_id,
   );
 
-  external void wire__crate__api__get_message_recordability(
+  external void wire__crate__api__review_flow__get_message_recordability(
     NativePortType port_,
     String message_id,
   );
@@ -8612,13 +8694,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
   );
 
-  external void wire__crate__api__get_period_stats(
+  external void wire__crate__api__period_stats__get_period_stats(
     NativePortType port_,
     String period_type,
     String date,
   );
 
-  external void wire__crate__api__sync__get_processor_handoff_state(
+  external void wire__crate__api__sync__datasets__get_processor_handoff_state(
     NativePortType port_,
   );
 
@@ -8631,12 +8713,14 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String message_id,
   );
 
-  external void wire__crate__api__sync__get_sync_join_state(
+  external void wire__crate__api__sync__join__get_sync_join_state(
     NativePortType port_,
     String operation_id,
   );
 
-  external void wire__crate__api__sync__get_sync_roster(NativePortType port_);
+  external void wire__crate__api__sync__datasets__get_sync_roster(
+    NativePortType port_,
+  );
 
   external void wire__crate__api__theme__get_theme_prefs(NativePortType port_);
 
@@ -8668,17 +8752,17 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String url,
   );
 
-  external void wire__crate__api__init_bridge(
+  external void wire__crate__api__records__init_bridge(
     NativePortType port_,
     String? database_path,
   );
 
-  external void wire__crate__api__sync__inspect_owner_sync_invitation(
+  external void wire__crate__api__sync__invite__inspect_owner_sync_invitation(
     NativePortType port_,
     String invitation_id,
   );
 
-  external void wire__crate__api__sync__inspect_sync_join_approval(
+  external void wire__crate__api__sync__join__inspect_sync_join_approval(
     NativePortType port_,
     String operation_id,
   );
@@ -8698,14 +8782,14 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String zip_path,
   );
 
-  external void wire__crate__api__sync__install_sync_join_key(
+  external void wire__crate__api__sync__join__install_sync_join_key(
     NativePortType port_,
     String token,
     JSAny key,
     JSAny protected_revision,
   );
 
-  external void wire__crate__api__sync__install_sync_key(
+  external void wire__crate__api__sync__invite__install_sync_key(
     NativePortType port_,
     String token,
     JSAny key,
@@ -8730,7 +8814,9 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
   );
 
-  external void wire__crate__api__list_analyses(NativePortType port_);
+  external void wire__crate__api__review_flow__list_analyses(
+    NativePortType port_,
+  );
 
   external void wire__crate__api__conversations__list_archived_conversations(
     NativePortType port_,
@@ -8779,12 +8865,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
   );
 
-  external void wire__crate__api__list_daily_entries(
+  external void wire__crate__api__records__list_daily_entries(
     NativePortType port_,
     String date,
   );
 
-  external void wire__crate__api__review_report__list_deviation_reports(
+  external void wire__crate__api__review_report__store__list_deviation_reports(
     NativePortType port_,
     String period_type,
     int limit,
@@ -8802,14 +8888,18 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String entity_slug,
   );
 
-  external void wire__crate__api__list_event_emotions(NativePortType port_);
+  external void wire__crate__api__companion_flow__list_event_emotions(
+    NativePortType port_,
+  );
 
   external void wire__crate__api__rules__list_event_rule_hits(
     NativePortType port_,
     String event_id,
   );
 
-  external void wire__crate__api__list_events(NativePortType port_);
+  external void wire__crate__api__review_flow__list_events(
+    NativePortType port_,
+  );
 
   external void wire__crate__api__knowledge__list_knowledge_background_runs(
     NativePortType port_,
@@ -8873,11 +8963,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String conversation_id,
   );
 
-  external void wire__crate__api__sync__list_object_conflicts(
+  external void wire__crate__api__sync__conflicts__list_object_conflicts(
     NativePortType port_,
   );
 
-  external void wire__crate__api__list_page_guidance(
+  external void wire__crate__api__companion_flow__list_page_guidance(
     NativePortType port_,
     String slug,
   );
@@ -8892,7 +8982,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String conversation_id,
   );
 
-  external void wire__crate__api__sync__list_pending_sync_joins(
+  external void wire__crate__api__sync__join__list_pending_sync_joins(
     NativePortType port_,
   );
 
@@ -8901,7 +8991,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny limit,
   );
 
-  external void wire__crate__api__list_recent_events(
+  external void wire__crate__api__review_flow__list_recent_events(
     NativePortType port_,
     JSAny days,
     JSAny limit,
@@ -8927,15 +9017,15 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__rules__list_rules(NativePortType port_);
 
-  external void wire__crate__api__sync__list_sync_datasets(
+  external void wire__crate__api__sync__datasets__list_sync_datasets(
     NativePortType port_,
   );
 
-  external void wire__crate__api__sync__list_sync_enrollments(
+  external void wire__crate__api__sync__join__list_sync_enrollments(
     NativePortType port_,
   );
 
-  external void wire__crate__api__sync__list_sync_provider_conflicts(
+  external void wire__crate__api__sync__datasets__list_sync_provider_conflicts(
     NativePortType port_,
   );
 
@@ -8964,7 +9054,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
   );
 
-  external void wire__crate__api__sync__list_wiki_page_conflicts(
+  external void wire__crate__api__sync__conflicts__list_wiki_page_conflicts(
     NativePortType port_,
   );
 
@@ -8984,9 +9074,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? area,
   );
 
-  external void wire__crate__api__sync__lock_local_sync(NativePortType port_);
+  external void wire__crate__api__sync__invite__lock_local_sync(
+    NativePortType port_,
+  );
 
-  external void wire__crate__api__review_report__mark_deviation_report_read(
+  external void
+  wire__crate__api__review_report__store__mark_deviation_report_read(
     NativePortType port_,
     String id,
   );
@@ -9030,7 +9123,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny snapshot_ids,
   );
 
-  external void wire__crate__api__sync__prepare_sync_join_key(
+  external void wire__crate__api__sync__join__prepare_sync_join_key(
     NativePortType port_,
     String preview_token,
     String name,
@@ -9038,12 +9131,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     bool acknowledge_provider_key_sharing,
   );
 
-  external void wire__crate__api__sync__prepare_sync_join_resume(
+  external void wire__crate__api__sync__join__prepare_sync_join_resume(
     NativePortType port_,
     String entry_id,
   );
 
-  external void wire__crate__api__sync__prepare_sync_key_request(
+  external void wire__crate__api__sync__invite__prepare_sync_key_request(
     NativePortType port_,
     String? name,
     String? platform,
@@ -9062,7 +9155,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String content_md,
   );
 
-  external void wire__crate__api__sync__preview_sync_join(
+  external void wire__crate__api__sync__join__preview_sync_join(
     NativePortType port_,
     String invitation_code,
   );
@@ -9084,7 +9177,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? revision_id,
   );
 
-  external void wire__crate__api__reanalyze_event(
+  external void wire__crate__api__review_flow__reanalyze_event(
     NativePortType port_,
     String event_id,
   );
@@ -9094,7 +9187,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String slug,
   );
 
-  external void wire__crate__api__record_event(
+  external void wire__crate__api__records__record_event(
     NativePortType port_,
     String raw_text,
   );
@@ -9104,12 +9197,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String slug,
   );
 
-  external void wire__crate__api__sync__release_sync_join(
+  external void wire__crate__api__sync__join__release_sync_join(
     NativePortType port_,
     String operation_id,
   );
 
-  external void wire__crate__api__sync__release_sync_key_request(
+  external void wire__crate__api__sync__invite__release_sync_key_request(
     NativePortType port_,
     String token,
   );
@@ -9126,7 +9219,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String title,
   );
 
-  external void wire__crate__api__sync__rename_sync_device(
+  external void wire__crate__api__sync__datasets__rename_sync_device(
     NativePortType port_,
     String device_id,
     String new_name,
@@ -9154,14 +9247,15 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     bool accept,
   );
 
-  external void wire__crate__api__sync__resolve_object_conflict(
+  external void wire__crate__api__sync__conflicts__resolve_object_conflict(
     NativePortType port_,
     String op_id,
     String? expected_local_updated_at,
     bool accept_remote,
   );
 
-  external void wire__crate__api__sync__resolve_sync_provider_conflict(
+  external void
+  wire__crate__api__sync__datasets__resolve_sync_provider_conflict(
     NativePortType port_,
     String revision_id,
     String expected_local_revision,
@@ -9175,7 +9269,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     bool accept,
   );
 
-  external void wire__crate__api__sync__resolve_wiki_page_conflict(
+  external void wire__crate__api__sync__conflicts__resolve_wiki_page_conflict(
     NativePortType port_,
     String op_id,
     String? expected_local_updated_at,
@@ -9187,7 +9281,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String conversation_id,
   );
 
-  external void wire__crate__api__sync__revoke_sync_member(
+  external void wire__crate__api__sync__datasets__revoke_sync_member(
     NativePortType port_,
     String device_id,
     JSAny expected_revision,
@@ -9198,7 +9292,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny provider,
   );
 
-  external void wire__crate__api__save_daily_review(
+  external void wire__crate__api__period_stats__save_daily_review(
     NativePortType port_,
     String date,
     String result_json,
@@ -9292,12 +9386,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String input_message_id,
   );
 
-  external void wire__crate__api__sync__select_default_sync_dataset(
+  external void wire__crate__api__sync__datasets__select_default_sync_dataset(
     NativePortType port_,
     JSAny expected_catalog_revision,
   );
 
-  external void wire__crate__api__sync__select_sync_dataset(
+  external void wire__crate__api__sync__datasets__select_sync_dataset(
     NativePortType port_,
     String entry_id,
   );
@@ -9310,17 +9404,17 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? parent_message_id,
   );
 
-  external void wire__crate__api__sync__send_owner_sync_approval(
+  external void wire__crate__api__sync__invite__send_owner_sync_approval(
     NativePortType port_,
     String invitation_id,
   );
 
-  external void wire__crate__api__sync__send_sync_join_proof(
+  external void wire__crate__api__sync__join__send_sync_join_proof(
     NativePortType port_,
     String operation_id,
   );
 
-  external void wire__crate__api__sync__send_sync_join_request(
+  external void wire__crate__api__sync__join__send_sync_join_request(
     NativePortType port_,
     String operation_id,
   );
@@ -9332,7 +9426,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? revision_token,
   );
 
-  external void wire__crate__api__set_companion_prefs(
+  external void wire__crate__api__companion_flow__set_companion_prefs(
     NativePortType port_,
     bool enabled,
     JSAny interval_days,
@@ -9344,13 +9438,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     bool archived,
   );
 
-  external void wire__crate__api__set_event_recordability(
+  external void wire__crate__api__review_flow__set_event_recordability(
     NativePortType port_,
     String event_id,
     bool recordable,
   );
 
-  external void wire__crate__api__set_guidance_feedback(
+  external void wire__crate__api__companion_flow__set_guidance_feedback(
     NativePortType port_,
     String analysis_id,
     String slug,
@@ -9449,14 +9543,14 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String idempotency_key,
   );
 
-  external void wire__crate__api__submit_conversation_input(
+  external void wire__crate__api__records__submit_conversation_input(
     NativePortType port_,
     String conversation_id,
     String raw_text,
     String? idempotency_key,
   );
 
-  external void wire__crate__api__submit_input(
+  external void wire__crate__api__records__submit_input(
     NativePortType port_,
     String raw_text,
     String source,
@@ -9490,7 +9584,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
   );
 
-  external void wire__crate__api__review_report__tick_periodic_reports(
+  external void wire__crate__api__review_report__detect__tick_periodic_reports(
     NativePortType port_,
   );
 
@@ -9501,13 +9595,15 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny offset,
   );
 
-  external void wire__crate__api__trigger_analysis(NativePortType port_);
+  external void wire__crate__api__review_flow__trigger_analysis(
+    NativePortType port_,
+  );
 
   external void wire__crate__api__knowledge_digest__trigger_knowledge_digest(
     NativePortType port_,
   );
 
-  external void wire__crate__api__sync__trigger_network_sync(
+  external void wire__crate__api__sync__join__trigger_network_sync(
     NativePortType port_,
   );
 
@@ -9613,7 +9709,7 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny queue_id,
   );
 
-  external void wire__crate__api__sync__yield_sync_processor(
+  external void wire__crate__api__sync__datasets__yield_sync_processor(
     NativePortType port_,
     String to_device_id,
   );

@@ -3,41 +3,35 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
-import '../api.dart';
-import '../frb_generated.dart';
+import '../../frb_generated.dart';
+import '../period_stats.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
-import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
-part 'review_report.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `active_goal_snapshots`, `build_deviation_prompt`, `build_period_report`, `bump`, `detect_backoff`, `detect_deviation`, `due_reports`, `finish_run`, `fmt_date`, `fold_eq`, `gate_is_passed`, `into_named`, `latest_complete_month`, `latest_complete_week`, `preview`, `ready`, `report_dto`, `report_window`, `reset`, `start_run`, `strip_code_fence`, `top_groups`, `validate_deviation_candidates`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DetectBackoff`, `DeviationCandidate`, `PeriodReport`, `ReportGoalSnapshot`, `ReportStats`, `StoredDeviation`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
-
-/// 后台 worker 调用。错误语义：
-/// - 存储/guard 失败：上抛（与知识消化 tick 相同，调用方记日志）。
-/// - AI/校验失败：不抛——返回 `DetectFailed`，报告仍可读，退避后重试。
-Future<PeriodReportTickResult> tickPeriodicReports() =>
-    RustLib.instance.api.crateApiReviewReportTickPeriodicReports();
+// These functions are ignored because they are not marked as `pub`: `into_named`, `report_dto`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `StoredDeviation`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`
 
 /// 报告列表（最新在前，支持历史回看）。`period_type` 空 = 全部；
 /// `limit <= 0` 时按 20 封顶。损坏的 JSON fail-closed 报错（不静默丢）。
 Future<List<DeviationReportDto>> listDeviationReports({
   required String periodType,
   required int limit,
-}) => RustLib.instance.api.crateApiReviewReportListDeviationReports(
+}) => RustLib.instance.api.crateApiReviewReportStoreListDeviationReports(
   periodType: periodType,
   limit: limit,
 );
 
 /// 标记已读（幂等：首次的 read_at 保留，重复标记不覆盖）。
-Future<void> markDeviationReportRead({required String id}) =>
-    RustLib.instance.api.crateApiReviewReportMarkDeviationReportRead(id: id);
+Future<void> markDeviationReportRead({required String id}) => RustLib
+    .instance
+    .api
+    .crateApiReviewReportStoreMarkDeviationReportRead(id: id);
 
 /// 忽略单条偏差：置 dismissed=true（审计轨迹，不删除条目），并把报告
 /// 置为已读（消除未读提示；裁决 Q1：忽略后不再提醒，但记录保留）。
 Future<void> dismissDeviation({required String reportId, required int index}) =>
-    RustLib.instance.api.crateApiReviewReportDismissDeviation(
+    RustLib.instance.api.crateApiReviewReportStoreDismissDeviation(
       reportId: reportId,
       index: index,
     );
@@ -154,34 +148,4 @@ class DeviationReportDto {
           byProject == other.byProject &&
           byActivity == other.byActivity &&
           deviations == other.deviations;
-}
-
-@freezed
-sealed class PeriodReportTickResult with _$PeriodReportTickResult {
-  const PeriodReportTickResult._();
-
-  /// 未配置 AI provider：报告仍会生成，检测等待（静默重试）
-  const factory PeriodReportTickResult.noProvider() =
-      PeriodReportTickResult_NoProvider;
-
-  /// 无事可做（报告齐、无待检测，或检测退避未到期）
-  const factory PeriodReportTickResult.idle() = PeriodReportTickResult_Idle;
-
-  /// 新建了报告（检测由同 tick 或后续 tick 接续）
-  const factory PeriodReportTickResult.generated({
-    required String period,
-    required String periodType,
-  }) = PeriodReportTickResult_Generated;
-
-  /// 完成一次检测：deviations 为最终（去重后）条数
-  const factory PeriodReportTickResult.detected({
-    required String reportId,
-    required BigInt deviations,
-  }) = PeriodReportTickResult_Detected;
-
-  /// 检测失败（已记账，退避后重试）
-  const factory PeriodReportTickResult.detectFailed({
-    required String reportId,
-    required String error,
-  }) = PeriodReportTickResult_DetectFailed;
 }

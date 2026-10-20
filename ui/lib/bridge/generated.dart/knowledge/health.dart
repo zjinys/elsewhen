@@ -3,64 +3,9 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
-import 'frb_generated.dart';
+import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
-
-class KnowledgeCitation {
-  final String pageSlug;
-  final String contentHash;
-  final String title;
-  final String excerpt;
-  final String reason;
-  final String applicableWhen;
-  final String strength;
-  final String category;
-  final List<SourceReference> sources;
-  final List<String> eventIds;
-
-  const KnowledgeCitation({
-    required this.pageSlug,
-    required this.contentHash,
-    required this.title,
-    required this.excerpt,
-    required this.reason,
-    required this.applicableWhen,
-    required this.strength,
-    required this.category,
-    required this.sources,
-    required this.eventIds,
-  });
-
-  @override
-  int get hashCode =>
-      pageSlug.hashCode ^
-      contentHash.hashCode ^
-      title.hashCode ^
-      excerpt.hashCode ^
-      reason.hashCode ^
-      applicableWhen.hashCode ^
-      strength.hashCode ^
-      category.hashCode ^
-      sources.hashCode ^
-      eventIds.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is KnowledgeCitation &&
-          runtimeType == other.runtimeType &&
-          pageSlug == other.pageSlug &&
-          contentHash == other.contentHash &&
-          title == other.title &&
-          excerpt == other.excerpt &&
-          reason == other.reason &&
-          applicableWhen == other.applicableWhen &&
-          strength == other.strength &&
-          category == other.category &&
-          sources == other.sources &&
-          eventIds == other.eventIds;
-}
 
 /// 知识系统健康巡检（2026-10-19 事故的教训：坏的环节在静默坏，
 /// 因为没人看仪表盘）。每个环节一个比率/计数，异动即定位。
@@ -175,35 +120,4 @@ class KnowledgeHealthReport {
           lastSummaryError == other.lastSummaryError &&
           pagesIncubating == other.pagesIncubating &&
           negativeSources == other.negativeSources;
-}
-
-class SourceReference {
-  final String snapshotId;
-  final String title;
-  final String? locator;
-  final PlatformInt64 version;
-
-  const SourceReference({
-    required this.snapshotId,
-    required this.title,
-    this.locator,
-    required this.version,
-  });
-
-  @override
-  int get hashCode =>
-      snapshotId.hashCode ^
-      title.hashCode ^
-      locator.hashCode ^
-      version.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is SourceReference &&
-          runtimeType == other.runtimeType &&
-          snapshotId == other.snapshotId &&
-          title == other.title &&
-          locator == other.locator &&
-          version == other.version;
 }

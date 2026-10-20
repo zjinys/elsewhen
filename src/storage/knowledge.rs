@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 /// 「已否定」列表的行（负知识一等公民，提案 2026-10-19）：身份 + 否定
 /// 原因；title/slug 来自共享该 identity 的首个页面，仅为展示面。
-mod core;
+pub mod core;
 mod issues;
 mod proposals;
 mod sources;

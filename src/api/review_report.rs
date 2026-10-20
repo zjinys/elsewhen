@@ -34,10 +34,10 @@ const DETECT_BACKOFF_MAX_MS: i64 = 60 * 60 * 1000;
 // ── 窗口计算 ─────────────────────────────────────────────────────────
 
 /// 报告窗口：period = 周期末日（周=周日、月=月末），本地日界含两端。
-mod build;
-mod detect;
-mod schedule;
-mod store;
+pub mod build;
+pub mod detect;
+pub mod schedule;
+pub mod store;
 
 #[cfg(test)]
 pub(crate) use build::ReportGoalSnapshot;

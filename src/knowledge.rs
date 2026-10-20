@@ -16,9 +16,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 mod bind;
-mod health;
+pub mod health;
 mod propose;
-mod select;
+pub mod select;
 
 pub use bind::{
     bound_model_context, candidates_in_context, latest_citations, record_usage, tool_context,

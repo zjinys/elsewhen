@@ -4,12 +4,13 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
-import '../knowledge.dart';
+import '../knowledge/health.dart';
 import '../knowledge/maintenance.dart';
 import '../knowledge/organization.dart';
 import '../knowledge/queue.dart';
 import '../knowledge/review.dart';
-import '../storage/knowledge.dart';
+import '../knowledge/select.dart';
+import '../storage/knowledge/core.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 

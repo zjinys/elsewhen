@@ -3,7 +3,7 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
-import '../frb_generated.dart';
+import '../../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
@@ -136,8 +136,6 @@ class KnowledgeProposal {
           createdAt == other.createdAt;
 }
 
-/// 「已否定」列表的行（负知识一等公民，提案 2026-10-19）：身份 + 否定
-/// 原因；title/slug 来自共享该 identity 的首个页面，仅为展示面。
 class RejectedSourceRow {
   final String? slug;
   final String? title;

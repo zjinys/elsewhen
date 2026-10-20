@@ -17,11 +17,11 @@ use anyhow::{Context, Result, ensure};
 use rusqlite::OptionalExtension;
 use std::path::Path;
 
-mod conflicts;
-mod datasets;
-mod handoff;
-mod invite;
-mod join;
+pub mod conflicts;
+pub mod datasets;
+pub mod handoff;
+pub mod invite;
+pub mod join;
 
 pub use conflicts::{
     AppUpdateDto, ObjectConflictDto, list_object_conflicts, list_wiki_page_conflicts,

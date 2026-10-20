@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1317381667;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -2127953653;
 
 // Section: executor
 
@@ -234,7 +234,7 @@ fn wire__crate__api__knowledge_workflows__adopt_artifact_version_impl(
         },
     )
 }
-fn wire__crate__api__sync__advance_sync_enrollment_impl(
+fn wire__crate__api__sync__join__advance_sync_enrollment_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     role: impl CstDecode<String>,
     operation_id: impl CstDecode<String>,
@@ -253,7 +253,7 @@ fn wire__crate__api__sync__advance_sync_enrollment_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::advance_sync_enrollment(
+                        let output_ok = crate::api::sync::join::advance_sync_enrollment(
                             api_role,
                             api_operation_id,
                             api_invitation_id,
@@ -296,7 +296,7 @@ fn wire__crate__api__wiki__append_wiki_page_content_impl(
         },
     )
 }
-fn wire__crate__api__sync__approve_owner_sync_invitation_impl(
+fn wire__crate__api__sync__invite__approve_owner_sync_invitation_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     invitation_id: impl CstDecode<String>,
     preview_token: impl CstDecode<String>,
@@ -316,7 +316,7 @@ fn wire__crate__api__sync__approve_owner_sync_invitation_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::approve_owner_sync_invitation(
+                        let output_ok = crate::api::sync::invite::approve_owner_sync_invitation(
                             api_invitation_id,
                             api_preview_token,
                             api_acknowledge_provider_key_sharing,
@@ -328,9 +328,9 @@ fn wire__crate__api__sync__approve_owner_sync_invitation_impl(
         },
     )
 }
-fn wire__crate__api__sync__approve_processor_handoff_impl(
+fn wire__crate__api__sync__datasets__approve_processor_handoff_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
-    proof: impl CstDecode<crate::api::sync::ProcessingYieldProofDto>,
+    proof: impl CstDecode<crate::api::sync::invite::ProcessingYieldProofDto>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -343,7 +343,8 @@ fn wire__crate__api__sync__approve_processor_handoff_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::approve_processor_handoff(api_proof)?;
+                        let output_ok =
+                            crate::api::sync::datasets::approve_processor_handoff(api_proof)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -421,7 +422,7 @@ fn wire__crate__api__provider_reachability__assess_base_url_impl(
         },
     )
 }
-fn wire__crate__api__begin_url_input_impl(
+fn wire__crate__api__records__begin_url_input_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     raw_text: impl CstDecode<String>,
     idempotency_key: impl CstDecode<Option<String>>,
@@ -438,8 +439,10 @@ fn wire__crate__api__begin_url_input_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok =
-                            crate::api::begin_url_input(api_raw_text, api_idempotency_key)?;
+                        let output_ok = crate::api::records::begin_url_input(
+                            api_raw_text,
+                            api_idempotency_key,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -482,7 +485,9 @@ fn wire__crate__api__knowledge_workflows__browse_knowledge_impl(
         },
     )
 }
-fn wire__crate__api__build_hash_impl(port_: flutter_rust_bridge::for_generated::MessagePort) {
+fn wire__crate__api__review_flow__build_hash_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "build_hash",
@@ -492,14 +497,16 @@ fn wire__crate__api__build_hash_impl(port_: flutter_rust_bridge::for_generated::
         move || {
             move |context| {
                 transform_result_dco::<_, _, ()>((move || {
-                    let output_ok = Ok::<_, ()>(crate::api::build_hash())?;
+                    let output_ok = Ok::<_, ()>(crate::api::review_flow::build_hash())?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
         },
     )
 }
-fn wire__crate__api__sync__build_seq_impl(port_: flutter_rust_bridge::for_generated::MessagePort) {
+fn wire__crate__api__sync__handoff__build_seq_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "build_seq",
@@ -509,7 +516,7 @@ fn wire__crate__api__sync__build_seq_impl(port_: flutter_rust_bridge::for_genera
         move || {
             move |context| {
                 transform_result_dco::<_, _, ()>((move || {
-                    let output_ok = Ok::<_, ()>(crate::api::sync::build_seq())?;
+                    let output_ok = Ok::<_, ()>(crate::api::sync::handoff::build_seq())?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -544,7 +551,7 @@ fn wire__crate__api__chat_runs__cancel_chat_run_impl(
         },
     )
 }
-fn wire__crate__api__sync__cancel_owner_sync_invitation_impl(
+fn wire__crate__api__sync__invite__cancel_owner_sync_invitation_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     invitation_id: impl CstDecode<String>,
 ) {
@@ -559,8 +566,9 @@ fn wire__crate__api__sync__cancel_owner_sync_invitation_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok =
-                            crate::api::sync::cancel_owner_sync_invitation(api_invitation_id)?;
+                        let output_ok = crate::api::sync::invite::cancel_owner_sync_invitation(
+                            api_invitation_id,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -568,7 +576,7 @@ fn wire__crate__api__sync__cancel_owner_sync_invitation_impl(
         },
     )
 }
-fn wire__crate__api__sync__check_app_update_impl(
+fn wire__crate__api__sync__handoff__check_app_update_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     relay_url: impl CstDecode<String>,
 ) {
@@ -583,7 +591,7 @@ fn wire__crate__api__sync__check_app_update_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::check_app_update(api_relay_url)?;
+                        let output_ok = crate::api::sync::handoff::check_app_update(api_relay_url)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -591,7 +599,7 @@ fn wire__crate__api__sync__check_app_update_impl(
         },
     )
 }
-fn wire__crate__api__check_companion_revisit_impl(
+fn wire__crate__api__companion_flow__check_companion_revisit_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -604,7 +612,7 @@ fn wire__crate__api__check_companion_revisit_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::check_companion_revisit()?;
+                        let output_ok = crate::api::companion_flow::check_companion_revisit()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -714,7 +722,7 @@ fn wire__crate__api__knowledge__confirm_knowledge_source_impl(
         },
     )
 }
-fn wire__crate__api__sync__confirm_processor_takeover_impl(
+fn wire__crate__api__sync__datasets__confirm_processor_takeover_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -727,7 +735,7 @@ fn wire__crate__api__sync__confirm_processor_takeover_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::confirm_processor_takeover()?;
+                        let output_ok = crate::api::sync::datasets::confirm_processor_takeover()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -761,7 +769,7 @@ fn wire__crate__api__todos__confirm_reminder_impl(
         },
     )
 }
-fn wire__crate__api__sync__confirm_sync_enrollment_impl(
+fn wire__crate__api__sync__join__confirm_sync_enrollment_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     role: impl CstDecode<String>,
     operation_id: impl CstDecode<String>,
@@ -784,7 +792,7 @@ fn wire__crate__api__sync__confirm_sync_enrollment_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::confirm_sync_enrollment(
+                        let output_ok = crate::api::sync::join::confirm_sync_enrollment(
                             api_role,
                             api_operation_id,
                             api_invitation_id,
@@ -798,7 +806,7 @@ fn wire__crate__api__sync__confirm_sync_enrollment_impl(
         },
     )
 }
-fn wire__crate__api__sync__confirm_sync_join_key_impl(
+fn wire__crate__api__sync__join__confirm_sync_join_key_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     token: impl CstDecode<String>,
     protected_revision: impl CstDecode<i64>,
@@ -815,7 +823,7 @@ fn wire__crate__api__sync__confirm_sync_join_key_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::confirm_sync_join_key(
+                        let output_ok = crate::api::sync::join::confirm_sync_join_key(
                             api_token,
                             api_protected_revision,
                         )?;
@@ -826,7 +834,7 @@ fn wire__crate__api__sync__confirm_sync_join_key_impl(
         },
     )
 }
-fn wire__crate__api__sync__confirm_sync_key_impl(
+fn wire__crate__api__sync__invite__confirm_sync_key_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     token: impl CstDecode<String>,
     protected_revision: impl CstDecode<i64>,
@@ -843,8 +851,10 @@ fn wire__crate__api__sync__confirm_sync_key_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok =
-                            crate::api::sync::confirm_sync_key(api_token, api_protected_revision)?;
+                        let output_ok = crate::api::sync::invite::confirm_sync_key(
+                            api_token,
+                            api_protected_revision,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -938,7 +948,7 @@ fn wire__crate__api__goals__create_goal_impl(
         },
     )
 }
-fn wire__crate__api__sync__create_owner_sync_invitation_impl(
+fn wire__crate__api__sync__invite__create_owner_sync_invitation_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     relay_url: impl CstDecode<String>,
     acknowledge_provider_key_sharing: impl CstDecode<bool>,
@@ -956,7 +966,7 @@ fn wire__crate__api__sync__create_owner_sync_invitation_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::create_owner_sync_invitation(
+                        let output_ok = crate::api::sync::invite::create_owner_sync_invitation(
                             api_relay_url,
                             api_acknowledge_provider_key_sharing,
                         )?;
@@ -1290,7 +1300,7 @@ fn wire__crate__api__entities__delete_entity_fact_impl(
         },
     )
 }
-fn wire__crate__api__delete_event_emotion_impl(
+fn wire__crate__api__companion_flow__delete_event_emotion_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     id: impl CstDecode<String>,
     target: impl CstDecode<Option<String>>,
@@ -1309,8 +1319,11 @@ fn wire__crate__api__delete_event_emotion_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok =
-                            crate::api::delete_event_emotion(api_id, api_target, api_feeling)?;
+                        let output_ok = crate::api::companion_flow::delete_event_emotion(
+                            api_id,
+                            api_target,
+                            api_feeling,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1433,7 +1446,7 @@ fn wire__crate__api__wiki__delete_wiki_page_impl(
         },
     )
 }
-fn wire__crate__api__sync__discard_sync_join_staging_impl(
+fn wire__crate__api__sync__join__discard_sync_join_staging_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     entry_id: impl CstDecode<String>,
 ) {
@@ -1448,7 +1461,8 @@ fn wire__crate__api__sync__discard_sync_join_staging_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::discard_sync_join_staging(api_entry_id)?;
+                        let output_ok =
+                            crate::api::sync::join::discard_sync_join_staging(api_entry_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1456,7 +1470,7 @@ fn wire__crate__api__sync__discard_sync_join_staging_impl(
         },
     )
 }
-fn wire__crate__api__review_report__dismiss_deviation_impl(
+fn wire__crate__api__review_report__store__dismiss_deviation_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     report_id: impl CstDecode<String>,
     index: impl CstDecode<i32>,
@@ -1473,8 +1487,10 @@ fn wire__crate__api__review_report__dismiss_deviation_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok =
-                            crate::api::review_report::dismiss_deviation(api_report_id, api_index)?;
+                        let output_ok = crate::api::review_report::store::dismiss_deviation(
+                            api_report_id,
+                            api_index,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1530,7 +1546,7 @@ fn wire__crate__api__chat_runs__dispatch_chat_input_queue_impl(
         },
     )
 }
-fn wire__crate__api__sync__download_update_apk_impl(
+fn wire__crate__api__sync__handoff__download_update_apk_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     relay_url: impl CstDecode<String>,
     build_hash: impl CstDecode<String>,
@@ -1553,7 +1569,7 @@ fn wire__crate__api__sync__download_update_apk_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::download_update_apk(
+                        let output_ok = crate::api::sync::handoff::download_update_apk(
                             api_relay_url,
                             api_build_hash,
                             api_apk_sha256,
@@ -1817,7 +1833,7 @@ fn wire__crate__api__tweet__find_tweet_source_page_impl(
         },
     )
 }
-fn wire__crate__api__finish_url_input_impl(
+fn wire__crate__api__records__finish_url_input_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     input_id: impl CstDecode<String>,
     wiki_page_slug: impl CstDecode<Option<String>>,
@@ -1836,7 +1852,7 @@ fn wire__crate__api__finish_url_input_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::finish_url_input(
+                        let output_ok = crate::api::records::finish_url_input(
                             api_input_id,
                             api_wiki_page_slug,
                             api_failed,
@@ -1874,7 +1890,7 @@ fn wire__crate__api__tweet__generate_content_chat_impl(
         },
     )
 }
-fn wire__crate__api__generate_daily_review_impl(
+fn wire__crate__api__period_stats__generate_daily_review_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     date: impl CstDecode<String>,
 ) {
@@ -1889,7 +1905,7 @@ fn wire__crate__api__generate_daily_review_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::generate_daily_review(api_date)?;
+                        let output_ok = crate::api::period_stats::generate_daily_review(api_date)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1973,7 +1989,7 @@ fn wire__crate__api__provider_config__get_ai_provider_config_impl(
         },
     )
 }
-fn wire__crate__api__get_analysis_job_stats_impl(
+fn wire__crate__api__review_flow__get_analysis_job_stats_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -1986,7 +2002,7 @@ fn wire__crate__api__get_analysis_job_stats_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::get_analysis_job_stats()?;
+                        let output_ok = crate::api::review_flow::get_analysis_job_stats()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2075,7 +2091,7 @@ fn wire__crate__api__conversations__get_child_messages_impl(
         },
     )
 }
-fn wire__crate__api__get_companion_prefs_impl(
+fn wire__crate__api__companion_flow__get_companion_prefs_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -2088,7 +2104,7 @@ fn wire__crate__api__get_companion_prefs_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::get_companion_prefs()?;
+                        let output_ok = crate::api::companion_flow::get_companion_prefs()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2120,7 +2136,7 @@ fn wire__crate__api__conversations__get_conversation_impl(
         },
     )
 }
-fn wire__crate__api__get_daily_overview_impl(
+fn wire__crate__api__period_stats__get_daily_overview_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     date: impl CstDecode<String>,
 ) {
@@ -2135,7 +2151,7 @@ fn wire__crate__api__get_daily_overview_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::get_daily_overview(api_date)?;
+                        let output_ok = crate::api::period_stats::get_daily_overview(api_date)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2190,7 +2206,7 @@ fn wire__crate__api__entities__get_entity_merge_status_impl(
         },
     )
 }
-fn wire__crate__api__get_event_analysis_detail_impl(
+fn wire__crate__api__review_flow__get_event_analysis_detail_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     event_id: impl CstDecode<String>,
 ) {
@@ -2205,7 +2221,8 @@ fn wire__crate__api__get_event_analysis_detail_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::get_event_analysis_detail(api_event_id)?;
+                        let output_ok =
+                            crate::api::review_flow::get_event_analysis_detail(api_event_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2355,7 +2372,7 @@ fn wire__crate__api__chat_runs__get_latest_chat_run_impl(
         },
     )
 }
-fn wire__crate__api__sync__get_local_sync_state_impl(
+fn wire__crate__api__sync__invite__get_local_sync_state_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -2368,7 +2385,7 @@ fn wire__crate__api__sync__get_local_sync_state_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::get_local_sync_state()?;
+                        let output_ok = crate::api::sync::invite::get_local_sync_state()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2424,7 +2441,7 @@ fn wire__crate__api__knowledge__get_message_knowledge_citations_impl(
         },
     )
 }
-fn wire__crate__api__get_message_recordability_impl(
+fn wire__crate__api__review_flow__get_message_recordability_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     message_id: impl CstDecode<String>,
 ) {
@@ -2439,7 +2456,8 @@ fn wire__crate__api__get_message_recordability_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::get_message_recordability(api_message_id)?;
+                        let output_ok =
+                            crate::api::review_flow::get_message_recordability(api_message_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2468,7 +2486,7 @@ fn wire__crate__api__web_search__get_network_settings_impl(
         },
     )
 }
-fn wire__crate__api__get_period_stats_impl(
+fn wire__crate__api__period_stats__get_period_stats_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     period_type: impl CstDecode<String>,
     date: impl CstDecode<String>,
@@ -2485,7 +2503,8 @@ fn wire__crate__api__get_period_stats_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::get_period_stats(api_period_type, api_date)?;
+                        let output_ok =
+                            crate::api::period_stats::get_period_stats(api_period_type, api_date)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2493,7 +2512,7 @@ fn wire__crate__api__get_period_stats_impl(
         },
     )
 }
-fn wire__crate__api__sync__get_processor_handoff_state_impl(
+fn wire__crate__api__sync__datasets__get_processor_handoff_state_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -2506,7 +2525,7 @@ fn wire__crate__api__sync__get_processor_handoff_state_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::get_processor_handoff_state()?;
+                        let output_ok = crate::api::sync::datasets::get_processor_handoff_state()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2560,7 +2579,7 @@ fn wire__crate__api__knowledge_workflows__get_suggestion_feedback_impl(
         },
     )
 }
-fn wire__crate__api__sync__get_sync_join_state_impl(
+fn wire__crate__api__sync__join__get_sync_join_state_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     operation_id: impl CstDecode<String>,
 ) {
@@ -2575,7 +2594,8 @@ fn wire__crate__api__sync__get_sync_join_state_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::get_sync_join_state(api_operation_id)?;
+                        let output_ok =
+                            crate::api::sync::join::get_sync_join_state(api_operation_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2583,7 +2603,7 @@ fn wire__crate__api__sync__get_sync_join_state_impl(
         },
     )
 }
-fn wire__crate__api__sync__get_sync_roster_impl(
+fn wire__crate__api__sync__datasets__get_sync_roster_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -2596,7 +2616,7 @@ fn wire__crate__api__sync__get_sync_roster_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::get_sync_roster()?;
+                        let output_ok = crate::api::sync::datasets::get_sync_roster()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2761,7 +2781,7 @@ fn wire__crate__api__tweet__guess_import_kind_impl(
         },
     )
 }
-fn wire__crate__api__init_bridge_impl(
+fn wire__crate__api__records__init_bridge_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     database_path: impl CstDecode<Option<String>>,
 ) {
@@ -2776,7 +2796,7 @@ fn wire__crate__api__init_bridge_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::init_bridge(api_database_path)?;
+                        let output_ok = crate::api::records::init_bridge(api_database_path)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2784,7 +2804,7 @@ fn wire__crate__api__init_bridge_impl(
         },
     )
 }
-fn wire__crate__api__sync__inspect_owner_sync_invitation_impl(
+fn wire__crate__api__sync__invite__inspect_owner_sync_invitation_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     invitation_id: impl CstDecode<String>,
 ) {
@@ -2799,8 +2819,9 @@ fn wire__crate__api__sync__inspect_owner_sync_invitation_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok =
-                            crate::api::sync::inspect_owner_sync_invitation(api_invitation_id)?;
+                        let output_ok = crate::api::sync::invite::inspect_owner_sync_invitation(
+                            api_invitation_id,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2808,7 +2829,7 @@ fn wire__crate__api__sync__inspect_owner_sync_invitation_impl(
         },
     )
 }
-fn wire__crate__api__sync__inspect_sync_join_approval_impl(
+fn wire__crate__api__sync__join__inspect_sync_join_approval_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     operation_id: impl CstDecode<String>,
 ) {
@@ -2824,7 +2845,7 @@ fn wire__crate__api__sync__inspect_sync_join_approval_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok =
-                            crate::api::sync::inspect_sync_join_approval(api_operation_id)?;
+                            crate::api::sync::join::inspect_sync_join_approval(api_operation_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2903,7 +2924,7 @@ fn wire__crate__api__user_skills__install_skill_from_zip_impl(
         },
     )
 }
-fn wire__crate__api__sync__install_sync_join_key_impl(
+fn wire__crate__api__sync__join__install_sync_join_key_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     token: impl CstDecode<String>,
     key: impl CstDecode<Vec<u8>>,
@@ -2922,7 +2943,7 @@ fn wire__crate__api__sync__install_sync_join_key_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::install_sync_join_key(
+                        let output_ok = crate::api::sync::join::install_sync_join_key(
                             api_token,
                             api_key,
                             api_protected_revision,
@@ -2934,7 +2955,7 @@ fn wire__crate__api__sync__install_sync_join_key_impl(
         },
     )
 }
-fn wire__crate__api__sync__install_sync_key_impl(
+fn wire__crate__api__sync__invite__install_sync_key_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     token: impl CstDecode<String>,
     key: impl CstDecode<Vec<u8>>,
@@ -2953,7 +2974,7 @@ fn wire__crate__api__sync__install_sync_key_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::install_sync_key(
+                        let output_ok = crate::api::sync::invite::install_sync_key(
                             api_token,
                             api_key,
                             api_protected_revision,
@@ -3054,7 +3075,9 @@ fn wire__crate__api__provider_config__list_ai_provider_configs_impl(
         },
     )
 }
-fn wire__crate__api__list_analyses_impl(port_: flutter_rust_bridge::for_generated::MessagePort) {
+fn wire__crate__api__review_flow__list_analyses_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "list_analyses",
@@ -3065,7 +3088,7 @@ fn wire__crate__api__list_analyses_impl(port_: flutter_rust_bridge::for_generate
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::list_analyses()?;
+                        let output_ok = crate::api::review_flow::list_analyses()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -3290,7 +3313,7 @@ fn wire__crate__api__conversations__list_conversations_impl(
         },
     )
 }
-fn wire__crate__api__list_daily_entries_impl(
+fn wire__crate__api__records__list_daily_entries_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     date: impl CstDecode<String>,
 ) {
@@ -3305,7 +3328,7 @@ fn wire__crate__api__list_daily_entries_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::list_daily_entries(api_date)?;
+                        let output_ok = crate::api::records::list_daily_entries(api_date)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -3313,7 +3336,7 @@ fn wire__crate__api__list_daily_entries_impl(
         },
     )
 }
-fn wire__crate__api__review_report__list_deviation_reports_impl(
+fn wire__crate__api__review_report__store__list_deviation_reports_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     period_type: impl CstDecode<String>,
     limit: impl CstDecode<i32>,
@@ -3330,7 +3353,7 @@ fn wire__crate__api__review_report__list_deviation_reports_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::review_report::list_deviation_reports(
+                        let output_ok = crate::api::review_report::store::list_deviation_reports(
                             api_period_type,
                             api_limit,
                         )?;
@@ -3397,7 +3420,7 @@ fn wire__crate__api__entities__list_entity_facts_impl(
         },
     )
 }
-fn wire__crate__api__list_event_emotions_impl(
+fn wire__crate__api__companion_flow__list_event_emotions_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -3410,7 +3433,7 @@ fn wire__crate__api__list_event_emotions_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::list_event_emotions()?;
+                        let output_ok = crate::api::companion_flow::list_event_emotions()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -3441,7 +3464,9 @@ fn wire__crate__api__rules__list_event_rule_hits_impl(
         },
     )
 }
-fn wire__crate__api__list_events_impl(port_: flutter_rust_bridge::for_generated::MessagePort) {
+fn wire__crate__api__review_flow__list_events_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "list_events",
@@ -3452,7 +3477,7 @@ fn wire__crate__api__list_events_impl(port_: flutter_rust_bridge::for_generated:
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::list_events()?;
+                        let output_ok = crate::api::review_flow::list_events()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -3767,7 +3792,7 @@ fn wire__crate__api__conversations__list_messages_impl(
         },
     )
 }
-fn wire__crate__api__sync__list_object_conflicts_impl(
+fn wire__crate__api__sync__conflicts__list_object_conflicts_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -3780,7 +3805,7 @@ fn wire__crate__api__sync__list_object_conflicts_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::list_object_conflicts()?;
+                        let output_ok = crate::api::sync::conflicts::list_object_conflicts()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -3788,7 +3813,7 @@ fn wire__crate__api__sync__list_object_conflicts_impl(
         },
     )
 }
-fn wire__crate__api__list_page_guidance_impl(
+fn wire__crate__api__companion_flow__list_page_guidance_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     slug: impl CstDecode<String>,
 ) {
@@ -3803,7 +3828,7 @@ fn wire__crate__api__list_page_guidance_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::list_page_guidance(api_slug)?;
+                        let output_ok = crate::api::companion_flow::list_page_guidance(api_slug)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -3859,7 +3884,7 @@ fn wire__crate__api__conversations__list_pending_actions_impl(
         },
     )
 }
-fn wire__crate__api__sync__list_pending_sync_joins_impl(
+fn wire__crate__api__sync__join__list_pending_sync_joins_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -3872,7 +3897,7 @@ fn wire__crate__api__sync__list_pending_sync_joins_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::list_pending_sync_joins()?;
+                        let output_ok = crate::api::sync::join::list_pending_sync_joins()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -3903,7 +3928,7 @@ fn wire__crate__api__rules__list_recent_chat_rule_hits_impl(
         },
     )
 }
-fn wire__crate__api__list_recent_events_impl(
+fn wire__crate__api__review_flow__list_recent_events_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     days: impl CstDecode<i64>,
     limit: impl CstDecode<i64>,
@@ -3920,7 +3945,8 @@ fn wire__crate__api__list_recent_events_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::list_recent_events(api_days, api_limit)?;
+                        let output_ok =
+                            crate::api::review_flow::list_recent_events(api_days, api_limit)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4037,7 +4063,7 @@ fn wire__crate__api__rules__list_rules_impl(
         },
     )
 }
-fn wire__crate__api__sync__list_sync_datasets_impl(
+fn wire__crate__api__sync__datasets__list_sync_datasets_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -4050,7 +4076,7 @@ fn wire__crate__api__sync__list_sync_datasets_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::list_sync_datasets()?;
+                        let output_ok = crate::api::sync::datasets::list_sync_datasets()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4058,7 +4084,7 @@ fn wire__crate__api__sync__list_sync_datasets_impl(
         },
     )
 }
-fn wire__crate__api__sync__list_sync_enrollments_impl(
+fn wire__crate__api__sync__join__list_sync_enrollments_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -4071,7 +4097,7 @@ fn wire__crate__api__sync__list_sync_enrollments_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::list_sync_enrollments()?;
+                        let output_ok = crate::api::sync::join::list_sync_enrollments()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4079,7 +4105,7 @@ fn wire__crate__api__sync__list_sync_enrollments_impl(
         },
     )
 }
-fn wire__crate__api__sync__list_sync_provider_conflicts_impl(
+fn wire__crate__api__sync__datasets__list_sync_provider_conflicts_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -4092,7 +4118,7 @@ fn wire__crate__api__sync__list_sync_provider_conflicts_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::list_sync_provider_conflicts()?;
+                        let output_ok = crate::api::sync::datasets::list_sync_provider_conflicts()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4217,7 +4243,7 @@ fn wire__crate__api__user_skills__list_user_skills_impl(
         },
     )
 }
-fn wire__crate__api__sync__list_wiki_page_conflicts_impl(
+fn wire__crate__api__sync__conflicts__list_wiki_page_conflicts_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -4230,7 +4256,7 @@ fn wire__crate__api__sync__list_wiki_page_conflicts_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::list_wiki_page_conflicts()?;
+                        let output_ok = crate::api::sync::conflicts::list_wiki_page_conflicts()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4309,7 +4335,7 @@ fn wire__crate__api__wiki__list_wiki_pages_impl(
         },
     )
 }
-fn wire__crate__api__sync__lock_local_sync_impl(
+fn wire__crate__api__sync__invite__lock_local_sync_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -4322,7 +4348,7 @@ fn wire__crate__api__sync__lock_local_sync_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::lock_local_sync()?;
+                        let output_ok = crate::api::sync::invite::lock_local_sync()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4330,7 +4356,7 @@ fn wire__crate__api__sync__lock_local_sync_impl(
         },
     )
 }
-fn wire__crate__api__review_report__mark_deviation_report_read_impl(
+fn wire__crate__api__review_report__store__mark_deviation_report_read_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     id: impl CstDecode<String>,
 ) {
@@ -4346,7 +4372,7 @@ fn wire__crate__api__review_report__mark_deviation_report_read_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok =
-                            crate::api::review_report::mark_deviation_report_read(api_id)?;
+                            crate::api::review_report::store::mark_deviation_report_read(api_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4534,7 +4560,7 @@ fn wire__crate__api__knowledge__prepare_knowledge_source_repair_impl(
         },
     )
 }
-fn wire__crate__api__sync__prepare_sync_join_key_impl(
+fn wire__crate__api__sync__join__prepare_sync_join_key_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     preview_token: impl CstDecode<String>,
     name: impl CstDecode<String>,
@@ -4556,7 +4582,7 @@ fn wire__crate__api__sync__prepare_sync_join_key_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::prepare_sync_join_key(
+                        let output_ok = crate::api::sync::join::prepare_sync_join_key(
                             api_preview_token,
                             api_name,
                             api_platform,
@@ -4569,7 +4595,7 @@ fn wire__crate__api__sync__prepare_sync_join_key_impl(
         },
     )
 }
-fn wire__crate__api__sync__prepare_sync_join_resume_impl(
+fn wire__crate__api__sync__join__prepare_sync_join_resume_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     entry_id: impl CstDecode<String>,
 ) {
@@ -4584,7 +4610,8 @@ fn wire__crate__api__sync__prepare_sync_join_resume_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::prepare_sync_join_resume(api_entry_id)?;
+                        let output_ok =
+                            crate::api::sync::join::prepare_sync_join_resume(api_entry_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4592,7 +4619,7 @@ fn wire__crate__api__sync__prepare_sync_join_resume_impl(
         },
     )
 }
-fn wire__crate__api__sync__prepare_sync_key_request_impl(
+fn wire__crate__api__sync__invite__prepare_sync_key_request_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     name: impl CstDecode<Option<String>>,
     platform: impl CstDecode<Option<String>>,
@@ -4612,7 +4639,7 @@ fn wire__crate__api__sync__prepare_sync_key_request_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::prepare_sync_key_request(
+                        let output_ok = crate::api::sync::invite::prepare_sync_key_request(
                             api_name,
                             api_platform,
                             api_acknowledge_provider_key_sharing,
@@ -4678,7 +4705,7 @@ fn wire__crate__api__knowledge__preview_knowledge_source_impl(
         },
     )
 }
-fn wire__crate__api__sync__preview_sync_join_impl(
+fn wire__crate__api__sync__join__preview_sync_join_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     invitation_code: impl CstDecode<String>,
 ) {
@@ -4693,7 +4720,8 @@ fn wire__crate__api__sync__preview_sync_join_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::preview_sync_join(api_invitation_code)?;
+                        let output_ok =
+                            crate::api::sync::join::preview_sync_join(api_invitation_code)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4778,7 +4806,7 @@ fn wire__crate__api__knowledge_workflows__read_artifact_version_impl(
         },
     )
 }
-fn wire__crate__api__reanalyze_event_impl(
+fn wire__crate__api__review_flow__reanalyze_event_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     event_id: impl CstDecode<String>,
 ) {
@@ -4793,7 +4821,7 @@ fn wire__crate__api__reanalyze_event_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::reanalyze_event(api_event_id)?;
+                        let output_ok = crate::api::review_flow::reanalyze_event(api_event_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4825,7 +4853,7 @@ fn wire__crate__api__knowledge__reconsolidate_knowledge_page_impl(
         },
     )
 }
-fn wire__crate__api__record_event_impl(
+fn wire__crate__api__records__record_event_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     raw_text: impl CstDecode<String>,
 ) {
@@ -4840,7 +4868,7 @@ fn wire__crate__api__record_event_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::record_event(api_raw_text)?;
+                        let output_ok = crate::api::records::record_event(api_raw_text)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4871,7 +4899,7 @@ fn wire__crate__api__wiki__refresh_project_page_impl(
         },
     )
 }
-fn wire__crate__api__sync__release_sync_join_impl(
+fn wire__crate__api__sync__join__release_sync_join_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     operation_id: impl CstDecode<String>,
 ) {
@@ -4886,7 +4914,8 @@ fn wire__crate__api__sync__release_sync_join_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::release_sync_join(api_operation_id)?;
+                        let output_ok =
+                            crate::api::sync::join::release_sync_join(api_operation_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4894,7 +4923,7 @@ fn wire__crate__api__sync__release_sync_join_impl(
         },
     )
 }
-fn wire__crate__api__sync__release_sync_key_request_impl(
+fn wire__crate__api__sync__invite__release_sync_key_request_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     token: impl CstDecode<String>,
 ) {
@@ -4909,7 +4938,8 @@ fn wire__crate__api__sync__release_sync_key_request_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::release_sync_key_request(api_token)?;
+                        let output_ok =
+                            crate::api::sync::invite::release_sync_key_request(api_token)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4973,7 +5003,7 @@ fn wire__crate__api__conversations__rename_conversation_impl(
         },
     )
 }
-fn wire__crate__api__sync__rename_sync_device_impl(
+fn wire__crate__api__sync__datasets__rename_sync_device_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
     new_name: impl CstDecode<String>,
@@ -4992,7 +5022,7 @@ fn wire__crate__api__sync__rename_sync_device_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::rename_sync_device(
+                        let output_ok = crate::api::sync::datasets::rename_sync_device(
                             api_device_id,
                             api_new_name,
                             api_expected_vault_revision,
@@ -5092,7 +5122,7 @@ fn wire__crate__api__knowledge__resolve_knowledge_proposal_impl(
         },
     )
 }
-fn wire__crate__api__sync__resolve_object_conflict_impl(
+fn wire__crate__api__sync__conflicts__resolve_object_conflict_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     op_id: impl CstDecode<String>,
     expected_local_updated_at: impl CstDecode<Option<String>>,
@@ -5111,7 +5141,7 @@ fn wire__crate__api__sync__resolve_object_conflict_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::resolve_object_conflict(
+                        let output_ok = crate::api::sync::conflicts::resolve_object_conflict(
                             api_op_id,
                             api_expected_local_updated_at,
                             api_accept_remote,
@@ -5123,7 +5153,7 @@ fn wire__crate__api__sync__resolve_object_conflict_impl(
         },
     )
 }
-fn wire__crate__api__sync__resolve_sync_provider_conflict_impl(
+fn wire__crate__api__sync__datasets__resolve_sync_provider_conflict_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     revision_id: impl CstDecode<String>,
     expected_local_revision: impl CstDecode<String>,
@@ -5144,7 +5174,7 @@ fn wire__crate__api__sync__resolve_sync_provider_conflict_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::resolve_sync_provider_conflict(
+                        let output_ok = crate::api::sync::datasets::resolve_sync_provider_conflict(
                             api_revision_id,
                             api_expected_local_revision,
                             api_expected_remote_revision,
@@ -5183,7 +5213,7 @@ fn wire__crate__api__knowledge__resolve_topic_organization_impl(
         },
     )
 }
-fn wire__crate__api__sync__resolve_wiki_page_conflict_impl(
+fn wire__crate__api__sync__conflicts__resolve_wiki_page_conflict_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     op_id: impl CstDecode<String>,
     expected_local_updated_at: impl CstDecode<Option<String>>,
@@ -5202,7 +5232,7 @@ fn wire__crate__api__sync__resolve_wiki_page_conflict_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::resolve_wiki_page_conflict(
+                        let output_ok = crate::api::sync::conflicts::resolve_wiki_page_conflict(
                             api_op_id,
                             api_expected_local_updated_at,
                             api_accept_remote,
@@ -5238,7 +5268,7 @@ fn wire__crate__api__chat_runs__resume_chat_input_queue_impl(
         },
     )
 }
-fn wire__crate__api__sync__revoke_sync_member_impl(
+fn wire__crate__api__sync__datasets__revoke_sync_member_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
     expected_revision: impl CstDecode<i64>,
@@ -5255,7 +5285,7 @@ fn wire__crate__api__sync__revoke_sync_member_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::revoke_sync_member(
+                        let output_ok = crate::api::sync::datasets::revoke_sync_member(
                             api_device_id,
                             api_expected_revision,
                         )?;
@@ -5290,7 +5320,7 @@ fn wire__crate__api__provider_config__save_ai_provider_config_impl(
         },
     )
 }
-fn wire__crate__api__save_daily_review_impl(
+fn wire__crate__api__period_stats__save_daily_review_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     date: impl CstDecode<String>,
     result_json: impl CstDecode<String>,
@@ -5311,7 +5341,7 @@ fn wire__crate__api__save_daily_review_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::save_daily_review(
+                        let output_ok = crate::api::period_stats::save_daily_review(
                             api_date,
                             api_result_json,
                             api_prompt_version,
@@ -5690,7 +5720,7 @@ fn wire__crate__api__chat_runs__schedule_chat_input_impl(
         },
     )
 }
-fn wire__crate__api__sync__select_default_sync_dataset_impl(
+fn wire__crate__api__sync__datasets__select_default_sync_dataset_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     expected_catalog_revision: impl CstDecode<i64>,
 ) {
@@ -5705,7 +5735,7 @@ fn wire__crate__api__sync__select_default_sync_dataset_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::select_default_sync_dataset(
+                        let output_ok = crate::api::sync::datasets::select_default_sync_dataset(
                             api_expected_catalog_revision,
                         )?;
                         std::result::Result::Ok(output_ok)
@@ -5715,7 +5745,7 @@ fn wire__crate__api__sync__select_default_sync_dataset_impl(
         },
     )
 }
-fn wire__crate__api__sync__select_sync_dataset_impl(
+fn wire__crate__api__sync__datasets__select_sync_dataset_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     entry_id: impl CstDecode<String>,
 ) {
@@ -5730,7 +5760,8 @@ fn wire__crate__api__sync__select_sync_dataset_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::select_sync_dataset(api_entry_id)?;
+                        let output_ok =
+                            crate::api::sync::datasets::select_sync_dataset(api_entry_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -5772,7 +5803,7 @@ fn wire__crate__api__conversations__send_message_impl(
         },
     )
 }
-fn wire__crate__api__sync__send_owner_sync_approval_impl(
+fn wire__crate__api__sync__invite__send_owner_sync_approval_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     invitation_id: impl CstDecode<String>,
 ) {
@@ -5788,7 +5819,7 @@ fn wire__crate__api__sync__send_owner_sync_approval_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok =
-                            crate::api::sync::send_owner_sync_approval(api_invitation_id)?;
+                            crate::api::sync::invite::send_owner_sync_approval(api_invitation_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -5796,7 +5827,7 @@ fn wire__crate__api__sync__send_owner_sync_approval_impl(
         },
     )
 }
-fn wire__crate__api__sync__send_sync_join_proof_impl(
+fn wire__crate__api__sync__join__send_sync_join_proof_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     operation_id: impl CstDecode<String>,
 ) {
@@ -5811,7 +5842,8 @@ fn wire__crate__api__sync__send_sync_join_proof_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::send_sync_join_proof(api_operation_id)?;
+                        let output_ok =
+                            crate::api::sync::join::send_sync_join_proof(api_operation_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -5819,7 +5851,7 @@ fn wire__crate__api__sync__send_sync_join_proof_impl(
         },
     )
 }
-fn wire__crate__api__sync__send_sync_join_request_impl(
+fn wire__crate__api__sync__join__send_sync_join_request_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     operation_id: impl CstDecode<String>,
 ) {
@@ -5834,7 +5866,8 @@ fn wire__crate__api__sync__send_sync_join_request_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::send_sync_join_request(api_operation_id)?;
+                        let output_ok =
+                            crate::api::sync::join::send_sync_join_request(api_operation_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -5870,7 +5903,7 @@ fn wire__crate__api__provider_config__set_active_ai_provider_config_impl(
         },
     )
 }
-fn wire__crate__api__set_companion_prefs_impl(
+fn wire__crate__api__companion_flow__set_companion_prefs_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     enabled: impl CstDecode<bool>,
     interval_days: impl CstDecode<i64>,
@@ -5887,8 +5920,10 @@ fn wire__crate__api__set_companion_prefs_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok =
-                            crate::api::set_companion_prefs(api_enabled, api_interval_days)?;
+                        let output_ok = crate::api::companion_flow::set_companion_prefs(
+                            api_enabled,
+                            api_interval_days,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -5924,7 +5959,7 @@ fn wire__crate__api__conversations__set_conversation_archived_impl(
         },
     )
 }
-fn wire__crate__api__set_event_recordability_impl(
+fn wire__crate__api__review_flow__set_event_recordability_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     event_id: impl CstDecode<String>,
     recordable: impl CstDecode<bool>,
@@ -5941,8 +5976,10 @@ fn wire__crate__api__set_event_recordability_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok =
-                            crate::api::set_event_recordability(api_event_id, api_recordable)?;
+                        let output_ok = crate::api::review_flow::set_event_recordability(
+                            api_event_id,
+                            api_recordable,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -5950,7 +5987,7 @@ fn wire__crate__api__set_event_recordability_impl(
         },
     )
 }
-fn wire__crate__api__set_guidance_feedback_impl(
+fn wire__crate__api__companion_flow__set_guidance_feedback_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     analysis_id: impl CstDecode<String>,
     slug: impl CstDecode<String>,
@@ -5971,7 +6008,7 @@ fn wire__crate__api__set_guidance_feedback_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::set_guidance_feedback(
+                        let output_ok = crate::api::companion_flow::set_guidance_feedback(
                             api_analysis_id,
                             api_slug,
                             api_note,
@@ -6381,7 +6418,7 @@ fn wire__crate__api__chat_runs__start_chat_run_impl(
         },
     )
 }
-fn wire__crate__api__submit_conversation_input_impl(
+fn wire__crate__api__records__submit_conversation_input_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     conversation_id: impl CstDecode<String>,
     raw_text: impl CstDecode<String>,
@@ -6400,7 +6437,7 @@ fn wire__crate__api__submit_conversation_input_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::submit_conversation_input(
+                        let output_ok = crate::api::records::submit_conversation_input(
                             api_conversation_id,
                             api_raw_text,
                             api_idempotency_key,
@@ -6412,7 +6449,7 @@ fn wire__crate__api__submit_conversation_input_impl(
         },
     )
 }
-fn wire__crate__api__submit_input_impl(
+fn wire__crate__api__records__submit_input_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     raw_text: impl CstDecode<String>,
     source: impl CstDecode<String>,
@@ -6431,7 +6468,7 @@ fn wire__crate__api__submit_input_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::submit_input(
+                        let output_ok = crate::api::records::submit_input(
                             api_raw_text,
                             api_source,
                             api_idempotency_key,
@@ -6568,7 +6605,7 @@ fn wire__crate__api__knowledge__tick_knowledge_insights_impl(
         },
     )
 }
-fn wire__crate__api__review_report__tick_periodic_reports_impl(
+fn wire__crate__api__review_report__detect__tick_periodic_reports_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -6581,7 +6618,7 @@ fn wire__crate__api__review_report__tick_periodic_reports_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::review_report::tick_periodic_reports()?;
+                        let output_ok = crate::api::review_report::detect::tick_periodic_reports()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -6617,7 +6654,9 @@ fn wire__crate__api__knowledge_workflows__topic_organization_history_impl(
         },
     )
 }
-fn wire__crate__api__trigger_analysis_impl(port_: flutter_rust_bridge::for_generated::MessagePort) {
+fn wire__crate__api__review_flow__trigger_analysis_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "trigger_analysis",
@@ -6628,7 +6667,7 @@ fn wire__crate__api__trigger_analysis_impl(port_: flutter_rust_bridge::for_gener
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::trigger_analysis()?;
+                        let output_ok = crate::api::review_flow::trigger_analysis()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -6657,7 +6696,7 @@ fn wire__crate__api__knowledge_digest__trigger_knowledge_digest_impl(
         },
     )
 }
-fn wire__crate__api__sync__trigger_network_sync_impl(
+fn wire__crate__api__sync__join__trigger_network_sync_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
@@ -6670,7 +6709,7 @@ fn wire__crate__api__sync__trigger_network_sync_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::trigger_network_sync()?;
+                        let output_ok = crate::api::sync::join::trigger_network_sync()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -7124,7 +7163,7 @@ fn wire__crate__api__chat_runs__withdraw_chat_input_impl(
         },
     )
 }
-fn wire__crate__api__sync__yield_sync_processor_impl(
+fn wire__crate__api__sync__datasets__yield_sync_processor_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     to_device_id: impl CstDecode<String>,
 ) {
@@ -7139,7 +7178,8 @@ fn wire__crate__api__sync__yield_sync_processor_impl(
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::sync::yield_sync_processor(api_to_device_id)?;
+                        let output_ok =
+                            crate::api::sync::datasets::yield_sync_processor(api_to_device_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -7240,14 +7280,14 @@ impl SseDecode for crate::api::provider_config::AiProviderConfigDto {
     }
 }
 
-impl SseDecode for crate::api::AnalysisDto {
+impl SseDecode for crate::api::analysis_schema::AnalysisDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_eventType = <String>::sse_decode(deserializer);
         let mut var_confidence = <f64>::sse_decode(deserializer);
         let mut var_summary = <String>::sse_decode(deserializer);
         let mut var_clarifications = <Vec<String>>::sse_decode(deserializer);
-        return crate::api::AnalysisDto {
+        return crate::api::analysis_schema::AnalysisDto {
             event_type: var_eventType,
             confidence: var_confidence,
             summary: var_summary,
@@ -7256,7 +7296,7 @@ impl SseDecode for crate::api::AnalysisDto {
     }
 }
 
-impl SseDecode for crate::api::AnalysisJobStatsDto {
+impl SseDecode for crate::api::analysis_schema::AnalysisJobStatsDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_pending = <i64>::sse_decode(deserializer);
@@ -7264,7 +7304,7 @@ impl SseDecode for crate::api::AnalysisJobStatsDto {
         let mut var_retry = <i64>::sse_decode(deserializer);
         let mut var_succeeded = <i64>::sse_decode(deserializer);
         let mut var_failed = <i64>::sse_decode(deserializer);
-        return crate::api::AnalysisJobStatsDto {
+        return crate::api::analysis_schema::AnalysisJobStatsDto {
             pending: var_pending,
             running: var_running,
             retry: var_retry,
@@ -7274,17 +7314,17 @@ impl SseDecode for crate::api::AnalysisJobStatsDto {
     }
 }
 
-impl SseDecode for crate::api::AnalysisTriggerResult {
+impl SseDecode for crate::api::records::AnalysisTriggerResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut tag_ = <i32>::sse_decode(deserializer);
         match tag_ {
             0 => {
-                return crate::api::AnalysisTriggerResult::NoProvider;
+                return crate::api::records::AnalysisTriggerResult::NoProvider;
             }
             1 => {
                 let mut var_count = <i64>::sse_decode(deserializer);
-                return crate::api::AnalysisTriggerResult::Processed { count: var_count };
+                return crate::api::records::AnalysisTriggerResult::Processed { count: var_count };
             }
             _ => {
                 unimplemented!("");
@@ -7293,7 +7333,7 @@ impl SseDecode for crate::api::AnalysisTriggerResult {
     }
 }
 
-impl SseDecode for crate::api::sync::AppUpdateDto {
+impl SseDecode for crate::api::sync::conflicts::AppUpdateDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_hasUpdate = <bool>::sse_decode(deserializer);
@@ -7305,7 +7345,7 @@ impl SseDecode for crate::api::sync::AppUpdateDto {
         let mut var_changelog = <String>::sse_decode(deserializer);
         let mut var_apkSize = <i64>::sse_decode(deserializer);
         let mut var_apkSha256 = <String>::sse_decode(deserializer);
-        return crate::api::sync::AppUpdateDto {
+        return crate::api::sync::conflicts::AppUpdateDto {
             has_update: var_hasUpdate,
             latest_hash: var_latestHash,
             latest_seq: var_latestSeq,
@@ -7569,26 +7609,26 @@ impl SseDecode for crate::api::chat_runs::ChatRunEventPageDto {
     }
 }
 
-impl SseDecode for crate::api::CompanionPrefsDto {
+impl SseDecode for crate::api::companion_flow::CompanionPrefsDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_revisitEnabled = <bool>::sse_decode(deserializer);
         let mut var_revisitIntervalDays = <i64>::sse_decode(deserializer);
-        return crate::api::CompanionPrefsDto {
+        return crate::api::companion_flow::CompanionPrefsDto {
             revisit_enabled: var_revisitEnabled,
             revisit_interval_days: var_revisitIntervalDays,
         };
     }
 }
 
-impl SseDecode for crate::api::CompanionRevisitDto {
+impl SseDecode for crate::api::companion_flow::CompanionRevisitDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_eventId = <String>::sse_decode(deserializer);
         let mut var_recordedAt = <String>::sse_decode(deserializer);
         let mut var_excerpt = <String>::sse_decode(deserializer);
         let mut var_feeling = <Option<String>>::sse_decode(deserializer);
-        return crate::api::CompanionRevisitDto {
+        return crate::api::companion_flow::CompanionRevisitDto {
             event_id: var_eventId,
             recorded_at: var_recordedAt,
             excerpt: var_excerpt,
@@ -7635,7 +7675,7 @@ impl SseDecode for crate::api::conversations::ConversationDto {
     }
 }
 
-impl SseDecode for crate::api::DailyEntryDto {
+impl SseDecode for crate::api::analysis_schema::DailyEntryDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_eventId = <String>::sse_decode(deserializer);
@@ -7645,7 +7685,7 @@ impl SseDecode for crate::api::DailyEntryDto {
         let mut var_source = <String>::sse_decode(deserializer);
         let mut var_eventStatus = <String>::sse_decode(deserializer);
         let mut var_recordedAt = <String>::sse_decode(deserializer);
-        return crate::api::DailyEntryDto {
+        return crate::api::analysis_schema::DailyEntryDto {
             event_id: var_eventId,
             input_id: var_inputId,
             message_id: var_messageId,
@@ -7657,16 +7697,19 @@ impl SseDecode for crate::api::DailyEntryDto {
     }
 }
 
-impl SseDecode for crate::api::DailyOverviewDto {
+impl SseDecode for crate::api::analysis_schema::DailyOverviewDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_date = <String>::sse_decode(deserializer);
-        let mut var_entries = <Vec<crate::api::DailyEntryDto>>::sse_decode(deserializer);
-        let mut var_review = <Option<crate::api::DailyReviewDto>>::sse_decode(deserializer);
+        let mut var_entries =
+            <Vec<crate::api::analysis_schema::DailyEntryDto>>::sse_decode(deserializer);
+        let mut var_review =
+            <Option<crate::api::analysis_schema::DailyReviewDto>>::sse_decode(deserializer);
         let mut var_todos = <Vec<crate::api::todos::TodoDto>>::sse_decode(deserializer);
         let mut var_reminderHits = <Vec<crate::api::rules::RuleHitDto>>::sse_decode(deserializer);
-        let mut var_memoryEcho = <Vec<crate::api::MemoryEchoDto>>::sse_decode(deserializer);
-        return crate::api::DailyOverviewDto {
+        let mut var_memoryEcho =
+            <Vec<crate::api::analysis_schema::MemoryEchoDto>>::sse_decode(deserializer);
+        return crate::api::analysis_schema::DailyOverviewDto {
             date: var_date,
             entries: var_entries,
             review: var_review,
@@ -7677,7 +7720,7 @@ impl SseDecode for crate::api::DailyOverviewDto {
     }
 }
 
-impl SseDecode for crate::api::DailyReviewDto {
+impl SseDecode for crate::api::analysis_schema::DailyReviewDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_id = <String>::sse_decode(deserializer);
@@ -7685,13 +7728,14 @@ impl SseDecode for crate::api::DailyReviewDto {
         let mut var_promptVersion = <String>::sse_decode(deserializer);
         let mut var_createdAt = <String>::sse_decode(deserializer);
         let mut var_accomplishments =
-            <Vec<crate::api::DailyReviewItemDto>>::sse_decode(deserializer);
+            <Vec<crate::api::analysis_schema::DailyReviewItemDto>>::sse_decode(deserializer);
         let mut var_ideasDecisions =
-            <Vec<crate::api::DailyReviewItemDto>>::sse_decode(deserializer);
+            <Vec<crate::api::analysis_schema::DailyReviewItemDto>>::sse_decode(deserializer);
         let mut var_peopleProjects =
-            <Vec<crate::api::DailyReviewItemDto>>::sse_decode(deserializer);
-        let mut var_followUps = <Vec<crate::api::DailyReviewItemDto>>::sse_decode(deserializer);
-        return crate::api::DailyReviewDto {
+            <Vec<crate::api::analysis_schema::DailyReviewItemDto>>::sse_decode(deserializer);
+        let mut var_followUps =
+            <Vec<crate::api::analysis_schema::DailyReviewItemDto>>::sse_decode(deserializer);
+        return crate::api::analysis_schema::DailyReviewDto {
             id: var_id,
             date: var_date,
             prompt_version: var_promptVersion,
@@ -7704,32 +7748,32 @@ impl SseDecode for crate::api::DailyReviewDto {
     }
 }
 
-impl SseDecode for crate::api::DailyReviewItemDto {
+impl SseDecode for crate::api::analysis_schema::DailyReviewItemDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_text = <String>::sse_decode(deserializer);
         let mut var_sourceEventIds = <Vec<String>>::sse_decode(deserializer);
-        return crate::api::DailyReviewItemDto {
+        return crate::api::analysis_schema::DailyReviewItemDto {
             text: var_text,
             source_event_ids: var_sourceEventIds,
         };
     }
 }
 
-impl SseDecode for crate::api::DailyReviewResult {
+impl SseDecode for crate::api::records::DailyReviewResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut tag_ = <i32>::sse_decode(deserializer);
         match tag_ {
             0 => {
-                return crate::api::DailyReviewResult::NoProvider;
+                return crate::api::records::DailyReviewResult::NoProvider;
             }
             1 => {
-                return crate::api::DailyReviewResult::NoEntries;
+                return crate::api::records::DailyReviewResult::NoEntries;
             }
             2 => {
                 let mut var_id = <String>::sse_decode(deserializer);
-                return crate::api::DailyReviewResult::Created { id: var_id };
+                return crate::api::records::DailyReviewResult::Created { id: var_id };
             }
             _ => {
                 unimplemented!("");
@@ -7772,19 +7816,19 @@ impl SseDecode for crate::api::db_maintenance::DatabaseStatsDto {
     }
 }
 
-impl SseDecode for crate::api::DayCountDto {
+impl SseDecode for crate::api::period_stats::DayCountDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_date = <String>::sse_decode(deserializer);
         let mut var_count = <i64>::sse_decode(deserializer);
-        return crate::api::DayCountDto {
+        return crate::api::period_stats::DayCountDto {
             date: var_date,
             count: var_count,
         };
     }
 }
 
-impl SseDecode for crate::api::review_report::DeviationItemDto {
+impl SseDecode for crate::api::review_report::store::DeviationItemDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_goalContent = <String>::sse_decode(deserializer);
@@ -7792,7 +7836,7 @@ impl SseDecode for crate::api::review_report::DeviationItemDto {
         let mut var_evidence = <String>::sse_decode(deserializer);
         let mut var_severity = <String>::sse_decode(deserializer);
         let mut var_dismissed = <bool>::sse_decode(deserializer);
-        return crate::api::review_report::DeviationItemDto {
+        return crate::api::review_report::store::DeviationItemDto {
             goal_content: var_goalContent,
             deviation_type: var_deviationType,
             evidence: var_evidence,
@@ -7802,7 +7846,7 @@ impl SseDecode for crate::api::review_report::DeviationItemDto {
     }
 }
 
-impl SseDecode for crate::api::review_report::DeviationReportDto {
+impl SseDecode for crate::api::review_report::store::DeviationReportDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_id = <String>::sse_decode(deserializer);
@@ -7815,14 +7859,18 @@ impl SseDecode for crate::api::review_report::DeviationReportDto {
         let mut var_readAt = <Option<String>>::sse_decode(deserializer);
         let mut var_total = <i64>::sse_decode(deserializer);
         let mut var_todoDoneCount = <i64>::sse_decode(deserializer);
-        let mut var_daily = <Vec<crate::api::DayCountDto>>::sse_decode(deserializer);
-        let mut var_byEventType = <Vec<crate::api::NamedCountDto>>::sse_decode(deserializer);
-        let mut var_byPerson = <Vec<crate::api::NamedCountDto>>::sse_decode(deserializer);
-        let mut var_byProject = <Vec<crate::api::NamedCountDto>>::sse_decode(deserializer);
-        let mut var_byActivity = <Vec<crate::api::NamedCountDto>>::sse_decode(deserializer);
+        let mut var_daily = <Vec<crate::api::period_stats::DayCountDto>>::sse_decode(deserializer);
+        let mut var_byEventType =
+            <Vec<crate::api::period_stats::NamedCountDto>>::sse_decode(deserializer);
+        let mut var_byPerson =
+            <Vec<crate::api::period_stats::NamedCountDto>>::sse_decode(deserializer);
+        let mut var_byProject =
+            <Vec<crate::api::period_stats::NamedCountDto>>::sse_decode(deserializer);
+        let mut var_byActivity =
+            <Vec<crate::api::period_stats::NamedCountDto>>::sse_decode(deserializer);
         let mut var_deviations =
-            <Vec<crate::api::review_report::DeviationItemDto>>::sse_decode(deserializer);
-        return crate::api::review_report::DeviationReportDto {
+            <Vec<crate::api::review_report::store::DeviationItemDto>>::sse_decode(deserializer);
+        return crate::api::review_report::store::DeviationReportDto {
             id: var_id,
             period: var_period,
             period_type: var_periodType,
@@ -7857,19 +7905,19 @@ impl SseDecode for crate::api::todos::DueReminderDto {
     }
 }
 
-impl SseDecode for crate::api::EmotionTagDto {
+impl SseDecode for crate::api::analysis_schema::EmotionTagDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_target = <Option<String>>::sse_decode(deserializer);
         let mut var_feeling = <String>::sse_decode(deserializer);
-        return crate::api::EmotionTagDto {
+        return crate::api::analysis_schema::EmotionTagDto {
             target: var_target,
             feeling: var_feeling,
         };
     }
 }
 
-impl SseDecode for crate::api::EntityFactDto {
+impl SseDecode for crate::api::analysis_schema::EntityFactDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_id = <String>::sse_decode(deserializer);
@@ -7881,7 +7929,7 @@ impl SseDecode for crate::api::EntityFactDto {
         let mut var_sourceEventId = <String>::sse_decode(deserializer);
         let mut var_createdAt = <String>::sse_decode(deserializer);
         let mut var_lastSeenAt = <String>::sse_decode(deserializer);
-        return crate::api::EntityFactDto {
+        return crate::api::analysis_schema::EntityFactDto {
             id: var_id,
             entity_kind: var_entityKind,
             entity_slug: var_entitySlug,
@@ -7911,7 +7959,7 @@ impl SseDecode for crate::api::entities::EntityMergeStatusDto {
     }
 }
 
-impl SseDecode for crate::api::EventAnalysisDetailDto {
+impl SseDecode for crate::api::analysis_schema::EventAnalysisDetailDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_eventId = <String>::sse_decode(deserializer);
@@ -7934,14 +7982,16 @@ impl SseDecode for crate::api::EventAnalysisDetailDto {
         let mut var_projects = <Vec<String>>::sse_decode(deserializer);
         let mut var_activities = <Vec<String>>::sse_decode(deserializer);
         let mut var_followUps = <Vec<String>>::sse_decode(deserializer);
-        let mut var_guidance = <Option<crate::api::GuidanceDto>>::sse_decode(deserializer);
-        let mut var_emotion = <Option<Vec<crate::api::EmotionTagDto>>>::sse_decode(deserializer);
+        let mut var_guidance =
+            <Option<crate::api::analysis_schema::GuidanceDto>>::sse_decode(deserializer);
+        let mut var_emotion =
+            <Option<Vec<crate::api::analysis_schema::EmotionTagDto>>>::sse_decode(deserializer);
         let mut var_recordable = <Option<bool>>::sse_decode(deserializer);
         let mut var_kind = <Option<String>>::sse_decode(deserializer);
         let mut var_effectiveRecordable = <bool>::sse_decode(deserializer);
         let mut var_effectiveKind = <String>::sse_decode(deserializer);
         let mut var_recordabilitySource = <String>::sse_decode(deserializer);
-        return crate::api::EventAnalysisDetailDto {
+        return crate::api::analysis_schema::EventAnalysisDetailDto {
             event_id: var_eventId,
             raw_text: var_rawText,
             source: var_source,
@@ -7973,7 +8023,7 @@ impl SseDecode for crate::api::EventAnalysisDetailDto {
     }
 }
 
-impl SseDecode for crate::api::EventDto {
+impl SseDecode for crate::api::analysis_schema::EventDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_id = <String>::sse_decode(deserializer);
@@ -7982,7 +8032,7 @@ impl SseDecode for crate::api::EventDto {
         let mut var_occurredAt = <String>::sse_decode(deserializer);
         let mut var_source = <String>::sse_decode(deserializer);
         let mut var_status = <String>::sse_decode(deserializer);
-        return crate::api::EventDto {
+        return crate::api::analysis_schema::EventDto {
             id: var_id,
             raw_text: var_rawText,
             recorded_at: var_recordedAt,
@@ -7993,7 +8043,7 @@ impl SseDecode for crate::api::EventDto {
     }
 }
 
-impl SseDecode for crate::api::EventEmotionDto {
+impl SseDecode for crate::api::analysis_schema::EventEmotionDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_id = <String>::sse_decode(deserializer);
@@ -8001,7 +8051,7 @@ impl SseDecode for crate::api::EventEmotionDto {
         let mut var_recordedAt = <String>::sse_decode(deserializer);
         let mut var_target = <Option<String>>::sse_decode(deserializer);
         let mut var_feeling = <String>::sse_decode(deserializer);
-        return crate::api::EventEmotionDto {
+        return crate::api::analysis_schema::EventEmotionDto {
             id: var_id,
             event_id: var_eventId,
             recorded_at: var_recordedAt,
@@ -8029,7 +8079,7 @@ impl SseDecode for crate::api::event_stats::EventStatsQuery {
     }
 }
 
-impl SseDecode for crate::api::EventSummaryDto {
+impl SseDecode for crate::api::review_flow::EventSummaryDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_id = <String>::sse_decode(deserializer);
@@ -8037,7 +8087,7 @@ impl SseDecode for crate::api::EventSummaryDto {
         let mut var_recordedAt = <String>::sse_decode(deserializer);
         let mut var_source = <String>::sse_decode(deserializer);
         let mut var_status = <String>::sse_decode(deserializer);
-        return crate::api::EventSummaryDto {
+        return crate::api::review_flow::EventSummaryDto {
             id: var_id,
             raw_text: var_rawText,
             recorded_at: var_recordedAt,
@@ -8076,13 +8126,14 @@ impl SseDecode for crate::api::goals::GoalDto {
     }
 }
 
-impl SseDecode for crate::api::GuidanceDto {
+impl SseDecode for crate::api::analysis_schema::GuidanceDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_related = <Vec<crate::api::GuidanceRefDto>>::sse_decode(deserializer);
+        let mut var_related =
+            <Vec<crate::api::analysis_schema::GuidanceRefDto>>::sse_decode(deserializer);
         let mut var_lessons = <Vec<String>>::sse_decode(deserializer);
         let mut var_followUpsRefined = <Vec<String>>::sse_decode(deserializer);
-        return crate::api::GuidanceDto {
+        return crate::api::analysis_schema::GuidanceDto {
             related: var_related,
             lessons: var_lessons,
             follow_ups_refined: var_followUpsRefined,
@@ -8090,12 +8141,12 @@ impl SseDecode for crate::api::GuidanceDto {
     }
 }
 
-impl SseDecode for crate::api::GuidanceRefDto {
+impl SseDecode for crate::api::analysis_schema::GuidanceRefDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_slug = <String>::sse_decode(deserializer);
         let mut var_note = <String>::sse_decode(deserializer);
-        return crate::api::GuidanceRefDto {
+        return crate::api::analysis_schema::GuidanceRefDto {
             slug: var_slug,
             note: var_note,
         };
@@ -8136,7 +8187,7 @@ impl SseDecode for crate::api::import::ImportUrlDto {
     }
 }
 
-impl SseDecode for crate::api::InputRecordDto {
+impl SseDecode for crate::api::analysis_schema::InputRecordDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_id = <String>::sse_decode(deserializer);
@@ -8150,7 +8201,7 @@ impl SseDecode for crate::api::InputRecordDto {
         let mut var_todoId = <Option<String>>::sse_decode(deserializer);
         let mut var_createdAt = <String>::sse_decode(deserializer);
         let mut var_updatedAt = <String>::sse_decode(deserializer);
-        return crate::api::InputRecordDto {
+        return crate::api::analysis_schema::InputRecordDto {
             id: var_id,
             raw_text: var_rawText,
             source: var_source,
@@ -8198,7 +8249,7 @@ impl SseDecode for crate::api::knowledge::KnowledgeBackgroundRunDto {
     }
 }
 
-impl SseDecode for crate::knowledge::KnowledgeCitation {
+impl SseDecode for crate::knowledge::select::KnowledgeCitation {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_pageSlug = <String>::sse_decode(deserializer);
@@ -8209,9 +8260,10 @@ impl SseDecode for crate::knowledge::KnowledgeCitation {
         let mut var_applicableWhen = <String>::sse_decode(deserializer);
         let mut var_strength = <String>::sse_decode(deserializer);
         let mut var_category = <String>::sse_decode(deserializer);
-        let mut var_sources = <Vec<crate::knowledge::SourceReference>>::sse_decode(deserializer);
+        let mut var_sources =
+            <Vec<crate::knowledge::select::SourceReference>>::sse_decode(deserializer);
         let mut var_eventIds = <Vec<String>>::sse_decode(deserializer);
-        return crate::knowledge::KnowledgeCitation {
+        return crate::knowledge::select::KnowledgeCitation {
             page_slug: var_pageSlug,
             content_hash: var_contentHash,
             title: var_title,
@@ -8366,7 +8418,7 @@ impl SseDecode for crate::api::knowledge_digest::KnowledgeDigestTickResult {
     }
 }
 
-impl SseDecode for crate::knowledge::KnowledgeHealthReport {
+impl SseDecode for crate::knowledge::health::KnowledgeHealthReport {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_generatedAt = <String>::sse_decode(deserializer);
@@ -8392,7 +8444,7 @@ impl SseDecode for crate::knowledge::KnowledgeHealthReport {
         let mut var_lastSummaryError = <Option<String>>::sse_decode(deserializer);
         let mut var_pagesIncubating = <i64>::sse_decode(deserializer);
         let mut var_negativeSources = <i64>::sse_decode(deserializer);
-        return crate::knowledge::KnowledgeHealthReport {
+        return crate::knowledge::health::KnowledgeHealthReport {
             generated_at: var_generatedAt,
             window_days: var_windowDays,
             proposals_pending: var_proposalsPending,
@@ -8420,14 +8472,14 @@ impl SseDecode for crate::knowledge::KnowledgeHealthReport {
     }
 }
 
-impl SseDecode for crate::storage::knowledge::KnowledgeIssue {
+impl SseDecode for crate::storage::knowledge::core::KnowledgeIssue {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_fingerprint = <String>::sse_decode(deserializer);
         let mut var_pageSlug = <String>::sse_decode(deserializer);
         let mut var_kind = <String>::sse_decode(deserializer);
         let mut var_description = <String>::sse_decode(deserializer);
-        return crate::storage::knowledge::KnowledgeIssue {
+        return crate::storage::knowledge::core::KnowledgeIssue {
             fingerprint: var_fingerprint,
             page_slug: var_pageSlug,
             kind: var_kind,
@@ -8436,13 +8488,13 @@ impl SseDecode for crate::storage::knowledge::KnowledgeIssue {
     }
 }
 
-impl SseDecode for crate::storage::knowledge::KnowledgeMetadata {
+impl SseDecode for crate::storage::knowledge::core::KnowledgeMetadata {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_applicableWhen = <String>::sse_decode(deserializer);
         let mut var_strength = <String>::sse_decode(deserializer);
         let mut var_confirmedAt = <Option<String>>::sse_decode(deserializer);
-        return crate::storage::knowledge::KnowledgeMetadata {
+        return crate::storage::knowledge::core::KnowledgeMetadata {
             applicable_when: var_applicableWhen,
             strength: var_strength,
             confirmed_at: var_confirmedAt,
@@ -8456,15 +8508,15 @@ impl SseDecode for crate::api::knowledge::KnowledgePageDetails {
         let mut var_sourcePages = <Vec<crate::api::wiki::WikiPageDto>>::sse_decode(deserializer);
         let mut var_outputPages = <Vec<crate::api::wiki::WikiPageDto>>::sse_decode(deserializer);
         let mut var_sources =
-            <Vec<crate::storage::knowledge::SourceSnapshot>>::sse_decode(deserializer);
+            <Vec<crate::storage::knowledge::core::SourceSnapshot>>::sse_decode(deserializer);
         let mut var_history =
-            <Vec<crate::storage::knowledge::SourceSnapshot>>::sse_decode(deserializer);
+            <Vec<crate::storage::knowledge::core::SourceSnapshot>>::sse_decode(deserializer);
         let mut var_proposals =
-            <Vec<crate::storage::knowledge::KnowledgeProposal>>::sse_decode(deserializer);
+            <Vec<crate::storage::knowledge::core::KnowledgeProposal>>::sse_decode(deserializer);
         let mut var_issues =
-            <Vec<crate::storage::knowledge::KnowledgeIssue>>::sse_decode(deserializer);
+            <Vec<crate::storage::knowledge::core::KnowledgeIssue>>::sse_decode(deserializer);
         let mut var_metadata =
-            <crate::storage::knowledge::KnowledgeMetadata>::sse_decode(deserializer);
+            <crate::storage::knowledge::core::KnowledgeMetadata>::sse_decode(deserializer);
         let mut var_consolidation =
             <crate::api::knowledge::PageConsolidationStatus>::sse_decode(deserializer);
         let mut var_relations =
@@ -8483,7 +8535,7 @@ impl SseDecode for crate::api::knowledge::KnowledgePageDetails {
     }
 }
 
-impl SseDecode for crate::storage::knowledge::KnowledgeProposal {
+impl SseDecode for crate::storage::knowledge::core::KnowledgeProposal {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_id = <String>::sse_decode(deserializer);
@@ -8500,7 +8552,7 @@ impl SseDecode for crate::storage::knowledge::KnowledgeProposal {
         let mut var_reason = <String>::sse_decode(deserializer);
         let mut var_status = <String>::sse_decode(deserializer);
         let mut var_createdAt = <String>::sse_decode(deserializer);
-        return crate::storage::knowledge::KnowledgeProposal {
+        return crate::storage::knowledge::core::KnowledgeProposal {
             id: var_id,
             page_id: var_pageId,
             target_slug: var_targetSlug,
@@ -8717,13 +8769,15 @@ impl SseDecode for Vec<crate::api::provider_config::AiProviderConfigDto> {
     }
 }
 
-impl SseDecode for Vec<crate::api::AnalysisDto> {
+impl SseDecode for Vec<crate::api::analysis_schema::AnalysisDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::AnalysisDto>::sse_decode(deserializer));
+            ans_.push(<crate::api::analysis_schema::AnalysisDto>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -8869,25 +8923,27 @@ impl SseDecode for Vec<crate::api::conversations::ConversationDto> {
     }
 }
 
-impl SseDecode for Vec<crate::api::DailyEntryDto> {
+impl SseDecode for Vec<crate::api::analysis_schema::DailyEntryDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::DailyEntryDto>::sse_decode(deserializer));
+            ans_.push(<crate::api::analysis_schema::DailyEntryDto>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
 }
 
-impl SseDecode for Vec<crate::api::DailyReviewItemDto> {
+impl SseDecode for Vec<crate::api::analysis_schema::DailyReviewItemDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::DailyReviewItemDto>::sse_decode(deserializer));
+            ans_.push(<crate::api::analysis_schema::DailyReviewItemDto>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -8907,25 +8963,13 @@ impl SseDecode for Vec<crate::api::conversations::DailyTokenUsageDto> {
     }
 }
 
-impl SseDecode for Vec<crate::api::DayCountDto> {
+impl SseDecode for Vec<crate::api::period_stats::DayCountDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::DayCountDto>::sse_decode(deserializer));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<crate::api::review_report::DeviationItemDto> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::review_report::DeviationItemDto>::sse_decode(
+            ans_.push(<crate::api::period_stats::DayCountDto>::sse_decode(
                 deserializer,
             ));
         }
@@ -8933,15 +8977,29 @@ impl SseDecode for Vec<crate::api::review_report::DeviationItemDto> {
     }
 }
 
-impl SseDecode for Vec<crate::api::review_report::DeviationReportDto> {
+impl SseDecode for Vec<crate::api::review_report::store::DeviationItemDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::review_report::DeviationReportDto>::sse_decode(
-                deserializer,
-            ));
+            ans_.push(
+                <crate::api::review_report::store::DeviationItemDto>::sse_decode(deserializer),
+            );
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::review_report::store::DeviationReportDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(
+                <crate::api::review_report::store::DeviationReportDto>::sse_decode(deserializer),
+            );
         }
         return ans_;
     }
@@ -8961,61 +9019,71 @@ impl SseDecode for Vec<crate::api::todos::DueReminderDto> {
     }
 }
 
-impl SseDecode for Vec<crate::api::EmotionTagDto> {
+impl SseDecode for Vec<crate::api::analysis_schema::EmotionTagDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::EmotionTagDto>::sse_decode(deserializer));
+            ans_.push(<crate::api::analysis_schema::EmotionTagDto>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
 }
 
-impl SseDecode for Vec<crate::api::EntityFactDto> {
+impl SseDecode for Vec<crate::api::analysis_schema::EntityFactDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::EntityFactDto>::sse_decode(deserializer));
+            ans_.push(<crate::api::analysis_schema::EntityFactDto>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
 }
 
-impl SseDecode for Vec<crate::api::EventDto> {
+impl SseDecode for Vec<crate::api::analysis_schema::EventDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::EventDto>::sse_decode(deserializer));
+            ans_.push(<crate::api::analysis_schema::EventDto>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
 }
 
-impl SseDecode for Vec<crate::api::EventEmotionDto> {
+impl SseDecode for Vec<crate::api::analysis_schema::EventEmotionDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::EventEmotionDto>::sse_decode(deserializer));
+            ans_.push(<crate::api::analysis_schema::EventEmotionDto>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
 }
 
-impl SseDecode for Vec<crate::api::EventSummaryDto> {
+impl SseDecode for Vec<crate::api::review_flow::EventSummaryDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::EventSummaryDto>::sse_decode(deserializer));
+            ans_.push(<crate::api::review_flow::EventSummaryDto>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -9033,13 +9101,15 @@ impl SseDecode for Vec<crate::api::goals::GoalDto> {
     }
 }
 
-impl SseDecode for Vec<crate::api::GuidanceRefDto> {
+impl SseDecode for Vec<crate::api::analysis_schema::GuidanceRefDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::GuidanceRefDto>::sse_decode(deserializer));
+            ans_.push(<crate::api::analysis_schema::GuidanceRefDto>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -9057,13 +9127,13 @@ impl SseDecode for Vec<crate::api::knowledge::KnowledgeBackgroundRunDto> {
     }
 }
 
-impl SseDecode for Vec<crate::knowledge::KnowledgeCitation> {
+impl SseDecode for Vec<crate::knowledge::select::KnowledgeCitation> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::knowledge::KnowledgeCitation>::sse_decode(
+            ans_.push(<crate::knowledge::select::KnowledgeCitation>::sse_decode(
                 deserializer,
             ));
         }
@@ -9113,29 +9183,27 @@ impl SseDecode for Vec<crate::api::knowledge_digest::KnowledgeDigestRunDto> {
     }
 }
 
-impl SseDecode for Vec<crate::storage::knowledge::KnowledgeIssue> {
+impl SseDecode for Vec<crate::storage::knowledge::core::KnowledgeIssue> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::storage::knowledge::KnowledgeIssue>::sse_decode(
-                deserializer,
-            ));
+            ans_.push(<crate::storage::knowledge::core::KnowledgeIssue>::sse_decode(deserializer));
         }
         return ans_;
     }
 }
 
-impl SseDecode for Vec<crate::storage::knowledge::KnowledgeProposal> {
+impl SseDecode for Vec<crate::storage::knowledge::core::KnowledgeProposal> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::storage::knowledge::KnowledgeProposal>::sse_decode(
-                deserializer,
-            ));
+            ans_.push(
+                <crate::storage::knowledge::core::KnowledgeProposal>::sse_decode(deserializer),
+            );
         }
         return ans_;
     }
@@ -9249,13 +9317,15 @@ impl SseDecode for Vec<crate::api::mcp::McpToolDto> {
     }
 }
 
-impl SseDecode for Vec<crate::api::MemoryEchoDto> {
+impl SseDecode for Vec<crate::api::analysis_schema::MemoryEchoDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::MemoryEchoDto>::sse_decode(deserializer));
+            ans_.push(<crate::api::analysis_schema::MemoryEchoDto>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -9275,27 +9345,27 @@ impl SseDecode for Vec<crate::api::conversations::MessageDto> {
     }
 }
 
-impl SseDecode for Vec<crate::api::NamedCountDto> {
+impl SseDecode for Vec<crate::api::period_stats::NamedCountDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::NamedCountDto>::sse_decode(deserializer));
+            ans_.push(<crate::api::period_stats::NamedCountDto>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
 }
 
-impl SseDecode for Vec<crate::api::sync::ObjectConflictDto> {
+impl SseDecode for Vec<crate::api::sync::conflicts::ObjectConflictDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::sync::ObjectConflictDto>::sse_decode(
-                deserializer,
-            ));
+            ans_.push(<crate::api::sync::conflicts::ObjectConflictDto>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -9313,13 +9383,15 @@ impl SseDecode for Vec<crate::knowledge::organization::OrganizedTopic> {
     }
 }
 
-impl SseDecode for Vec<crate::api::PageGuidanceDto> {
+impl SseDecode for Vec<crate::api::companion_flow::PageGuidanceDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::PageGuidanceDto>::sse_decode(deserializer));
+            ans_.push(<crate::api::companion_flow::PageGuidanceDto>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -9377,29 +9449,29 @@ impl SseDecode for Vec<u8> {
     }
 }
 
-impl SseDecode for Vec<crate::api::sync::ProviderConflictProfileDto> {
+impl SseDecode for Vec<crate::api::sync::datasets::ProviderConflictProfileDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::sync::ProviderConflictProfileDto>::sse_decode(
-                deserializer,
-            ));
+            ans_.push(
+                <crate::api::sync::datasets::ProviderConflictProfileDto>::sse_decode(deserializer),
+            );
         }
         return ans_;
     }
 }
 
-impl SseDecode for Vec<crate::api::sync::ProviderSyncConflictDto> {
+impl SseDecode for Vec<crate::api::sync::datasets::ProviderSyncConflictDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::sync::ProviderSyncConflictDto>::sse_decode(
-                deserializer,
-            ));
+            ans_.push(
+                <crate::api::sync::datasets::ProviderSyncConflictDto>::sse_decode(deserializer),
+            );
         }
         return ans_;
     }
@@ -9433,15 +9505,15 @@ impl SseDecode for Vec<crate::api::knowledge::ReconsolidationJobDto> {
     }
 }
 
-impl SseDecode for Vec<crate::storage::knowledge::RejectedSourceRow> {
+impl SseDecode for Vec<crate::storage::knowledge::core::RejectedSourceRow> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::storage::knowledge::RejectedSourceRow>::sse_decode(
-                deserializer,
-            ));
+            ans_.push(
+                <crate::storage::knowledge::core::RejectedSourceRow>::sse_decode(deserializer),
+            );
         }
         return ans_;
     }
@@ -9485,13 +9557,13 @@ impl SseDecode for Vec<crate::api::rules::RuleHitDto> {
     }
 }
 
-impl SseDecode for Vec<crate::knowledge::SourceReference> {
+impl SseDecode for Vec<crate::knowledge::select::SourceReference> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::knowledge::SourceReference>::sse_decode(
+            ans_.push(<crate::knowledge::select::SourceReference>::sse_decode(
                 deserializer,
             ));
         }
@@ -9499,13 +9571,25 @@ impl SseDecode for Vec<crate::knowledge::SourceReference> {
     }
 }
 
-impl SseDecode for Vec<crate::storage::knowledge::SourceSnapshot> {
+impl SseDecode for Vec<crate::storage::knowledge::core::SourceSnapshot> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::storage::knowledge::SourceSnapshot>::sse_decode(
+            ans_.push(<crate::storage::knowledge::core::SourceSnapshot>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::sync::join::SyncDatasetEntryDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::sync::join::SyncDatasetEntryDto>::sse_decode(
                 deserializer,
             ));
         }
@@ -9513,13 +9597,25 @@ impl SseDecode for Vec<crate::storage::knowledge::SourceSnapshot> {
     }
 }
 
-impl SseDecode for Vec<crate::api::sync::SyncDatasetEntryDto> {
+impl SseDecode for Vec<crate::api::sync::join::SyncEnrollmentStateDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::sync::SyncDatasetEntryDto>::sse_decode(
+            ans_.push(<crate::api::sync::join::SyncEnrollmentStateDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::sync::join::SyncJoinEntryDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::sync::join::SyncJoinEntryDto>::sse_decode(
                 deserializer,
             ));
         }
@@ -9527,43 +9623,13 @@ impl SseDecode for Vec<crate::api::sync::SyncDatasetEntryDto> {
     }
 }
 
-impl SseDecode for Vec<crate::api::sync::SyncEnrollmentStateDto> {
+impl SseDecode for Vec<crate::api::sync::datasets::SyncRosterMemberDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::sync::SyncEnrollmentStateDto>::sse_decode(
-                deserializer,
-            ));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<crate::api::sync::SyncJoinEntryDto> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::sync::SyncJoinEntryDto>::sse_decode(
-                deserializer,
-            ));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<crate::api::sync::SyncRosterMemberDto> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = Vec::with_capacity(len_ as usize);
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::sync::SyncRosterMemberDto>::sse_decode(
-                deserializer,
-            ));
+            ans_.push(<crate::api::sync::datasets::SyncRosterMemberDto>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -9637,15 +9703,13 @@ impl SseDecode for Vec<crate::api::user_skills::UserSkillDto> {
     }
 }
 
-impl SseDecode for Vec<crate::api::sync::WikiPageConflictDto> {
+impl SseDecode for Vec<crate::api::sync::datasets::WikiPageConflictDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::sync::WikiPageConflictDto>::sse_decode(
-                deserializer,
-            ));
+            ans_.push(<crate::api::sync::datasets::WikiPageConflictDto>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -9677,7 +9741,7 @@ impl SseDecode for Vec<crate::api::wiki::WikiPageMetaDto> {
     }
 }
 
-impl SseDecode for crate::api::sync::LocalSyncStateDto {
+impl SseDecode for crate::api::sync::invite::LocalSyncStateDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_state = <String>::sse_decode(deserializer);
@@ -9691,7 +9755,7 @@ impl SseDecode for crate::api::sync::LocalSyncStateDto {
         let mut var_activePeers = <i64>::sse_decode(deserializer);
         let mut var_pendingOperations = <i64>::sse_decode(deserializer);
         let mut var_relayUrl = <Option<String>>::sse_decode(deserializer);
-        return crate::api::sync::LocalSyncStateDto {
+        return crate::api::sync::invite::LocalSyncStateDto {
             state: var_state,
             installation_id: var_installationId,
             vault_revision: var_vaultRevision,
@@ -9757,13 +9821,13 @@ impl SseDecode for crate::api::mcp::McpToolDto {
     }
 }
 
-impl SseDecode for crate::api::MemoryEchoDto {
+impl SseDecode for crate::api::analysis_schema::MemoryEchoDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_eventId = <String>::sse_decode(deserializer);
         let mut var_recordedAt = <String>::sse_decode(deserializer);
         let mut var_rawText = <String>::sse_decode(deserializer);
-        return crate::api::MemoryEchoDto {
+        return crate::api::analysis_schema::MemoryEchoDto {
             event_id: var_eventId,
             recorded_at: var_recordedAt,
             raw_text: var_rawText,
@@ -9793,7 +9857,7 @@ impl SseDecode for crate::api::conversations::MessageDto {
     }
 }
 
-impl SseDecode for crate::api::MessageRecordabilityDto {
+impl SseDecode for crate::api::analysis_schema::MessageRecordabilityDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_messageId = <String>::sse_decode(deserializer);
@@ -9803,7 +9867,7 @@ impl SseDecode for crate::api::MessageRecordabilityDto {
         let mut var_source = <String>::sse_decode(deserializer);
         let mut var_jobStatus = <String>::sse_decode(deserializer);
         let mut var_summary = <Option<String>>::sse_decode(deserializer);
-        return crate::api::MessageRecordabilityDto {
+        return crate::api::analysis_schema::MessageRecordabilityDto {
             message_id: var_messageId,
             event_id: var_eventId,
             recordable: var_recordable,
@@ -9815,12 +9879,12 @@ impl SseDecode for crate::api::MessageRecordabilityDto {
     }
 }
 
-impl SseDecode for crate::api::NamedCountDto {
+impl SseDecode for crate::api::period_stats::NamedCountDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_label = <String>::sse_decode(deserializer);
         let mut var_count = <i64>::sse_decode(deserializer);
-        return crate::api::NamedCountDto {
+        return crate::api::period_stats::NamedCountDto {
             label: var_label,
             count: var_count,
         };
@@ -9845,7 +9909,7 @@ impl SseDecode for crate::api::web_search::NetworkSettingsDto {
     }
 }
 
-impl SseDecode for crate::api::sync::ObjectConflictDto {
+impl SseDecode for crate::api::sync::conflicts::ObjectConflictDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_opId = <String>::sse_decode(deserializer);
@@ -9862,7 +9926,7 @@ impl SseDecode for crate::api::sync::ObjectConflictDto {
         let mut var_localStatus = <Option<String>>::sse_decode(deserializer);
         let mut var_localUpdatedAt = <Option<String>>::sse_decode(deserializer);
         let mut var_localHeadDeleted = <bool>::sse_decode(deserializer);
-        return crate::api::sync::ObjectConflictDto {
+        return crate::api::sync::conflicts::ObjectConflictDto {
             op_id: var_opId,
             object_kind: var_objectKind,
             object_id: var_objectId,
@@ -9929,11 +9993,13 @@ impl SseDecode for Option<crate::api::chat_runs::ChatRunDto> {
     }
 }
 
-impl SseDecode for Option<crate::api::CompanionRevisitDto> {
+impl SseDecode for Option<crate::api::companion_flow::CompanionRevisitDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
-            return Some(<crate::api::CompanionRevisitDto>::sse_decode(deserializer));
+            return Some(
+                <crate::api::companion_flow::CompanionRevisitDto>::sse_decode(deserializer),
+            );
         } else {
             return None;
         }
@@ -9953,11 +10019,13 @@ impl SseDecode for Option<crate::api::conversations::ConversationDto> {
     }
 }
 
-impl SseDecode for Option<crate::api::DailyReviewDto> {
+impl SseDecode for Option<crate::api::analysis_schema::DailyReviewDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
-            return Some(<crate::api::DailyReviewDto>::sse_decode(deserializer));
+            return Some(<crate::api::analysis_schema::DailyReviewDto>::sse_decode(
+                deserializer,
+            ));
         } else {
             return None;
         }
@@ -9977,13 +10045,13 @@ impl SseDecode for Option<crate::api::entities::EntityMergeStatusDto> {
     }
 }
 
-impl SseDecode for Option<crate::api::EventAnalysisDetailDto> {
+impl SseDecode for Option<crate::api::analysis_schema::EventAnalysisDetailDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
-            return Some(<crate::api::EventAnalysisDetailDto>::sse_decode(
-                deserializer,
-            ));
+            return Some(
+                <crate::api::analysis_schema::EventAnalysisDetailDto>::sse_decode(deserializer),
+            );
         } else {
             return None;
         }
@@ -10001,11 +10069,13 @@ impl SseDecode for Option<f64> {
     }
 }
 
-impl SseDecode for Option<crate::api::GuidanceDto> {
+impl SseDecode for Option<crate::api::analysis_schema::GuidanceDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
-            return Some(<crate::api::GuidanceDto>::sse_decode(deserializer));
+            return Some(<crate::api::analysis_schema::GuidanceDto>::sse_decode(
+                deserializer,
+            ));
         } else {
             return None;
         }
@@ -10023,26 +10093,26 @@ impl SseDecode for Option<i64> {
     }
 }
 
-impl SseDecode for Option<crate::api::MessageRecordabilityDto> {
+impl SseDecode for Option<crate::api::analysis_schema::MessageRecordabilityDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
-            return Some(<crate::api::MessageRecordabilityDto>::sse_decode(
-                deserializer,
-            ));
+            return Some(
+                <crate::api::analysis_schema::MessageRecordabilityDto>::sse_decode(deserializer),
+            );
         } else {
             return None;
         }
     }
 }
 
-impl SseDecode for Option<crate::storage::knowledge::SourceSnapshot> {
+impl SseDecode for Option<crate::storage::knowledge::core::SourceSnapshot> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
-            return Some(<crate::storage::knowledge::SourceSnapshot>::sse_decode(
-                deserializer,
-            ));
+            return Some(
+                <crate::storage::knowledge::core::SourceSnapshot>::sse_decode(deserializer),
+            );
         } else {
             return None;
         }
@@ -10062,13 +10132,13 @@ impl SseDecode for Option<crate::knowledge::workflows::SuggestionFeedback> {
     }
 }
 
-impl SseDecode for Option<crate::api::sync::SyncInvitationPreviewDto> {
+impl SseDecode for Option<crate::api::sync::invite::SyncInvitationPreviewDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
-            return Some(<crate::api::sync::SyncInvitationPreviewDto>::sse_decode(
-                deserializer,
-            ));
+            return Some(
+                <crate::api::sync::invite::SyncInvitationPreviewDto>::sse_decode(deserializer),
+            );
         } else {
             return None;
         }
@@ -10086,13 +10156,13 @@ impl SseDecode for Option<u32> {
     }
 }
 
-impl SseDecode for Option<crate::api::sync::WikiPageConflictSideDto> {
+impl SseDecode for Option<crate::api::sync::datasets::WikiPageConflictSideDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
-            return Some(<crate::api::sync::WikiPageConflictSideDto>::sse_decode(
-                deserializer,
-            ));
+            return Some(
+                <crate::api::sync::datasets::WikiPageConflictSideDto>::sse_decode(deserializer),
+            );
         } else {
             return None;
         }
@@ -10110,11 +10180,13 @@ impl SseDecode for Option<crate::api::wiki::WikiPageDto> {
     }
 }
 
-impl SseDecode for Option<Vec<crate::api::EmotionTagDto>> {
+impl SseDecode for Option<Vec<crate::api::analysis_schema::EmotionTagDto>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
-            return Some(<Vec<crate::api::EmotionTagDto>>::sse_decode(deserializer));
+            return Some(
+                <Vec<crate::api::analysis_schema::EmotionTagDto>>::sse_decode(deserializer),
+            );
         } else {
             return None;
         }
@@ -10151,7 +10223,7 @@ impl SseDecode for crate::api::knowledge::PageConsolidationStatus {
     }
 }
 
-impl SseDecode for crate::api::PageGuidanceDto {
+impl SseDecode for crate::api::companion_flow::PageGuidanceDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_analysisId = <String>::sse_decode(deserializer);
@@ -10161,7 +10233,7 @@ impl SseDecode for crate::api::PageGuidanceDto {
         let mut var_lessons = <Vec<String>>::sse_decode(deserializer);
         let mut var_followUpsRefined = <Vec<String>>::sse_decode(deserializer);
         let mut var_feedback = <Option<String>>::sse_decode(deserializer);
-        return crate::api::PageGuidanceDto {
+        return crate::api::companion_flow::PageGuidanceDto {
             analysis_id: var_analysisId,
             event_id: var_eventId,
             recorded_at: var_recordedAt,
@@ -10221,21 +10293,21 @@ impl SseDecode for crate::api::conversations::PendingActionDto {
     }
 }
 
-impl SseDecode for crate::api::review_report::PeriodReportTickResult {
+impl SseDecode for crate::api::review_report::detect::PeriodReportTickResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut tag_ = <i32>::sse_decode(deserializer);
         match tag_ {
             0 => {
-                return crate::api::review_report::PeriodReportTickResult::NoProvider;
+                return crate::api::review_report::detect::PeriodReportTickResult::NoProvider;
             }
             1 => {
-                return crate::api::review_report::PeriodReportTickResult::Idle;
+                return crate::api::review_report::detect::PeriodReportTickResult::Idle;
             }
             2 => {
                 let mut var_period = <String>::sse_decode(deserializer);
                 let mut var_periodType = <String>::sse_decode(deserializer);
-                return crate::api::review_report::PeriodReportTickResult::Generated {
+                return crate::api::review_report::detect::PeriodReportTickResult::Generated {
                     period: var_period,
                     period_type: var_periodType,
                 };
@@ -10243,7 +10315,7 @@ impl SseDecode for crate::api::review_report::PeriodReportTickResult {
             3 => {
                 let mut var_reportId = <String>::sse_decode(deserializer);
                 let mut var_deviations = <usize>::sse_decode(deserializer);
-                return crate::api::review_report::PeriodReportTickResult::Detected {
+                return crate::api::review_report::detect::PeriodReportTickResult::Detected {
                     report_id: var_reportId,
                     deviations: var_deviations,
                 };
@@ -10251,7 +10323,7 @@ impl SseDecode for crate::api::review_report::PeriodReportTickResult {
             4 => {
                 let mut var_reportId = <String>::sse_decode(deserializer);
                 let mut var_error = <String>::sse_decode(deserializer);
-                return crate::api::review_report::PeriodReportTickResult::DetectFailed {
+                return crate::api::review_report::detect::PeriodReportTickResult::DetectFailed {
                     report_id: var_reportId,
                     error: var_error,
                 };
@@ -10263,7 +10335,7 @@ impl SseDecode for crate::api::review_report::PeriodReportTickResult {
     }
 }
 
-impl SseDecode for crate::api::PeriodStatsDto {
+impl SseDecode for crate::api::period_stats::PeriodStatsDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_periodType = <String>::sse_decode(deserializer);
@@ -10271,12 +10343,17 @@ impl SseDecode for crate::api::PeriodStatsDto {
         let mut var_endDate = <String>::sse_decode(deserializer);
         let mut var_eventCount = <i64>::sse_decode(deserializer);
         let mut var_todoDoneCount = <i64>::sse_decode(deserializer);
-        let mut var_byEventType = <Vec<crate::api::NamedCountDto>>::sse_decode(deserializer);
-        let mut var_byPerson = <Vec<crate::api::NamedCountDto>>::sse_decode(deserializer);
-        let mut var_byProject = <Vec<crate::api::NamedCountDto>>::sse_decode(deserializer);
-        let mut var_byActivity = <Vec<crate::api::NamedCountDto>>::sse_decode(deserializer);
-        let mut var_dailyCounts = <Vec<crate::api::DayCountDto>>::sse_decode(deserializer);
-        return crate::api::PeriodStatsDto {
+        let mut var_byEventType =
+            <Vec<crate::api::period_stats::NamedCountDto>>::sse_decode(deserializer);
+        let mut var_byPerson =
+            <Vec<crate::api::period_stats::NamedCountDto>>::sse_decode(deserializer);
+        let mut var_byProject =
+            <Vec<crate::api::period_stats::NamedCountDto>>::sse_decode(deserializer);
+        let mut var_byActivity =
+            <Vec<crate::api::period_stats::NamedCountDto>>::sse_decode(deserializer);
+        let mut var_dailyCounts =
+            <Vec<crate::api::period_stats::DayCountDto>>::sse_decode(deserializer);
+        return crate::api::period_stats::PeriodStatsDto {
             period_type: var_periodType,
             start_date: var_startDate,
             end_date: var_endDate,
@@ -10291,7 +10368,7 @@ impl SseDecode for crate::api::PeriodStatsDto {
     }
 }
 
-impl SseDecode for crate::api::sync::ProcessingYieldProofDto {
+impl SseDecode for crate::api::sync::invite::ProcessingYieldProofDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_datasetId = <String>::sse_decode(deserializer);
@@ -10300,7 +10377,7 @@ impl SseDecode for crate::api::sync::ProcessingYieldProofDto {
         let mut var_rosterRevision = <i64>::sse_decode(deserializer);
         let mut var_finalSequence = <i64>::sse_decode(deserializer);
         let mut var_signature = <Vec<u8>>::sse_decode(deserializer);
-        return crate::api::sync::ProcessingYieldProofDto {
+        return crate::api::sync::invite::ProcessingYieldProofDto {
             dataset_id: var_datasetId,
             from_device_id: var_fromDeviceId,
             to_device_id: var_toDeviceId,
@@ -10311,7 +10388,7 @@ impl SseDecode for crate::api::sync::ProcessingYieldProofDto {
     }
 }
 
-impl SseDecode for crate::api::sync::ProcessorHandoffStateDto {
+impl SseDecode for crate::api::sync::invite::ProcessorHandoffStateDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_state = <String>::sse_decode(deserializer);
@@ -10319,7 +10396,7 @@ impl SseDecode for crate::api::sync::ProcessorHandoffStateDto {
         let mut var_toDeviceId = <Option<String>>::sse_decode(deserializer);
         let mut var_finalSequence = <Option<i64>>::sse_decode(deserializer);
         let mut var_canConfirm = <bool>::sse_decode(deserializer);
-        return crate::api::sync::ProcessorHandoffStateDto {
+        return crate::api::sync::invite::ProcessorHandoffStateDto {
             state: var_state,
             from_device_id: var_fromDeviceId,
             to_device_id: var_toDeviceId,
@@ -10329,7 +10406,7 @@ impl SseDecode for crate::api::sync::ProcessorHandoffStateDto {
     }
 }
 
-impl SseDecode for crate::api::sync::ProviderConflictProfileDto {
+impl SseDecode for crate::api::sync::datasets::ProviderConflictProfileDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_id = <String>::sse_decode(deserializer);
@@ -10346,7 +10423,7 @@ impl SseDecode for crate::api::sync::ProviderConflictProfileDto {
         let mut var_contextWindow = <Option<i64>>::sse_decode(deserializer);
         let mut var_reachabilityHints =
             <Vec<crate::api::provider_reachability::ReachabilityHint>>::sse_decode(deserializer);
-        return crate::api::sync::ProviderConflictProfileDto {
+        return crate::api::sync::datasets::ProviderConflictProfileDto {
             id: var_id,
             name: var_name,
             provider_type: var_providerType,
@@ -10364,7 +10441,7 @@ impl SseDecode for crate::api::sync::ProviderConflictProfileDto {
     }
 }
 
-impl SseDecode for crate::api::sync::ProviderSyncConflictDto {
+impl SseDecode for crate::api::sync::datasets::ProviderSyncConflictDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_revisionId = <String>::sse_decode(deserializer);
@@ -10373,13 +10450,13 @@ impl SseDecode for crate::api::sync::ProviderSyncConflictDto {
         let mut var_senderDeviceName = <Option<String>>::sse_decode(deserializer);
         let mut var_localRevision = <String>::sse_decode(deserializer);
         let mut var_remoteProfiles =
-            <Vec<crate::api::sync::ProviderConflictProfileDto>>::sse_decode(deserializer);
+            <Vec<crate::api::sync::datasets::ProviderConflictProfileDto>>::sse_decode(deserializer);
         let mut var_remoteActiveId = <Option<String>>::sse_decode(deserializer);
         let mut var_remoteFailoverOrder = <Vec<String>>::sse_decode(deserializer);
         let mut var_localProfiles =
-            <Vec<crate::api::sync::ProviderConflictProfileDto>>::sse_decode(deserializer);
+            <Vec<crate::api::sync::datasets::ProviderConflictProfileDto>>::sse_decode(deserializer);
         let mut var_localActiveId = <Option<String>>::sse_decode(deserializer);
-        return crate::api::sync::ProviderSyncConflictDto {
+        return crate::api::sync::datasets::ProviderSyncConflictDto {
             revision_id: var_revisionId,
             base_revision: var_baseRevision,
             sender_device_id: var_senderDeviceId,
@@ -10430,16 +10507,17 @@ impl SseDecode for crate::api::knowledge::ReconsolidationJobDto {
     }
 }
 
-impl SseDecode for (Vec<crate::api::sync::SyncDatasetEntryDto>, i64) {
+impl SseDecode for (Vec<crate::api::sync::join::SyncDatasetEntryDto>, i64) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_field0 = <Vec<crate::api::sync::SyncDatasetEntryDto>>::sse_decode(deserializer);
+        let mut var_field0 =
+            <Vec<crate::api::sync::join::SyncDatasetEntryDto>>::sse_decode(deserializer);
         let mut var_field1 = <i64>::sse_decode(deserializer);
         return (var_field0, var_field1);
     }
 }
 
-impl SseDecode for crate::storage::knowledge::RejectedSourceRow {
+impl SseDecode for crate::storage::knowledge::core::RejectedSourceRow {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_slug = <Option<String>>::sse_decode(deserializer);
@@ -10449,7 +10527,7 @@ impl SseDecode for crate::storage::knowledge::RejectedSourceRow {
         let mut var_locator = <Option<String>>::sse_decode(deserializer);
         let mut var_rejectReason = <String>::sse_decode(deserializer);
         let mut var_createdAt = <String>::sse_decode(deserializer);
-        return crate::storage::knowledge::RejectedSourceRow {
+        return crate::storage::knowledge::core::RejectedSourceRow {
             slug: var_slug,
             title: var_title,
             identity: var_identity,
@@ -10529,14 +10607,14 @@ impl SseDecode for crate::api::rules::RuleHitDto {
     }
 }
 
-impl SseDecode for crate::knowledge::SourceReference {
+impl SseDecode for crate::knowledge::select::SourceReference {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_snapshotId = <String>::sse_decode(deserializer);
         let mut var_title = <String>::sse_decode(deserializer);
         let mut var_locator = <Option<String>>::sse_decode(deserializer);
         let mut var_version = <i64>::sse_decode(deserializer);
-        return crate::knowledge::SourceReference {
+        return crate::knowledge::select::SourceReference {
             snapshot_id: var_snapshotId,
             title: var_title,
             locator: var_locator,
@@ -10545,7 +10623,7 @@ impl SseDecode for crate::knowledge::SourceReference {
     }
 }
 
-impl SseDecode for crate::storage::knowledge::SourceSnapshot {
+impl SseDecode for crate::storage::knowledge::core::SourceSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_id = <String>::sse_decode(deserializer);
@@ -10559,7 +10637,7 @@ impl SseDecode for crate::storage::knowledge::SourceSnapshot {
         let mut var_locator = <Option<String>>::sse_decode(deserializer);
         let mut var_opinion = <Option<String>>::sse_decode(deserializer);
         let mut var_pageSlug = <Option<String>>::sse_decode(deserializer);
-        return crate::storage::knowledge::SourceSnapshot {
+        return crate::storage::knowledge::core::SourceSnapshot {
             id: var_id,
             source_id: var_sourceId,
             version: var_version,
@@ -10609,7 +10687,7 @@ impl SseDecode for crate::knowledge::workflows::SuggestionFeedback {
     }
 }
 
-impl SseDecode for crate::api::sync::SyncDatasetEntryDto {
+impl SseDecode for crate::api::sync::join::SyncDatasetEntryDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_entryId = <String>::sse_decode(deserializer);
@@ -10618,7 +10696,7 @@ impl SseDecode for crate::api::sync::SyncDatasetEntryDto {
         let mut var_name = <String>::sse_decode(deserializer);
         let mut var_ready = <bool>::sse_decode(deserializer);
         let mut var_selected = <bool>::sse_decode(deserializer);
-        return crate::api::sync::SyncDatasetEntryDto {
+        return crate::api::sync::join::SyncDatasetEntryDto {
             entry_id: var_entryId,
             dataset_id: var_datasetId,
             installation_id: var_installationId,
@@ -10629,7 +10707,7 @@ impl SseDecode for crate::api::sync::SyncDatasetEntryDto {
     }
 }
 
-impl SseDecode for crate::api::sync::SyncEnrollmentStateDto {
+impl SseDecode for crate::api::sync::join::SyncEnrollmentStateDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_role = <String>::sse_decode(deserializer);
@@ -10645,7 +10723,7 @@ impl SseDecode for crate::api::sync::SyncEnrollmentStateDto {
         let mut var_localApplied = <bool>::sse_decode(deserializer);
         let mut var_remoteApplied = <bool>::sse_decode(deserializer);
         let mut var_notificationPending = <bool>::sse_decode(deserializer);
-        return crate::api::sync::SyncEnrollmentStateDto {
+        return crate::api::sync::join::SyncEnrollmentStateDto {
             role: var_role,
             operation_id: var_operationId,
             invitation_id: var_invitationId,
@@ -10663,13 +10741,13 @@ impl SseDecode for crate::api::sync::SyncEnrollmentStateDto {
     }
 }
 
-impl SseDecode for crate::api::sync::SyncInvitationOfferDto {
+impl SseDecode for crate::api::sync::invite::SyncInvitationOfferDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_invitationId = <String>::sse_decode(deserializer);
         let mut var_code = <String>::sse_decode(deserializer);
         let mut var_expiresAtMs = <i64>::sse_decode(deserializer);
-        return crate::api::sync::SyncInvitationOfferDto {
+        return crate::api::sync::invite::SyncInvitationOfferDto {
             invitation_id: var_invitationId,
             code: var_code,
             expires_at_ms: var_expiresAtMs,
@@ -10677,7 +10755,7 @@ impl SseDecode for crate::api::sync::SyncInvitationOfferDto {
     }
 }
 
-impl SseDecode for crate::api::sync::SyncInvitationPreviewDto {
+impl SseDecode for crate::api::sync::invite::SyncInvitationPreviewDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_invitationId = <String>::sse_decode(deserializer);
@@ -10686,7 +10764,7 @@ impl SseDecode for crate::api::sync::SyncInvitationPreviewDto {
         let mut var_devicePlatform = <String>::sse_decode(deserializer);
         let mut var_fingerprint = <String>::sse_decode(deserializer);
         let mut var_expiresAtMs = <i64>::sse_decode(deserializer);
-        return crate::api::sync::SyncInvitationPreviewDto {
+        return crate::api::sync::invite::SyncInvitationPreviewDto {
             invitation_id: var_invitationId,
             token: var_token,
             device_name: var_deviceName,
@@ -10697,14 +10775,14 @@ impl SseDecode for crate::api::sync::SyncInvitationPreviewDto {
     }
 }
 
-impl SseDecode for crate::api::sync::SyncJoinEntryDto {
+impl SseDecode for crate::api::sync::join::SyncJoinEntryDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_entryId = <String>::sse_decode(deserializer);
         let mut var_installationId = <String>::sse_decode(deserializer);
         let mut var_datasetId = <String>::sse_decode(deserializer);
         let mut var_name = <String>::sse_decode(deserializer);
-        return crate::api::sync::SyncJoinEntryDto {
+        return crate::api::sync::join::SyncJoinEntryDto {
             entry_id: var_entryId,
             installation_id: var_installationId,
             dataset_id: var_datasetId,
@@ -10713,7 +10791,7 @@ impl SseDecode for crate::api::sync::SyncJoinEntryDto {
     }
 }
 
-impl SseDecode for crate::api::sync::SyncJoinStateDto {
+impl SseDecode for crate::api::sync::join::SyncJoinStateDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_operationId = <String>::sse_decode(deserializer);
@@ -10730,7 +10808,7 @@ impl SseDecode for crate::api::sync::SyncJoinStateDto {
         let mut var_revision = <i64>::sse_decode(deserializer);
         let mut var_creating = <bool>::sse_decode(deserializer);
         let mut var_approvalAckPending = <bool>::sse_decode(deserializer);
-        return crate::api::sync::SyncJoinStateDto {
+        return crate::api::sync::join::SyncJoinStateDto {
             operation_id: var_operationId,
             token: var_token,
             entry_id: var_entryId,
@@ -10749,13 +10827,13 @@ impl SseDecode for crate::api::sync::SyncJoinStateDto {
     }
 }
 
-impl SseDecode for crate::api::sync::SyncKeyCommitDto {
+impl SseDecode for crate::api::sync::invite::SyncKeyCommitDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_token = <String>::sse_decode(deserializer);
         let mut var_installationId = <String>::sse_decode(deserializer);
         let mut var_revision = <i64>::sse_decode(deserializer);
-        return crate::api::sync::SyncKeyCommitDto {
+        return crate::api::sync::invite::SyncKeyCommitDto {
             token: var_token,
             installation_id: var_installationId,
             revision: var_revision,
@@ -10763,14 +10841,14 @@ impl SseDecode for crate::api::sync::SyncKeyCommitDto {
     }
 }
 
-impl SseDecode for crate::api::sync::SyncKeyRequestDto {
+impl SseDecode for crate::api::sync::invite::SyncKeyRequestDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_token = <String>::sse_decode(deserializer);
         let mut var_installationId = <String>::sse_decode(deserializer);
         let mut var_revision = <i64>::sse_decode(deserializer);
         let mut var_creating = <bool>::sse_decode(deserializer);
-        return crate::api::sync::SyncKeyRequestDto {
+        return crate::api::sync::invite::SyncKeyRequestDto {
             token: var_token,
             installation_id: var_installationId,
             revision: var_revision,
@@ -10779,7 +10857,7 @@ impl SseDecode for crate::api::sync::SyncKeyRequestDto {
     }
 }
 
-impl SseDecode for crate::api::sync::SyncRosterDto {
+impl SseDecode for crate::api::sync::datasets::SyncRosterDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_revision = <i64>::sse_decode(deserializer);
@@ -10788,8 +10866,8 @@ impl SseDecode for crate::api::sync::SyncRosterDto {
         let mut var_processorDeviceId = <String>::sse_decode(deserializer);
         let mut var_localDeviceId = <Option<String>>::sse_decode(deserializer);
         let mut var_members =
-            <Vec<crate::api::sync::SyncRosterMemberDto>>::sse_decode(deserializer);
-        return crate::api::sync::SyncRosterDto {
+            <Vec<crate::api::sync::datasets::SyncRosterMemberDto>>::sse_decode(deserializer);
+        return crate::api::sync::datasets::SyncRosterDto {
             revision: var_revision,
             dataset_id: var_datasetId,
             owner_device_id: var_ownerDeviceId,
@@ -10800,7 +10878,7 @@ impl SseDecode for crate::api::sync::SyncRosterDto {
     }
 }
 
-impl SseDecode for crate::api::sync::SyncRosterMemberDto {
+impl SseDecode for crate::api::sync::datasets::SyncRosterMemberDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_deviceId = <String>::sse_decode(deserializer);
@@ -10810,7 +10888,7 @@ impl SseDecode for crate::api::sync::SyncRosterMemberDto {
         let mut var_isOwner = <bool>::sse_decode(deserializer);
         let mut var_isProcessor = <bool>::sse_decode(deserializer);
         let mut var_isLocal = <bool>::sse_decode(deserializer);
-        return crate::api::sync::SyncRosterMemberDto {
+        return crate::api::sync::datasets::SyncRosterMemberDto {
             device_id: var_deviceId,
             name: var_name,
             platform: var_platform,
@@ -10822,7 +10900,7 @@ impl SseDecode for crate::api::sync::SyncRosterMemberDto {
     }
 }
 
-impl SseDecode for crate::api::sync::SyncTickResultDto {
+impl SseDecode for crate::api::sync::join::SyncTickResultDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_ran = <bool>::sse_decode(deserializer);
@@ -10835,7 +10913,7 @@ impl SseDecode for crate::api::sync::SyncTickResultDto {
         let mut var_rosterConverged = <bool>::sse_decode(deserializer);
         let mut var_acknowledgementFailed = <bool>::sse_decode(deserializer);
         let mut var_resnapshotPending = <Vec<String>>::sse_decode(deserializer);
-        return crate::api::sync::SyncTickResultDto {
+        return crate::api::sync::join::SyncTickResultDto {
             ran: var_ran,
             staged_operations: var_stagedOperations,
             uploaded: var_uploaded,
@@ -11075,7 +11153,7 @@ impl SseDecode for crate::api::wiki::WikiExportResultDto {
     }
 }
 
-impl SseDecode for crate::api::sync::WikiPageConflictDto {
+impl SseDecode for crate::api::sync::datasets::WikiPageConflictDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_opId = <String>::sse_decode(deserializer);
@@ -11091,9 +11169,9 @@ impl SseDecode for crate::api::sync::WikiPageConflictDto {
         let mut var_incomingContentMdLen = <i64>::sse_decode(deserializer);
         let mut var_incomingUpdatedAt = <String>::sse_decode(deserializer);
         let mut var_local =
-            <Option<crate::api::sync::WikiPageConflictSideDto>>::sse_decode(deserializer);
+            <Option<crate::api::sync::datasets::WikiPageConflictSideDto>>::sse_decode(deserializer);
         let mut var_localHeadDeleted = <bool>::sse_decode(deserializer);
-        return crate::api::sync::WikiPageConflictDto {
+        return crate::api::sync::datasets::WikiPageConflictDto {
             op_id: var_opId,
             object_id: var_objectId,
             reason: var_reason,
@@ -11112,14 +11190,14 @@ impl SseDecode for crate::api::sync::WikiPageConflictDto {
     }
 }
 
-impl SseDecode for crate::api::sync::WikiPageConflictSideDto {
+impl SseDecode for crate::api::sync::datasets::WikiPageConflictSideDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_slug = <String>::sse_decode(deserializer);
         let mut var_title = <String>::sse_decode(deserializer);
         let mut var_contentMdLen = <i64>::sse_decode(deserializer);
         let mut var_updatedAt = <String>::sse_decode(deserializer);
-        return crate::api::sync::WikiPageConflictSideDto {
+        return crate::api::sync::datasets::WikiPageConflictSideDto {
             slug: var_slug,
             title: var_title,
             content_md_len: var_contentMdLen,
@@ -11273,7 +11351,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::provider_config::AiProviderCo
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::AnalysisDto {
+impl flutter_rust_bridge::IntoDart for crate::api::analysis_schema::AnalysisDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.event_type.into_into_dart().into_dart(),
@@ -11284,14 +11362,19 @@ impl flutter_rust_bridge::IntoDart for crate::api::AnalysisDto {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::AnalysisDto {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::AnalysisDto> for crate::api::AnalysisDto {
-    fn into_into_dart(self) -> crate::api::AnalysisDto {
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::analysis_schema::AnalysisDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::analysis_schema::AnalysisDto>
+    for crate::api::analysis_schema::AnalysisDto
+{
+    fn into_into_dart(self) -> crate::api::analysis_schema::AnalysisDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::AnalysisJobStatsDto {
+impl flutter_rust_bridge::IntoDart for crate::api::analysis_schema::AnalysisJobStatsDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.pending.into_into_dart().into_dart(),
@@ -11304,22 +11387,22 @@ impl flutter_rust_bridge::IntoDart for crate::api::AnalysisJobStatsDto {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::AnalysisJobStatsDto
+    for crate::api::analysis_schema::AnalysisJobStatsDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::AnalysisJobStatsDto>
-    for crate::api::AnalysisJobStatsDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::analysis_schema::AnalysisJobStatsDto>
+    for crate::api::analysis_schema::AnalysisJobStatsDto
 {
-    fn into_into_dart(self) -> crate::api::AnalysisJobStatsDto {
+    fn into_into_dart(self) -> crate::api::analysis_schema::AnalysisJobStatsDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::AnalysisTriggerResult {
+impl flutter_rust_bridge::IntoDart for crate::api::records::AnalysisTriggerResult {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
-            crate::api::AnalysisTriggerResult::NoProvider => [0.into_dart()].into_dart(),
-            crate::api::AnalysisTriggerResult::Processed { count } => {
+            crate::api::records::AnalysisTriggerResult::NoProvider => [0.into_dart()].into_dart(),
+            crate::api::records::AnalysisTriggerResult::Processed { count } => {
                 [1.into_dart(), count.into_into_dart().into_dart()].into_dart()
             }
             _ => {
@@ -11329,18 +11412,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::AnalysisTriggerResult {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::AnalysisTriggerResult
+    for crate::api::records::AnalysisTriggerResult
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::AnalysisTriggerResult>
-    for crate::api::AnalysisTriggerResult
+impl flutter_rust_bridge::IntoIntoDart<crate::api::records::AnalysisTriggerResult>
+    for crate::api::records::AnalysisTriggerResult
 {
-    fn into_into_dart(self) -> crate::api::AnalysisTriggerResult {
+    fn into_into_dart(self) -> crate::api::records::AnalysisTriggerResult {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::AppUpdateDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::conflicts::AppUpdateDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.has_update.into_into_dart().into_dart(),
@@ -11357,13 +11440,13 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::AppUpdateDto {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::AppUpdateDto
+    for crate::api::sync::conflicts::AppUpdateDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::AppUpdateDto>
-    for crate::api::sync::AppUpdateDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::conflicts::AppUpdateDto>
+    for crate::api::sync::conflicts::AppUpdateDto
 {
-    fn into_into_dart(self) -> crate::api::sync::AppUpdateDto {
+    fn into_into_dart(self) -> crate::api::sync::conflicts::AppUpdateDto {
         self
     }
 }
@@ -11653,7 +11736,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::chat_runs::ChatRunEventPageDt
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::CompanionPrefsDto {
+impl flutter_rust_bridge::IntoDart for crate::api::companion_flow::CompanionPrefsDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.revisit_enabled.into_into_dart().into_dart(),
@@ -11662,16 +11745,19 @@ impl flutter_rust_bridge::IntoDart for crate::api::CompanionPrefsDto {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::CompanionPrefsDto {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::CompanionPrefsDto>
-    for crate::api::CompanionPrefsDto
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::companion_flow::CompanionPrefsDto
 {
-    fn into_into_dart(self) -> crate::api::CompanionPrefsDto {
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::companion_flow::CompanionPrefsDto>
+    for crate::api::companion_flow::CompanionPrefsDto
+{
+    fn into_into_dart(self) -> crate::api::companion_flow::CompanionPrefsDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::CompanionRevisitDto {
+impl flutter_rust_bridge::IntoDart for crate::api::companion_flow::CompanionRevisitDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.event_id.into_into_dart().into_dart(),
@@ -11683,13 +11769,13 @@ impl flutter_rust_bridge::IntoDart for crate::api::CompanionRevisitDto {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::CompanionRevisitDto
+    for crate::api::companion_flow::CompanionRevisitDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::CompanionRevisitDto>
-    for crate::api::CompanionRevisitDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::companion_flow::CompanionRevisitDto>
+    for crate::api::companion_flow::CompanionRevisitDto
 {
-    fn into_into_dart(self) -> crate::api::CompanionRevisitDto {
+    fn into_into_dart(self) -> crate::api::companion_flow::CompanionRevisitDto {
         self
     }
 }
@@ -11743,7 +11829,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::conversations::ConversationDt
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::DailyEntryDto {
+impl flutter_rust_bridge::IntoDart for crate::api::analysis_schema::DailyEntryDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.event_id.into_into_dart().into_dart(),
@@ -11757,14 +11843,19 @@ impl flutter_rust_bridge::IntoDart for crate::api::DailyEntryDto {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::DailyEntryDto {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::DailyEntryDto> for crate::api::DailyEntryDto {
-    fn into_into_dart(self) -> crate::api::DailyEntryDto {
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::analysis_schema::DailyEntryDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::analysis_schema::DailyEntryDto>
+    for crate::api::analysis_schema::DailyEntryDto
+{
+    fn into_into_dart(self) -> crate::api::analysis_schema::DailyEntryDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::DailyOverviewDto {
+impl flutter_rust_bridge::IntoDart for crate::api::analysis_schema::DailyOverviewDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.date.into_into_dart().into_dart(),
@@ -11777,16 +11868,19 @@ impl flutter_rust_bridge::IntoDart for crate::api::DailyOverviewDto {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::DailyOverviewDto {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::DailyOverviewDto>
-    for crate::api::DailyOverviewDto
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::analysis_schema::DailyOverviewDto
 {
-    fn into_into_dart(self) -> crate::api::DailyOverviewDto {
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::analysis_schema::DailyOverviewDto>
+    for crate::api::analysis_schema::DailyOverviewDto
+{
+    fn into_into_dart(self) -> crate::api::analysis_schema::DailyOverviewDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::DailyReviewDto {
+impl flutter_rust_bridge::IntoDart for crate::api::analysis_schema::DailyReviewDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.id.into_into_dart().into_dart(),
@@ -11801,14 +11895,19 @@ impl flutter_rust_bridge::IntoDart for crate::api::DailyReviewDto {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::DailyReviewDto {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::DailyReviewDto> for crate::api::DailyReviewDto {
-    fn into_into_dart(self) -> crate::api::DailyReviewDto {
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::analysis_schema::DailyReviewDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::analysis_schema::DailyReviewDto>
+    for crate::api::analysis_schema::DailyReviewDto
+{
+    fn into_into_dart(self) -> crate::api::analysis_schema::DailyReviewDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::DailyReviewItemDto {
+impl flutter_rust_bridge::IntoDart for crate::api::analysis_schema::DailyReviewItemDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.text.into_into_dart().into_dart(),
@@ -11818,23 +11917,23 @@ impl flutter_rust_bridge::IntoDart for crate::api::DailyReviewItemDto {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::DailyReviewItemDto
+    for crate::api::analysis_schema::DailyReviewItemDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::DailyReviewItemDto>
-    for crate::api::DailyReviewItemDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::analysis_schema::DailyReviewItemDto>
+    for crate::api::analysis_schema::DailyReviewItemDto
 {
-    fn into_into_dart(self) -> crate::api::DailyReviewItemDto {
+    fn into_into_dart(self) -> crate::api::analysis_schema::DailyReviewItemDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::DailyReviewResult {
+impl flutter_rust_bridge::IntoDart for crate::api::records::DailyReviewResult {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
-            crate::api::DailyReviewResult::NoProvider => [0.into_dart()].into_dart(),
-            crate::api::DailyReviewResult::NoEntries => [1.into_dart()].into_dart(),
-            crate::api::DailyReviewResult::Created { id } => {
+            crate::api::records::DailyReviewResult::NoProvider => [0.into_dart()].into_dart(),
+            crate::api::records::DailyReviewResult::NoEntries => [1.into_dart()].into_dart(),
+            crate::api::records::DailyReviewResult::Created { id } => {
                 [2.into_dart(), id.into_into_dart().into_dart()].into_dart()
             }
             _ => {
@@ -11843,11 +11942,14 @@ impl flutter_rust_bridge::IntoDart for crate::api::DailyReviewResult {
         }
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::DailyReviewResult {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::DailyReviewResult>
-    for crate::api::DailyReviewResult
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::records::DailyReviewResult
 {
-    fn into_into_dart(self) -> crate::api::DailyReviewResult {
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::records::DailyReviewResult>
+    for crate::api::records::DailyReviewResult
+{
+    fn into_into_dart(self) -> crate::api::records::DailyReviewResult {
         self
     }
 }
@@ -11899,7 +12001,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::db_maintenance::DatabaseStats
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::DayCountDto {
+impl flutter_rust_bridge::IntoDart for crate::api::period_stats::DayCountDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.date.into_into_dart().into_dart(),
@@ -11908,14 +12010,19 @@ impl flutter_rust_bridge::IntoDart for crate::api::DayCountDto {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::DayCountDto {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::DayCountDto> for crate::api::DayCountDto {
-    fn into_into_dart(self) -> crate::api::DayCountDto {
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::period_stats::DayCountDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::period_stats::DayCountDto>
+    for crate::api::period_stats::DayCountDto
+{
+    fn into_into_dart(self) -> crate::api::period_stats::DayCountDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::review_report::DeviationItemDto {
+impl flutter_rust_bridge::IntoDart for crate::api::review_report::store::DeviationItemDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.goal_content.into_into_dart().into_dart(),
@@ -11928,18 +12035,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::review_report::DeviationItemD
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::review_report::DeviationItemDto
+    for crate::api::review_report::store::DeviationItemDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::review_report::DeviationItemDto>
-    for crate::api::review_report::DeviationItemDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::review_report::store::DeviationItemDto>
+    for crate::api::review_report::store::DeviationItemDto
 {
-    fn into_into_dart(self) -> crate::api::review_report::DeviationItemDto {
+    fn into_into_dart(self) -> crate::api::review_report::store::DeviationItemDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::review_report::DeviationReportDto {
+impl flutter_rust_bridge::IntoDart for crate::api::review_report::store::DeviationReportDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.id.into_into_dart().into_dart(),
@@ -11963,13 +12070,13 @@ impl flutter_rust_bridge::IntoDart for crate::api::review_report::DeviationRepor
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::review_report::DeviationReportDto
+    for crate::api::review_report::store::DeviationReportDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::review_report::DeviationReportDto>
-    for crate::api::review_report::DeviationReportDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::review_report::store::DeviationReportDto>
+    for crate::api::review_report::store::DeviationReportDto
 {
-    fn into_into_dart(self) -> crate::api::review_report::DeviationReportDto {
+    fn into_into_dart(self) -> crate::api::review_report::store::DeviationReportDto {
         self
     }
 }
@@ -11996,7 +12103,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::todos::DueReminderDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::EmotionTagDto {
+impl flutter_rust_bridge::IntoDart for crate::api::analysis_schema::EmotionTagDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.target.into_into_dart().into_dart(),
@@ -12005,14 +12112,19 @@ impl flutter_rust_bridge::IntoDart for crate::api::EmotionTagDto {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::EmotionTagDto {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::EmotionTagDto> for crate::api::EmotionTagDto {
-    fn into_into_dart(self) -> crate::api::EmotionTagDto {
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::analysis_schema::EmotionTagDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::analysis_schema::EmotionTagDto>
+    for crate::api::analysis_schema::EmotionTagDto
+{
+    fn into_into_dart(self) -> crate::api::analysis_schema::EmotionTagDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::EntityFactDto {
+impl flutter_rust_bridge::IntoDart for crate::api::analysis_schema::EntityFactDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.id.into_into_dart().into_dart(),
@@ -12028,9 +12140,14 @@ impl flutter_rust_bridge::IntoDart for crate::api::EntityFactDto {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::EntityFactDto {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::EntityFactDto> for crate::api::EntityFactDto {
-    fn into_into_dart(self) -> crate::api::EntityFactDto {
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::analysis_schema::EntityFactDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::analysis_schema::EntityFactDto>
+    for crate::api::analysis_schema::EntityFactDto
+{
+    fn into_into_dart(self) -> crate::api::analysis_schema::EntityFactDto {
         self
     }
 }
@@ -12058,7 +12175,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::entities::EntityMergeStatusDt
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::EventAnalysisDetailDto {
+impl flutter_rust_bridge::IntoDart for crate::api::analysis_schema::EventAnalysisDetailDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.event_id.into_into_dart().into_dart(),
@@ -12093,18 +12210,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::EventAnalysisDetailDto {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::EventAnalysisDetailDto
+    for crate::api::analysis_schema::EventAnalysisDetailDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::EventAnalysisDetailDto>
-    for crate::api::EventAnalysisDetailDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::analysis_schema::EventAnalysisDetailDto>
+    for crate::api::analysis_schema::EventAnalysisDetailDto
 {
-    fn into_into_dart(self) -> crate::api::EventAnalysisDetailDto {
+    fn into_into_dart(self) -> crate::api::analysis_schema::EventAnalysisDetailDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::EventDto {
+impl flutter_rust_bridge::IntoDart for crate::api::analysis_schema::EventDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.id.into_into_dart().into_dart(),
@@ -12117,14 +12234,19 @@ impl flutter_rust_bridge::IntoDart for crate::api::EventDto {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::EventDto {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::EventDto> for crate::api::EventDto {
-    fn into_into_dart(self) -> crate::api::EventDto {
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::analysis_schema::EventDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::analysis_schema::EventDto>
+    for crate::api::analysis_schema::EventDto
+{
+    fn into_into_dart(self) -> crate::api::analysis_schema::EventDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::EventEmotionDto {
+impl flutter_rust_bridge::IntoDart for crate::api::analysis_schema::EventEmotionDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.id.into_into_dart().into_dart(),
@@ -12136,11 +12258,14 @@ impl flutter_rust_bridge::IntoDart for crate::api::EventEmotionDto {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::EventEmotionDto {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::EventEmotionDto>
-    for crate::api::EventEmotionDto
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::analysis_schema::EventEmotionDto
 {
-    fn into_into_dart(self) -> crate::api::EventEmotionDto {
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::analysis_schema::EventEmotionDto>
+    for crate::api::analysis_schema::EventEmotionDto
+{
+    fn into_into_dart(self) -> crate::api::analysis_schema::EventEmotionDto {
         self
     }
 }
@@ -12169,7 +12294,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::event_stats::EventStatsQuery>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::EventSummaryDto {
+impl flutter_rust_bridge::IntoDart for crate::api::review_flow::EventSummaryDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.id.into_into_dart().into_dart(),
@@ -12181,11 +12306,14 @@ impl flutter_rust_bridge::IntoDart for crate::api::EventSummaryDto {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::EventSummaryDto {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::EventSummaryDto>
-    for crate::api::EventSummaryDto
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::review_flow::EventSummaryDto
 {
-    fn into_into_dart(self) -> crate::api::EventSummaryDto {
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::review_flow::EventSummaryDto>
+    for crate::api::review_flow::EventSummaryDto
+{
+    fn into_into_dart(self) -> crate::api::review_flow::EventSummaryDto {
         self
     }
 }
@@ -12211,7 +12339,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::goals::GoalDto> for crate::ap
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::GuidanceDto {
+impl flutter_rust_bridge::IntoDart for crate::api::analysis_schema::GuidanceDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.related.into_into_dart().into_dart(),
@@ -12221,14 +12349,19 @@ impl flutter_rust_bridge::IntoDart for crate::api::GuidanceDto {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::GuidanceDto {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::GuidanceDto> for crate::api::GuidanceDto {
-    fn into_into_dart(self) -> crate::api::GuidanceDto {
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::analysis_schema::GuidanceDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::analysis_schema::GuidanceDto>
+    for crate::api::analysis_schema::GuidanceDto
+{
+    fn into_into_dart(self) -> crate::api::analysis_schema::GuidanceDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::GuidanceRefDto {
+impl flutter_rust_bridge::IntoDart for crate::api::analysis_schema::GuidanceRefDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.slug.into_into_dart().into_dart(),
@@ -12237,9 +12370,14 @@ impl flutter_rust_bridge::IntoDart for crate::api::GuidanceRefDto {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::GuidanceRefDto {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::GuidanceRefDto> for crate::api::GuidanceRefDto {
-    fn into_into_dart(self) -> crate::api::GuidanceRefDto {
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::analysis_schema::GuidanceRefDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::analysis_schema::GuidanceRefDto>
+    for crate::api::analysis_schema::GuidanceRefDto
+{
+    fn into_into_dart(self) -> crate::api::analysis_schema::GuidanceRefDto {
         self
     }
 }
@@ -12269,7 +12407,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::import::ImportUrlDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::InputRecordDto {
+impl flutter_rust_bridge::IntoDart for crate::api::analysis_schema::InputRecordDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.id.into_into_dart().into_dart(),
@@ -12287,9 +12425,14 @@ impl flutter_rust_bridge::IntoDart for crate::api::InputRecordDto {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::InputRecordDto {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::InputRecordDto> for crate::api::InputRecordDto {
-    fn into_into_dart(self) -> crate::api::InputRecordDto {
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::analysis_schema::InputRecordDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::analysis_schema::InputRecordDto>
+    for crate::api::analysis_schema::InputRecordDto
+{
+    fn into_into_dart(self) -> crate::api::analysis_schema::InputRecordDto {
         self
     }
 }
@@ -12325,7 +12468,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::knowledge::KnowledgeBackgroun
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::knowledge::KnowledgeCitation {
+impl flutter_rust_bridge::IntoDart for crate::knowledge::select::KnowledgeCitation {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.page_slug.into_into_dart().into_dart(),
@@ -12343,13 +12486,13 @@ impl flutter_rust_bridge::IntoDart for crate::knowledge::KnowledgeCitation {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::knowledge::KnowledgeCitation
+    for crate::knowledge::select::KnowledgeCitation
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::KnowledgeCitation>
-    for crate::knowledge::KnowledgeCitation
+impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::select::KnowledgeCitation>
+    for crate::knowledge::select::KnowledgeCitation
 {
-    fn into_into_dart(self) -> crate::knowledge::KnowledgeCitation {
+    fn into_into_dart(self) -> crate::knowledge::select::KnowledgeCitation {
         self
     }
 }
@@ -12511,7 +12654,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::knowledge_digest::KnowledgeDi
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::knowledge::KnowledgeHealthReport {
+impl flutter_rust_bridge::IntoDart for crate::knowledge::health::KnowledgeHealthReport {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.generated_at.into_into_dart().into_dart(),
@@ -12544,18 +12687,18 @@ impl flutter_rust_bridge::IntoDart for crate::knowledge::KnowledgeHealthReport {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::knowledge::KnowledgeHealthReport
+    for crate::knowledge::health::KnowledgeHealthReport
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::KnowledgeHealthReport>
-    for crate::knowledge::KnowledgeHealthReport
+impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::health::KnowledgeHealthReport>
+    for crate::knowledge::health::KnowledgeHealthReport
 {
-    fn into_into_dart(self) -> crate::knowledge::KnowledgeHealthReport {
+    fn into_into_dart(self) -> crate::knowledge::health::KnowledgeHealthReport {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::KnowledgeIssue {
+impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::core::KnowledgeIssue {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.fingerprint.into_into_dart().into_dart(),
@@ -12567,18 +12710,18 @@ impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::KnowledgeIssue
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::storage::knowledge::KnowledgeIssue
+    for crate::storage::knowledge::core::KnowledgeIssue
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::storage::knowledge::KnowledgeIssue>
-    for crate::storage::knowledge::KnowledgeIssue
+impl flutter_rust_bridge::IntoIntoDart<crate::storage::knowledge::core::KnowledgeIssue>
+    for crate::storage::knowledge::core::KnowledgeIssue
 {
-    fn into_into_dart(self) -> crate::storage::knowledge::KnowledgeIssue {
+    fn into_into_dart(self) -> crate::storage::knowledge::core::KnowledgeIssue {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::KnowledgeMetadata {
+impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::core::KnowledgeMetadata {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.applicable_when.into_into_dart().into_dart(),
@@ -12589,13 +12732,13 @@ impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::KnowledgeMetad
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::storage::knowledge::KnowledgeMetadata
+    for crate::storage::knowledge::core::KnowledgeMetadata
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::storage::knowledge::KnowledgeMetadata>
-    for crate::storage::knowledge::KnowledgeMetadata
+impl flutter_rust_bridge::IntoIntoDart<crate::storage::knowledge::core::KnowledgeMetadata>
+    for crate::storage::knowledge::core::KnowledgeMetadata
 {
-    fn into_into_dart(self) -> crate::storage::knowledge::KnowledgeMetadata {
+    fn into_into_dart(self) -> crate::storage::knowledge::core::KnowledgeMetadata {
         self
     }
 }
@@ -12628,7 +12771,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::knowledge::KnowledgePageDetai
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::KnowledgeProposal {
+impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::core::KnowledgeProposal {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.id.into_into_dart().into_dart(),
@@ -12650,13 +12793,13 @@ impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::KnowledgePropo
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::storage::knowledge::KnowledgeProposal
+    for crate::storage::knowledge::core::KnowledgeProposal
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::storage::knowledge::KnowledgeProposal>
-    for crate::storage::knowledge::KnowledgeProposal
+impl flutter_rust_bridge::IntoIntoDart<crate::storage::knowledge::core::KnowledgeProposal>
+    for crate::storage::knowledge::core::KnowledgeProposal
 {
-    fn into_into_dart(self) -> crate::storage::knowledge::KnowledgeProposal {
+    fn into_into_dart(self) -> crate::storage::knowledge::core::KnowledgeProposal {
         self
     }
 }
@@ -12867,7 +13010,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::workflows::LibraryPage>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::LocalSyncStateDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::invite::LocalSyncStateDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.state.into_into_dart().into_dart(),
@@ -12886,13 +13029,13 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::LocalSyncStateDto {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::LocalSyncStateDto
+    for crate::api::sync::invite::LocalSyncStateDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::LocalSyncStateDto>
-    for crate::api::sync::LocalSyncStateDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::invite::LocalSyncStateDto>
+    for crate::api::sync::invite::LocalSyncStateDto
 {
-    fn into_into_dart(self) -> crate::api::sync::LocalSyncStateDto {
+    fn into_into_dart(self) -> crate::api::sync::invite::LocalSyncStateDto {
         self
     }
 }
@@ -12946,7 +13089,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::mcp::McpToolDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::MemoryEchoDto {
+impl flutter_rust_bridge::IntoDart for crate::api::analysis_schema::MemoryEchoDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.event_id.into_into_dart().into_dart(),
@@ -12956,9 +13099,14 @@ impl flutter_rust_bridge::IntoDart for crate::api::MemoryEchoDto {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::MemoryEchoDto {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::MemoryEchoDto> for crate::api::MemoryEchoDto {
-    fn into_into_dart(self) -> crate::api::MemoryEchoDto {
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::analysis_schema::MemoryEchoDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::analysis_schema::MemoryEchoDto>
+    for crate::api::analysis_schema::MemoryEchoDto
+{
+    fn into_into_dart(self) -> crate::api::analysis_schema::MemoryEchoDto {
         self
     }
 }
@@ -12989,7 +13137,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::conversations::MessageDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::MessageRecordabilityDto {
+impl flutter_rust_bridge::IntoDart for crate::api::analysis_schema::MessageRecordabilityDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.message_id.into_into_dart().into_dart(),
@@ -13004,18 +13152,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::MessageRecordabilityDto {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::MessageRecordabilityDto
+    for crate::api::analysis_schema::MessageRecordabilityDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::MessageRecordabilityDto>
-    for crate::api::MessageRecordabilityDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::analysis_schema::MessageRecordabilityDto>
+    for crate::api::analysis_schema::MessageRecordabilityDto
 {
-    fn into_into_dart(self) -> crate::api::MessageRecordabilityDto {
+    fn into_into_dart(self) -> crate::api::analysis_schema::MessageRecordabilityDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::NamedCountDto {
+impl flutter_rust_bridge::IntoDart for crate::api::period_stats::NamedCountDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.label.into_into_dart().into_dart(),
@@ -13024,9 +13172,14 @@ impl flutter_rust_bridge::IntoDart for crate::api::NamedCountDto {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::NamedCountDto {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::NamedCountDto> for crate::api::NamedCountDto {
-    fn into_into_dart(self) -> crate::api::NamedCountDto {
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::period_stats::NamedCountDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::period_stats::NamedCountDto>
+    for crate::api::period_stats::NamedCountDto
+{
+    fn into_into_dart(self) -> crate::api::period_stats::NamedCountDto {
         self
     }
 }
@@ -13055,7 +13208,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::web_search::NetworkSettingsDt
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::ObjectConflictDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::conflicts::ObjectConflictDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.op_id.into_into_dart().into_dart(),
@@ -13077,13 +13230,13 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::ObjectConflictDto {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::ObjectConflictDto
+    for crate::api::sync::conflicts::ObjectConflictDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::ObjectConflictDto>
-    for crate::api::sync::ObjectConflictDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::conflicts::ObjectConflictDto>
+    for crate::api::sync::conflicts::ObjectConflictDto
 {
-    fn into_into_dart(self) -> crate::api::sync::ObjectConflictDto {
+    fn into_into_dart(self) -> crate::api::sync::conflicts::ObjectConflictDto {
         self
     }
 }
@@ -13133,7 +13286,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::knowledge::PageConsolidationS
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::PageGuidanceDto {
+impl flutter_rust_bridge::IntoDart for crate::api::companion_flow::PageGuidanceDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.analysis_id.into_into_dart().into_dart(),
@@ -13147,11 +13300,14 @@ impl flutter_rust_bridge::IntoDart for crate::api::PageGuidanceDto {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::PageGuidanceDto {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::PageGuidanceDto>
-    for crate::api::PageGuidanceDto
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::companion_flow::PageGuidanceDto
 {
-    fn into_into_dart(self) -> crate::api::PageGuidanceDto {
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::companion_flow::PageGuidanceDto>
+    for crate::api::companion_flow::PageGuidanceDto
+{
+    fn into_into_dart(self) -> crate::api::companion_flow::PageGuidanceDto {
         self
     }
 }
@@ -13210,14 +13366,16 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::conversations::PendingActionD
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::review_report::PeriodReportTickResult {
+impl flutter_rust_bridge::IntoDart for crate::api::review_report::detect::PeriodReportTickResult {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
-            crate::api::review_report::PeriodReportTickResult::NoProvider => {
+            crate::api::review_report::detect::PeriodReportTickResult::NoProvider => {
                 [0.into_dart()].into_dart()
             }
-            crate::api::review_report::PeriodReportTickResult::Idle => [1.into_dart()].into_dart(),
-            crate::api::review_report::PeriodReportTickResult::Generated {
+            crate::api::review_report::detect::PeriodReportTickResult::Idle => {
+                [1.into_dart()].into_dart()
+            }
+            crate::api::review_report::detect::PeriodReportTickResult::Generated {
                 period,
                 period_type,
             } => [
@@ -13226,7 +13384,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::review_report::PeriodReportTi
                 period_type.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::api::review_report::PeriodReportTickResult::Detected {
+            crate::api::review_report::detect::PeriodReportTickResult::Detected {
                 report_id,
                 deviations,
             } => [
@@ -13235,7 +13393,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::review_report::PeriodReportTi
                 deviations.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::api::review_report::PeriodReportTickResult::DetectFailed {
+            crate::api::review_report::detect::PeriodReportTickResult::DetectFailed {
                 report_id,
                 error,
             } => [
@@ -13251,18 +13409,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::review_report::PeriodReportTi
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::review_report::PeriodReportTickResult
+    for crate::api::review_report::detect::PeriodReportTickResult
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::review_report::PeriodReportTickResult>
-    for crate::api::review_report::PeriodReportTickResult
+impl flutter_rust_bridge::IntoIntoDart<crate::api::review_report::detect::PeriodReportTickResult>
+    for crate::api::review_report::detect::PeriodReportTickResult
 {
-    fn into_into_dart(self) -> crate::api::review_report::PeriodReportTickResult {
+    fn into_into_dart(self) -> crate::api::review_report::detect::PeriodReportTickResult {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::PeriodStatsDto {
+impl flutter_rust_bridge::IntoDart for crate::api::period_stats::PeriodStatsDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.period_type.into_into_dart().into_dart(),
@@ -13279,14 +13437,19 @@ impl flutter_rust_bridge::IntoDart for crate::api::PeriodStatsDto {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::PeriodStatsDto {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::PeriodStatsDto> for crate::api::PeriodStatsDto {
-    fn into_into_dart(self) -> crate::api::PeriodStatsDto {
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::period_stats::PeriodStatsDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::period_stats::PeriodStatsDto>
+    for crate::api::period_stats::PeriodStatsDto
+{
+    fn into_into_dart(self) -> crate::api::period_stats::PeriodStatsDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::ProcessingYieldProofDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::invite::ProcessingYieldProofDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.dataset_id.into_into_dart().into_dart(),
@@ -13300,18 +13463,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::ProcessingYieldProofDto
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::ProcessingYieldProofDto
+    for crate::api::sync::invite::ProcessingYieldProofDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::ProcessingYieldProofDto>
-    for crate::api::sync::ProcessingYieldProofDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::invite::ProcessingYieldProofDto>
+    for crate::api::sync::invite::ProcessingYieldProofDto
 {
-    fn into_into_dart(self) -> crate::api::sync::ProcessingYieldProofDto {
+    fn into_into_dart(self) -> crate::api::sync::invite::ProcessingYieldProofDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::ProcessorHandoffStateDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::invite::ProcessorHandoffStateDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.state.into_into_dart().into_dart(),
@@ -13324,18 +13487,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::ProcessorHandoffStateDt
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::ProcessorHandoffStateDto
+    for crate::api::sync::invite::ProcessorHandoffStateDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::ProcessorHandoffStateDto>
-    for crate::api::sync::ProcessorHandoffStateDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::invite::ProcessorHandoffStateDto>
+    for crate::api::sync::invite::ProcessorHandoffStateDto
 {
-    fn into_into_dart(self) -> crate::api::sync::ProcessorHandoffStateDto {
+    fn into_into_dart(self) -> crate::api::sync::invite::ProcessorHandoffStateDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::ProviderConflictProfileDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::datasets::ProviderConflictProfileDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.id.into_into_dart().into_dart(),
@@ -13356,18 +13519,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::ProviderConflictProfile
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::ProviderConflictProfileDto
+    for crate::api::sync::datasets::ProviderConflictProfileDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::ProviderConflictProfileDto>
-    for crate::api::sync::ProviderConflictProfileDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::datasets::ProviderConflictProfileDto>
+    for crate::api::sync::datasets::ProviderConflictProfileDto
 {
-    fn into_into_dart(self) -> crate::api::sync::ProviderConflictProfileDto {
+    fn into_into_dart(self) -> crate::api::sync::datasets::ProviderConflictProfileDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::ProviderSyncConflictDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::datasets::ProviderSyncConflictDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.revision_id.into_into_dart().into_dart(),
@@ -13385,13 +13548,13 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::ProviderSyncConflictDto
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::ProviderSyncConflictDto
+    for crate::api::sync::datasets::ProviderSyncConflictDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::ProviderSyncConflictDto>
-    for crate::api::sync::ProviderSyncConflictDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::datasets::ProviderSyncConflictDto>
+    for crate::api::sync::datasets::ProviderSyncConflictDto
 {
-    fn into_into_dart(self) -> crate::api::sync::ProviderSyncConflictDto {
+    fn into_into_dart(self) -> crate::api::sync::datasets::ProviderSyncConflictDto {
         self
     }
 }
@@ -13444,7 +13607,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::knowledge::ReconsolidationJob
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::RejectedSourceRow {
+impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::core::RejectedSourceRow {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.slug.into_into_dart().into_dart(),
@@ -13459,13 +13622,13 @@ impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::RejectedSource
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::storage::knowledge::RejectedSourceRow
+    for crate::storage::knowledge::core::RejectedSourceRow
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::storage::knowledge::RejectedSourceRow>
-    for crate::storage::knowledge::RejectedSourceRow
+impl flutter_rust_bridge::IntoIntoDart<crate::storage::knowledge::core::RejectedSourceRow>
+    for crate::storage::knowledge::core::RejectedSourceRow
 {
-    fn into_into_dart(self) -> crate::storage::knowledge::RejectedSourceRow {
+    fn into_into_dart(self) -> crate::storage::knowledge::core::RejectedSourceRow {
         self
     }
 }
@@ -13541,7 +13704,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::rules::RuleHitDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::knowledge::SourceReference {
+impl flutter_rust_bridge::IntoDart for crate::knowledge::select::SourceReference {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.snapshot_id.into_into_dart().into_dart(),
@@ -13553,18 +13716,18 @@ impl flutter_rust_bridge::IntoDart for crate::knowledge::SourceReference {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::knowledge::SourceReference
+    for crate::knowledge::select::SourceReference
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::SourceReference>
-    for crate::knowledge::SourceReference
+impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::select::SourceReference>
+    for crate::knowledge::select::SourceReference
 {
-    fn into_into_dart(self) -> crate::knowledge::SourceReference {
+    fn into_into_dart(self) -> crate::knowledge::select::SourceReference {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::SourceSnapshot {
+impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::core::SourceSnapshot {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.id.into_into_dart().into_dart(),
@@ -13583,13 +13746,13 @@ impl flutter_rust_bridge::IntoDart for crate::storage::knowledge::SourceSnapshot
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::storage::knowledge::SourceSnapshot
+    for crate::storage::knowledge::core::SourceSnapshot
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::storage::knowledge::SourceSnapshot>
-    for crate::storage::knowledge::SourceSnapshot
+impl flutter_rust_bridge::IntoIntoDart<crate::storage::knowledge::core::SourceSnapshot>
+    for crate::storage::knowledge::core::SourceSnapshot
 {
-    fn into_into_dart(self) -> crate::storage::knowledge::SourceSnapshot {
+    fn into_into_dart(self) -> crate::storage::knowledge::core::SourceSnapshot {
         self
     }
 }
@@ -13641,7 +13804,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::workflows::SuggestionFe
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncDatasetEntryDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::join::SyncDatasetEntryDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.entry_id.into_into_dart().into_dart(),
@@ -13655,18 +13818,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncDatasetEntryDto {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::SyncDatasetEntryDto
+    for crate::api::sync::join::SyncDatasetEntryDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncDatasetEntryDto>
-    for crate::api::sync::SyncDatasetEntryDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::join::SyncDatasetEntryDto>
+    for crate::api::sync::join::SyncDatasetEntryDto
 {
-    fn into_into_dart(self) -> crate::api::sync::SyncDatasetEntryDto {
+    fn into_into_dart(self) -> crate::api::sync::join::SyncDatasetEntryDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncEnrollmentStateDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::join::SyncEnrollmentStateDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.role.into_into_dart().into_dart(),
@@ -13687,18 +13850,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncEnrollmentStateDto 
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::SyncEnrollmentStateDto
+    for crate::api::sync::join::SyncEnrollmentStateDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncEnrollmentStateDto>
-    for crate::api::sync::SyncEnrollmentStateDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::join::SyncEnrollmentStateDto>
+    for crate::api::sync::join::SyncEnrollmentStateDto
 {
-    fn into_into_dart(self) -> crate::api::sync::SyncEnrollmentStateDto {
+    fn into_into_dart(self) -> crate::api::sync::join::SyncEnrollmentStateDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncInvitationOfferDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::invite::SyncInvitationOfferDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.invitation_id.into_into_dart().into_dart(),
@@ -13709,18 +13872,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncInvitationOfferDto 
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::SyncInvitationOfferDto
+    for crate::api::sync::invite::SyncInvitationOfferDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncInvitationOfferDto>
-    for crate::api::sync::SyncInvitationOfferDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::invite::SyncInvitationOfferDto>
+    for crate::api::sync::invite::SyncInvitationOfferDto
 {
-    fn into_into_dart(self) -> crate::api::sync::SyncInvitationOfferDto {
+    fn into_into_dart(self) -> crate::api::sync::invite::SyncInvitationOfferDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncInvitationPreviewDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::invite::SyncInvitationPreviewDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.invitation_id.into_into_dart().into_dart(),
@@ -13734,18 +13897,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncInvitationPreviewDt
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::SyncInvitationPreviewDto
+    for crate::api::sync::invite::SyncInvitationPreviewDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncInvitationPreviewDto>
-    for crate::api::sync::SyncInvitationPreviewDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::invite::SyncInvitationPreviewDto>
+    for crate::api::sync::invite::SyncInvitationPreviewDto
 {
-    fn into_into_dart(self) -> crate::api::sync::SyncInvitationPreviewDto {
+    fn into_into_dart(self) -> crate::api::sync::invite::SyncInvitationPreviewDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncJoinEntryDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::join::SyncJoinEntryDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.entry_id.into_into_dart().into_dart(),
@@ -13757,18 +13920,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncJoinEntryDto {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::SyncJoinEntryDto
+    for crate::api::sync::join::SyncJoinEntryDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncJoinEntryDto>
-    for crate::api::sync::SyncJoinEntryDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::join::SyncJoinEntryDto>
+    for crate::api::sync::join::SyncJoinEntryDto
 {
-    fn into_into_dart(self) -> crate::api::sync::SyncJoinEntryDto {
+    fn into_into_dart(self) -> crate::api::sync::join::SyncJoinEntryDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncJoinStateDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::join::SyncJoinStateDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.operation_id.into_into_dart().into_dart(),
@@ -13790,18 +13953,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncJoinStateDto {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::SyncJoinStateDto
+    for crate::api::sync::join::SyncJoinStateDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncJoinStateDto>
-    for crate::api::sync::SyncJoinStateDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::join::SyncJoinStateDto>
+    for crate::api::sync::join::SyncJoinStateDto
 {
-    fn into_into_dart(self) -> crate::api::sync::SyncJoinStateDto {
+    fn into_into_dart(self) -> crate::api::sync::join::SyncJoinStateDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncKeyCommitDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::invite::SyncKeyCommitDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.token.into_into_dart().into_dart(),
@@ -13812,18 +13975,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncKeyCommitDto {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::SyncKeyCommitDto
+    for crate::api::sync::invite::SyncKeyCommitDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncKeyCommitDto>
-    for crate::api::sync::SyncKeyCommitDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::invite::SyncKeyCommitDto>
+    for crate::api::sync::invite::SyncKeyCommitDto
 {
-    fn into_into_dart(self) -> crate::api::sync::SyncKeyCommitDto {
+    fn into_into_dart(self) -> crate::api::sync::invite::SyncKeyCommitDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncKeyRequestDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::invite::SyncKeyRequestDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.token.into_into_dart().into_dart(),
@@ -13835,18 +13998,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncKeyRequestDto {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::SyncKeyRequestDto
+    for crate::api::sync::invite::SyncKeyRequestDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncKeyRequestDto>
-    for crate::api::sync::SyncKeyRequestDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::invite::SyncKeyRequestDto>
+    for crate::api::sync::invite::SyncKeyRequestDto
 {
-    fn into_into_dart(self) -> crate::api::sync::SyncKeyRequestDto {
+    fn into_into_dart(self) -> crate::api::sync::invite::SyncKeyRequestDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncRosterDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::datasets::SyncRosterDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.revision.into_into_dart().into_dart(),
@@ -13860,18 +14023,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncRosterDto {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::SyncRosterDto
+    for crate::api::sync::datasets::SyncRosterDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncRosterDto>
-    for crate::api::sync::SyncRosterDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::datasets::SyncRosterDto>
+    for crate::api::sync::datasets::SyncRosterDto
 {
-    fn into_into_dart(self) -> crate::api::sync::SyncRosterDto {
+    fn into_into_dart(self) -> crate::api::sync::datasets::SyncRosterDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncRosterMemberDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::datasets::SyncRosterMemberDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.device_id.into_into_dart().into_dart(),
@@ -13886,18 +14049,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncRosterMemberDto {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::SyncRosterMemberDto
+    for crate::api::sync::datasets::SyncRosterMemberDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncRosterMemberDto>
-    for crate::api::sync::SyncRosterMemberDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::datasets::SyncRosterMemberDto>
+    for crate::api::sync::datasets::SyncRosterMemberDto
 {
-    fn into_into_dart(self) -> crate::api::sync::SyncRosterMemberDto {
+    fn into_into_dart(self) -> crate::api::sync::datasets::SyncRosterMemberDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncTickResultDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::join::SyncTickResultDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.ran.into_into_dart().into_dart(),
@@ -13915,13 +14078,13 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::SyncTickResultDto {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::SyncTickResultDto
+    for crate::api::sync::join::SyncTickResultDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::SyncTickResultDto>
-    for crate::api::sync::SyncTickResultDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::join::SyncTickResultDto>
+    for crate::api::sync::join::SyncTickResultDto
 {
-    fn into_into_dart(self) -> crate::api::sync::SyncTickResultDto {
+    fn into_into_dart(self) -> crate::api::sync::join::SyncTickResultDto {
         self
     }
 }
@@ -14185,7 +14348,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::wiki::WikiExportResultDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::WikiPageConflictDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::datasets::WikiPageConflictDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.op_id.into_into_dart().into_dart(),
@@ -14207,18 +14370,18 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::WikiPageConflictDto {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::WikiPageConflictDto
+    for crate::api::sync::datasets::WikiPageConflictDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::WikiPageConflictDto>
-    for crate::api::sync::WikiPageConflictDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::datasets::WikiPageConflictDto>
+    for crate::api::sync::datasets::WikiPageConflictDto
 {
-    fn into_into_dart(self) -> crate::api::sync::WikiPageConflictDto {
+    fn into_into_dart(self) -> crate::api::sync::datasets::WikiPageConflictDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::WikiPageConflictSideDto {
+impl flutter_rust_bridge::IntoDart for crate::api::sync::datasets::WikiPageConflictSideDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.slug.into_into_dart().into_dart(),
@@ -14230,13 +14393,13 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::WikiPageConflictSideDto
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::WikiPageConflictSideDto
+    for crate::api::sync::datasets::WikiPageConflictSideDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::WikiPageConflictSideDto>
-    for crate::api::sync::WikiPageConflictSideDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::datasets::WikiPageConflictSideDto>
+    for crate::api::sync::datasets::WikiPageConflictSideDto
 {
-    fn into_into_dart(self) -> crate::api::sync::WikiPageConflictSideDto {
+    fn into_into_dart(self) -> crate::api::sync::datasets::WikiPageConflictSideDto {
         self
     }
 }
@@ -14343,7 +14506,7 @@ impl SseEncode for crate::api::provider_config::AiProviderConfigDto {
     }
 }
 
-impl SseEncode for crate::api::AnalysisDto {
+impl SseEncode for crate::api::analysis_schema::AnalysisDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.event_type, serializer);
@@ -14353,7 +14516,7 @@ impl SseEncode for crate::api::AnalysisDto {
     }
 }
 
-impl SseEncode for crate::api::AnalysisJobStatsDto {
+impl SseEncode for crate::api::analysis_schema::AnalysisJobStatsDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i64>::sse_encode(self.pending, serializer);
@@ -14364,14 +14527,14 @@ impl SseEncode for crate::api::AnalysisJobStatsDto {
     }
 }
 
-impl SseEncode for crate::api::AnalysisTriggerResult {
+impl SseEncode for crate::api::records::AnalysisTriggerResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         match self {
-            crate::api::AnalysisTriggerResult::NoProvider => {
+            crate::api::records::AnalysisTriggerResult::NoProvider => {
                 <i32>::sse_encode(0, serializer);
             }
-            crate::api::AnalysisTriggerResult::Processed { count } => {
+            crate::api::records::AnalysisTriggerResult::Processed { count } => {
                 <i32>::sse_encode(1, serializer);
                 <i64>::sse_encode(count, serializer);
             }
@@ -14382,7 +14545,7 @@ impl SseEncode for crate::api::AnalysisTriggerResult {
     }
 }
 
-impl SseEncode for crate::api::sync::AppUpdateDto {
+impl SseEncode for crate::api::sync::conflicts::AppUpdateDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.has_update, serializer);
@@ -14549,7 +14712,7 @@ impl SseEncode for crate::api::chat_runs::ChatRunEventPageDto {
     }
 }
 
-impl SseEncode for crate::api::CompanionPrefsDto {
+impl SseEncode for crate::api::companion_flow::CompanionPrefsDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.revisit_enabled, serializer);
@@ -14557,7 +14720,7 @@ impl SseEncode for crate::api::CompanionPrefsDto {
     }
 }
 
-impl SseEncode for crate::api::CompanionRevisitDto {
+impl SseEncode for crate::api::companion_flow::CompanionRevisitDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.event_id, serializer);
@@ -14590,7 +14753,7 @@ impl SseEncode for crate::api::conversations::ConversationDto {
     }
 }
 
-impl SseEncode for crate::api::DailyEntryDto {
+impl SseEncode for crate::api::analysis_schema::DailyEntryDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.event_id, serializer);
@@ -14603,33 +14766,45 @@ impl SseEncode for crate::api::DailyEntryDto {
     }
 }
 
-impl SseEncode for crate::api::DailyOverviewDto {
+impl SseEncode for crate::api::analysis_schema::DailyOverviewDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.date, serializer);
-        <Vec<crate::api::DailyEntryDto>>::sse_encode(self.entries, serializer);
-        <Option<crate::api::DailyReviewDto>>::sse_encode(self.review, serializer);
+        <Vec<crate::api::analysis_schema::DailyEntryDto>>::sse_encode(self.entries, serializer);
+        <Option<crate::api::analysis_schema::DailyReviewDto>>::sse_encode(self.review, serializer);
         <Vec<crate::api::todos::TodoDto>>::sse_encode(self.todos, serializer);
         <Vec<crate::api::rules::RuleHitDto>>::sse_encode(self.reminder_hits, serializer);
-        <Vec<crate::api::MemoryEchoDto>>::sse_encode(self.memory_echo, serializer);
+        <Vec<crate::api::analysis_schema::MemoryEchoDto>>::sse_encode(self.memory_echo, serializer);
     }
 }
 
-impl SseEncode for crate::api::DailyReviewDto {
+impl SseEncode for crate::api::analysis_schema::DailyReviewDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.id, serializer);
         <String>::sse_encode(self.date, serializer);
         <String>::sse_encode(self.prompt_version, serializer);
         <String>::sse_encode(self.created_at, serializer);
-        <Vec<crate::api::DailyReviewItemDto>>::sse_encode(self.accomplishments, serializer);
-        <Vec<crate::api::DailyReviewItemDto>>::sse_encode(self.ideas_decisions, serializer);
-        <Vec<crate::api::DailyReviewItemDto>>::sse_encode(self.people_projects, serializer);
-        <Vec<crate::api::DailyReviewItemDto>>::sse_encode(self.follow_ups, serializer);
+        <Vec<crate::api::analysis_schema::DailyReviewItemDto>>::sse_encode(
+            self.accomplishments,
+            serializer,
+        );
+        <Vec<crate::api::analysis_schema::DailyReviewItemDto>>::sse_encode(
+            self.ideas_decisions,
+            serializer,
+        );
+        <Vec<crate::api::analysis_schema::DailyReviewItemDto>>::sse_encode(
+            self.people_projects,
+            serializer,
+        );
+        <Vec<crate::api::analysis_schema::DailyReviewItemDto>>::sse_encode(
+            self.follow_ups,
+            serializer,
+        );
     }
 }
 
-impl SseEncode for crate::api::DailyReviewItemDto {
+impl SseEncode for crate::api::analysis_schema::DailyReviewItemDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.text, serializer);
@@ -14637,17 +14812,17 @@ impl SseEncode for crate::api::DailyReviewItemDto {
     }
 }
 
-impl SseEncode for crate::api::DailyReviewResult {
+impl SseEncode for crate::api::records::DailyReviewResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         match self {
-            crate::api::DailyReviewResult::NoProvider => {
+            crate::api::records::DailyReviewResult::NoProvider => {
                 <i32>::sse_encode(0, serializer);
             }
-            crate::api::DailyReviewResult::NoEntries => {
+            crate::api::records::DailyReviewResult::NoEntries => {
                 <i32>::sse_encode(1, serializer);
             }
-            crate::api::DailyReviewResult::Created { id } => {
+            crate::api::records::DailyReviewResult::Created { id } => {
                 <i32>::sse_encode(2, serializer);
                 <String>::sse_encode(id, serializer);
             }
@@ -14679,7 +14854,7 @@ impl SseEncode for crate::api::db_maintenance::DatabaseStatsDto {
     }
 }
 
-impl SseEncode for crate::api::DayCountDto {
+impl SseEncode for crate::api::period_stats::DayCountDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.date, serializer);
@@ -14687,7 +14862,7 @@ impl SseEncode for crate::api::DayCountDto {
     }
 }
 
-impl SseEncode for crate::api::review_report::DeviationItemDto {
+impl SseEncode for crate::api::review_report::store::DeviationItemDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.goal_content, serializer);
@@ -14698,7 +14873,7 @@ impl SseEncode for crate::api::review_report::DeviationItemDto {
     }
 }
 
-impl SseEncode for crate::api::review_report::DeviationReportDto {
+impl SseEncode for crate::api::review_report::store::DeviationReportDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.id, serializer);
@@ -14711,12 +14886,15 @@ impl SseEncode for crate::api::review_report::DeviationReportDto {
         <Option<String>>::sse_encode(self.read_at, serializer);
         <i64>::sse_encode(self.total, serializer);
         <i64>::sse_encode(self.todo_done_count, serializer);
-        <Vec<crate::api::DayCountDto>>::sse_encode(self.daily, serializer);
-        <Vec<crate::api::NamedCountDto>>::sse_encode(self.by_event_type, serializer);
-        <Vec<crate::api::NamedCountDto>>::sse_encode(self.by_person, serializer);
-        <Vec<crate::api::NamedCountDto>>::sse_encode(self.by_project, serializer);
-        <Vec<crate::api::NamedCountDto>>::sse_encode(self.by_activity, serializer);
-        <Vec<crate::api::review_report::DeviationItemDto>>::sse_encode(self.deviations, serializer);
+        <Vec<crate::api::period_stats::DayCountDto>>::sse_encode(self.daily, serializer);
+        <Vec<crate::api::period_stats::NamedCountDto>>::sse_encode(self.by_event_type, serializer);
+        <Vec<crate::api::period_stats::NamedCountDto>>::sse_encode(self.by_person, serializer);
+        <Vec<crate::api::period_stats::NamedCountDto>>::sse_encode(self.by_project, serializer);
+        <Vec<crate::api::period_stats::NamedCountDto>>::sse_encode(self.by_activity, serializer);
+        <Vec<crate::api::review_report::store::DeviationItemDto>>::sse_encode(
+            self.deviations,
+            serializer,
+        );
     }
 }
 
@@ -14729,7 +14907,7 @@ impl SseEncode for crate::api::todos::DueReminderDto {
     }
 }
 
-impl SseEncode for crate::api::EmotionTagDto {
+impl SseEncode for crate::api::analysis_schema::EmotionTagDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Option<String>>::sse_encode(self.target, serializer);
@@ -14737,7 +14915,7 @@ impl SseEncode for crate::api::EmotionTagDto {
     }
 }
 
-impl SseEncode for crate::api::EntityFactDto {
+impl SseEncode for crate::api::analysis_schema::EntityFactDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.id, serializer);
@@ -14762,7 +14940,7 @@ impl SseEncode for crate::api::entities::EntityMergeStatusDto {
     }
 }
 
-impl SseEncode for crate::api::EventAnalysisDetailDto {
+impl SseEncode for crate::api::analysis_schema::EventAnalysisDetailDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.event_id, serializer);
@@ -14785,8 +14963,11 @@ impl SseEncode for crate::api::EventAnalysisDetailDto {
         <Vec<String>>::sse_encode(self.projects, serializer);
         <Vec<String>>::sse_encode(self.activities, serializer);
         <Vec<String>>::sse_encode(self.follow_ups, serializer);
-        <Option<crate::api::GuidanceDto>>::sse_encode(self.guidance, serializer);
-        <Option<Vec<crate::api::EmotionTagDto>>>::sse_encode(self.emotion, serializer);
+        <Option<crate::api::analysis_schema::GuidanceDto>>::sse_encode(self.guidance, serializer);
+        <Option<Vec<crate::api::analysis_schema::EmotionTagDto>>>::sse_encode(
+            self.emotion,
+            serializer,
+        );
         <Option<bool>>::sse_encode(self.recordable, serializer);
         <Option<String>>::sse_encode(self.kind, serializer);
         <bool>::sse_encode(self.effective_recordable, serializer);
@@ -14795,7 +14976,7 @@ impl SseEncode for crate::api::EventAnalysisDetailDto {
     }
 }
 
-impl SseEncode for crate::api::EventDto {
+impl SseEncode for crate::api::analysis_schema::EventDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.id, serializer);
@@ -14807,7 +14988,7 @@ impl SseEncode for crate::api::EventDto {
     }
 }
 
-impl SseEncode for crate::api::EventEmotionDto {
+impl SseEncode for crate::api::analysis_schema::EventEmotionDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.id, serializer);
@@ -14829,7 +15010,7 @@ impl SseEncode for crate::api::event_stats::EventStatsQuery {
     }
 }
 
-impl SseEncode for crate::api::EventSummaryDto {
+impl SseEncode for crate::api::review_flow::EventSummaryDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.id, serializer);
@@ -14860,16 +15041,16 @@ impl SseEncode for crate::api::goals::GoalDto {
     }
 }
 
-impl SseEncode for crate::api::GuidanceDto {
+impl SseEncode for crate::api::analysis_schema::GuidanceDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <Vec<crate::api::GuidanceRefDto>>::sse_encode(self.related, serializer);
+        <Vec<crate::api::analysis_schema::GuidanceRefDto>>::sse_encode(self.related, serializer);
         <Vec<String>>::sse_encode(self.lessons, serializer);
         <Vec<String>>::sse_encode(self.follow_ups_refined, serializer);
     }
 }
 
-impl SseEncode for crate::api::GuidanceRefDto {
+impl SseEncode for crate::api::analysis_schema::GuidanceRefDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.slug, serializer);
@@ -14903,7 +15084,7 @@ impl SseEncode for crate::api::import::ImportUrlDto {
     }
 }
 
-impl SseEncode for crate::api::InputRecordDto {
+impl SseEncode for crate::api::analysis_schema::InputRecordDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.id, serializer);
@@ -14938,7 +15119,7 @@ impl SseEncode for crate::api::knowledge::KnowledgeBackgroundRunDto {
     }
 }
 
-impl SseEncode for crate::knowledge::KnowledgeCitation {
+impl SseEncode for crate::knowledge::select::KnowledgeCitation {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.page_slug, serializer);
@@ -14949,7 +15130,7 @@ impl SseEncode for crate::knowledge::KnowledgeCitation {
         <String>::sse_encode(self.applicable_when, serializer);
         <String>::sse_encode(self.strength, serializer);
         <String>::sse_encode(self.category, serializer);
-        <Vec<crate::knowledge::SourceReference>>::sse_encode(self.sources, serializer);
+        <Vec<crate::knowledge::select::SourceReference>>::sse_encode(self.sources, serializer);
         <Vec<String>>::sse_encode(self.event_ids, serializer);
     }
 }
@@ -15047,7 +15228,7 @@ impl SseEncode for crate::api::knowledge_digest::KnowledgeDigestTickResult {
     }
 }
 
-impl SseEncode for crate::knowledge::KnowledgeHealthReport {
+impl SseEncode for crate::knowledge::health::KnowledgeHealthReport {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.generated_at, serializer);
@@ -15076,7 +15257,7 @@ impl SseEncode for crate::knowledge::KnowledgeHealthReport {
     }
 }
 
-impl SseEncode for crate::storage::knowledge::KnowledgeIssue {
+impl SseEncode for crate::storage::knowledge::core::KnowledgeIssue {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.fingerprint, serializer);
@@ -15086,7 +15267,7 @@ impl SseEncode for crate::storage::knowledge::KnowledgeIssue {
     }
 }
 
-impl SseEncode for crate::storage::knowledge::KnowledgeMetadata {
+impl SseEncode for crate::storage::knowledge::core::KnowledgeMetadata {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.applicable_when, serializer);
@@ -15100,11 +15281,20 @@ impl SseEncode for crate::api::knowledge::KnowledgePageDetails {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Vec<crate::api::wiki::WikiPageDto>>::sse_encode(self.source_pages, serializer);
         <Vec<crate::api::wiki::WikiPageDto>>::sse_encode(self.output_pages, serializer);
-        <Vec<crate::storage::knowledge::SourceSnapshot>>::sse_encode(self.sources, serializer);
-        <Vec<crate::storage::knowledge::SourceSnapshot>>::sse_encode(self.history, serializer);
-        <Vec<crate::storage::knowledge::KnowledgeProposal>>::sse_encode(self.proposals, serializer);
-        <Vec<crate::storage::knowledge::KnowledgeIssue>>::sse_encode(self.issues, serializer);
-        <crate::storage::knowledge::KnowledgeMetadata>::sse_encode(self.metadata, serializer);
+        <Vec<crate::storage::knowledge::core::SourceSnapshot>>::sse_encode(
+            self.sources,
+            serializer,
+        );
+        <Vec<crate::storage::knowledge::core::SourceSnapshot>>::sse_encode(
+            self.history,
+            serializer,
+        );
+        <Vec<crate::storage::knowledge::core::KnowledgeProposal>>::sse_encode(
+            self.proposals,
+            serializer,
+        );
+        <Vec<crate::storage::knowledge::core::KnowledgeIssue>>::sse_encode(self.issues, serializer);
+        <crate::storage::knowledge::core::KnowledgeMetadata>::sse_encode(self.metadata, serializer);
         <crate::api::knowledge::PageConsolidationStatus>::sse_encode(
             self.consolidation,
             serializer,
@@ -15113,7 +15303,7 @@ impl SseEncode for crate::api::knowledge::KnowledgePageDetails {
     }
 }
 
-impl SseEncode for crate::storage::knowledge::KnowledgeProposal {
+impl SseEncode for crate::storage::knowledge::core::KnowledgeProposal {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.id, serializer);
@@ -15255,12 +15445,12 @@ impl SseEncode for Vec<crate::api::provider_config::AiProviderConfigDto> {
     }
 }
 
-impl SseEncode for Vec<crate::api::AnalysisDto> {
+impl SseEncode for Vec<crate::api::analysis_schema::AnalysisDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::AnalysisDto>::sse_encode(item, serializer);
+            <crate::api::analysis_schema::AnalysisDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -15365,22 +15555,22 @@ impl SseEncode for Vec<crate::api::conversations::ConversationDto> {
     }
 }
 
-impl SseEncode for Vec<crate::api::DailyEntryDto> {
+impl SseEncode for Vec<crate::api::analysis_schema::DailyEntryDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::DailyEntryDto>::sse_encode(item, serializer);
+            <crate::api::analysis_schema::DailyEntryDto>::sse_encode(item, serializer);
         }
     }
 }
 
-impl SseEncode for Vec<crate::api::DailyReviewItemDto> {
+impl SseEncode for Vec<crate::api::analysis_schema::DailyReviewItemDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::DailyReviewItemDto>::sse_encode(item, serializer);
+            <crate::api::analysis_schema::DailyReviewItemDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -15395,32 +15585,32 @@ impl SseEncode for Vec<crate::api::conversations::DailyTokenUsageDto> {
     }
 }
 
-impl SseEncode for Vec<crate::api::DayCountDto> {
+impl SseEncode for Vec<crate::api::period_stats::DayCountDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::DayCountDto>::sse_encode(item, serializer);
+            <crate::api::period_stats::DayCountDto>::sse_encode(item, serializer);
         }
     }
 }
 
-impl SseEncode for Vec<crate::api::review_report::DeviationItemDto> {
+impl SseEncode for Vec<crate::api::review_report::store::DeviationItemDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::review_report::DeviationItemDto>::sse_encode(item, serializer);
+            <crate::api::review_report::store::DeviationItemDto>::sse_encode(item, serializer);
         }
     }
 }
 
-impl SseEncode for Vec<crate::api::review_report::DeviationReportDto> {
+impl SseEncode for Vec<crate::api::review_report::store::DeviationReportDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::review_report::DeviationReportDto>::sse_encode(item, serializer);
+            <crate::api::review_report::store::DeviationReportDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -15435,52 +15625,52 @@ impl SseEncode for Vec<crate::api::todos::DueReminderDto> {
     }
 }
 
-impl SseEncode for Vec<crate::api::EmotionTagDto> {
+impl SseEncode for Vec<crate::api::analysis_schema::EmotionTagDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::EmotionTagDto>::sse_encode(item, serializer);
+            <crate::api::analysis_schema::EmotionTagDto>::sse_encode(item, serializer);
         }
     }
 }
 
-impl SseEncode for Vec<crate::api::EntityFactDto> {
+impl SseEncode for Vec<crate::api::analysis_schema::EntityFactDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::EntityFactDto>::sse_encode(item, serializer);
+            <crate::api::analysis_schema::EntityFactDto>::sse_encode(item, serializer);
         }
     }
 }
 
-impl SseEncode for Vec<crate::api::EventDto> {
+impl SseEncode for Vec<crate::api::analysis_schema::EventDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::EventDto>::sse_encode(item, serializer);
+            <crate::api::analysis_schema::EventDto>::sse_encode(item, serializer);
         }
     }
 }
 
-impl SseEncode for Vec<crate::api::EventEmotionDto> {
+impl SseEncode for Vec<crate::api::analysis_schema::EventEmotionDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::EventEmotionDto>::sse_encode(item, serializer);
+            <crate::api::analysis_schema::EventEmotionDto>::sse_encode(item, serializer);
         }
     }
 }
 
-impl SseEncode for Vec<crate::api::EventSummaryDto> {
+impl SseEncode for Vec<crate::api::review_flow::EventSummaryDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::EventSummaryDto>::sse_encode(item, serializer);
+            <crate::api::review_flow::EventSummaryDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -15495,12 +15685,12 @@ impl SseEncode for Vec<crate::api::goals::GoalDto> {
     }
 }
 
-impl SseEncode for Vec<crate::api::GuidanceRefDto> {
+impl SseEncode for Vec<crate::api::analysis_schema::GuidanceRefDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::GuidanceRefDto>::sse_encode(item, serializer);
+            <crate::api::analysis_schema::GuidanceRefDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -15515,12 +15705,12 @@ impl SseEncode for Vec<crate::api::knowledge::KnowledgeBackgroundRunDto> {
     }
 }
 
-impl SseEncode for Vec<crate::knowledge::KnowledgeCitation> {
+impl SseEncode for Vec<crate::knowledge::select::KnowledgeCitation> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::knowledge::KnowledgeCitation>::sse_encode(item, serializer);
+            <crate::knowledge::select::KnowledgeCitation>::sse_encode(item, serializer);
         }
     }
 }
@@ -15555,22 +15745,22 @@ impl SseEncode for Vec<crate::api::knowledge_digest::KnowledgeDigestRunDto> {
     }
 }
 
-impl SseEncode for Vec<crate::storage::knowledge::KnowledgeIssue> {
+impl SseEncode for Vec<crate::storage::knowledge::core::KnowledgeIssue> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::storage::knowledge::KnowledgeIssue>::sse_encode(item, serializer);
+            <crate::storage::knowledge::core::KnowledgeIssue>::sse_encode(item, serializer);
         }
     }
 }
 
-impl SseEncode for Vec<crate::storage::knowledge::KnowledgeProposal> {
+impl SseEncode for Vec<crate::storage::knowledge::core::KnowledgeProposal> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::storage::knowledge::KnowledgeProposal>::sse_encode(item, serializer);
+            <crate::storage::knowledge::core::KnowledgeProposal>::sse_encode(item, serializer);
         }
     }
 }
@@ -15655,12 +15845,12 @@ impl SseEncode for Vec<crate::api::mcp::McpToolDto> {
     }
 }
 
-impl SseEncode for Vec<crate::api::MemoryEchoDto> {
+impl SseEncode for Vec<crate::api::analysis_schema::MemoryEchoDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::MemoryEchoDto>::sse_encode(item, serializer);
+            <crate::api::analysis_schema::MemoryEchoDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -15675,22 +15865,22 @@ impl SseEncode for Vec<crate::api::conversations::MessageDto> {
     }
 }
 
-impl SseEncode for Vec<crate::api::NamedCountDto> {
+impl SseEncode for Vec<crate::api::period_stats::NamedCountDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::NamedCountDto>::sse_encode(item, serializer);
+            <crate::api::period_stats::NamedCountDto>::sse_encode(item, serializer);
         }
     }
 }
 
-impl SseEncode for Vec<crate::api::sync::ObjectConflictDto> {
+impl SseEncode for Vec<crate::api::sync::conflicts::ObjectConflictDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::sync::ObjectConflictDto>::sse_encode(item, serializer);
+            <crate::api::sync::conflicts::ObjectConflictDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -15705,12 +15895,12 @@ impl SseEncode for Vec<crate::knowledge::organization::OrganizedTopic> {
     }
 }
 
-impl SseEncode for Vec<crate::api::PageGuidanceDto> {
+impl SseEncode for Vec<crate::api::companion_flow::PageGuidanceDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::PageGuidanceDto>::sse_encode(item, serializer);
+            <crate::api::companion_flow::PageGuidanceDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -15755,22 +15945,22 @@ impl SseEncode for Vec<u8> {
     }
 }
 
-impl SseEncode for Vec<crate::api::sync::ProviderConflictProfileDto> {
+impl SseEncode for Vec<crate::api::sync::datasets::ProviderConflictProfileDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::sync::ProviderConflictProfileDto>::sse_encode(item, serializer);
+            <crate::api::sync::datasets::ProviderConflictProfileDto>::sse_encode(item, serializer);
         }
     }
 }
 
-impl SseEncode for Vec<crate::api::sync::ProviderSyncConflictDto> {
+impl SseEncode for Vec<crate::api::sync::datasets::ProviderSyncConflictDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::sync::ProviderSyncConflictDto>::sse_encode(item, serializer);
+            <crate::api::sync::datasets::ProviderSyncConflictDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -15795,12 +15985,12 @@ impl SseEncode for Vec<crate::api::knowledge::ReconsolidationJobDto> {
     }
 }
 
-impl SseEncode for Vec<crate::storage::knowledge::RejectedSourceRow> {
+impl SseEncode for Vec<crate::storage::knowledge::core::RejectedSourceRow> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::storage::knowledge::RejectedSourceRow>::sse_encode(item, serializer);
+            <crate::storage::knowledge::core::RejectedSourceRow>::sse_encode(item, serializer);
         }
     }
 }
@@ -15835,62 +16025,62 @@ impl SseEncode for Vec<crate::api::rules::RuleHitDto> {
     }
 }
 
-impl SseEncode for Vec<crate::knowledge::SourceReference> {
+impl SseEncode for Vec<crate::knowledge::select::SourceReference> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::knowledge::SourceReference>::sse_encode(item, serializer);
+            <crate::knowledge::select::SourceReference>::sse_encode(item, serializer);
         }
     }
 }
 
-impl SseEncode for Vec<crate::storage::knowledge::SourceSnapshot> {
+impl SseEncode for Vec<crate::storage::knowledge::core::SourceSnapshot> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::storage::knowledge::SourceSnapshot>::sse_encode(item, serializer);
+            <crate::storage::knowledge::core::SourceSnapshot>::sse_encode(item, serializer);
         }
     }
 }
 
-impl SseEncode for Vec<crate::api::sync::SyncDatasetEntryDto> {
+impl SseEncode for Vec<crate::api::sync::join::SyncDatasetEntryDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::sync::SyncDatasetEntryDto>::sse_encode(item, serializer);
+            <crate::api::sync::join::SyncDatasetEntryDto>::sse_encode(item, serializer);
         }
     }
 }
 
-impl SseEncode for Vec<crate::api::sync::SyncEnrollmentStateDto> {
+impl SseEncode for Vec<crate::api::sync::join::SyncEnrollmentStateDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::sync::SyncEnrollmentStateDto>::sse_encode(item, serializer);
+            <crate::api::sync::join::SyncEnrollmentStateDto>::sse_encode(item, serializer);
         }
     }
 }
 
-impl SseEncode for Vec<crate::api::sync::SyncJoinEntryDto> {
+impl SseEncode for Vec<crate::api::sync::join::SyncJoinEntryDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::sync::SyncJoinEntryDto>::sse_encode(item, serializer);
+            <crate::api::sync::join::SyncJoinEntryDto>::sse_encode(item, serializer);
         }
     }
 }
 
-impl SseEncode for Vec<crate::api::sync::SyncRosterMemberDto> {
+impl SseEncode for Vec<crate::api::sync::datasets::SyncRosterMemberDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::sync::SyncRosterMemberDto>::sse_encode(item, serializer);
+            <crate::api::sync::datasets::SyncRosterMemberDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -15947,12 +16137,12 @@ impl SseEncode for Vec<crate::api::user_skills::UserSkillDto> {
     }
 }
 
-impl SseEncode for Vec<crate::api::sync::WikiPageConflictDto> {
+impl SseEncode for Vec<crate::api::sync::datasets::WikiPageConflictDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::sync::WikiPageConflictDto>::sse_encode(item, serializer);
+            <crate::api::sync::datasets::WikiPageConflictDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -15977,7 +16167,7 @@ impl SseEncode for Vec<crate::api::wiki::WikiPageMetaDto> {
     }
 }
 
-impl SseEncode for crate::api::sync::LocalSyncStateDto {
+impl SseEncode for crate::api::sync::invite::LocalSyncStateDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.state, serializer);
@@ -16023,7 +16213,7 @@ impl SseEncode for crate::api::mcp::McpToolDto {
     }
 }
 
-impl SseEncode for crate::api::MemoryEchoDto {
+impl SseEncode for crate::api::analysis_schema::MemoryEchoDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.event_id, serializer);
@@ -16045,7 +16235,7 @@ impl SseEncode for crate::api::conversations::MessageDto {
     }
 }
 
-impl SseEncode for crate::api::MessageRecordabilityDto {
+impl SseEncode for crate::api::analysis_schema::MessageRecordabilityDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.message_id, serializer);
@@ -16058,7 +16248,7 @@ impl SseEncode for crate::api::MessageRecordabilityDto {
     }
 }
 
-impl SseEncode for crate::api::NamedCountDto {
+impl SseEncode for crate::api::period_stats::NamedCountDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.label, serializer);
@@ -16077,7 +16267,7 @@ impl SseEncode for crate::api::web_search::NetworkSettingsDto {
     }
 }
 
-impl SseEncode for crate::api::sync::ObjectConflictDto {
+impl SseEncode for crate::api::sync::conflicts::ObjectConflictDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.op_id, serializer);
@@ -16137,12 +16327,12 @@ impl SseEncode for Option<crate::api::chat_runs::ChatRunDto> {
     }
 }
 
-impl SseEncode for Option<crate::api::CompanionRevisitDto> {
+impl SseEncode for Option<crate::api::companion_flow::CompanionRevisitDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
-            <crate::api::CompanionRevisitDto>::sse_encode(value, serializer);
+            <crate::api::companion_flow::CompanionRevisitDto>::sse_encode(value, serializer);
         }
     }
 }
@@ -16157,12 +16347,12 @@ impl SseEncode for Option<crate::api::conversations::ConversationDto> {
     }
 }
 
-impl SseEncode for Option<crate::api::DailyReviewDto> {
+impl SseEncode for Option<crate::api::analysis_schema::DailyReviewDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
-            <crate::api::DailyReviewDto>::sse_encode(value, serializer);
+            <crate::api::analysis_schema::DailyReviewDto>::sse_encode(value, serializer);
         }
     }
 }
@@ -16177,12 +16367,12 @@ impl SseEncode for Option<crate::api::entities::EntityMergeStatusDto> {
     }
 }
 
-impl SseEncode for Option<crate::api::EventAnalysisDetailDto> {
+impl SseEncode for Option<crate::api::analysis_schema::EventAnalysisDetailDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
-            <crate::api::EventAnalysisDetailDto>::sse_encode(value, serializer);
+            <crate::api::analysis_schema::EventAnalysisDetailDto>::sse_encode(value, serializer);
         }
     }
 }
@@ -16197,12 +16387,12 @@ impl SseEncode for Option<f64> {
     }
 }
 
-impl SseEncode for Option<crate::api::GuidanceDto> {
+impl SseEncode for Option<crate::api::analysis_schema::GuidanceDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
-            <crate::api::GuidanceDto>::sse_encode(value, serializer);
+            <crate::api::analysis_schema::GuidanceDto>::sse_encode(value, serializer);
         }
     }
 }
@@ -16217,22 +16407,22 @@ impl SseEncode for Option<i64> {
     }
 }
 
-impl SseEncode for Option<crate::api::MessageRecordabilityDto> {
+impl SseEncode for Option<crate::api::analysis_schema::MessageRecordabilityDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
-            <crate::api::MessageRecordabilityDto>::sse_encode(value, serializer);
+            <crate::api::analysis_schema::MessageRecordabilityDto>::sse_encode(value, serializer);
         }
     }
 }
 
-impl SseEncode for Option<crate::storage::knowledge::SourceSnapshot> {
+impl SseEncode for Option<crate::storage::knowledge::core::SourceSnapshot> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
-            <crate::storage::knowledge::SourceSnapshot>::sse_encode(value, serializer);
+            <crate::storage::knowledge::core::SourceSnapshot>::sse_encode(value, serializer);
         }
     }
 }
@@ -16247,12 +16437,12 @@ impl SseEncode for Option<crate::knowledge::workflows::SuggestionFeedback> {
     }
 }
 
-impl SseEncode for Option<crate::api::sync::SyncInvitationPreviewDto> {
+impl SseEncode for Option<crate::api::sync::invite::SyncInvitationPreviewDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
-            <crate::api::sync::SyncInvitationPreviewDto>::sse_encode(value, serializer);
+            <crate::api::sync::invite::SyncInvitationPreviewDto>::sse_encode(value, serializer);
         }
     }
 }
@@ -16267,12 +16457,12 @@ impl SseEncode for Option<u32> {
     }
 }
 
-impl SseEncode for Option<crate::api::sync::WikiPageConflictSideDto> {
+impl SseEncode for Option<crate::api::sync::datasets::WikiPageConflictSideDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
-            <crate::api::sync::WikiPageConflictSideDto>::sse_encode(value, serializer);
+            <crate::api::sync::datasets::WikiPageConflictSideDto>::sse_encode(value, serializer);
         }
     }
 }
@@ -16287,12 +16477,12 @@ impl SseEncode for Option<crate::api::wiki::WikiPageDto> {
     }
 }
 
-impl SseEncode for Option<Vec<crate::api::EmotionTagDto>> {
+impl SseEncode for Option<Vec<crate::api::analysis_schema::EmotionTagDto>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
-            <Vec<crate::api::EmotionTagDto>>::sse_encode(value, serializer);
+            <Vec<crate::api::analysis_schema::EmotionTagDto>>::sse_encode(value, serializer);
         }
     }
 }
@@ -16316,7 +16506,7 @@ impl SseEncode for crate::api::knowledge::PageConsolidationStatus {
     }
 }
 
-impl SseEncode for crate::api::PageGuidanceDto {
+impl SseEncode for crate::api::companion_flow::PageGuidanceDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.analysis_id, serializer);
@@ -16357,17 +16547,17 @@ impl SseEncode for crate::api::conversations::PendingActionDto {
     }
 }
 
-impl SseEncode for crate::api::review_report::PeriodReportTickResult {
+impl SseEncode for crate::api::review_report::detect::PeriodReportTickResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         match self {
-            crate::api::review_report::PeriodReportTickResult::NoProvider => {
+            crate::api::review_report::detect::PeriodReportTickResult::NoProvider => {
                 <i32>::sse_encode(0, serializer);
             }
-            crate::api::review_report::PeriodReportTickResult::Idle => {
+            crate::api::review_report::detect::PeriodReportTickResult::Idle => {
                 <i32>::sse_encode(1, serializer);
             }
-            crate::api::review_report::PeriodReportTickResult::Generated {
+            crate::api::review_report::detect::PeriodReportTickResult::Generated {
                 period,
                 period_type,
             } => {
@@ -16375,7 +16565,7 @@ impl SseEncode for crate::api::review_report::PeriodReportTickResult {
                 <String>::sse_encode(period, serializer);
                 <String>::sse_encode(period_type, serializer);
             }
-            crate::api::review_report::PeriodReportTickResult::Detected {
+            crate::api::review_report::detect::PeriodReportTickResult::Detected {
                 report_id,
                 deviations,
             } => {
@@ -16383,7 +16573,7 @@ impl SseEncode for crate::api::review_report::PeriodReportTickResult {
                 <String>::sse_encode(report_id, serializer);
                 <usize>::sse_encode(deviations, serializer);
             }
-            crate::api::review_report::PeriodReportTickResult::DetectFailed {
+            crate::api::review_report::detect::PeriodReportTickResult::DetectFailed {
                 report_id,
                 error,
             } => {
@@ -16398,7 +16588,7 @@ impl SseEncode for crate::api::review_report::PeriodReportTickResult {
     }
 }
 
-impl SseEncode for crate::api::PeriodStatsDto {
+impl SseEncode for crate::api::period_stats::PeriodStatsDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.period_type, serializer);
@@ -16406,15 +16596,15 @@ impl SseEncode for crate::api::PeriodStatsDto {
         <String>::sse_encode(self.end_date, serializer);
         <i64>::sse_encode(self.event_count, serializer);
         <i64>::sse_encode(self.todo_done_count, serializer);
-        <Vec<crate::api::NamedCountDto>>::sse_encode(self.by_event_type, serializer);
-        <Vec<crate::api::NamedCountDto>>::sse_encode(self.by_person, serializer);
-        <Vec<crate::api::NamedCountDto>>::sse_encode(self.by_project, serializer);
-        <Vec<crate::api::NamedCountDto>>::sse_encode(self.by_activity, serializer);
-        <Vec<crate::api::DayCountDto>>::sse_encode(self.daily_counts, serializer);
+        <Vec<crate::api::period_stats::NamedCountDto>>::sse_encode(self.by_event_type, serializer);
+        <Vec<crate::api::period_stats::NamedCountDto>>::sse_encode(self.by_person, serializer);
+        <Vec<crate::api::period_stats::NamedCountDto>>::sse_encode(self.by_project, serializer);
+        <Vec<crate::api::period_stats::NamedCountDto>>::sse_encode(self.by_activity, serializer);
+        <Vec<crate::api::period_stats::DayCountDto>>::sse_encode(self.daily_counts, serializer);
     }
 }
 
-impl SseEncode for crate::api::sync::ProcessingYieldProofDto {
+impl SseEncode for crate::api::sync::invite::ProcessingYieldProofDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.dataset_id, serializer);
@@ -16426,7 +16616,7 @@ impl SseEncode for crate::api::sync::ProcessingYieldProofDto {
     }
 }
 
-impl SseEncode for crate::api::sync::ProcessorHandoffStateDto {
+impl SseEncode for crate::api::sync::invite::ProcessorHandoffStateDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.state, serializer);
@@ -16437,7 +16627,7 @@ impl SseEncode for crate::api::sync::ProcessorHandoffStateDto {
     }
 }
 
-impl SseEncode for crate::api::sync::ProviderConflictProfileDto {
+impl SseEncode for crate::api::sync::datasets::ProviderConflictProfileDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.id, serializer);
@@ -16459,7 +16649,7 @@ impl SseEncode for crate::api::sync::ProviderConflictProfileDto {
     }
 }
 
-impl SseEncode for crate::api::sync::ProviderSyncConflictDto {
+impl SseEncode for crate::api::sync::datasets::ProviderSyncConflictDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.revision_id, serializer);
@@ -16467,13 +16657,13 @@ impl SseEncode for crate::api::sync::ProviderSyncConflictDto {
         <String>::sse_encode(self.sender_device_id, serializer);
         <Option<String>>::sse_encode(self.sender_device_name, serializer);
         <String>::sse_encode(self.local_revision, serializer);
-        <Vec<crate::api::sync::ProviderConflictProfileDto>>::sse_encode(
+        <Vec<crate::api::sync::datasets::ProviderConflictProfileDto>>::sse_encode(
             self.remote_profiles,
             serializer,
         );
         <Option<String>>::sse_encode(self.remote_active_id, serializer);
         <Vec<String>>::sse_encode(self.remote_failover_order, serializer);
-        <Vec<crate::api::sync::ProviderConflictProfileDto>>::sse_encode(
+        <Vec<crate::api::sync::datasets::ProviderConflictProfileDto>>::sse_encode(
             self.local_profiles,
             serializer,
         );
@@ -16503,15 +16693,15 @@ impl SseEncode for crate::api::knowledge::ReconsolidationJobDto {
     }
 }
 
-impl SseEncode for (Vec<crate::api::sync::SyncDatasetEntryDto>, i64) {
+impl SseEncode for (Vec<crate::api::sync::join::SyncDatasetEntryDto>, i64) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <Vec<crate::api::sync::SyncDatasetEntryDto>>::sse_encode(self.0, serializer);
+        <Vec<crate::api::sync::join::SyncDatasetEntryDto>>::sse_encode(self.0, serializer);
         <i64>::sse_encode(self.1, serializer);
     }
 }
 
-impl SseEncode for crate::storage::knowledge::RejectedSourceRow {
+impl SseEncode for crate::storage::knowledge::core::RejectedSourceRow {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Option<String>>::sse_encode(self.slug, serializer);
@@ -16564,7 +16754,7 @@ impl SseEncode for crate::api::rules::RuleHitDto {
     }
 }
 
-impl SseEncode for crate::knowledge::SourceReference {
+impl SseEncode for crate::knowledge::select::SourceReference {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.snapshot_id, serializer);
@@ -16574,7 +16764,7 @@ impl SseEncode for crate::knowledge::SourceReference {
     }
 }
 
-impl SseEncode for crate::storage::knowledge::SourceSnapshot {
+impl SseEncode for crate::storage::knowledge::core::SourceSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.id, serializer);
@@ -16612,7 +16802,7 @@ impl SseEncode for crate::knowledge::workflows::SuggestionFeedback {
     }
 }
 
-impl SseEncode for crate::api::sync::SyncDatasetEntryDto {
+impl SseEncode for crate::api::sync::join::SyncDatasetEntryDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.entry_id, serializer);
@@ -16624,7 +16814,7 @@ impl SseEncode for crate::api::sync::SyncDatasetEntryDto {
     }
 }
 
-impl SseEncode for crate::api::sync::SyncEnrollmentStateDto {
+impl SseEncode for crate::api::sync::join::SyncEnrollmentStateDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.role, serializer);
@@ -16643,7 +16833,7 @@ impl SseEncode for crate::api::sync::SyncEnrollmentStateDto {
     }
 }
 
-impl SseEncode for crate::api::sync::SyncInvitationOfferDto {
+impl SseEncode for crate::api::sync::invite::SyncInvitationOfferDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.invitation_id, serializer);
@@ -16652,7 +16842,7 @@ impl SseEncode for crate::api::sync::SyncInvitationOfferDto {
     }
 }
 
-impl SseEncode for crate::api::sync::SyncInvitationPreviewDto {
+impl SseEncode for crate::api::sync::invite::SyncInvitationPreviewDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.invitation_id, serializer);
@@ -16664,7 +16854,7 @@ impl SseEncode for crate::api::sync::SyncInvitationPreviewDto {
     }
 }
 
-impl SseEncode for crate::api::sync::SyncJoinEntryDto {
+impl SseEncode for crate::api::sync::join::SyncJoinEntryDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.entry_id, serializer);
@@ -16674,7 +16864,7 @@ impl SseEncode for crate::api::sync::SyncJoinEntryDto {
     }
 }
 
-impl SseEncode for crate::api::sync::SyncJoinStateDto {
+impl SseEncode for crate::api::sync::join::SyncJoinStateDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.operation_id, serializer);
@@ -16694,7 +16884,7 @@ impl SseEncode for crate::api::sync::SyncJoinStateDto {
     }
 }
 
-impl SseEncode for crate::api::sync::SyncKeyCommitDto {
+impl SseEncode for crate::api::sync::invite::SyncKeyCommitDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.token, serializer);
@@ -16703,7 +16893,7 @@ impl SseEncode for crate::api::sync::SyncKeyCommitDto {
     }
 }
 
-impl SseEncode for crate::api::sync::SyncKeyRequestDto {
+impl SseEncode for crate::api::sync::invite::SyncKeyRequestDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.token, serializer);
@@ -16713,7 +16903,7 @@ impl SseEncode for crate::api::sync::SyncKeyRequestDto {
     }
 }
 
-impl SseEncode for crate::api::sync::SyncRosterDto {
+impl SseEncode for crate::api::sync::datasets::SyncRosterDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i64>::sse_encode(self.revision, serializer);
@@ -16721,11 +16911,14 @@ impl SseEncode for crate::api::sync::SyncRosterDto {
         <String>::sse_encode(self.owner_device_id, serializer);
         <String>::sse_encode(self.processor_device_id, serializer);
         <Option<String>>::sse_encode(self.local_device_id, serializer);
-        <Vec<crate::api::sync::SyncRosterMemberDto>>::sse_encode(self.members, serializer);
+        <Vec<crate::api::sync::datasets::SyncRosterMemberDto>>::sse_encode(
+            self.members,
+            serializer,
+        );
     }
 }
 
-impl SseEncode for crate::api::sync::SyncRosterMemberDto {
+impl SseEncode for crate::api::sync::datasets::SyncRosterMemberDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.device_id, serializer);
@@ -16738,7 +16931,7 @@ impl SseEncode for crate::api::sync::SyncRosterMemberDto {
     }
 }
 
-impl SseEncode for crate::api::sync::SyncTickResultDto {
+impl SseEncode for crate::api::sync::join::SyncTickResultDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.ran, serializer);
@@ -16904,7 +17097,7 @@ impl SseEncode for crate::api::wiki::WikiExportResultDto {
     }
 }
 
-impl SseEncode for crate::api::sync::WikiPageConflictDto {
+impl SseEncode for crate::api::sync::datasets::WikiPageConflictDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.op_id, serializer);
@@ -16919,12 +17112,14 @@ impl SseEncode for crate::api::sync::WikiPageConflictDto {
         <String>::sse_encode(self.incoming_summary, serializer);
         <i64>::sse_encode(self.incoming_content_md_len, serializer);
         <String>::sse_encode(self.incoming_updated_at, serializer);
-        <Option<crate::api::sync::WikiPageConflictSideDto>>::sse_encode(self.local, serializer);
+        <Option<crate::api::sync::datasets::WikiPageConflictSideDto>>::sse_encode(
+            self.local, serializer,
+        );
         <bool>::sse_encode(self.local_head_deleted, serializer);
     }
 }
 
-impl SseEncode for crate::api::sync::WikiPageConflictSideDto {
+impl SseEncode for crate::api::sync::datasets::WikiPageConflictSideDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.slug, serializer);
@@ -17037,10 +17232,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::AnalysisDto> for wire_cst_analysis_dto {
+    impl CstDecode<crate::api::analysis_schema::AnalysisDto> for wire_cst_analysis_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::AnalysisDto {
-            crate::api::AnalysisDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::AnalysisDto {
+            crate::api::analysis_schema::AnalysisDto {
                 event_type: self.event_type.cst_decode(),
                 confidence: self.confidence.cst_decode(),
                 summary: self.summary.cst_decode(),
@@ -17048,10 +17243,12 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::AnalysisJobStatsDto> for wire_cst_analysis_job_stats_dto {
+    impl CstDecode<crate::api::analysis_schema::AnalysisJobStatsDto>
+        for wire_cst_analysis_job_stats_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::AnalysisJobStatsDto {
-            crate::api::AnalysisJobStatsDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::AnalysisJobStatsDto {
+            crate::api::analysis_schema::AnalysisJobStatsDto {
                 pending: self.pending.cst_decode(),
                 running: self.running.cst_decode(),
                 retry: self.retry.cst_decode(),
@@ -17060,14 +17257,14 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::AnalysisTriggerResult> for wire_cst_analysis_trigger_result {
+    impl CstDecode<crate::api::records::AnalysisTriggerResult> for wire_cst_analysis_trigger_result {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::AnalysisTriggerResult {
+        fn cst_decode(self) -> crate::api::records::AnalysisTriggerResult {
             match self.tag {
-                0 => crate::api::AnalysisTriggerResult::NoProvider,
+                0 => crate::api::records::AnalysisTriggerResult::NoProvider,
                 1 => {
                     let ans = unsafe { self.kind.Processed };
-                    crate::api::AnalysisTriggerResult::Processed {
+                    crate::api::records::AnalysisTriggerResult::Processed {
                         count: ans.count.cst_decode(),
                     }
                 }
@@ -17075,10 +17272,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::sync::AppUpdateDto> for wire_cst_app_update_dto {
+    impl CstDecode<crate::api::sync::conflicts::AppUpdateDto> for wire_cst_app_update_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::AppUpdateDto {
-            crate::api::sync::AppUpdateDto {
+        fn cst_decode(self) -> crate::api::sync::conflicts::AppUpdateDto {
+            crate::api::sync::conflicts::AppUpdateDto {
                 has_update: self.has_update.cst_decode(),
                 latest_hash: self.latest_hash.cst_decode(),
                 latest_seq: self.latest_seq.cst_decode(),
@@ -17151,11 +17348,13 @@ mod io {
             CstDecode::<crate::api::chat_runs::ChatRunDto>::cst_decode(*wrap).into()
         }
     }
-    impl CstDecode<crate::api::CompanionRevisitDto> for *mut wire_cst_companion_revisit_dto {
+    impl CstDecode<crate::api::companion_flow::CompanionRevisitDto>
+        for *mut wire_cst_companion_revisit_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::CompanionRevisitDto {
+        fn cst_decode(self) -> crate::api::companion_flow::CompanionRevisitDto {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
-            CstDecode::<crate::api::CompanionRevisitDto>::cst_decode(*wrap).into()
+            CstDecode::<crate::api::companion_flow::CompanionRevisitDto>::cst_decode(*wrap).into()
         }
     }
     impl CstDecode<crate::api::conversations::ConversationDto> for *mut wire_cst_conversation_dto {
@@ -17165,11 +17364,11 @@ mod io {
             CstDecode::<crate::api::conversations::ConversationDto>::cst_decode(*wrap).into()
         }
     }
-    impl CstDecode<crate::api::DailyReviewDto> for *mut wire_cst_daily_review_dto {
+    impl CstDecode<crate::api::analysis_schema::DailyReviewDto> for *mut wire_cst_daily_review_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::DailyReviewDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::DailyReviewDto {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
-            CstDecode::<crate::api::DailyReviewDto>::cst_decode(*wrap).into()
+            CstDecode::<crate::api::analysis_schema::DailyReviewDto>::cst_decode(*wrap).into()
         }
     }
     impl CstDecode<crate::api::entities::EntityMergeStatusDto>
@@ -17181,11 +17380,14 @@ mod io {
             CstDecode::<crate::api::entities::EntityMergeStatusDto>::cst_decode(*wrap).into()
         }
     }
-    impl CstDecode<crate::api::EventAnalysisDetailDto> for *mut wire_cst_event_analysis_detail_dto {
+    impl CstDecode<crate::api::analysis_schema::EventAnalysisDetailDto>
+        for *mut wire_cst_event_analysis_detail_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::EventAnalysisDetailDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::EventAnalysisDetailDto {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
-            CstDecode::<crate::api::EventAnalysisDetailDto>::cst_decode(*wrap).into()
+            CstDecode::<crate::api::analysis_schema::EventAnalysisDetailDto>::cst_decode(*wrap)
+                .into()
         }
     }
     impl CstDecode<f64> for *mut f64 {
@@ -17194,11 +17396,11 @@ mod io {
             unsafe { *flutter_rust_bridge::for_generated::box_from_leak_ptr(self) }
         }
     }
-    impl CstDecode<crate::api::GuidanceDto> for *mut wire_cst_guidance_dto {
+    impl CstDecode<crate::api::analysis_schema::GuidanceDto> for *mut wire_cst_guidance_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::GuidanceDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::GuidanceDto {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
-            CstDecode::<crate::api::GuidanceDto>::cst_decode(*wrap).into()
+            CstDecode::<crate::api::analysis_schema::GuidanceDto>::cst_decode(*wrap).into()
         }
     }
     impl CstDecode<i64> for *mut i64 {
@@ -17214,27 +17416,30 @@ mod io {
             CstDecode::<crate::api::mcp::McpServerDto>::cst_decode(*wrap).into()
         }
     }
-    impl CstDecode<crate::api::MessageRecordabilityDto> for *mut wire_cst_message_recordability_dto {
+    impl CstDecode<crate::api::analysis_schema::MessageRecordabilityDto>
+        for *mut wire_cst_message_recordability_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::MessageRecordabilityDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::MessageRecordabilityDto {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
-            CstDecode::<crate::api::MessageRecordabilityDto>::cst_decode(*wrap).into()
+            CstDecode::<crate::api::analysis_schema::MessageRecordabilityDto>::cst_decode(*wrap)
+                .into()
         }
     }
-    impl CstDecode<crate::api::sync::ProcessingYieldProofDto>
+    impl CstDecode<crate::api::sync::invite::ProcessingYieldProofDto>
         for *mut wire_cst_processing_yield_proof_dto
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::ProcessingYieldProofDto {
+        fn cst_decode(self) -> crate::api::sync::invite::ProcessingYieldProofDto {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
-            CstDecode::<crate::api::sync::ProcessingYieldProofDto>::cst_decode(*wrap).into()
+            CstDecode::<crate::api::sync::invite::ProcessingYieldProofDto>::cst_decode(*wrap).into()
         }
     }
-    impl CstDecode<crate::storage::knowledge::SourceSnapshot> for *mut wire_cst_source_snapshot {
+    impl CstDecode<crate::storage::knowledge::core::SourceSnapshot> for *mut wire_cst_source_snapshot {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::storage::knowledge::SourceSnapshot {
+        fn cst_decode(self) -> crate::storage::knowledge::core::SourceSnapshot {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
-            CstDecode::<crate::storage::knowledge::SourceSnapshot>::cst_decode(*wrap).into()
+            CstDecode::<crate::storage::knowledge::core::SourceSnapshot>::cst_decode(*wrap).into()
         }
     }
     impl CstDecode<crate::knowledge::workflows::SuggestionFeedback>
@@ -17246,13 +17451,14 @@ mod io {
             CstDecode::<crate::knowledge::workflows::SuggestionFeedback>::cst_decode(*wrap).into()
         }
     }
-    impl CstDecode<crate::api::sync::SyncInvitationPreviewDto>
+    impl CstDecode<crate::api::sync::invite::SyncInvitationPreviewDto>
         for *mut wire_cst_sync_invitation_preview_dto
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncInvitationPreviewDto {
+        fn cst_decode(self) -> crate::api::sync::invite::SyncInvitationPreviewDto {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
-            CstDecode::<crate::api::sync::SyncInvitationPreviewDto>::cst_decode(*wrap).into()
+            CstDecode::<crate::api::sync::invite::SyncInvitationPreviewDto>::cst_decode(*wrap)
+                .into()
         }
     }
     impl CstDecode<u32> for *mut u32 {
@@ -17261,13 +17467,14 @@ mod io {
             unsafe { *flutter_rust_bridge::for_generated::box_from_leak_ptr(self) }
         }
     }
-    impl CstDecode<crate::api::sync::WikiPageConflictSideDto>
+    impl CstDecode<crate::api::sync::datasets::WikiPageConflictSideDto>
         for *mut wire_cst_wiki_page_conflict_side_dto
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::WikiPageConflictSideDto {
+        fn cst_decode(self) -> crate::api::sync::datasets::WikiPageConflictSideDto {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
-            CstDecode::<crate::api::sync::WikiPageConflictSideDto>::cst_decode(*wrap).into()
+            CstDecode::<crate::api::sync::datasets::WikiPageConflictSideDto>::cst_decode(*wrap)
+                .into()
         }
     }
     impl CstDecode<crate::api::wiki::WikiPageDto> for *mut wire_cst_wiki_page_dto {
@@ -17403,19 +17610,19 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::CompanionPrefsDto> for wire_cst_companion_prefs_dto {
+    impl CstDecode<crate::api::companion_flow::CompanionPrefsDto> for wire_cst_companion_prefs_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::CompanionPrefsDto {
-            crate::api::CompanionPrefsDto {
+        fn cst_decode(self) -> crate::api::companion_flow::CompanionPrefsDto {
+            crate::api::companion_flow::CompanionPrefsDto {
                 revisit_enabled: self.revisit_enabled.cst_decode(),
                 revisit_interval_days: self.revisit_interval_days.cst_decode(),
             }
         }
     }
-    impl CstDecode<crate::api::CompanionRevisitDto> for wire_cst_companion_revisit_dto {
+    impl CstDecode<crate::api::companion_flow::CompanionRevisitDto> for wire_cst_companion_revisit_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::CompanionRevisitDto {
-            crate::api::CompanionRevisitDto {
+        fn cst_decode(self) -> crate::api::companion_flow::CompanionRevisitDto {
+            crate::api::companion_flow::CompanionRevisitDto {
                 event_id: self.event_id.cst_decode(),
                 recorded_at: self.recorded_at.cst_decode(),
                 excerpt: self.excerpt.cst_decode(),
@@ -17448,10 +17655,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::DailyEntryDto> for wire_cst_daily_entry_dto {
+    impl CstDecode<crate::api::analysis_schema::DailyEntryDto> for wire_cst_daily_entry_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::DailyEntryDto {
-            crate::api::DailyEntryDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::DailyEntryDto {
+            crate::api::analysis_schema::DailyEntryDto {
                 event_id: self.event_id.cst_decode(),
                 input_id: self.input_id.cst_decode(),
                 message_id: self.message_id.cst_decode(),
@@ -17462,10 +17669,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::DailyOverviewDto> for wire_cst_daily_overview_dto {
+    impl CstDecode<crate::api::analysis_schema::DailyOverviewDto> for wire_cst_daily_overview_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::DailyOverviewDto {
-            crate::api::DailyOverviewDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::DailyOverviewDto {
+            crate::api::analysis_schema::DailyOverviewDto {
                 date: self.date.cst_decode(),
                 entries: self.entries.cst_decode(),
                 review: self.review.cst_decode(),
@@ -17475,10 +17682,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::DailyReviewDto> for wire_cst_daily_review_dto {
+    impl CstDecode<crate::api::analysis_schema::DailyReviewDto> for wire_cst_daily_review_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::DailyReviewDto {
-            crate::api::DailyReviewDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::DailyReviewDto {
+            crate::api::analysis_schema::DailyReviewDto {
                 id: self.id.cst_decode(),
                 date: self.date.cst_decode(),
                 prompt_version: self.prompt_version.cst_decode(),
@@ -17490,24 +17697,24 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::DailyReviewItemDto> for wire_cst_daily_review_item_dto {
+    impl CstDecode<crate::api::analysis_schema::DailyReviewItemDto> for wire_cst_daily_review_item_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::DailyReviewItemDto {
-            crate::api::DailyReviewItemDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::DailyReviewItemDto {
+            crate::api::analysis_schema::DailyReviewItemDto {
                 text: self.text.cst_decode(),
                 source_event_ids: self.source_event_ids.cst_decode(),
             }
         }
     }
-    impl CstDecode<crate::api::DailyReviewResult> for wire_cst_daily_review_result {
+    impl CstDecode<crate::api::records::DailyReviewResult> for wire_cst_daily_review_result {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::DailyReviewResult {
+        fn cst_decode(self) -> crate::api::records::DailyReviewResult {
             match self.tag {
-                0 => crate::api::DailyReviewResult::NoProvider,
-                1 => crate::api::DailyReviewResult::NoEntries,
+                0 => crate::api::records::DailyReviewResult::NoProvider,
+                1 => crate::api::records::DailyReviewResult::NoEntries,
                 2 => {
                     let ans = unsafe { self.kind.Created };
-                    crate::api::DailyReviewResult::Created {
+                    crate::api::records::DailyReviewResult::Created {
                         id: ans.id.cst_decode(),
                     }
                 }
@@ -17538,19 +17745,19 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::DayCountDto> for wire_cst_day_count_dto {
+    impl CstDecode<crate::api::period_stats::DayCountDto> for wire_cst_day_count_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::DayCountDto {
-            crate::api::DayCountDto {
+        fn cst_decode(self) -> crate::api::period_stats::DayCountDto {
+            crate::api::period_stats::DayCountDto {
                 date: self.date.cst_decode(),
                 count: self.count.cst_decode(),
             }
         }
     }
-    impl CstDecode<crate::api::review_report::DeviationItemDto> for wire_cst_deviation_item_dto {
+    impl CstDecode<crate::api::review_report::store::DeviationItemDto> for wire_cst_deviation_item_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::review_report::DeviationItemDto {
-            crate::api::review_report::DeviationItemDto {
+        fn cst_decode(self) -> crate::api::review_report::store::DeviationItemDto {
+            crate::api::review_report::store::DeviationItemDto {
                 goal_content: self.goal_content.cst_decode(),
                 deviation_type: self.deviation_type.cst_decode(),
                 evidence: self.evidence.cst_decode(),
@@ -17559,10 +17766,12 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::review_report::DeviationReportDto> for wire_cst_deviation_report_dto {
+    impl CstDecode<crate::api::review_report::store::DeviationReportDto>
+        for wire_cst_deviation_report_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::review_report::DeviationReportDto {
-            crate::api::review_report::DeviationReportDto {
+        fn cst_decode(self) -> crate::api::review_report::store::DeviationReportDto {
+            crate::api::review_report::store::DeviationReportDto {
                 id: self.id.cst_decode(),
                 period: self.period.cst_decode(),
                 period_type: self.period_type.cst_decode(),
@@ -17592,19 +17801,19 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::EmotionTagDto> for wire_cst_emotion_tag_dto {
+    impl CstDecode<crate::api::analysis_schema::EmotionTagDto> for wire_cst_emotion_tag_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::EmotionTagDto {
-            crate::api::EmotionTagDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::EmotionTagDto {
+            crate::api::analysis_schema::EmotionTagDto {
                 target: self.target.cst_decode(),
                 feeling: self.feeling.cst_decode(),
             }
         }
     }
-    impl CstDecode<crate::api::EntityFactDto> for wire_cst_entity_fact_dto {
+    impl CstDecode<crate::api::analysis_schema::EntityFactDto> for wire_cst_entity_fact_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::EntityFactDto {
-            crate::api::EntityFactDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::EntityFactDto {
+            crate::api::analysis_schema::EntityFactDto {
                 id: self.id.cst_decode(),
                 entity_kind: self.entity_kind.cst_decode(),
                 entity_slug: self.entity_slug.cst_decode(),
@@ -17628,10 +17837,12 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::EventAnalysisDetailDto> for wire_cst_event_analysis_detail_dto {
+    impl CstDecode<crate::api::analysis_schema::EventAnalysisDetailDto>
+        for wire_cst_event_analysis_detail_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::EventAnalysisDetailDto {
-            crate::api::EventAnalysisDetailDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::EventAnalysisDetailDto {
+            crate::api::analysis_schema::EventAnalysisDetailDto {
                 event_id: self.event_id.cst_decode(),
                 raw_text: self.raw_text.cst_decode(),
                 source: self.source.cst_decode(),
@@ -17662,10 +17873,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::EventDto> for wire_cst_event_dto {
+    impl CstDecode<crate::api::analysis_schema::EventDto> for wire_cst_event_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::EventDto {
-            crate::api::EventDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::EventDto {
+            crate::api::analysis_schema::EventDto {
                 id: self.id.cst_decode(),
                 raw_text: self.raw_text.cst_decode(),
                 recorded_at: self.recorded_at.cst_decode(),
@@ -17675,10 +17886,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::EventEmotionDto> for wire_cst_event_emotion_dto {
+    impl CstDecode<crate::api::analysis_schema::EventEmotionDto> for wire_cst_event_emotion_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::EventEmotionDto {
-            crate::api::EventEmotionDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::EventEmotionDto {
+            crate::api::analysis_schema::EventEmotionDto {
                 id: self.id.cst_decode(),
                 event_id: self.event_id.cst_decode(),
                 recorded_at: self.recorded_at.cst_decode(),
@@ -17699,10 +17910,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::EventSummaryDto> for wire_cst_event_summary_dto {
+    impl CstDecode<crate::api::review_flow::EventSummaryDto> for wire_cst_event_summary_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::EventSummaryDto {
-            crate::api::EventSummaryDto {
+        fn cst_decode(self) -> crate::api::review_flow::EventSummaryDto {
+            crate::api::review_flow::EventSummaryDto {
                 id: self.id.cst_decode(),
                 raw_text: self.raw_text.cst_decode(),
                 recorded_at: self.recorded_at.cst_decode(),
@@ -17725,20 +17936,20 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::GuidanceDto> for wire_cst_guidance_dto {
+    impl CstDecode<crate::api::analysis_schema::GuidanceDto> for wire_cst_guidance_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::GuidanceDto {
-            crate::api::GuidanceDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::GuidanceDto {
+            crate::api::analysis_schema::GuidanceDto {
                 related: self.related.cst_decode(),
                 lessons: self.lessons.cst_decode(),
                 follow_ups_refined: self.follow_ups_refined.cst_decode(),
             }
         }
     }
-    impl CstDecode<crate::api::GuidanceRefDto> for wire_cst_guidance_ref_dto {
+    impl CstDecode<crate::api::analysis_schema::GuidanceRefDto> for wire_cst_guidance_ref_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::GuidanceRefDto {
-            crate::api::GuidanceRefDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::GuidanceRefDto {
+            crate::api::analysis_schema::GuidanceRefDto {
                 slug: self.slug.cst_decode(),
                 note: self.note.cst_decode(),
             }
@@ -17757,10 +17968,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::InputRecordDto> for wire_cst_input_record_dto {
+    impl CstDecode<crate::api::analysis_schema::InputRecordDto> for wire_cst_input_record_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::InputRecordDto {
-            crate::api::InputRecordDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::InputRecordDto {
+            crate::api::analysis_schema::InputRecordDto {
                 id: self.id.cst_decode(),
                 raw_text: self.raw_text.cst_decode(),
                 source: self.source.cst_decode(),
@@ -17796,10 +18007,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::knowledge::KnowledgeCitation> for wire_cst_knowledge_citation {
+    impl CstDecode<crate::knowledge::select::KnowledgeCitation> for wire_cst_knowledge_citation {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::knowledge::KnowledgeCitation {
-            crate::knowledge::KnowledgeCitation {
+        fn cst_decode(self) -> crate::knowledge::select::KnowledgeCitation {
+            crate::knowledge::select::KnowledgeCitation {
                 page_slug: self.page_slug.cst_decode(),
                 content_hash: self.content_hash.cst_decode(),
                 title: self.title.cst_decode(),
@@ -17910,10 +18121,12 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::knowledge::KnowledgeHealthReport> for wire_cst_knowledge_health_report {
+    impl CstDecode<crate::knowledge::health::KnowledgeHealthReport>
+        for wire_cst_knowledge_health_report
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::knowledge::KnowledgeHealthReport {
-            crate::knowledge::KnowledgeHealthReport {
+        fn cst_decode(self) -> crate::knowledge::health::KnowledgeHealthReport {
+            crate::knowledge::health::KnowledgeHealthReport {
                 generated_at: self.generated_at.cst_decode(),
                 window_days: self.window_days.cst_decode(),
                 proposals_pending: self.proposals_pending.cst_decode(),
@@ -17940,10 +18153,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::storage::knowledge::KnowledgeIssue> for wire_cst_knowledge_issue {
+    impl CstDecode<crate::storage::knowledge::core::KnowledgeIssue> for wire_cst_knowledge_issue {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::storage::knowledge::KnowledgeIssue {
-            crate::storage::knowledge::KnowledgeIssue {
+        fn cst_decode(self) -> crate::storage::knowledge::core::KnowledgeIssue {
+            crate::storage::knowledge::core::KnowledgeIssue {
                 fingerprint: self.fingerprint.cst_decode(),
                 page_slug: self.page_slug.cst_decode(),
                 kind: self.kind.cst_decode(),
@@ -17951,10 +18164,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::storage::knowledge::KnowledgeMetadata> for wire_cst_knowledge_metadata {
+    impl CstDecode<crate::storage::knowledge::core::KnowledgeMetadata> for wire_cst_knowledge_metadata {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::storage::knowledge::KnowledgeMetadata {
-            crate::storage::knowledge::KnowledgeMetadata {
+        fn cst_decode(self) -> crate::storage::knowledge::core::KnowledgeMetadata {
+            crate::storage::knowledge::core::KnowledgeMetadata {
                 applicable_when: self.applicable_when.cst_decode(),
                 strength: self.strength.cst_decode(),
                 confirmed_at: self.confirmed_at.cst_decode(),
@@ -17977,10 +18190,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::storage::knowledge::KnowledgeProposal> for wire_cst_knowledge_proposal {
+    impl CstDecode<crate::storage::knowledge::core::KnowledgeProposal> for wire_cst_knowledge_proposal {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::storage::knowledge::KnowledgeProposal {
-            crate::storage::knowledge::KnowledgeProposal {
+        fn cst_decode(self) -> crate::storage::knowledge::core::KnowledgeProposal {
+            crate::storage::knowledge::core::KnowledgeProposal {
                 id: self.id.cst_decode(),
                 page_id: self.page_id.cst_decode(),
                 target_slug: self.target_slug.cst_decode(),
@@ -18132,9 +18345,9 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::AnalysisDto>> for *mut wire_cst_list_analysis_dto {
+    impl CstDecode<Vec<crate::api::analysis_schema::AnalysisDto>> for *mut wire_cst_list_analysis_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::AnalysisDto> {
+        fn cst_decode(self) -> Vec<crate::api::analysis_schema::AnalysisDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18258,9 +18471,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::DailyEntryDto>> for *mut wire_cst_list_daily_entry_dto {
+    impl CstDecode<Vec<crate::api::analysis_schema::DailyEntryDto>>
+        for *mut wire_cst_list_daily_entry_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::DailyEntryDto> {
+        fn cst_decode(self) -> Vec<crate::api::analysis_schema::DailyEntryDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18268,9 +18483,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::DailyReviewItemDto>> for *mut wire_cst_list_daily_review_item_dto {
+    impl CstDecode<Vec<crate::api::analysis_schema::DailyReviewItemDto>>
+        for *mut wire_cst_list_daily_review_item_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::DailyReviewItemDto> {
+        fn cst_decode(self) -> Vec<crate::api::analysis_schema::DailyReviewItemDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18290,9 +18507,9 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::DayCountDto>> for *mut wire_cst_list_day_count_dto {
+    impl CstDecode<Vec<crate::api::period_stats::DayCountDto>> for *mut wire_cst_list_day_count_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::DayCountDto> {
+        fn cst_decode(self) -> Vec<crate::api::period_stats::DayCountDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18300,11 +18517,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::review_report::DeviationItemDto>>
+    impl CstDecode<Vec<crate::api::review_report::store::DeviationItemDto>>
         for *mut wire_cst_list_deviation_item_dto
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::review_report::DeviationItemDto> {
+        fn cst_decode(self) -> Vec<crate::api::review_report::store::DeviationItemDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18312,11 +18529,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::review_report::DeviationReportDto>>
+    impl CstDecode<Vec<crate::api::review_report::store::DeviationReportDto>>
         for *mut wire_cst_list_deviation_report_dto
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::review_report::DeviationReportDto> {
+        fn cst_decode(self) -> Vec<crate::api::review_report::store::DeviationReportDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18334,9 +18551,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::EmotionTagDto>> for *mut wire_cst_list_emotion_tag_dto {
+    impl CstDecode<Vec<crate::api::analysis_schema::EmotionTagDto>>
+        for *mut wire_cst_list_emotion_tag_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::EmotionTagDto> {
+        fn cst_decode(self) -> Vec<crate::api::analysis_schema::EmotionTagDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18344,9 +18563,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::EntityFactDto>> for *mut wire_cst_list_entity_fact_dto {
+    impl CstDecode<Vec<crate::api::analysis_schema::EntityFactDto>>
+        for *mut wire_cst_list_entity_fact_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::EntityFactDto> {
+        fn cst_decode(self) -> Vec<crate::api::analysis_schema::EntityFactDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18354,9 +18575,9 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::EventDto>> for *mut wire_cst_list_event_dto {
+    impl CstDecode<Vec<crate::api::analysis_schema::EventDto>> for *mut wire_cst_list_event_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::EventDto> {
+        fn cst_decode(self) -> Vec<crate::api::analysis_schema::EventDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18364,9 +18585,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::EventEmotionDto>> for *mut wire_cst_list_event_emotion_dto {
+    impl CstDecode<Vec<crate::api::analysis_schema::EventEmotionDto>>
+        for *mut wire_cst_list_event_emotion_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::EventEmotionDto> {
+        fn cst_decode(self) -> Vec<crate::api::analysis_schema::EventEmotionDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18374,9 +18597,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::EventSummaryDto>> for *mut wire_cst_list_event_summary_dto {
+    impl CstDecode<Vec<crate::api::review_flow::EventSummaryDto>>
+        for *mut wire_cst_list_event_summary_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::EventSummaryDto> {
+        fn cst_decode(self) -> Vec<crate::api::review_flow::EventSummaryDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18394,9 +18619,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::GuidanceRefDto>> for *mut wire_cst_list_guidance_ref_dto {
+    impl CstDecode<Vec<crate::api::analysis_schema::GuidanceRefDto>>
+        for *mut wire_cst_list_guidance_ref_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::GuidanceRefDto> {
+        fn cst_decode(self) -> Vec<crate::api::analysis_schema::GuidanceRefDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18416,9 +18643,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::knowledge::KnowledgeCitation>> for *mut wire_cst_list_knowledge_citation {
+    impl CstDecode<Vec<crate::knowledge::select::KnowledgeCitation>>
+        for *mut wire_cst_list_knowledge_citation
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::knowledge::KnowledgeCitation> {
+        fn cst_decode(self) -> Vec<crate::knowledge::select::KnowledgeCitation> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18462,11 +18691,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::storage::knowledge::KnowledgeIssue>>
+    impl CstDecode<Vec<crate::storage::knowledge::core::KnowledgeIssue>>
         for *mut wire_cst_list_knowledge_issue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::storage::knowledge::KnowledgeIssue> {
+        fn cst_decode(self) -> Vec<crate::storage::knowledge::core::KnowledgeIssue> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18474,11 +18703,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::storage::knowledge::KnowledgeProposal>>
+    impl CstDecode<Vec<crate::storage::knowledge::core::KnowledgeProposal>>
         for *mut wire_cst_list_knowledge_proposal
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::storage::knowledge::KnowledgeProposal> {
+        fn cst_decode(self) -> Vec<crate::storage::knowledge::core::KnowledgeProposal> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18578,9 +18807,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::MemoryEchoDto>> for *mut wire_cst_list_memory_echo_dto {
+    impl CstDecode<Vec<crate::api::analysis_schema::MemoryEchoDto>>
+        for *mut wire_cst_list_memory_echo_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::MemoryEchoDto> {
+        fn cst_decode(self) -> Vec<crate::api::analysis_schema::MemoryEchoDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18598,9 +18829,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::NamedCountDto>> for *mut wire_cst_list_named_count_dto {
+    impl CstDecode<Vec<crate::api::period_stats::NamedCountDto>>
+        for *mut wire_cst_list_named_count_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::NamedCountDto> {
+        fn cst_decode(self) -> Vec<crate::api::period_stats::NamedCountDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18608,11 +18841,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::sync::ObjectConflictDto>>
+    impl CstDecode<Vec<crate::api::sync::conflicts::ObjectConflictDto>>
         for *mut wire_cst_list_object_conflict_dto
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::sync::ObjectConflictDto> {
+        fn cst_decode(self) -> Vec<crate::api::sync::conflicts::ObjectConflictDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18632,9 +18865,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::PageGuidanceDto>> for *mut wire_cst_list_page_guidance_dto {
+    impl CstDecode<Vec<crate::api::companion_flow::PageGuidanceDto>>
+        for *mut wire_cst_list_page_guidance_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::PageGuidanceDto> {
+        fn cst_decode(self) -> Vec<crate::api::companion_flow::PageGuidanceDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18691,11 +18926,11 @@ mod io {
             }
         }
     }
-    impl CstDecode<Vec<crate::api::sync::ProviderConflictProfileDto>>
+    impl CstDecode<Vec<crate::api::sync::datasets::ProviderConflictProfileDto>>
         for *mut wire_cst_list_provider_conflict_profile_dto
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::sync::ProviderConflictProfileDto> {
+        fn cst_decode(self) -> Vec<crate::api::sync::datasets::ProviderConflictProfileDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18703,11 +18938,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::sync::ProviderSyncConflictDto>>
+    impl CstDecode<Vec<crate::api::sync::datasets::ProviderSyncConflictDto>>
         for *mut wire_cst_list_provider_sync_conflict_dto
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::sync::ProviderSyncConflictDto> {
+        fn cst_decode(self) -> Vec<crate::api::sync::datasets::ProviderSyncConflictDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18739,11 +18974,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::storage::knowledge::RejectedSourceRow>>
+    impl CstDecode<Vec<crate::storage::knowledge::core::RejectedSourceRow>>
         for *mut wire_cst_list_rejected_source_row
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::storage::knowledge::RejectedSourceRow> {
+        fn cst_decode(self) -> Vec<crate::storage::knowledge::core::RejectedSourceRow> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18781,9 +19016,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::knowledge::SourceReference>> for *mut wire_cst_list_source_reference {
+    impl CstDecode<Vec<crate::knowledge::select::SourceReference>>
+        for *mut wire_cst_list_source_reference
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::knowledge::SourceReference> {
+        fn cst_decode(self) -> Vec<crate::knowledge::select::SourceReference> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18791,11 +19028,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::storage::knowledge::SourceSnapshot>>
+    impl CstDecode<Vec<crate::storage::knowledge::core::SourceSnapshot>>
         for *mut wire_cst_list_source_snapshot
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::storage::knowledge::SourceSnapshot> {
+        fn cst_decode(self) -> Vec<crate::storage::knowledge::core::SourceSnapshot> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18803,11 +19040,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::sync::SyncDatasetEntryDto>>
+    impl CstDecode<Vec<crate::api::sync::join::SyncDatasetEntryDto>>
         for *mut wire_cst_list_sync_dataset_entry_dto
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::sync::SyncDatasetEntryDto> {
+        fn cst_decode(self) -> Vec<crate::api::sync::join::SyncDatasetEntryDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18815,11 +19052,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::sync::SyncEnrollmentStateDto>>
+    impl CstDecode<Vec<crate::api::sync::join::SyncEnrollmentStateDto>>
         for *mut wire_cst_list_sync_enrollment_state_dto
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::sync::SyncEnrollmentStateDto> {
+        fn cst_decode(self) -> Vec<crate::api::sync::join::SyncEnrollmentStateDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18827,9 +19064,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::sync::SyncJoinEntryDto>> for *mut wire_cst_list_sync_join_entry_dto {
+    impl CstDecode<Vec<crate::api::sync::join::SyncJoinEntryDto>>
+        for *mut wire_cst_list_sync_join_entry_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::sync::SyncJoinEntryDto> {
+        fn cst_decode(self) -> Vec<crate::api::sync::join::SyncJoinEntryDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18837,11 +19076,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::sync::SyncRosterMemberDto>>
+    impl CstDecode<Vec<crate::api::sync::datasets::SyncRosterMemberDto>>
         for *mut wire_cst_list_sync_roster_member_dto
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::sync::SyncRosterMemberDto> {
+        fn cst_decode(self) -> Vec<crate::api::sync::datasets::SyncRosterMemberDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18903,11 +19142,11 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<crate::api::sync::WikiPageConflictDto>>
+    impl CstDecode<Vec<crate::api::sync::datasets::WikiPageConflictDto>>
         for *mut wire_cst_list_wiki_page_conflict_dto
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::sync::WikiPageConflictDto> {
+        fn cst_decode(self) -> Vec<crate::api::sync::datasets::WikiPageConflictDto> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -18935,10 +19174,10 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<crate::api::sync::LocalSyncStateDto> for wire_cst_local_sync_state_dto {
+    impl CstDecode<crate::api::sync::invite::LocalSyncStateDto> for wire_cst_local_sync_state_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::LocalSyncStateDto {
-            crate::api::sync::LocalSyncStateDto {
+        fn cst_decode(self) -> crate::api::sync::invite::LocalSyncStateDto {
+            crate::api::sync::invite::LocalSyncStateDto {
                 state: self.state.cst_decode(),
                 installation_id: self.installation_id.cst_decode(),
                 vault_revision: self.vault_revision.cst_decode(),
@@ -18984,10 +19223,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::MemoryEchoDto> for wire_cst_memory_echo_dto {
+    impl CstDecode<crate::api::analysis_schema::MemoryEchoDto> for wire_cst_memory_echo_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::MemoryEchoDto {
-            crate::api::MemoryEchoDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::MemoryEchoDto {
+            crate::api::analysis_schema::MemoryEchoDto {
                 event_id: self.event_id.cst_decode(),
                 recorded_at: self.recorded_at.cst_decode(),
                 raw_text: self.raw_text.cst_decode(),
@@ -19008,10 +19247,12 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::MessageRecordabilityDto> for wire_cst_message_recordability_dto {
+    impl CstDecode<crate::api::analysis_schema::MessageRecordabilityDto>
+        for wire_cst_message_recordability_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::MessageRecordabilityDto {
-            crate::api::MessageRecordabilityDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::MessageRecordabilityDto {
+            crate::api::analysis_schema::MessageRecordabilityDto {
                 message_id: self.message_id.cst_decode(),
                 event_id: self.event_id.cst_decode(),
                 recordable: self.recordable.cst_decode(),
@@ -19022,10 +19263,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::NamedCountDto> for wire_cst_named_count_dto {
+    impl CstDecode<crate::api::period_stats::NamedCountDto> for wire_cst_named_count_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::NamedCountDto {
-            crate::api::NamedCountDto {
+        fn cst_decode(self) -> crate::api::period_stats::NamedCountDto {
+            crate::api::period_stats::NamedCountDto {
                 label: self.label.cst_decode(),
                 count: self.count.cst_decode(),
             }
@@ -19043,10 +19284,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::sync::ObjectConflictDto> for wire_cst_object_conflict_dto {
+    impl CstDecode<crate::api::sync::conflicts::ObjectConflictDto> for wire_cst_object_conflict_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::ObjectConflictDto {
-            crate::api::sync::ObjectConflictDto {
+        fn cst_decode(self) -> crate::api::sync::conflicts::ObjectConflictDto {
+            crate::api::sync::conflicts::ObjectConflictDto {
                 op_id: self.op_id.cst_decode(),
                 object_kind: self.object_kind.cst_decode(),
                 object_id: self.object_id.cst_decode(),
@@ -19087,10 +19328,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::PageGuidanceDto> for wire_cst_page_guidance_dto {
+    impl CstDecode<crate::api::companion_flow::PageGuidanceDto> for wire_cst_page_guidance_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::PageGuidanceDto {
-            crate::api::PageGuidanceDto {
+        fn cst_decode(self) -> crate::api::companion_flow::PageGuidanceDto {
+            crate::api::companion_flow::PageGuidanceDto {
                 analysis_id: self.analysis_id.cst_decode(),
                 event_id: self.event_id.cst_decode(),
                 recorded_at: self.recorded_at.cst_decode(),
@@ -19131,31 +19372,31 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::review_report::PeriodReportTickResult>
+    impl CstDecode<crate::api::review_report::detect::PeriodReportTickResult>
         for wire_cst_period_report_tick_result
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::review_report::PeriodReportTickResult {
+        fn cst_decode(self) -> crate::api::review_report::detect::PeriodReportTickResult {
             match self.tag {
-                0 => crate::api::review_report::PeriodReportTickResult::NoProvider,
-                1 => crate::api::review_report::PeriodReportTickResult::Idle,
+                0 => crate::api::review_report::detect::PeriodReportTickResult::NoProvider,
+                1 => crate::api::review_report::detect::PeriodReportTickResult::Idle,
                 2 => {
                     let ans = unsafe { self.kind.Generated };
-                    crate::api::review_report::PeriodReportTickResult::Generated {
+                    crate::api::review_report::detect::PeriodReportTickResult::Generated {
                         period: ans.period.cst_decode(),
                         period_type: ans.period_type.cst_decode(),
                     }
                 }
                 3 => {
                     let ans = unsafe { self.kind.Detected };
-                    crate::api::review_report::PeriodReportTickResult::Detected {
+                    crate::api::review_report::detect::PeriodReportTickResult::Detected {
                         report_id: ans.report_id.cst_decode(),
                         deviations: ans.deviations.cst_decode(),
                     }
                 }
                 4 => {
                     let ans = unsafe { self.kind.DetectFailed };
-                    crate::api::review_report::PeriodReportTickResult::DetectFailed {
+                    crate::api::review_report::detect::PeriodReportTickResult::DetectFailed {
                         report_id: ans.report_id.cst_decode(),
                         error: ans.error.cst_decode(),
                     }
@@ -19164,10 +19405,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::PeriodStatsDto> for wire_cst_period_stats_dto {
+    impl CstDecode<crate::api::period_stats::PeriodStatsDto> for wire_cst_period_stats_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::PeriodStatsDto {
-            crate::api::PeriodStatsDto {
+        fn cst_decode(self) -> crate::api::period_stats::PeriodStatsDto {
+            crate::api::period_stats::PeriodStatsDto {
                 period_type: self.period_type.cst_decode(),
                 start_date: self.start_date.cst_decode(),
                 end_date: self.end_date.cst_decode(),
@@ -19181,10 +19422,12 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::sync::ProcessingYieldProofDto> for wire_cst_processing_yield_proof_dto {
+    impl CstDecode<crate::api::sync::invite::ProcessingYieldProofDto>
+        for wire_cst_processing_yield_proof_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::ProcessingYieldProofDto {
-            crate::api::sync::ProcessingYieldProofDto {
+        fn cst_decode(self) -> crate::api::sync::invite::ProcessingYieldProofDto {
+            crate::api::sync::invite::ProcessingYieldProofDto {
                 dataset_id: self.dataset_id.cst_decode(),
                 from_device_id: self.from_device_id.cst_decode(),
                 to_device_id: self.to_device_id.cst_decode(),
@@ -19194,12 +19437,12 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::sync::ProcessorHandoffStateDto>
+    impl CstDecode<crate::api::sync::invite::ProcessorHandoffStateDto>
         for wire_cst_processor_handoff_state_dto
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::ProcessorHandoffStateDto {
-            crate::api::sync::ProcessorHandoffStateDto {
+        fn cst_decode(self) -> crate::api::sync::invite::ProcessorHandoffStateDto {
+            crate::api::sync::invite::ProcessorHandoffStateDto {
                 state: self.state.cst_decode(),
                 from_device_id: self.from_device_id.cst_decode(),
                 to_device_id: self.to_device_id.cst_decode(),
@@ -19208,12 +19451,12 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::sync::ProviderConflictProfileDto>
+    impl CstDecode<crate::api::sync::datasets::ProviderConflictProfileDto>
         for wire_cst_provider_conflict_profile_dto
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::ProviderConflictProfileDto {
-            crate::api::sync::ProviderConflictProfileDto {
+        fn cst_decode(self) -> crate::api::sync::datasets::ProviderConflictProfileDto {
+            crate::api::sync::datasets::ProviderConflictProfileDto {
                 id: self.id.cst_decode(),
                 name: self.name.cst_decode(),
                 provider_type: self.provider_type.cst_decode(),
@@ -19230,10 +19473,12 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::sync::ProviderSyncConflictDto> for wire_cst_provider_sync_conflict_dto {
+    impl CstDecode<crate::api::sync::datasets::ProviderSyncConflictDto>
+        for wire_cst_provider_sync_conflict_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::ProviderSyncConflictDto {
-            crate::api::sync::ProviderSyncConflictDto {
+        fn cst_decode(self) -> crate::api::sync::datasets::ProviderSyncConflictDto {
+            crate::api::sync::datasets::ProviderSyncConflictDto {
                 revision_id: self.revision_id.cst_decode(),
                 base_revision: self.base_revision.cst_decode(),
                 sender_device_id: self.sender_device_id.cst_decode(),
@@ -19271,18 +19516,20 @@ mod io {
             }
         }
     }
-    impl CstDecode<(Vec<crate::api::sync::SyncDatasetEntryDto>, i64)>
+    impl CstDecode<(Vec<crate::api::sync::join::SyncDatasetEntryDto>, i64)>
         for wire_cst_record_list_sync_dataset_entry_dto_i_64
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> (Vec<crate::api::sync::SyncDatasetEntryDto>, i64) {
+        fn cst_decode(self) -> (Vec<crate::api::sync::join::SyncDatasetEntryDto>, i64) {
             (self.field0.cst_decode(), self.field1.cst_decode())
         }
     }
-    impl CstDecode<crate::storage::knowledge::RejectedSourceRow> for wire_cst_rejected_source_row {
+    impl CstDecode<crate::storage::knowledge::core::RejectedSourceRow>
+        for wire_cst_rejected_source_row
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::storage::knowledge::RejectedSourceRow {
-            crate::storage::knowledge::RejectedSourceRow {
+        fn cst_decode(self) -> crate::storage::knowledge::core::RejectedSourceRow {
+            crate::storage::knowledge::core::RejectedSourceRow {
                 slug: self.slug.cst_decode(),
                 title: self.title.cst_decode(),
                 identity: self.identity.cst_decode(),
@@ -19336,10 +19583,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::knowledge::SourceReference> for wire_cst_source_reference {
+    impl CstDecode<crate::knowledge::select::SourceReference> for wire_cst_source_reference {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::knowledge::SourceReference {
-            crate::knowledge::SourceReference {
+        fn cst_decode(self) -> crate::knowledge::select::SourceReference {
+            crate::knowledge::select::SourceReference {
                 snapshot_id: self.snapshot_id.cst_decode(),
                 title: self.title.cst_decode(),
                 locator: self.locator.cst_decode(),
@@ -19347,10 +19594,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::storage::knowledge::SourceSnapshot> for wire_cst_source_snapshot {
+    impl CstDecode<crate::storage::knowledge::core::SourceSnapshot> for wire_cst_source_snapshot {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::storage::knowledge::SourceSnapshot {
-            crate::storage::knowledge::SourceSnapshot {
+        fn cst_decode(self) -> crate::storage::knowledge::core::SourceSnapshot {
+            crate::storage::knowledge::core::SourceSnapshot {
                 id: self.id.cst_decode(),
                 source_id: self.source_id.cst_decode(),
                 version: self.version.cst_decode(),
@@ -19388,10 +19635,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncDatasetEntryDto> for wire_cst_sync_dataset_entry_dto {
+    impl CstDecode<crate::api::sync::join::SyncDatasetEntryDto> for wire_cst_sync_dataset_entry_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncDatasetEntryDto {
-            crate::api::sync::SyncDatasetEntryDto {
+        fn cst_decode(self) -> crate::api::sync::join::SyncDatasetEntryDto {
+            crate::api::sync::join::SyncDatasetEntryDto {
                 entry_id: self.entry_id.cst_decode(),
                 dataset_id: self.dataset_id.cst_decode(),
                 installation_id: self.installation_id.cst_decode(),
@@ -19401,10 +19648,12 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncEnrollmentStateDto> for wire_cst_sync_enrollment_state_dto {
+    impl CstDecode<crate::api::sync::join::SyncEnrollmentStateDto>
+        for wire_cst_sync_enrollment_state_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncEnrollmentStateDto {
-            crate::api::sync::SyncEnrollmentStateDto {
+        fn cst_decode(self) -> crate::api::sync::join::SyncEnrollmentStateDto {
+            crate::api::sync::join::SyncEnrollmentStateDto {
                 role: self.role.cst_decode(),
                 operation_id: self.operation_id.cst_decode(),
                 invitation_id: self.invitation_id.cst_decode(),
@@ -19421,22 +19670,24 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncInvitationOfferDto> for wire_cst_sync_invitation_offer_dto {
+    impl CstDecode<crate::api::sync::invite::SyncInvitationOfferDto>
+        for wire_cst_sync_invitation_offer_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncInvitationOfferDto {
-            crate::api::sync::SyncInvitationOfferDto {
+        fn cst_decode(self) -> crate::api::sync::invite::SyncInvitationOfferDto {
+            crate::api::sync::invite::SyncInvitationOfferDto {
                 invitation_id: self.invitation_id.cst_decode(),
                 code: self.code.cst_decode(),
                 expires_at_ms: self.expires_at_ms.cst_decode(),
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncInvitationPreviewDto>
+    impl CstDecode<crate::api::sync::invite::SyncInvitationPreviewDto>
         for wire_cst_sync_invitation_preview_dto
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncInvitationPreviewDto {
-            crate::api::sync::SyncInvitationPreviewDto {
+        fn cst_decode(self) -> crate::api::sync::invite::SyncInvitationPreviewDto {
+            crate::api::sync::invite::SyncInvitationPreviewDto {
                 invitation_id: self.invitation_id.cst_decode(),
                 token: self.token.cst_decode(),
                 device_name: self.device_name.cst_decode(),
@@ -19446,10 +19697,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncJoinEntryDto> for wire_cst_sync_join_entry_dto {
+    impl CstDecode<crate::api::sync::join::SyncJoinEntryDto> for wire_cst_sync_join_entry_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncJoinEntryDto {
-            crate::api::sync::SyncJoinEntryDto {
+        fn cst_decode(self) -> crate::api::sync::join::SyncJoinEntryDto {
+            crate::api::sync::join::SyncJoinEntryDto {
                 entry_id: self.entry_id.cst_decode(),
                 installation_id: self.installation_id.cst_decode(),
                 dataset_id: self.dataset_id.cst_decode(),
@@ -19457,10 +19708,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncJoinStateDto> for wire_cst_sync_join_state_dto {
+    impl CstDecode<crate::api::sync::join::SyncJoinStateDto> for wire_cst_sync_join_state_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncJoinStateDto {
-            crate::api::sync::SyncJoinStateDto {
+        fn cst_decode(self) -> crate::api::sync::join::SyncJoinStateDto {
+            crate::api::sync::join::SyncJoinStateDto {
                 operation_id: self.operation_id.cst_decode(),
                 token: self.token.cst_decode(),
                 entry_id: self.entry_id.cst_decode(),
@@ -19478,20 +19729,20 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncKeyCommitDto> for wire_cst_sync_key_commit_dto {
+    impl CstDecode<crate::api::sync::invite::SyncKeyCommitDto> for wire_cst_sync_key_commit_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncKeyCommitDto {
-            crate::api::sync::SyncKeyCommitDto {
+        fn cst_decode(self) -> crate::api::sync::invite::SyncKeyCommitDto {
+            crate::api::sync::invite::SyncKeyCommitDto {
                 token: self.token.cst_decode(),
                 installation_id: self.installation_id.cst_decode(),
                 revision: self.revision.cst_decode(),
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncKeyRequestDto> for wire_cst_sync_key_request_dto {
+    impl CstDecode<crate::api::sync::invite::SyncKeyRequestDto> for wire_cst_sync_key_request_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncKeyRequestDto {
-            crate::api::sync::SyncKeyRequestDto {
+        fn cst_decode(self) -> crate::api::sync::invite::SyncKeyRequestDto {
+            crate::api::sync::invite::SyncKeyRequestDto {
                 token: self.token.cst_decode(),
                 installation_id: self.installation_id.cst_decode(),
                 revision: self.revision.cst_decode(),
@@ -19499,10 +19750,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncRosterDto> for wire_cst_sync_roster_dto {
+    impl CstDecode<crate::api::sync::datasets::SyncRosterDto> for wire_cst_sync_roster_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncRosterDto {
-            crate::api::sync::SyncRosterDto {
+        fn cst_decode(self) -> crate::api::sync::datasets::SyncRosterDto {
+            crate::api::sync::datasets::SyncRosterDto {
                 revision: self.revision.cst_decode(),
                 dataset_id: self.dataset_id.cst_decode(),
                 owner_device_id: self.owner_device_id.cst_decode(),
@@ -19512,10 +19763,12 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncRosterMemberDto> for wire_cst_sync_roster_member_dto {
+    impl CstDecode<crate::api::sync::datasets::SyncRosterMemberDto>
+        for wire_cst_sync_roster_member_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncRosterMemberDto {
-            crate::api::sync::SyncRosterMemberDto {
+        fn cst_decode(self) -> crate::api::sync::datasets::SyncRosterMemberDto {
+            crate::api::sync::datasets::SyncRosterMemberDto {
                 device_id: self.device_id.cst_decode(),
                 name: self.name.cst_decode(),
                 platform: self.platform.cst_decode(),
@@ -19526,10 +19779,10 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncTickResultDto> for wire_cst_sync_tick_result_dto {
+    impl CstDecode<crate::api::sync::join::SyncTickResultDto> for wire_cst_sync_tick_result_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncTickResultDto {
-            crate::api::sync::SyncTickResultDto {
+        fn cst_decode(self) -> crate::api::sync::join::SyncTickResultDto {
+            crate::api::sync::join::SyncTickResultDto {
                 ran: self.ran.cst_decode(),
                 staged_operations: self.staged_operations.cst_decode(),
                 uploaded: self.uploaded.cst_decode(),
@@ -19679,10 +19932,12 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::sync::WikiPageConflictDto> for wire_cst_wiki_page_conflict_dto {
+    impl CstDecode<crate::api::sync::datasets::WikiPageConflictDto>
+        for wire_cst_wiki_page_conflict_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::WikiPageConflictDto {
-            crate::api::sync::WikiPageConflictDto {
+        fn cst_decode(self) -> crate::api::sync::datasets::WikiPageConflictDto {
+            crate::api::sync::datasets::WikiPageConflictDto {
                 op_id: self.op_id.cst_decode(),
                 object_id: self.object_id.cst_decode(),
                 reason: self.reason.cst_decode(),
@@ -19700,10 +19955,12 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::sync::WikiPageConflictSideDto> for wire_cst_wiki_page_conflict_side_dto {
+    impl CstDecode<crate::api::sync::datasets::WikiPageConflictSideDto>
+        for wire_cst_wiki_page_conflict_side_dto
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::WikiPageConflictSideDto {
-            crate::api::sync::WikiPageConflictSideDto {
+        fn cst_decode(self) -> crate::api::sync::datasets::WikiPageConflictSideDto {
+            crate::api::sync::datasets::WikiPageConflictSideDto {
                 slug: self.slug.cst_decode(),
                 title: self.title.cst_decode(),
                 content_md_len: self.content_md_len.cst_decode(),
@@ -22001,13 +22258,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__advance_sync_enrollment(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__join__advance_sync_enrollment(
         port_: i64,
         role: *mut wire_cst_list_prim_u_8_strict,
         operation_id: *mut wire_cst_list_prim_u_8_strict,
         invitation_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sync__advance_sync_enrollment_impl(
+        wire__crate__api__sync__join__advance_sync_enrollment_impl(
             port_,
             role,
             operation_id,
@@ -22026,13 +22283,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__approve_owner_sync_invitation(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__invite__approve_owner_sync_invitation(
         port_: i64,
         invitation_id: *mut wire_cst_list_prim_u_8_strict,
         preview_token: *mut wire_cst_list_prim_u_8_strict,
         acknowledge_provider_key_sharing: bool,
     ) {
-        wire__crate__api__sync__approve_owner_sync_invitation_impl(
+        wire__crate__api__sync__invite__approve_owner_sync_invitation_impl(
             port_,
             invitation_id,
             preview_token,
@@ -22041,11 +22298,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__approve_processor_handoff(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__datasets__approve_processor_handoff(
         port_: i64,
         proof: *mut wire_cst_processing_yield_proof_dto,
     ) {
-        wire__crate__api__sync__approve_processor_handoff_impl(port_, proof)
+        wire__crate__api__sync__datasets__approve_processor_handoff_impl(port_, proof)
     }
 
     #[unsafe(no_mangle)]
@@ -22073,12 +22330,12 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__begin_url_input(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__records__begin_url_input(
         port_: i64,
         raw_text: *mut wire_cst_list_prim_u_8_strict,
         idempotency_key: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__begin_url_input_impl(port_, raw_text, idempotency_key)
+        wire__crate__api__records__begin_url_input_impl(port_, raw_text, idempotency_key)
     }
 
     #[unsafe(no_mangle)]
@@ -22097,13 +22354,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__build_hash(port_: i64) {
-        wire__crate__api__build_hash_impl(port_)
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_flow__build_hash(port_: i64) {
+        wire__crate__api__review_flow__build_hash_impl(port_)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__build_seq(port_: i64) {
-        wire__crate__api__sync__build_seq_impl(port_)
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__handoff__build_seq(port_: i64) {
+        wire__crate__api__sync__handoff__build_seq_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -22116,24 +22373,26 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__cancel_owner_sync_invitation(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__invite__cancel_owner_sync_invitation(
         port_: i64,
         invitation_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sync__cancel_owner_sync_invitation_impl(port_, invitation_id)
+        wire__crate__api__sync__invite__cancel_owner_sync_invitation_impl(port_, invitation_id)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__check_app_update(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__handoff__check_app_update(
         port_: i64,
         relay_url: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sync__check_app_update_impl(port_, relay_url)
+        wire__crate__api__sync__handoff__check_app_update_impl(port_, relay_url)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__check_companion_revisit(port_: i64) {
-        wire__crate__api__check_companion_revisit_impl(port_)
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__companion_flow__check_companion_revisit(
+        port_: i64,
+    ) {
+        wire__crate__api__companion_flow__check_companion_revisit_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -22184,10 +22443,10 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__confirm_processor_takeover(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__datasets__confirm_processor_takeover(
         port_: i64,
     ) {
-        wire__crate__api__sync__confirm_processor_takeover_impl(port_)
+        wire__crate__api__sync__datasets__confirm_processor_takeover_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -22200,7 +22459,7 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__confirm_sync_enrollment(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__join__confirm_sync_enrollment(
         port_: i64,
         role: *mut wire_cst_list_prim_u_8_strict,
         operation_id: *mut wire_cst_list_prim_u_8_strict,
@@ -22208,7 +22467,7 @@ mod io {
         token: *mut wire_cst_list_prim_u_8_strict,
         protected_revision: i64,
     ) {
-        wire__crate__api__sync__confirm_sync_enrollment_impl(
+        wire__crate__api__sync__join__confirm_sync_enrollment_impl(
             port_,
             role,
             operation_id,
@@ -22219,21 +22478,21 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__confirm_sync_join_key(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__join__confirm_sync_join_key(
         port_: i64,
         token: *mut wire_cst_list_prim_u_8_strict,
         protected_revision: i64,
     ) {
-        wire__crate__api__sync__confirm_sync_join_key_impl(port_, token, protected_revision)
+        wire__crate__api__sync__join__confirm_sync_join_key_impl(port_, token, protected_revision)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__confirm_sync_key(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__invite__confirm_sync_key(
         port_: i64,
         token: *mut wire_cst_list_prim_u_8_strict,
         protected_revision: i64,
     ) {
-        wire__crate__api__sync__confirm_sync_key_impl(port_, token, protected_revision)
+        wire__crate__api__sync__invite__confirm_sync_key_impl(port_, token, protected_revision)
     }
 
     #[unsafe(no_mangle)]
@@ -22272,12 +22531,12 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__create_owner_sync_invitation(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__invite__create_owner_sync_invitation(
         port_: i64,
         relay_url: *mut wire_cst_list_prim_u_8_strict,
         acknowledge_provider_key_sharing: bool,
     ) {
-        wire__crate__api__sync__create_owner_sync_invitation_impl(
+        wire__crate__api__sync__invite__create_owner_sync_invitation_impl(
             port_,
             relay_url,
             acknowledge_provider_key_sharing,
@@ -22414,13 +22673,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__delete_event_emotion(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__companion_flow__delete_event_emotion(
         port_: i64,
         id: *mut wire_cst_list_prim_u_8_strict,
         target: *mut wire_cst_list_prim_u_8_strict,
         feeling: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__delete_event_emotion_impl(port_, id, target, feeling)
+        wire__crate__api__companion_flow__delete_event_emotion_impl(port_, id, target, feeling)
     }
 
     #[unsafe(no_mangle)]
@@ -22464,20 +22723,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__discard_sync_join_staging(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__join__discard_sync_join_staging(
         port_: i64,
         entry_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sync__discard_sync_join_staging_impl(port_, entry_id)
+        wire__crate__api__sync__join__discard_sync_join_staging_impl(port_, entry_id)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_report__dismiss_deviation(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_report__store__dismiss_deviation(
         port_: i64,
         report_id: *mut wire_cst_list_prim_u_8_strict,
         index: i32,
     ) {
-        wire__crate__api__review_report__dismiss_deviation_impl(port_, report_id, index)
+        wire__crate__api__review_report__store__dismiss_deviation_impl(port_, report_id, index)
     }
 
     #[unsafe(no_mangle)]
@@ -22497,7 +22756,7 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__download_update_apk(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__handoff__download_update_apk(
         port_: i64,
         relay_url: *mut wire_cst_list_prim_u_8_strict,
         build_hash: *mut wire_cst_list_prim_u_8_strict,
@@ -22505,7 +22764,7 @@ mod io {
         apk_size: i64,
         dest_dir: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sync__download_update_apk_impl(
+        wire__crate__api__sync__handoff__download_update_apk_impl(
             port_, relay_url, build_hash, apk_sha256, apk_size, dest_dir,
         )
     }
@@ -22605,13 +22864,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__finish_url_input(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__records__finish_url_input(
         port_: i64,
         input_id: *mut wire_cst_list_prim_u_8_strict,
         wiki_page_slug: *mut wire_cst_list_prim_u_8_strict,
         failed: bool,
     ) {
-        wire__crate__api__finish_url_input_impl(port_, input_id, wiki_page_slug, failed)
+        wire__crate__api__records__finish_url_input_impl(port_, input_id, wiki_page_slug, failed)
     }
 
     #[unsafe(no_mangle)]
@@ -22624,11 +22883,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__generate_daily_review(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__period_stats__generate_daily_review(
         port_: i64,
         date: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__generate_daily_review_impl(port_, date)
+        wire__crate__api__period_stats__generate_daily_review_impl(port_, date)
     }
 
     #[unsafe(no_mangle)]
@@ -22663,8 +22922,10 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__get_analysis_job_stats(port_: i64) {
-        wire__crate__api__get_analysis_job_stats_impl(port_)
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_flow__get_analysis_job_stats(
+        port_: i64,
+    ) {
+        wire__crate__api__review_flow__get_analysis_job_stats_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -22700,8 +22961,10 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__get_companion_prefs(port_: i64) {
-        wire__crate__api__get_companion_prefs_impl(port_)
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__companion_flow__get_companion_prefs(
+        port_: i64,
+    ) {
+        wire__crate__api__companion_flow__get_companion_prefs_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -22713,11 +22976,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__get_daily_overview(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__period_stats__get_daily_overview(
         port_: i64,
         date: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__get_daily_overview_impl(port_, date)
+        wire__crate__api__period_stats__get_daily_overview_impl(port_, date)
     }
 
     #[unsafe(no_mangle)]
@@ -22737,11 +23000,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__get_event_analysis_detail(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_flow__get_event_analysis_detail(
         port_: i64,
         event_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__get_event_analysis_detail_impl(port_, event_id)
+        wire__crate__api__review_flow__get_event_analysis_detail_impl(port_, event_id)
     }
 
     #[unsafe(no_mangle)]
@@ -22793,8 +23056,10 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__get_local_sync_state(port_: i64) {
-        wire__crate__api__sync__get_local_sync_state_impl(port_)
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__invite__get_local_sync_state(
+        port_: i64,
+    ) {
+        wire__crate__api__sync__invite__get_local_sync_state_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -22814,11 +23079,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__get_message_recordability(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_flow__get_message_recordability(
         port_: i64,
         message_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__get_message_recordability_impl(port_, message_id)
+        wire__crate__api__review_flow__get_message_recordability_impl(port_, message_id)
     }
 
     #[unsafe(no_mangle)]
@@ -22829,19 +23094,19 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__get_period_stats(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__period_stats__get_period_stats(
         port_: i64,
         period_type: *mut wire_cst_list_prim_u_8_strict,
         date: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__get_period_stats_impl(port_, period_type, date)
+        wire__crate__api__period_stats__get_period_stats_impl(port_, period_type, date)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__get_processor_handoff_state(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__datasets__get_processor_handoff_state(
         port_: i64,
     ) {
-        wire__crate__api__sync__get_processor_handoff_state_impl(port_)
+        wire__crate__api__sync__datasets__get_processor_handoff_state_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -22860,16 +23125,18 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__get_sync_join_state(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__join__get_sync_join_state(
         port_: i64,
         operation_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sync__get_sync_join_state_impl(port_, operation_id)
+        wire__crate__api__sync__join__get_sync_join_state_impl(port_, operation_id)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__get_sync_roster(port_: i64) {
-        wire__crate__api__sync__get_sync_roster_impl(port_)
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__datasets__get_sync_roster(
+        port_: i64,
+    ) {
+        wire__crate__api__sync__datasets__get_sync_roster_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -22924,27 +23191,27 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__init_bridge(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__records__init_bridge(
         port_: i64,
         database_path: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__init_bridge_impl(port_, database_path)
+        wire__crate__api__records__init_bridge_impl(port_, database_path)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__inspect_owner_sync_invitation(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__invite__inspect_owner_sync_invitation(
         port_: i64,
         invitation_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sync__inspect_owner_sync_invitation_impl(port_, invitation_id)
+        wire__crate__api__sync__invite__inspect_owner_sync_invitation_impl(port_, invitation_id)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__inspect_sync_join_approval(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__join__inspect_sync_join_approval(
         port_: i64,
         operation_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sync__inspect_sync_join_approval_impl(port_, operation_id)
+        wire__crate__api__sync__join__inspect_sync_join_approval_impl(port_, operation_id)
     }
 
     #[unsafe(no_mangle)]
@@ -22972,23 +23239,28 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__install_sync_join_key(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__join__install_sync_join_key(
         port_: i64,
         token: *mut wire_cst_list_prim_u_8_strict,
         key: *mut wire_cst_list_prim_u_8_loose,
         protected_revision: i64,
     ) {
-        wire__crate__api__sync__install_sync_join_key_impl(port_, token, key, protected_revision)
+        wire__crate__api__sync__join__install_sync_join_key_impl(
+            port_,
+            token,
+            key,
+            protected_revision,
+        )
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__install_sync_key(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__invite__install_sync_key(
         port_: i64,
         token: *mut wire_cst_list_prim_u_8_strict,
         key: *mut wire_cst_list_prim_u_8_loose,
         protected_revision: i64,
     ) {
-        wire__crate__api__sync__install_sync_key_impl(port_, token, key, protected_revision)
+        wire__crate__api__sync__invite__install_sync_key_impl(port_, token, key, protected_revision)
     }
 
     #[unsafe(no_mangle)]
@@ -23020,8 +23292,8 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_analyses(port_: i64) {
-        wire__crate__api__list_analyses_impl(port_)
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_flow__list_analyses(port_: i64) {
+        wire__crate__api__review_flow__list_analyses_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -23110,20 +23382,24 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_daily_entries(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__records__list_daily_entries(
         port_: i64,
         date: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__list_daily_entries_impl(port_, date)
+        wire__crate__api__records__list_daily_entries_impl(port_, date)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_report__list_deviation_reports(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_report__store__list_deviation_reports(
         port_: i64,
         period_type: *mut wire_cst_list_prim_u_8_strict,
         limit: i32,
     ) {
-        wire__crate__api__review_report__list_deviation_reports_impl(port_, period_type, limit)
+        wire__crate__api__review_report__store__list_deviation_reports_impl(
+            port_,
+            period_type,
+            limit,
+        )
     }
 
     #[unsafe(no_mangle)]
@@ -23145,8 +23421,10 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_event_emotions(port_: i64) {
-        wire__crate__api__list_event_emotions_impl(port_)
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__companion_flow__list_event_emotions(
+        port_: i64,
+    ) {
+        wire__crate__api__companion_flow__list_event_emotions_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -23158,8 +23436,8 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_events(port_: i64) {
-        wire__crate__api__list_events_impl(port_)
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_flow__list_events(port_: i64) {
+        wire__crate__api__review_flow__list_events_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -23263,16 +23541,18 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__list_object_conflicts(port_: i64) {
-        wire__crate__api__sync__list_object_conflicts_impl(port_)
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__conflicts__list_object_conflicts(
+        port_: i64,
+    ) {
+        wire__crate__api__sync__conflicts__list_object_conflicts_impl(port_)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_page_guidance(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__companion_flow__list_page_guidance(
         port_: i64,
         slug: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__list_page_guidance_impl(port_, slug)
+        wire__crate__api__companion_flow__list_page_guidance_impl(port_, slug)
     }
 
     #[unsafe(no_mangle)]
@@ -23292,10 +23572,10 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__list_pending_sync_joins(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__join__list_pending_sync_joins(
         port_: i64,
     ) {
-        wire__crate__api__sync__list_pending_sync_joins_impl(port_)
+        wire__crate__api__sync__join__list_pending_sync_joins_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -23307,12 +23587,12 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__list_recent_events(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_flow__list_recent_events(
         port_: i64,
         days: i64,
         limit: i64,
     ) {
-        wire__crate__api__list_recent_events_impl(port_, days, limit)
+        wire__crate__api__review_flow__list_recent_events_impl(port_, days, limit)
     }
 
     #[unsafe(no_mangle)]
@@ -23349,20 +23629,24 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__list_sync_datasets(port_: i64) {
-        wire__crate__api__sync__list_sync_datasets_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__list_sync_enrollments(port_: i64) {
-        wire__crate__api__sync__list_sync_enrollments_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__list_sync_provider_conflicts(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__datasets__list_sync_datasets(
         port_: i64,
     ) {
-        wire__crate__api__sync__list_sync_provider_conflicts_impl(port_)
+        wire__crate__api__sync__datasets__list_sync_datasets_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__join__list_sync_enrollments(
+        port_: i64,
+    ) {
+        wire__crate__api__sync__join__list_sync_enrollments_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__datasets__list_sync_provider_conflicts(
+        port_: i64,
+    ) {
+        wire__crate__api__sync__datasets__list_sync_provider_conflicts_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -23409,10 +23693,10 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__list_wiki_page_conflicts(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__conflicts__list_wiki_page_conflicts(
         port_: i64,
     ) {
-        wire__crate__api__sync__list_wiki_page_conflicts_impl(port_)
+        wire__crate__api__sync__conflicts__list_wiki_page_conflicts_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -23441,16 +23725,18 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__lock_local_sync(port_: i64) {
-        wire__crate__api__sync__lock_local_sync_impl(port_)
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__invite__lock_local_sync(
+        port_: i64,
+    ) {
+        wire__crate__api__sync__invite__lock_local_sync_impl(port_)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_report__mark_deviation_report_read(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_report__store__mark_deviation_report_read(
         port_: i64,
         id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__review_report__mark_deviation_report_read_impl(port_, id)
+        wire__crate__api__review_report__store__mark_deviation_report_read_impl(port_, id)
     }
 
     #[unsafe(no_mangle)]
@@ -23514,14 +23800,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__prepare_sync_join_key(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__join__prepare_sync_join_key(
         port_: i64,
         preview_token: *mut wire_cst_list_prim_u_8_strict,
         name: *mut wire_cst_list_prim_u_8_strict,
         platform: *mut wire_cst_list_prim_u_8_strict,
         acknowledge_provider_key_sharing: bool,
     ) {
-        wire__crate__api__sync__prepare_sync_join_key_impl(
+        wire__crate__api__sync__join__prepare_sync_join_key_impl(
             port_,
             preview_token,
             name,
@@ -23531,21 +23817,21 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__prepare_sync_join_resume(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__join__prepare_sync_join_resume(
         port_: i64,
         entry_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sync__prepare_sync_join_resume_impl(port_, entry_id)
+        wire__crate__api__sync__join__prepare_sync_join_resume_impl(port_, entry_id)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__prepare_sync_key_request(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__invite__prepare_sync_key_request(
         port_: i64,
         name: *mut wire_cst_list_prim_u_8_strict,
         platform: *mut wire_cst_list_prim_u_8_strict,
         acknowledge_provider_key_sharing: bool,
     ) {
-        wire__crate__api__sync__prepare_sync_key_request_impl(
+        wire__crate__api__sync__invite__prepare_sync_key_request_impl(
             port_,
             name,
             platform,
@@ -23572,11 +23858,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__preview_sync_join(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__join__preview_sync_join(
         port_: i64,
         invitation_code: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sync__preview_sync_join_impl(port_, invitation_code)
+        wire__crate__api__sync__join__preview_sync_join_impl(port_, invitation_code)
     }
 
     #[unsafe(no_mangle)]
@@ -23606,11 +23892,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__reanalyze_event(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_flow__reanalyze_event(
         port_: i64,
         event_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__reanalyze_event_impl(port_, event_id)
+        wire__crate__api__review_flow__reanalyze_event_impl(port_, event_id)
     }
 
     #[unsafe(no_mangle)]
@@ -23622,11 +23908,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__record_event(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__records__record_event(
         port_: i64,
         raw_text: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__record_event_impl(port_, raw_text)
+        wire__crate__api__records__record_event_impl(port_, raw_text)
     }
 
     #[unsafe(no_mangle)]
@@ -23638,19 +23924,19 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__release_sync_join(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__join__release_sync_join(
         port_: i64,
         operation_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sync__release_sync_join_impl(port_, operation_id)
+        wire__crate__api__sync__join__release_sync_join_impl(port_, operation_id)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__release_sync_key_request(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__invite__release_sync_key_request(
         port_: i64,
         token: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sync__release_sync_key_request_impl(port_, token)
+        wire__crate__api__sync__invite__release_sync_key_request_impl(port_, token)
     }
 
     #[unsafe(no_mangle)]
@@ -23672,13 +23958,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__rename_sync_device(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__datasets__rename_sync_device(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
         new_name: *mut wire_cst_list_prim_u_8_strict,
         expected_vault_revision: i64,
     ) {
-        wire__crate__api__sync__rename_sync_device_impl(
+        wire__crate__api__sync__datasets__rename_sync_device_impl(
             port_,
             device_id,
             new_name,
@@ -23722,13 +24008,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__resolve_object_conflict(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__conflicts__resolve_object_conflict(
         port_: i64,
         op_id: *mut wire_cst_list_prim_u_8_strict,
         expected_local_updated_at: *mut wire_cst_list_prim_u_8_strict,
         accept_remote: bool,
     ) {
-        wire__crate__api__sync__resolve_object_conflict_impl(
+        wire__crate__api__sync__conflicts__resolve_object_conflict_impl(
             port_,
             op_id,
             expected_local_updated_at,
@@ -23737,14 +24023,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__resolve_sync_provider_conflict(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__datasets__resolve_sync_provider_conflict(
         port_: i64,
         revision_id: *mut wire_cst_list_prim_u_8_strict,
         expected_local_revision: *mut wire_cst_list_prim_u_8_strict,
         expected_remote_revision: *mut wire_cst_list_prim_u_8_strict,
         accept_remote: bool,
     ) {
-        wire__crate__api__sync__resolve_sync_provider_conflict_impl(
+        wire__crate__api__sync__datasets__resolve_sync_provider_conflict_impl(
             port_,
             revision_id,
             expected_local_revision,
@@ -23763,13 +24049,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__resolve_wiki_page_conflict(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__conflicts__resolve_wiki_page_conflict(
         port_: i64,
         op_id: *mut wire_cst_list_prim_u_8_strict,
         expected_local_updated_at: *mut wire_cst_list_prim_u_8_strict,
         accept_remote: bool,
     ) {
-        wire__crate__api__sync__resolve_wiki_page_conflict_impl(
+        wire__crate__api__sync__conflicts__resolve_wiki_page_conflict_impl(
             port_,
             op_id,
             expected_local_updated_at,
@@ -23786,12 +24072,16 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__revoke_sync_member(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__datasets__revoke_sync_member(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
         expected_revision: i64,
     ) {
-        wire__crate__api__sync__revoke_sync_member_impl(port_, device_id, expected_revision)
+        wire__crate__api__sync__datasets__revoke_sync_member_impl(
+            port_,
+            device_id,
+            expected_revision,
+        )
     }
 
     #[unsafe(no_mangle)]
@@ -23803,14 +24093,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__save_daily_review(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__period_stats__save_daily_review(
         port_: i64,
         date: *mut wire_cst_list_prim_u_8_strict,
         result_json: *mut wire_cst_list_prim_u_8_strict,
         prompt_version: *mut wire_cst_list_prim_u_8_strict,
         source_event_ids: *mut wire_cst_list_String,
     ) {
-        wire__crate__api__save_daily_review_impl(
+        wire__crate__api__period_stats__save_daily_review_impl(
             port_,
             date,
             result_json,
@@ -23975,19 +24265,22 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__select_default_sync_dataset(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__datasets__select_default_sync_dataset(
         port_: i64,
         expected_catalog_revision: i64,
     ) {
-        wire__crate__api__sync__select_default_sync_dataset_impl(port_, expected_catalog_revision)
+        wire__crate__api__sync__datasets__select_default_sync_dataset_impl(
+            port_,
+            expected_catalog_revision,
+        )
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__select_sync_dataset(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__datasets__select_sync_dataset(
         port_: i64,
         entry_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sync__select_sync_dataset_impl(port_, entry_id)
+        wire__crate__api__sync__datasets__select_sync_dataset_impl(port_, entry_id)
     }
 
     #[unsafe(no_mangle)]
@@ -24008,27 +24301,27 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__send_owner_sync_approval(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__invite__send_owner_sync_approval(
         port_: i64,
         invitation_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sync__send_owner_sync_approval_impl(port_, invitation_id)
+        wire__crate__api__sync__invite__send_owner_sync_approval_impl(port_, invitation_id)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__send_sync_join_proof(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__join__send_sync_join_proof(
         port_: i64,
         operation_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sync__send_sync_join_proof_impl(port_, operation_id)
+        wire__crate__api__sync__join__send_sync_join_proof_impl(port_, operation_id)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__send_sync_join_request(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__join__send_sync_join_request(
         port_: i64,
         operation_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sync__send_sync_join_request_impl(port_, operation_id)
+        wire__crate__api__sync__join__send_sync_join_request_impl(port_, operation_id)
     }
 
     #[unsafe(no_mangle)]
@@ -24045,12 +24338,12 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__set_companion_prefs(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__companion_flow__set_companion_prefs(
         port_: i64,
         enabled: bool,
         interval_days: i64,
     ) {
-        wire__crate__api__set_companion_prefs_impl(port_, enabled, interval_days)
+        wire__crate__api__companion_flow__set_companion_prefs_impl(port_, enabled, interval_days)
     }
 
     #[unsafe(no_mangle)]
@@ -24067,23 +24360,29 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__set_event_recordability(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_flow__set_event_recordability(
         port_: i64,
         event_id: *mut wire_cst_list_prim_u_8_strict,
         recordable: bool,
     ) {
-        wire__crate__api__set_event_recordability_impl(port_, event_id, recordable)
+        wire__crate__api__review_flow__set_event_recordability_impl(port_, event_id, recordable)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__set_guidance_feedback(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__companion_flow__set_guidance_feedback(
         port_: i64,
         analysis_id: *mut wire_cst_list_prim_u_8_strict,
         slug: *mut wire_cst_list_prim_u_8_strict,
         note: *mut wire_cst_list_prim_u_8_strict,
         feedback: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__set_guidance_feedback_impl(port_, analysis_id, slug, note, feedback)
+        wire__crate__api__companion_flow__set_guidance_feedback_impl(
+            port_,
+            analysis_id,
+            slug,
+            note,
+            feedback,
+        )
     }
 
     #[unsafe(no_mangle)]
@@ -24232,13 +24531,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__submit_conversation_input(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__records__submit_conversation_input(
         port_: i64,
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
         raw_text: *mut wire_cst_list_prim_u_8_strict,
         idempotency_key: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__submit_conversation_input_impl(
+        wire__crate__api__records__submit_conversation_input_impl(
             port_,
             conversation_id,
             raw_text,
@@ -24247,13 +24546,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__submit_input(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__records__submit_input(
         port_: i64,
         raw_text: *mut wire_cst_list_prim_u_8_strict,
         source: *mut wire_cst_list_prim_u_8_strict,
         idempotency_key: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__submit_input_impl(port_, raw_text, source, idempotency_key)
+        wire__crate__api__records__submit_input_impl(port_, raw_text, source, idempotency_key)
     }
 
     #[unsafe(no_mangle)]
@@ -24305,10 +24604,10 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_report__tick_periodic_reports(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_report__detect__tick_periodic_reports(
         port_: i64,
     ) {
-        wire__crate__api__review_report__tick_periodic_reports_impl(port_)
+        wire__crate__api__review_report__detect__tick_periodic_reports_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -24321,8 +24620,10 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__trigger_analysis(port_: i64) {
-        wire__crate__api__trigger_analysis_impl(port_)
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_flow__trigger_analysis(
+        port_: i64,
+    ) {
+        wire__crate__api__review_flow__trigger_analysis_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -24333,8 +24634,10 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__trigger_network_sync(port_: i64) {
-        wire__crate__api__sync__trigger_network_sync_impl(port_)
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__join__trigger_network_sync(
+        port_: i64,
+    ) {
+        wire__crate__api__sync__join__trigger_network_sync_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -24511,11 +24814,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__yield_sync_processor(
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__datasets__yield_sync_processor(
         port_: i64,
         to_device_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sync__yield_sync_processor_impl(port_, to_device_id)
+        wire__crate__api__sync__datasets__yield_sync_processor_impl(port_, to_device_id)
     }
 
     #[unsafe(no_mangle)]
@@ -27621,11 +27924,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::AnalysisDto>
+    impl CstDecode<crate::api::analysis_schema::AnalysisDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::AnalysisDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::AnalysisDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -27635,7 +27938,7 @@ mod web {
                 "Expected 4 elements, got {}",
                 self_.length()
             );
-            crate::api::AnalysisDto {
+            crate::api::analysis_schema::AnalysisDto {
                 event_type: self_.get(0).cst_decode(),
                 confidence: self_.get(1).cst_decode(),
                 summary: self_.get(2).cst_decode(),
@@ -27643,11 +27946,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::AnalysisJobStatsDto>
+    impl CstDecode<crate::api::analysis_schema::AnalysisJobStatsDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::AnalysisJobStatsDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::AnalysisJobStatsDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -27657,7 +27960,7 @@ mod web {
                 "Expected 5 elements, got {}",
                 self_.length()
             );
-            crate::api::AnalysisJobStatsDto {
+            crate::api::analysis_schema::AnalysisJobStatsDto {
                 pending: self_.get(0).cst_decode(),
                 running: self_.get(1).cst_decode(),
                 retry: self_.get(2).cst_decode(),
@@ -27666,26 +27969,26 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::AnalysisTriggerResult>
+    impl CstDecode<crate::api::records::AnalysisTriggerResult>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::AnalysisTriggerResult {
+        fn cst_decode(self) -> crate::api::records::AnalysisTriggerResult {
             let self_ = self.unchecked_into::<flutter_rust_bridge::for_generated::js_sys::Array>();
             match self_.get(0).unchecked_into_f64() as _ {
-                0 => crate::api::AnalysisTriggerResult::NoProvider,
-                1 => crate::api::AnalysisTriggerResult::Processed {
+                0 => crate::api::records::AnalysisTriggerResult::NoProvider,
+                1 => crate::api::records::AnalysisTriggerResult::Processed {
                     count: self_.get(1).cst_decode(),
                 },
                 _ => unreachable!(),
             }
         }
     }
-    impl CstDecode<crate::api::sync::AppUpdateDto>
+    impl CstDecode<crate::api::sync::conflicts::AppUpdateDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::AppUpdateDto {
+        fn cst_decode(self) -> crate::api::sync::conflicts::AppUpdateDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -27695,7 +27998,7 @@ mod web {
                 "Expected 9 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::AppUpdateDto {
+            crate::api::sync::conflicts::AppUpdateDto {
                 has_update: self_.get(0).cst_decode(),
                 latest_hash: self_.get(1).cst_decode(),
                 latest_seq: self_.get(2).cst_decode(),
@@ -27982,11 +28285,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::CompanionPrefsDto>
+    impl CstDecode<crate::api::companion_flow::CompanionPrefsDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::CompanionPrefsDto {
+        fn cst_decode(self) -> crate::api::companion_flow::CompanionPrefsDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -27996,17 +28299,17 @@ mod web {
                 "Expected 2 elements, got {}",
                 self_.length()
             );
-            crate::api::CompanionPrefsDto {
+            crate::api::companion_flow::CompanionPrefsDto {
                 revisit_enabled: self_.get(0).cst_decode(),
                 revisit_interval_days: self_.get(1).cst_decode(),
             }
         }
     }
-    impl CstDecode<crate::api::CompanionRevisitDto>
+    impl CstDecode<crate::api::companion_flow::CompanionRevisitDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::CompanionRevisitDto {
+        fn cst_decode(self) -> crate::api::companion_flow::CompanionRevisitDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28016,7 +28319,7 @@ mod web {
                 "Expected 4 elements, got {}",
                 self_.length()
             );
-            crate::api::CompanionRevisitDto {
+            crate::api::companion_flow::CompanionRevisitDto {
                 event_id: self_.get(0).cst_decode(),
                 recorded_at: self_.get(1).cst_decode(),
                 excerpt: self_.get(2).cst_decode(),
@@ -28071,11 +28374,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::DailyEntryDto>
+    impl CstDecode<crate::api::analysis_schema::DailyEntryDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::DailyEntryDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::DailyEntryDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28085,7 +28388,7 @@ mod web {
                 "Expected 7 elements, got {}",
                 self_.length()
             );
-            crate::api::DailyEntryDto {
+            crate::api::analysis_schema::DailyEntryDto {
                 event_id: self_.get(0).cst_decode(),
                 input_id: self_.get(1).cst_decode(),
                 message_id: self_.get(2).cst_decode(),
@@ -28096,11 +28399,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::DailyOverviewDto>
+    impl CstDecode<crate::api::analysis_schema::DailyOverviewDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::DailyOverviewDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::DailyOverviewDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28110,7 +28413,7 @@ mod web {
                 "Expected 6 elements, got {}",
                 self_.length()
             );
-            crate::api::DailyOverviewDto {
+            crate::api::analysis_schema::DailyOverviewDto {
                 date: self_.get(0).cst_decode(),
                 entries: self_.get(1).cst_decode(),
                 review: self_.get(2).cst_decode(),
@@ -28120,11 +28423,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::DailyReviewDto>
+    impl CstDecode<crate::api::analysis_schema::DailyReviewDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::DailyReviewDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::DailyReviewDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28134,7 +28437,7 @@ mod web {
                 "Expected 8 elements, got {}",
                 self_.length()
             );
-            crate::api::DailyReviewDto {
+            crate::api::analysis_schema::DailyReviewDto {
                 id: self_.get(0).cst_decode(),
                 date: self_.get(1).cst_decode(),
                 prompt_version: self_.get(2).cst_decode(),
@@ -28146,11 +28449,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::DailyReviewItemDto>
+    impl CstDecode<crate::api::analysis_schema::DailyReviewItemDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::DailyReviewItemDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::DailyReviewItemDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28160,22 +28463,22 @@ mod web {
                 "Expected 2 elements, got {}",
                 self_.length()
             );
-            crate::api::DailyReviewItemDto {
+            crate::api::analysis_schema::DailyReviewItemDto {
                 text: self_.get(0).cst_decode(),
                 source_event_ids: self_.get(1).cst_decode(),
             }
         }
     }
-    impl CstDecode<crate::api::DailyReviewResult>
+    impl CstDecode<crate::api::records::DailyReviewResult>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::DailyReviewResult {
+        fn cst_decode(self) -> crate::api::records::DailyReviewResult {
             let self_ = self.unchecked_into::<flutter_rust_bridge::for_generated::js_sys::Array>();
             match self_.get(0).unchecked_into_f64() as _ {
-                0 => crate::api::DailyReviewResult::NoProvider,
-                1 => crate::api::DailyReviewResult::NoEntries,
-                2 => crate::api::DailyReviewResult::Created {
+                0 => crate::api::records::DailyReviewResult::NoProvider,
+                1 => crate::api::records::DailyReviewResult::NoEntries,
+                2 => crate::api::records::DailyReviewResult::Created {
                     id: self_.get(1).cst_decode(),
                 },
                 _ => unreachable!(),
@@ -28227,11 +28530,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::DayCountDto>
+    impl CstDecode<crate::api::period_stats::DayCountDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::DayCountDto {
+        fn cst_decode(self) -> crate::api::period_stats::DayCountDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28241,17 +28544,17 @@ mod web {
                 "Expected 2 elements, got {}",
                 self_.length()
             );
-            crate::api::DayCountDto {
+            crate::api::period_stats::DayCountDto {
                 date: self_.get(0).cst_decode(),
                 count: self_.get(1).cst_decode(),
             }
         }
     }
-    impl CstDecode<crate::api::review_report::DeviationItemDto>
+    impl CstDecode<crate::api::review_report::store::DeviationItemDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::review_report::DeviationItemDto {
+        fn cst_decode(self) -> crate::api::review_report::store::DeviationItemDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28261,7 +28564,7 @@ mod web {
                 "Expected 5 elements, got {}",
                 self_.length()
             );
-            crate::api::review_report::DeviationItemDto {
+            crate::api::review_report::store::DeviationItemDto {
                 goal_content: self_.get(0).cst_decode(),
                 deviation_type: self_.get(1).cst_decode(),
                 evidence: self_.get(2).cst_decode(),
@@ -28270,11 +28573,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::review_report::DeviationReportDto>
+    impl CstDecode<crate::api::review_report::store::DeviationReportDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::review_report::DeviationReportDto {
+        fn cst_decode(self) -> crate::api::review_report::store::DeviationReportDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28284,7 +28587,7 @@ mod web {
                 "Expected 16 elements, got {}",
                 self_.length()
             );
-            crate::api::review_report::DeviationReportDto {
+            crate::api::review_report::store::DeviationReportDto {
                 id: self_.get(0).cst_decode(),
                 period: self_.get(1).cst_decode(),
                 period_type: self_.get(2).cst_decode(),
@@ -28325,11 +28628,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::EmotionTagDto>
+    impl CstDecode<crate::api::analysis_schema::EmotionTagDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::EmotionTagDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::EmotionTagDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28339,17 +28642,17 @@ mod web {
                 "Expected 2 elements, got {}",
                 self_.length()
             );
-            crate::api::EmotionTagDto {
+            crate::api::analysis_schema::EmotionTagDto {
                 target: self_.get(0).cst_decode(),
                 feeling: self_.get(1).cst_decode(),
             }
         }
     }
-    impl CstDecode<crate::api::EntityFactDto>
+    impl CstDecode<crate::api::analysis_schema::EntityFactDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::EntityFactDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::EntityFactDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28359,7 +28662,7 @@ mod web {
                 "Expected 9 elements, got {}",
                 self_.length()
             );
-            crate::api::EntityFactDto {
+            crate::api::analysis_schema::EntityFactDto {
                 id: self_.get(0).cst_decode(),
                 entity_kind: self_.get(1).cst_decode(),
                 entity_slug: self_.get(2).cst_decode(),
@@ -28394,11 +28697,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::EventAnalysisDetailDto>
+    impl CstDecode<crate::api::analysis_schema::EventAnalysisDetailDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::EventAnalysisDetailDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::EventAnalysisDetailDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28408,7 +28711,7 @@ mod web {
                 "Expected 27 elements, got {}",
                 self_.length()
             );
-            crate::api::EventAnalysisDetailDto {
+            crate::api::analysis_schema::EventAnalysisDetailDto {
                 event_id: self_.get(0).cst_decode(),
                 raw_text: self_.get(1).cst_decode(),
                 source: self_.get(2).cst_decode(),
@@ -28439,9 +28742,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::EventDto> for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue {
+    impl CstDecode<crate::api::analysis_schema::EventDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::EventDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::EventDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28451,7 +28756,7 @@ mod web {
                 "Expected 6 elements, got {}",
                 self_.length()
             );
-            crate::api::EventDto {
+            crate::api::analysis_schema::EventDto {
                 id: self_.get(0).cst_decode(),
                 raw_text: self_.get(1).cst_decode(),
                 recorded_at: self_.get(2).cst_decode(),
@@ -28461,11 +28766,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::EventEmotionDto>
+    impl CstDecode<crate::api::analysis_schema::EventEmotionDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::EventEmotionDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::EventEmotionDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28475,7 +28780,7 @@ mod web {
                 "Expected 5 elements, got {}",
                 self_.length()
             );
-            crate::api::EventEmotionDto {
+            crate::api::analysis_schema::EventEmotionDto {
                 id: self_.get(0).cst_decode(),
                 event_id: self_.get(1).cst_decode(),
                 recorded_at: self_.get(2).cst_decode(),
@@ -28507,11 +28812,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::EventSummaryDto>
+    impl CstDecode<crate::api::review_flow::EventSummaryDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::EventSummaryDto {
+        fn cst_decode(self) -> crate::api::review_flow::EventSummaryDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28521,7 +28826,7 @@ mod web {
                 "Expected 5 elements, got {}",
                 self_.length()
             );
-            crate::api::EventSummaryDto {
+            crate::api::review_flow::EventSummaryDto {
                 id: self_.get(0).cst_decode(),
                 raw_text: self_.get(1).cst_decode(),
                 recorded_at: self_.get(2).cst_decode(),
@@ -28555,11 +28860,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::GuidanceDto>
+    impl CstDecode<crate::api::analysis_schema::GuidanceDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::GuidanceDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::GuidanceDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28569,18 +28874,18 @@ mod web {
                 "Expected 3 elements, got {}",
                 self_.length()
             );
-            crate::api::GuidanceDto {
+            crate::api::analysis_schema::GuidanceDto {
                 related: self_.get(0).cst_decode(),
                 lessons: self_.get(1).cst_decode(),
                 follow_ups_refined: self_.get(2).cst_decode(),
             }
         }
     }
-    impl CstDecode<crate::api::GuidanceRefDto>
+    impl CstDecode<crate::api::analysis_schema::GuidanceRefDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::GuidanceRefDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::GuidanceRefDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28590,7 +28895,7 @@ mod web {
                 "Expected 2 elements, got {}",
                 self_.length()
             );
-            crate::api::GuidanceRefDto {
+            crate::api::analysis_schema::GuidanceRefDto {
                 slug: self_.get(0).cst_decode(),
                 note: self_.get(1).cst_decode(),
             }
@@ -28620,11 +28925,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::InputRecordDto>
+    impl CstDecode<crate::api::analysis_schema::InputRecordDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::InputRecordDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::InputRecordDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28634,7 +28939,7 @@ mod web {
                 "Expected 11 elements, got {}",
                 self_.length()
             );
-            crate::api::InputRecordDto {
+            crate::api::analysis_schema::InputRecordDto {
                 id: self_.get(0).cst_decode(),
                 raw_text: self_.get(1).cst_decode(),
                 source: self_.get(2).cst_decode(),
@@ -28679,11 +28984,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::knowledge::KnowledgeCitation>
+    impl CstDecode<crate::knowledge::select::KnowledgeCitation>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::knowledge::KnowledgeCitation {
+        fn cst_decode(self) -> crate::knowledge::select::KnowledgeCitation {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28693,7 +28998,7 @@ mod web {
                 "Expected 10 elements, got {}",
                 self_.length()
             );
-            crate::knowledge::KnowledgeCitation {
+            crate::knowledge::select::KnowledgeCitation {
                 page_slug: self_.get(0).cst_decode(),
                 content_hash: self_.get(1).cst_decode(),
                 title: self_.get(2).cst_decode(),
@@ -28837,11 +29142,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::knowledge::KnowledgeHealthReport>
+    impl CstDecode<crate::knowledge::health::KnowledgeHealthReport>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::knowledge::KnowledgeHealthReport {
+        fn cst_decode(self) -> crate::knowledge::health::KnowledgeHealthReport {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28851,7 +29156,7 @@ mod web {
                 "Expected 23 elements, got {}",
                 self_.length()
             );
-            crate::knowledge::KnowledgeHealthReport {
+            crate::knowledge::health::KnowledgeHealthReport {
                 generated_at: self_.get(0).cst_decode(),
                 window_days: self_.get(1).cst_decode(),
                 proposals_pending: self_.get(2).cst_decode(),
@@ -28878,11 +29183,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::storage::knowledge::KnowledgeIssue>
+    impl CstDecode<crate::storage::knowledge::core::KnowledgeIssue>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::storage::knowledge::KnowledgeIssue {
+        fn cst_decode(self) -> crate::storage::knowledge::core::KnowledgeIssue {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28892,7 +29197,7 @@ mod web {
                 "Expected 4 elements, got {}",
                 self_.length()
             );
-            crate::storage::knowledge::KnowledgeIssue {
+            crate::storage::knowledge::core::KnowledgeIssue {
                 fingerprint: self_.get(0).cst_decode(),
                 page_slug: self_.get(1).cst_decode(),
                 kind: self_.get(2).cst_decode(),
@@ -28900,11 +29205,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::storage::knowledge::KnowledgeMetadata>
+    impl CstDecode<crate::storage::knowledge::core::KnowledgeMetadata>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::storage::knowledge::KnowledgeMetadata {
+        fn cst_decode(self) -> crate::storage::knowledge::core::KnowledgeMetadata {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28914,7 +29219,7 @@ mod web {
                 "Expected 3 elements, got {}",
                 self_.length()
             );
-            crate::storage::knowledge::KnowledgeMetadata {
+            crate::storage::knowledge::core::KnowledgeMetadata {
                 applicable_when: self_.get(0).cst_decode(),
                 strength: self_.get(1).cst_decode(),
                 confirmed_at: self_.get(2).cst_decode(),
@@ -28948,11 +29253,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::storage::knowledge::KnowledgeProposal>
+    impl CstDecode<crate::storage::knowledge::core::KnowledgeProposal>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::storage::knowledge::KnowledgeProposal {
+        fn cst_decode(self) -> crate::storage::knowledge::core::KnowledgeProposal {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -28962,7 +29267,7 @@ mod web {
                 "Expected 14 elements, got {}",
                 self_.length()
             );
-            crate::storage::knowledge::KnowledgeProposal {
+            crate::storage::knowledge::core::KnowledgeProposal {
                 id: self_.get(0).cst_decode(),
                 page_id: self_.get(1).cst_decode(),
                 target_slug: self_.get(2).cst_decode(),
@@ -29200,11 +29505,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::AnalysisDto>>
+    impl CstDecode<Vec<crate::api::analysis_schema::AnalysisDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::AnalysisDto> {
+        fn cst_decode(self) -> Vec<crate::api::analysis_schema::AnalysisDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29332,11 +29637,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::DailyEntryDto>>
+    impl CstDecode<Vec<crate::api::analysis_schema::DailyEntryDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::DailyEntryDto> {
+        fn cst_decode(self) -> Vec<crate::api::analysis_schema::DailyEntryDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29344,11 +29649,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::DailyReviewItemDto>>
+    impl CstDecode<Vec<crate::api::analysis_schema::DailyReviewItemDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::DailyReviewItemDto> {
+        fn cst_decode(self) -> Vec<crate::api::analysis_schema::DailyReviewItemDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29368,11 +29673,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::DayCountDto>>
+    impl CstDecode<Vec<crate::api::period_stats::DayCountDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::DayCountDto> {
+        fn cst_decode(self) -> Vec<crate::api::period_stats::DayCountDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29380,11 +29685,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::review_report::DeviationItemDto>>
+    impl CstDecode<Vec<crate::api::review_report::store::DeviationItemDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::review_report::DeviationItemDto> {
+        fn cst_decode(self) -> Vec<crate::api::review_report::store::DeviationItemDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29392,11 +29697,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::review_report::DeviationReportDto>>
+    impl CstDecode<Vec<crate::api::review_report::store::DeviationReportDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::review_report::DeviationReportDto> {
+        fn cst_decode(self) -> Vec<crate::api::review_report::store::DeviationReportDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29416,11 +29721,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::EmotionTagDto>>
+    impl CstDecode<Vec<crate::api::analysis_schema::EmotionTagDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::EmotionTagDto> {
+        fn cst_decode(self) -> Vec<crate::api::analysis_schema::EmotionTagDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29428,11 +29733,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::EntityFactDto>>
+    impl CstDecode<Vec<crate::api::analysis_schema::EntityFactDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::EntityFactDto> {
+        fn cst_decode(self) -> Vec<crate::api::analysis_schema::EntityFactDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29440,11 +29745,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::EventDto>>
+    impl CstDecode<Vec<crate::api::analysis_schema::EventDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::EventDto> {
+        fn cst_decode(self) -> Vec<crate::api::analysis_schema::EventDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29452,11 +29757,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::EventEmotionDto>>
+    impl CstDecode<Vec<crate::api::analysis_schema::EventEmotionDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::EventEmotionDto> {
+        fn cst_decode(self) -> Vec<crate::api::analysis_schema::EventEmotionDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29464,11 +29769,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::EventSummaryDto>>
+    impl CstDecode<Vec<crate::api::review_flow::EventSummaryDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::EventSummaryDto> {
+        fn cst_decode(self) -> Vec<crate::api::review_flow::EventSummaryDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29488,11 +29793,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::GuidanceRefDto>>
+    impl CstDecode<Vec<crate::api::analysis_schema::GuidanceRefDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::GuidanceRefDto> {
+        fn cst_decode(self) -> Vec<crate::api::analysis_schema::GuidanceRefDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29512,11 +29817,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::knowledge::KnowledgeCitation>>
+    impl CstDecode<Vec<crate::knowledge::select::KnowledgeCitation>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::knowledge::KnowledgeCitation> {
+        fn cst_decode(self) -> Vec<crate::knowledge::select::KnowledgeCitation> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29560,11 +29865,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::storage::knowledge::KnowledgeIssue>>
+    impl CstDecode<Vec<crate::storage::knowledge::core::KnowledgeIssue>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::storage::knowledge::KnowledgeIssue> {
+        fn cst_decode(self) -> Vec<crate::storage::knowledge::core::KnowledgeIssue> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29572,11 +29877,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::storage::knowledge::KnowledgeProposal>>
+    impl CstDecode<Vec<crate::storage::knowledge::core::KnowledgeProposal>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::storage::knowledge::KnowledgeProposal> {
+        fn cst_decode(self) -> Vec<crate::storage::knowledge::core::KnowledgeProposal> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29680,11 +29985,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::MemoryEchoDto>>
+    impl CstDecode<Vec<crate::api::analysis_schema::MemoryEchoDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::MemoryEchoDto> {
+        fn cst_decode(self) -> Vec<crate::api::analysis_schema::MemoryEchoDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29704,11 +30009,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::NamedCountDto>>
+    impl CstDecode<Vec<crate::api::period_stats::NamedCountDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::NamedCountDto> {
+        fn cst_decode(self) -> Vec<crate::api::period_stats::NamedCountDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29716,11 +30021,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::sync::ObjectConflictDto>>
+    impl CstDecode<Vec<crate::api::sync::conflicts::ObjectConflictDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::sync::ObjectConflictDto> {
+        fn cst_decode(self) -> Vec<crate::api::sync::conflicts::ObjectConflictDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29740,11 +30045,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::PageGuidanceDto>>
+    impl CstDecode<Vec<crate::api::companion_flow::PageGuidanceDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::PageGuidanceDto> {
+        fn cst_decode(self) -> Vec<crate::api::companion_flow::PageGuidanceDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29788,11 +30093,11 @@ mod web {
             self.into_vec()
         }
     }
-    impl CstDecode<Vec<crate::api::sync::ProviderConflictProfileDto>>
+    impl CstDecode<Vec<crate::api::sync::datasets::ProviderConflictProfileDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::sync::ProviderConflictProfileDto> {
+        fn cst_decode(self) -> Vec<crate::api::sync::datasets::ProviderConflictProfileDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29800,11 +30105,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::sync::ProviderSyncConflictDto>>
+    impl CstDecode<Vec<crate::api::sync::datasets::ProviderSyncConflictDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::sync::ProviderSyncConflictDto> {
+        fn cst_decode(self) -> Vec<crate::api::sync::datasets::ProviderSyncConflictDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29836,11 +30141,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::storage::knowledge::RejectedSourceRow>>
+    impl CstDecode<Vec<crate::storage::knowledge::core::RejectedSourceRow>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::storage::knowledge::RejectedSourceRow> {
+        fn cst_decode(self) -> Vec<crate::storage::knowledge::core::RejectedSourceRow> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29884,11 +30189,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::knowledge::SourceReference>>
+    impl CstDecode<Vec<crate::knowledge::select::SourceReference>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::knowledge::SourceReference> {
+        fn cst_decode(self) -> Vec<crate::knowledge::select::SourceReference> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29896,11 +30201,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::storage::knowledge::SourceSnapshot>>
+    impl CstDecode<Vec<crate::storage::knowledge::core::SourceSnapshot>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::storage::knowledge::SourceSnapshot> {
+        fn cst_decode(self) -> Vec<crate::storage::knowledge::core::SourceSnapshot> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29908,11 +30213,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::sync::SyncDatasetEntryDto>>
+    impl CstDecode<Vec<crate::api::sync::join::SyncDatasetEntryDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::sync::SyncDatasetEntryDto> {
+        fn cst_decode(self) -> Vec<crate::api::sync::join::SyncDatasetEntryDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29920,11 +30225,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::sync::SyncEnrollmentStateDto>>
+    impl CstDecode<Vec<crate::api::sync::join::SyncEnrollmentStateDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::sync::SyncEnrollmentStateDto> {
+        fn cst_decode(self) -> Vec<crate::api::sync::join::SyncEnrollmentStateDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29932,11 +30237,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::sync::SyncJoinEntryDto>>
+    impl CstDecode<Vec<crate::api::sync::join::SyncJoinEntryDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::sync::SyncJoinEntryDto> {
+        fn cst_decode(self) -> Vec<crate::api::sync::join::SyncJoinEntryDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -29944,11 +30249,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::sync::SyncRosterMemberDto>>
+    impl CstDecode<Vec<crate::api::sync::datasets::SyncRosterMemberDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::sync::SyncRosterMemberDto> {
+        fn cst_decode(self) -> Vec<crate::api::sync::datasets::SyncRosterMemberDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -30016,11 +30321,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<Vec<crate::api::sync::WikiPageConflictDto>>
+    impl CstDecode<Vec<crate::api::sync::datasets::WikiPageConflictDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<crate::api::sync::WikiPageConflictDto> {
+        fn cst_decode(self) -> Vec<crate::api::sync::datasets::WikiPageConflictDto> {
             self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap()
                 .iter()
@@ -30052,11 +30357,11 @@ mod web {
                 .collect()
         }
     }
-    impl CstDecode<crate::api::sync::LocalSyncStateDto>
+    impl CstDecode<crate::api::sync::invite::LocalSyncStateDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::LocalSyncStateDto {
+        fn cst_decode(self) -> crate::api::sync::invite::LocalSyncStateDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30066,7 +30371,7 @@ mod web {
                 "Expected 11 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::LocalSyncStateDto {
+            crate::api::sync::invite::LocalSyncStateDto {
                 state: self_.get(0).cst_decode(),
                 installation_id: self_.get(1).cst_decode(),
                 vault_revision: self_.get(2).cst_decode(),
@@ -30134,11 +30439,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::MemoryEchoDto>
+    impl CstDecode<crate::api::analysis_schema::MemoryEchoDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::MemoryEchoDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::MemoryEchoDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30148,7 +30453,7 @@ mod web {
                 "Expected 3 elements, got {}",
                 self_.length()
             );
-            crate::api::MemoryEchoDto {
+            crate::api::analysis_schema::MemoryEchoDto {
                 event_id: self_.get(0).cst_decode(),
                 recorded_at: self_.get(1).cst_decode(),
                 raw_text: self_.get(2).cst_decode(),
@@ -30180,11 +30485,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::MessageRecordabilityDto>
+    impl CstDecode<crate::api::analysis_schema::MessageRecordabilityDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::MessageRecordabilityDto {
+        fn cst_decode(self) -> crate::api::analysis_schema::MessageRecordabilityDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30194,7 +30499,7 @@ mod web {
                 "Expected 7 elements, got {}",
                 self_.length()
             );
-            crate::api::MessageRecordabilityDto {
+            crate::api::analysis_schema::MessageRecordabilityDto {
                 message_id: self_.get(0).cst_decode(),
                 event_id: self_.get(1).cst_decode(),
                 recordable: self_.get(2).cst_decode(),
@@ -30205,11 +30510,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::NamedCountDto>
+    impl CstDecode<crate::api::period_stats::NamedCountDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::NamedCountDto {
+        fn cst_decode(self) -> crate::api::period_stats::NamedCountDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30219,7 +30524,7 @@ mod web {
                 "Expected 2 elements, got {}",
                 self_.length()
             );
-            crate::api::NamedCountDto {
+            crate::api::period_stats::NamedCountDto {
                 label: self_.get(0).cst_decode(),
                 count: self_.get(1).cst_decode(),
             }
@@ -30248,11 +30553,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::sync::ObjectConflictDto>
+    impl CstDecode<crate::api::sync::conflicts::ObjectConflictDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::ObjectConflictDto {
+        fn cst_decode(self) -> crate::api::sync::conflicts::ObjectConflictDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30262,7 +30567,7 @@ mod web {
                 "Expected 14 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::ObjectConflictDto {
+            crate::api::sync::conflicts::ObjectConflictDto {
                 op_id: self_.get(0).cst_decode(),
                 object_kind: self_.get(1).cst_decode(),
                 object_id: self_.get(2).cst_decode(),
@@ -30329,11 +30634,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::PageGuidanceDto>
+    impl CstDecode<crate::api::companion_flow::PageGuidanceDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::PageGuidanceDto {
+        fn cst_decode(self) -> crate::api::companion_flow::PageGuidanceDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30343,7 +30648,7 @@ mod web {
                 "Expected 7 elements, got {}",
                 self_.length()
             );
-            crate::api::PageGuidanceDto {
+            crate::api::companion_flow::PageGuidanceDto {
                 analysis_id: self_.get(0).cst_decode(),
                 event_id: self_.get(1).cst_decode(),
                 recorded_at: self_.get(2).cst_decode(),
@@ -30406,24 +30711,24 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::review_report::PeriodReportTickResult>
+    impl CstDecode<crate::api::review_report::detect::PeriodReportTickResult>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::review_report::PeriodReportTickResult {
+        fn cst_decode(self) -> crate::api::review_report::detect::PeriodReportTickResult {
             let self_ = self.unchecked_into::<flutter_rust_bridge::for_generated::js_sys::Array>();
             match self_.get(0).unchecked_into_f64() as _ {
-                0 => crate::api::review_report::PeriodReportTickResult::NoProvider,
-                1 => crate::api::review_report::PeriodReportTickResult::Idle,
-                2 => crate::api::review_report::PeriodReportTickResult::Generated {
+                0 => crate::api::review_report::detect::PeriodReportTickResult::NoProvider,
+                1 => crate::api::review_report::detect::PeriodReportTickResult::Idle,
+                2 => crate::api::review_report::detect::PeriodReportTickResult::Generated {
                     period: self_.get(1).cst_decode(),
                     period_type: self_.get(2).cst_decode(),
                 },
-                3 => crate::api::review_report::PeriodReportTickResult::Detected {
+                3 => crate::api::review_report::detect::PeriodReportTickResult::Detected {
                     report_id: self_.get(1).cst_decode(),
                     deviations: self_.get(2).cst_decode(),
                 },
-                4 => crate::api::review_report::PeriodReportTickResult::DetectFailed {
+                4 => crate::api::review_report::detect::PeriodReportTickResult::DetectFailed {
                     report_id: self_.get(1).cst_decode(),
                     error: self_.get(2).cst_decode(),
                 },
@@ -30431,11 +30736,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::PeriodStatsDto>
+    impl CstDecode<crate::api::period_stats::PeriodStatsDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::PeriodStatsDto {
+        fn cst_decode(self) -> crate::api::period_stats::PeriodStatsDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30445,7 +30750,7 @@ mod web {
                 "Expected 10 elements, got {}",
                 self_.length()
             );
-            crate::api::PeriodStatsDto {
+            crate::api::period_stats::PeriodStatsDto {
                 period_type: self_.get(0).cst_decode(),
                 start_date: self_.get(1).cst_decode(),
                 end_date: self_.get(2).cst_decode(),
@@ -30459,11 +30764,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::sync::ProcessingYieldProofDto>
+    impl CstDecode<crate::api::sync::invite::ProcessingYieldProofDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::ProcessingYieldProofDto {
+        fn cst_decode(self) -> crate::api::sync::invite::ProcessingYieldProofDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30473,7 +30778,7 @@ mod web {
                 "Expected 6 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::ProcessingYieldProofDto {
+            crate::api::sync::invite::ProcessingYieldProofDto {
                 dataset_id: self_.get(0).cst_decode(),
                 from_device_id: self_.get(1).cst_decode(),
                 to_device_id: self_.get(2).cst_decode(),
@@ -30483,11 +30788,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::sync::ProcessorHandoffStateDto>
+    impl CstDecode<crate::api::sync::invite::ProcessorHandoffStateDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::ProcessorHandoffStateDto {
+        fn cst_decode(self) -> crate::api::sync::invite::ProcessorHandoffStateDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30497,7 +30802,7 @@ mod web {
                 "Expected 5 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::ProcessorHandoffStateDto {
+            crate::api::sync::invite::ProcessorHandoffStateDto {
                 state: self_.get(0).cst_decode(),
                 from_device_id: self_.get(1).cst_decode(),
                 to_device_id: self_.get(2).cst_decode(),
@@ -30506,11 +30811,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::sync::ProviderConflictProfileDto>
+    impl CstDecode<crate::api::sync::datasets::ProviderConflictProfileDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::ProviderConflictProfileDto {
+        fn cst_decode(self) -> crate::api::sync::datasets::ProviderConflictProfileDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30520,7 +30825,7 @@ mod web {
                 "Expected 13 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::ProviderConflictProfileDto {
+            crate::api::sync::datasets::ProviderConflictProfileDto {
                 id: self_.get(0).cst_decode(),
                 name: self_.get(1).cst_decode(),
                 provider_type: self_.get(2).cst_decode(),
@@ -30537,11 +30842,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::sync::ProviderSyncConflictDto>
+    impl CstDecode<crate::api::sync::datasets::ProviderSyncConflictDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::ProviderSyncConflictDto {
+        fn cst_decode(self) -> crate::api::sync::datasets::ProviderSyncConflictDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30551,7 +30856,7 @@ mod web {
                 "Expected 10 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::ProviderSyncConflictDto {
+            crate::api::sync::datasets::ProviderSyncConflictDto {
                 revision_id: self_.get(0).cst_decode(),
                 base_revision: self_.get(1).cst_decode(),
                 sender_device_id: self_.get(2).cst_decode(),
@@ -30611,11 +30916,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<(Vec<crate::api::sync::SyncDatasetEntryDto>, i64)>
+    impl CstDecode<(Vec<crate::api::sync::join::SyncDatasetEntryDto>, i64)>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> (Vec<crate::api::sync::SyncDatasetEntryDto>, i64) {
+        fn cst_decode(self) -> (Vec<crate::api::sync::join::SyncDatasetEntryDto>, i64) {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30628,11 +30933,11 @@ mod web {
             (self_.get(0).cst_decode(), self_.get(1).cst_decode())
         }
     }
-    impl CstDecode<crate::storage::knowledge::RejectedSourceRow>
+    impl CstDecode<crate::storage::knowledge::core::RejectedSourceRow>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::storage::knowledge::RejectedSourceRow {
+        fn cst_decode(self) -> crate::storage::knowledge::core::RejectedSourceRow {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30642,7 +30947,7 @@ mod web {
                 "Expected 7 elements, got {}",
                 self_.length()
             );
-            crate::storage::knowledge::RejectedSourceRow {
+            crate::storage::knowledge::core::RejectedSourceRow {
                 slug: self_.get(0).cst_decode(),
                 title: self_.get(1).cst_decode(),
                 identity: self_.get(2).cst_decode(),
@@ -30729,11 +31034,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::knowledge::SourceReference>
+    impl CstDecode<crate::knowledge::select::SourceReference>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::knowledge::SourceReference {
+        fn cst_decode(self) -> crate::knowledge::select::SourceReference {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30743,7 +31048,7 @@ mod web {
                 "Expected 4 elements, got {}",
                 self_.length()
             );
-            crate::knowledge::SourceReference {
+            crate::knowledge::select::SourceReference {
                 snapshot_id: self_.get(0).cst_decode(),
                 title: self_.get(1).cst_decode(),
                 locator: self_.get(2).cst_decode(),
@@ -30751,11 +31056,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::storage::knowledge::SourceSnapshot>
+    impl CstDecode<crate::storage::knowledge::core::SourceSnapshot>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::storage::knowledge::SourceSnapshot {
+        fn cst_decode(self) -> crate::storage::knowledge::core::SourceSnapshot {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30765,7 +31070,7 @@ mod web {
                 "Expected 11 elements, got {}",
                 self_.length()
             );
-            crate::storage::knowledge::SourceSnapshot {
+            crate::storage::knowledge::core::SourceSnapshot {
                 id: self_.get(0).cst_decode(),
                 source_id: self_.get(1).cst_decode(),
                 version: self_.get(2).cst_decode(),
@@ -30825,11 +31130,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncDatasetEntryDto>
+    impl CstDecode<crate::api::sync::join::SyncDatasetEntryDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncDatasetEntryDto {
+        fn cst_decode(self) -> crate::api::sync::join::SyncDatasetEntryDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30839,7 +31144,7 @@ mod web {
                 "Expected 6 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::SyncDatasetEntryDto {
+            crate::api::sync::join::SyncDatasetEntryDto {
                 entry_id: self_.get(0).cst_decode(),
                 dataset_id: self_.get(1).cst_decode(),
                 installation_id: self_.get(2).cst_decode(),
@@ -30849,11 +31154,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncEnrollmentStateDto>
+    impl CstDecode<crate::api::sync::join::SyncEnrollmentStateDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncEnrollmentStateDto {
+        fn cst_decode(self) -> crate::api::sync::join::SyncEnrollmentStateDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30863,7 +31168,7 @@ mod web {
                 "Expected 13 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::SyncEnrollmentStateDto {
+            crate::api::sync::join::SyncEnrollmentStateDto {
                 role: self_.get(0).cst_decode(),
                 operation_id: self_.get(1).cst_decode(),
                 invitation_id: self_.get(2).cst_decode(),
@@ -30880,11 +31185,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncInvitationOfferDto>
+    impl CstDecode<crate::api::sync::invite::SyncInvitationOfferDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncInvitationOfferDto {
+        fn cst_decode(self) -> crate::api::sync::invite::SyncInvitationOfferDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30894,18 +31199,18 @@ mod web {
                 "Expected 3 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::SyncInvitationOfferDto {
+            crate::api::sync::invite::SyncInvitationOfferDto {
                 invitation_id: self_.get(0).cst_decode(),
                 code: self_.get(1).cst_decode(),
                 expires_at_ms: self_.get(2).cst_decode(),
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncInvitationPreviewDto>
+    impl CstDecode<crate::api::sync::invite::SyncInvitationPreviewDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncInvitationPreviewDto {
+        fn cst_decode(self) -> crate::api::sync::invite::SyncInvitationPreviewDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30915,7 +31220,7 @@ mod web {
                 "Expected 6 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::SyncInvitationPreviewDto {
+            crate::api::sync::invite::SyncInvitationPreviewDto {
                 invitation_id: self_.get(0).cst_decode(),
                 token: self_.get(1).cst_decode(),
                 device_name: self_.get(2).cst_decode(),
@@ -30925,11 +31230,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncJoinEntryDto>
+    impl CstDecode<crate::api::sync::join::SyncJoinEntryDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncJoinEntryDto {
+        fn cst_decode(self) -> crate::api::sync::join::SyncJoinEntryDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30939,7 +31244,7 @@ mod web {
                 "Expected 4 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::SyncJoinEntryDto {
+            crate::api::sync::join::SyncJoinEntryDto {
                 entry_id: self_.get(0).cst_decode(),
                 installation_id: self_.get(1).cst_decode(),
                 dataset_id: self_.get(2).cst_decode(),
@@ -30947,11 +31252,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncJoinStateDto>
+    impl CstDecode<crate::api::sync::join::SyncJoinStateDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncJoinStateDto {
+        fn cst_decode(self) -> crate::api::sync::join::SyncJoinStateDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30961,7 +31266,7 @@ mod web {
                 "Expected 14 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::SyncJoinStateDto {
+            crate::api::sync::join::SyncJoinStateDto {
                 operation_id: self_.get(0).cst_decode(),
                 token: self_.get(1).cst_decode(),
                 entry_id: self_.get(2).cst_decode(),
@@ -30979,11 +31284,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncKeyCommitDto>
+    impl CstDecode<crate::api::sync::invite::SyncKeyCommitDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncKeyCommitDto {
+        fn cst_decode(self) -> crate::api::sync::invite::SyncKeyCommitDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -30993,18 +31298,18 @@ mod web {
                 "Expected 3 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::SyncKeyCommitDto {
+            crate::api::sync::invite::SyncKeyCommitDto {
                 token: self_.get(0).cst_decode(),
                 installation_id: self_.get(1).cst_decode(),
                 revision: self_.get(2).cst_decode(),
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncKeyRequestDto>
+    impl CstDecode<crate::api::sync::invite::SyncKeyRequestDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncKeyRequestDto {
+        fn cst_decode(self) -> crate::api::sync::invite::SyncKeyRequestDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -31014,7 +31319,7 @@ mod web {
                 "Expected 4 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::SyncKeyRequestDto {
+            crate::api::sync::invite::SyncKeyRequestDto {
                 token: self_.get(0).cst_decode(),
                 installation_id: self_.get(1).cst_decode(),
                 revision: self_.get(2).cst_decode(),
@@ -31022,11 +31327,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncRosterDto>
+    impl CstDecode<crate::api::sync::datasets::SyncRosterDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncRosterDto {
+        fn cst_decode(self) -> crate::api::sync::datasets::SyncRosterDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -31036,7 +31341,7 @@ mod web {
                 "Expected 6 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::SyncRosterDto {
+            crate::api::sync::datasets::SyncRosterDto {
                 revision: self_.get(0).cst_decode(),
                 dataset_id: self_.get(1).cst_decode(),
                 owner_device_id: self_.get(2).cst_decode(),
@@ -31046,11 +31351,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncRosterMemberDto>
+    impl CstDecode<crate::api::sync::datasets::SyncRosterMemberDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncRosterMemberDto {
+        fn cst_decode(self) -> crate::api::sync::datasets::SyncRosterMemberDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -31060,7 +31365,7 @@ mod web {
                 "Expected 7 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::SyncRosterMemberDto {
+            crate::api::sync::datasets::SyncRosterMemberDto {
                 device_id: self_.get(0).cst_decode(),
                 name: self_.get(1).cst_decode(),
                 platform: self_.get(2).cst_decode(),
@@ -31071,11 +31376,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::sync::SyncTickResultDto>
+    impl CstDecode<crate::api::sync::join::SyncTickResultDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::SyncTickResultDto {
+        fn cst_decode(self) -> crate::api::sync::join::SyncTickResultDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -31085,7 +31390,7 @@ mod web {
                 "Expected 10 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::SyncTickResultDto {
+            crate::api::sync::join::SyncTickResultDto {
                 ran: self_.get(0).cst_decode(),
                 staged_operations: self_.get(1).cst_decode(),
                 uploaded: self_.get(2).cst_decode(),
@@ -31352,11 +31657,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::sync::WikiPageConflictDto>
+    impl CstDecode<crate::api::sync::datasets::WikiPageConflictDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::WikiPageConflictDto {
+        fn cst_decode(self) -> crate::api::sync::datasets::WikiPageConflictDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -31366,7 +31671,7 @@ mod web {
                 "Expected 14 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::WikiPageConflictDto {
+            crate::api::sync::datasets::WikiPageConflictDto {
                 op_id: self_.get(0).cst_decode(),
                 object_id: self_.get(1).cst_decode(),
                 reason: self_.get(2).cst_decode(),
@@ -31384,11 +31689,11 @@ mod web {
             }
         }
     }
-    impl CstDecode<crate::api::sync::WikiPageConflictSideDto>
+    impl CstDecode<crate::api::sync::datasets::WikiPageConflictSideDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::WikiPageConflictSideDto {
+        fn cst_decode(self) -> crate::api::sync::datasets::WikiPageConflictSideDto {
             let self_ = self
                 .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
                 .unwrap();
@@ -31398,7 +31703,7 @@ mod web {
                 "Expected 4 elements, got {}",
                 self_.length()
             );
-            crate::api::sync::WikiPageConflictSideDto {
+            crate::api::sync::datasets::WikiPageConflictSideDto {
                 slug: self_.get(0).cst_decode(),
                 title: self_.get(1).cst_decode(),
                 content_md_len: self_.get(2).cst_decode(),
@@ -31626,13 +31931,13 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__advance_sync_enrollment(
+    pub fn wire__crate__api__sync__join__advance_sync_enrollment(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         role: String,
         operation_id: String,
         invitation_id: String,
     ) {
-        wire__crate__api__sync__advance_sync_enrollment_impl(
+        wire__crate__api__sync__join__advance_sync_enrollment_impl(
             port_,
             role,
             operation_id,
@@ -31651,13 +31956,13 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__approve_owner_sync_invitation(
+    pub fn wire__crate__api__sync__invite__approve_owner_sync_invitation(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         invitation_id: String,
         preview_token: String,
         acknowledge_provider_key_sharing: bool,
     ) {
-        wire__crate__api__sync__approve_owner_sync_invitation_impl(
+        wire__crate__api__sync__invite__approve_owner_sync_invitation_impl(
             port_,
             invitation_id,
             preview_token,
@@ -31666,11 +31971,11 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__approve_processor_handoff(
+    pub fn wire__crate__api__sync__datasets__approve_processor_handoff(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         proof: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
-        wire__crate__api__sync__approve_processor_handoff_impl(port_, proof)
+        wire__crate__api__sync__datasets__approve_processor_handoff_impl(port_, proof)
     }
 
     #[wasm_bindgen]
@@ -31698,12 +32003,12 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__begin_url_input(
+    pub fn wire__crate__api__records__begin_url_input(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         raw_text: String,
         idempotency_key: Option<String>,
     ) {
-        wire__crate__api__begin_url_input_impl(port_, raw_text, idempotency_key)
+        wire__crate__api__records__begin_url_input_impl(port_, raw_text, idempotency_key)
     }
 
     #[wasm_bindgen]
@@ -31722,15 +32027,17 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__build_hash(port_: flutter_rust_bridge::for_generated::MessagePort) {
-        wire__crate__api__build_hash_impl(port_)
+    pub fn wire__crate__api__review_flow__build_hash(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__review_flow__build_hash_impl(port_)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__build_seq(
+    pub fn wire__crate__api__sync__handoff__build_seq(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__sync__build_seq_impl(port_)
+        wire__crate__api__sync__handoff__build_seq_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -31743,26 +32050,26 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__cancel_owner_sync_invitation(
+    pub fn wire__crate__api__sync__invite__cancel_owner_sync_invitation(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         invitation_id: String,
     ) {
-        wire__crate__api__sync__cancel_owner_sync_invitation_impl(port_, invitation_id)
+        wire__crate__api__sync__invite__cancel_owner_sync_invitation_impl(port_, invitation_id)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__check_app_update(
+    pub fn wire__crate__api__sync__handoff__check_app_update(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         relay_url: String,
     ) {
-        wire__crate__api__sync__check_app_update_impl(port_, relay_url)
+        wire__crate__api__sync__handoff__check_app_update_impl(port_, relay_url)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__check_companion_revisit(
+    pub fn wire__crate__api__companion_flow__check_companion_revisit(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__check_companion_revisit_impl(port_)
+        wire__crate__api__companion_flow__check_companion_revisit_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -31813,10 +32120,10 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__confirm_processor_takeover(
+    pub fn wire__crate__api__sync__datasets__confirm_processor_takeover(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__sync__confirm_processor_takeover_impl(port_)
+        wire__crate__api__sync__datasets__confirm_processor_takeover_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -31829,7 +32136,7 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__confirm_sync_enrollment(
+    pub fn wire__crate__api__sync__join__confirm_sync_enrollment(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         role: String,
         operation_id: String,
@@ -31837,7 +32144,7 @@ mod web {
         token: String,
         protected_revision: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
-        wire__crate__api__sync__confirm_sync_enrollment_impl(
+        wire__crate__api__sync__join__confirm_sync_enrollment_impl(
             port_,
             role,
             operation_id,
@@ -31848,21 +32155,21 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__confirm_sync_join_key(
+    pub fn wire__crate__api__sync__join__confirm_sync_join_key(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         token: String,
         protected_revision: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
-        wire__crate__api__sync__confirm_sync_join_key_impl(port_, token, protected_revision)
+        wire__crate__api__sync__join__confirm_sync_join_key_impl(port_, token, protected_revision)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__confirm_sync_key(
+    pub fn wire__crate__api__sync__invite__confirm_sync_key(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         token: String,
         protected_revision: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
-        wire__crate__api__sync__confirm_sync_key_impl(port_, token, protected_revision)
+        wire__crate__api__sync__invite__confirm_sync_key_impl(port_, token, protected_revision)
     }
 
     #[wasm_bindgen]
@@ -31901,12 +32208,12 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__create_owner_sync_invitation(
+    pub fn wire__crate__api__sync__invite__create_owner_sync_invitation(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         relay_url: String,
         acknowledge_provider_key_sharing: bool,
     ) {
-        wire__crate__api__sync__create_owner_sync_invitation_impl(
+        wire__crate__api__sync__invite__create_owner_sync_invitation_impl(
             port_,
             relay_url,
             acknowledge_provider_key_sharing,
@@ -32043,13 +32350,13 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__delete_event_emotion(
+    pub fn wire__crate__api__companion_flow__delete_event_emotion(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         id: String,
         target: Option<String>,
         feeling: String,
     ) {
-        wire__crate__api__delete_event_emotion_impl(port_, id, target, feeling)
+        wire__crate__api__companion_flow__delete_event_emotion_impl(port_, id, target, feeling)
     }
 
     #[wasm_bindgen]
@@ -32093,20 +32400,20 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__discard_sync_join_staging(
+    pub fn wire__crate__api__sync__join__discard_sync_join_staging(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         entry_id: String,
     ) {
-        wire__crate__api__sync__discard_sync_join_staging_impl(port_, entry_id)
+        wire__crate__api__sync__join__discard_sync_join_staging_impl(port_, entry_id)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__review_report__dismiss_deviation(
+    pub fn wire__crate__api__review_report__store__dismiss_deviation(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         report_id: String,
         index: i32,
     ) {
-        wire__crate__api__review_report__dismiss_deviation_impl(port_, report_id, index)
+        wire__crate__api__review_report__store__dismiss_deviation_impl(port_, report_id, index)
     }
 
     #[wasm_bindgen]
@@ -32126,7 +32433,7 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__download_update_apk(
+    pub fn wire__crate__api__sync__handoff__download_update_apk(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         relay_url: String,
         build_hash: String,
@@ -32134,7 +32441,7 @@ mod web {
         apk_size: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
         dest_dir: String,
     ) {
-        wire__crate__api__sync__download_update_apk_impl(
+        wire__crate__api__sync__handoff__download_update_apk_impl(
             port_, relay_url, build_hash, apk_sha256, apk_size, dest_dir,
         )
     }
@@ -32234,13 +32541,13 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__finish_url_input(
+    pub fn wire__crate__api__records__finish_url_input(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         input_id: String,
         wiki_page_slug: Option<String>,
         failed: bool,
     ) {
-        wire__crate__api__finish_url_input_impl(port_, input_id, wiki_page_slug, failed)
+        wire__crate__api__records__finish_url_input_impl(port_, input_id, wiki_page_slug, failed)
     }
 
     #[wasm_bindgen]
@@ -32253,11 +32560,11 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__generate_daily_review(
+    pub fn wire__crate__api__period_stats__generate_daily_review(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         date: String,
     ) {
-        wire__crate__api__generate_daily_review_impl(port_, date)
+        wire__crate__api__period_stats__generate_daily_review_impl(port_, date)
     }
 
     #[wasm_bindgen]
@@ -32292,10 +32599,10 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__get_analysis_job_stats(
+    pub fn wire__crate__api__review_flow__get_analysis_job_stats(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__get_analysis_job_stats_impl(port_)
+        wire__crate__api__review_flow__get_analysis_job_stats_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -32331,10 +32638,10 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__get_companion_prefs(
+    pub fn wire__crate__api__companion_flow__get_companion_prefs(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__get_companion_prefs_impl(port_)
+        wire__crate__api__companion_flow__get_companion_prefs_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -32346,11 +32653,11 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__get_daily_overview(
+    pub fn wire__crate__api__period_stats__get_daily_overview(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         date: String,
     ) {
-        wire__crate__api__get_daily_overview_impl(port_, date)
+        wire__crate__api__period_stats__get_daily_overview_impl(port_, date)
     }
 
     #[wasm_bindgen]
@@ -32370,11 +32677,11 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__get_event_analysis_detail(
+    pub fn wire__crate__api__review_flow__get_event_analysis_detail(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         event_id: String,
     ) {
-        wire__crate__api__get_event_analysis_detail_impl(port_, event_id)
+        wire__crate__api__review_flow__get_event_analysis_detail_impl(port_, event_id)
     }
 
     #[wasm_bindgen]
@@ -32426,10 +32733,10 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__get_local_sync_state(
+    pub fn wire__crate__api__sync__invite__get_local_sync_state(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__sync__get_local_sync_state_impl(port_)
+        wire__crate__api__sync__invite__get_local_sync_state_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -32449,11 +32756,11 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__get_message_recordability(
+    pub fn wire__crate__api__review_flow__get_message_recordability(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         message_id: String,
     ) {
-        wire__crate__api__get_message_recordability_impl(port_, message_id)
+        wire__crate__api__review_flow__get_message_recordability_impl(port_, message_id)
     }
 
     #[wasm_bindgen]
@@ -32464,19 +32771,19 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__get_period_stats(
+    pub fn wire__crate__api__period_stats__get_period_stats(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         period_type: String,
         date: String,
     ) {
-        wire__crate__api__get_period_stats_impl(port_, period_type, date)
+        wire__crate__api__period_stats__get_period_stats_impl(port_, period_type, date)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__get_processor_handoff_state(
+    pub fn wire__crate__api__sync__datasets__get_processor_handoff_state(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__sync__get_processor_handoff_state_impl(port_)
+        wire__crate__api__sync__datasets__get_processor_handoff_state_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -32495,18 +32802,18 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__get_sync_join_state(
+    pub fn wire__crate__api__sync__join__get_sync_join_state(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         operation_id: String,
     ) {
-        wire__crate__api__sync__get_sync_join_state_impl(port_, operation_id)
+        wire__crate__api__sync__join__get_sync_join_state_impl(port_, operation_id)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__get_sync_roster(
+    pub fn wire__crate__api__sync__datasets__get_sync_roster(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__sync__get_sync_roster_impl(port_)
+        wire__crate__api__sync__datasets__get_sync_roster_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -32563,27 +32870,27 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__init_bridge(
+    pub fn wire__crate__api__records__init_bridge(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         database_path: Option<String>,
     ) {
-        wire__crate__api__init_bridge_impl(port_, database_path)
+        wire__crate__api__records__init_bridge_impl(port_, database_path)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__inspect_owner_sync_invitation(
+    pub fn wire__crate__api__sync__invite__inspect_owner_sync_invitation(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         invitation_id: String,
     ) {
-        wire__crate__api__sync__inspect_owner_sync_invitation_impl(port_, invitation_id)
+        wire__crate__api__sync__invite__inspect_owner_sync_invitation_impl(port_, invitation_id)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__inspect_sync_join_approval(
+    pub fn wire__crate__api__sync__join__inspect_sync_join_approval(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         operation_id: String,
     ) {
-        wire__crate__api__sync__inspect_sync_join_approval_impl(port_, operation_id)
+        wire__crate__api__sync__join__inspect_sync_join_approval_impl(port_, operation_id)
     }
 
     #[wasm_bindgen]
@@ -32611,23 +32918,28 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__install_sync_join_key(
+    pub fn wire__crate__api__sync__join__install_sync_join_key(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         token: String,
         key: Box<[u8]>,
         protected_revision: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
-        wire__crate__api__sync__install_sync_join_key_impl(port_, token, key, protected_revision)
+        wire__crate__api__sync__join__install_sync_join_key_impl(
+            port_,
+            token,
+            key,
+            protected_revision,
+        )
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__install_sync_key(
+    pub fn wire__crate__api__sync__invite__install_sync_key(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         token: String,
         key: Box<[u8]>,
         protected_revision: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
-        wire__crate__api__sync__install_sync_key_impl(port_, token, key, protected_revision)
+        wire__crate__api__sync__invite__install_sync_key_impl(port_, token, key, protected_revision)
     }
 
     #[wasm_bindgen]
@@ -32661,8 +32973,10 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__list_analyses(port_: flutter_rust_bridge::for_generated::MessagePort) {
-        wire__crate__api__list_analyses_impl(port_)
+    pub fn wire__crate__api__review_flow__list_analyses(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__review_flow__list_analyses_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -32753,20 +33067,24 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__list_daily_entries(
+    pub fn wire__crate__api__records__list_daily_entries(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         date: String,
     ) {
-        wire__crate__api__list_daily_entries_impl(port_, date)
+        wire__crate__api__records__list_daily_entries_impl(port_, date)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__review_report__list_deviation_reports(
+    pub fn wire__crate__api__review_report__store__list_deviation_reports(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         period_type: String,
         limit: i32,
     ) {
-        wire__crate__api__review_report__list_deviation_reports_impl(port_, period_type, limit)
+        wire__crate__api__review_report__store__list_deviation_reports_impl(
+            port_,
+            period_type,
+            limit,
+        )
     }
 
     #[wasm_bindgen]
@@ -32788,10 +33106,10 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__list_event_emotions(
+    pub fn wire__crate__api__companion_flow__list_event_emotions(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__list_event_emotions_impl(port_)
+        wire__crate__api__companion_flow__list_event_emotions_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -32803,8 +33121,10 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__list_events(port_: flutter_rust_bridge::for_generated::MessagePort) {
-        wire__crate__api__list_events_impl(port_)
+    pub fn wire__crate__api__review_flow__list_events(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__review_flow__list_events_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -32910,18 +33230,18 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__list_object_conflicts(
+    pub fn wire__crate__api__sync__conflicts__list_object_conflicts(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__sync__list_object_conflicts_impl(port_)
+        wire__crate__api__sync__conflicts__list_object_conflicts_impl(port_)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__list_page_guidance(
+    pub fn wire__crate__api__companion_flow__list_page_guidance(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         slug: String,
     ) {
-        wire__crate__api__list_page_guidance_impl(port_, slug)
+        wire__crate__api__companion_flow__list_page_guidance_impl(port_, slug)
     }
 
     #[wasm_bindgen]
@@ -32941,10 +33261,10 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__list_pending_sync_joins(
+    pub fn wire__crate__api__sync__join__list_pending_sync_joins(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__sync__list_pending_sync_joins_impl(port_)
+        wire__crate__api__sync__join__list_pending_sync_joins_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -32956,12 +33276,12 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__list_recent_events(
+    pub fn wire__crate__api__review_flow__list_recent_events(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         days: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
         limit: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
-        wire__crate__api__list_recent_events_impl(port_, days, limit)
+        wire__crate__api__review_flow__list_recent_events_impl(port_, days, limit)
     }
 
     #[wasm_bindgen]
@@ -33002,24 +33322,24 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__list_sync_datasets(
+    pub fn wire__crate__api__sync__datasets__list_sync_datasets(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__sync__list_sync_datasets_impl(port_)
+        wire__crate__api__sync__datasets__list_sync_datasets_impl(port_)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__list_sync_enrollments(
+    pub fn wire__crate__api__sync__join__list_sync_enrollments(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__sync__list_sync_enrollments_impl(port_)
+        wire__crate__api__sync__join__list_sync_enrollments_impl(port_)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__list_sync_provider_conflicts(
+    pub fn wire__crate__api__sync__datasets__list_sync_provider_conflicts(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__sync__list_sync_provider_conflicts_impl(port_)
+        wire__crate__api__sync__datasets__list_sync_provider_conflicts_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -33068,10 +33388,10 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__list_wiki_page_conflicts(
+    pub fn wire__crate__api__sync__conflicts__list_wiki_page_conflicts(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__sync__list_wiki_page_conflicts_impl(port_)
+        wire__crate__api__sync__conflicts__list_wiki_page_conflicts_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -33100,18 +33420,18 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__lock_local_sync(
+    pub fn wire__crate__api__sync__invite__lock_local_sync(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__sync__lock_local_sync_impl(port_)
+        wire__crate__api__sync__invite__lock_local_sync_impl(port_)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__review_report__mark_deviation_report_read(
+    pub fn wire__crate__api__review_report__store__mark_deviation_report_read(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         id: String,
     ) {
-        wire__crate__api__review_report__mark_deviation_report_read_impl(port_, id)
+        wire__crate__api__review_report__store__mark_deviation_report_read_impl(port_, id)
     }
 
     #[wasm_bindgen]
@@ -33175,14 +33495,14 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__prepare_sync_join_key(
+    pub fn wire__crate__api__sync__join__prepare_sync_join_key(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         preview_token: String,
         name: String,
         platform: String,
         acknowledge_provider_key_sharing: bool,
     ) {
-        wire__crate__api__sync__prepare_sync_join_key_impl(
+        wire__crate__api__sync__join__prepare_sync_join_key_impl(
             port_,
             preview_token,
             name,
@@ -33192,21 +33512,21 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__prepare_sync_join_resume(
+    pub fn wire__crate__api__sync__join__prepare_sync_join_resume(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         entry_id: String,
     ) {
-        wire__crate__api__sync__prepare_sync_join_resume_impl(port_, entry_id)
+        wire__crate__api__sync__join__prepare_sync_join_resume_impl(port_, entry_id)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__prepare_sync_key_request(
+    pub fn wire__crate__api__sync__invite__prepare_sync_key_request(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         name: Option<String>,
         platform: Option<String>,
         acknowledge_provider_key_sharing: bool,
     ) {
-        wire__crate__api__sync__prepare_sync_key_request_impl(
+        wire__crate__api__sync__invite__prepare_sync_key_request_impl(
             port_,
             name,
             platform,
@@ -33233,11 +33553,11 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__preview_sync_join(
+    pub fn wire__crate__api__sync__join__preview_sync_join(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         invitation_code: String,
     ) {
-        wire__crate__api__sync__preview_sync_join_impl(port_, invitation_code)
+        wire__crate__api__sync__join__preview_sync_join_impl(port_, invitation_code)
     }
 
     #[wasm_bindgen]
@@ -33267,11 +33587,11 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__reanalyze_event(
+    pub fn wire__crate__api__review_flow__reanalyze_event(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         event_id: String,
     ) {
-        wire__crate__api__reanalyze_event_impl(port_, event_id)
+        wire__crate__api__review_flow__reanalyze_event_impl(port_, event_id)
     }
 
     #[wasm_bindgen]
@@ -33283,11 +33603,11 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__record_event(
+    pub fn wire__crate__api__records__record_event(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         raw_text: String,
     ) {
-        wire__crate__api__record_event_impl(port_, raw_text)
+        wire__crate__api__records__record_event_impl(port_, raw_text)
     }
 
     #[wasm_bindgen]
@@ -33299,19 +33619,19 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__release_sync_join(
+    pub fn wire__crate__api__sync__join__release_sync_join(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         operation_id: String,
     ) {
-        wire__crate__api__sync__release_sync_join_impl(port_, operation_id)
+        wire__crate__api__sync__join__release_sync_join_impl(port_, operation_id)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__release_sync_key_request(
+    pub fn wire__crate__api__sync__invite__release_sync_key_request(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         token: String,
     ) {
-        wire__crate__api__sync__release_sync_key_request_impl(port_, token)
+        wire__crate__api__sync__invite__release_sync_key_request_impl(port_, token)
     }
 
     #[wasm_bindgen]
@@ -33333,13 +33653,13 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__rename_sync_device(
+    pub fn wire__crate__api__sync__datasets__rename_sync_device(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         device_id: String,
         new_name: String,
         expected_vault_revision: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
-        wire__crate__api__sync__rename_sync_device_impl(
+        wire__crate__api__sync__datasets__rename_sync_device_impl(
             port_,
             device_id,
             new_name,
@@ -33383,13 +33703,13 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__resolve_object_conflict(
+    pub fn wire__crate__api__sync__conflicts__resolve_object_conflict(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         op_id: String,
         expected_local_updated_at: Option<String>,
         accept_remote: bool,
     ) {
-        wire__crate__api__sync__resolve_object_conflict_impl(
+        wire__crate__api__sync__conflicts__resolve_object_conflict_impl(
             port_,
             op_id,
             expected_local_updated_at,
@@ -33398,14 +33718,14 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__resolve_sync_provider_conflict(
+    pub fn wire__crate__api__sync__datasets__resolve_sync_provider_conflict(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         revision_id: String,
         expected_local_revision: String,
         expected_remote_revision: String,
         accept_remote: bool,
     ) {
-        wire__crate__api__sync__resolve_sync_provider_conflict_impl(
+        wire__crate__api__sync__datasets__resolve_sync_provider_conflict_impl(
             port_,
             revision_id,
             expected_local_revision,
@@ -33424,13 +33744,13 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__resolve_wiki_page_conflict(
+    pub fn wire__crate__api__sync__conflicts__resolve_wiki_page_conflict(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         op_id: String,
         expected_local_updated_at: Option<String>,
         accept_remote: bool,
     ) {
-        wire__crate__api__sync__resolve_wiki_page_conflict_impl(
+        wire__crate__api__sync__conflicts__resolve_wiki_page_conflict_impl(
             port_,
             op_id,
             expected_local_updated_at,
@@ -33447,12 +33767,16 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__revoke_sync_member(
+    pub fn wire__crate__api__sync__datasets__revoke_sync_member(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         device_id: String,
         expected_revision: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
-        wire__crate__api__sync__revoke_sync_member_impl(port_, device_id, expected_revision)
+        wire__crate__api__sync__datasets__revoke_sync_member_impl(
+            port_,
+            device_id,
+            expected_revision,
+        )
     }
 
     #[wasm_bindgen]
@@ -33464,14 +33788,14 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__save_daily_review(
+    pub fn wire__crate__api__period_stats__save_daily_review(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         date: String,
         result_json: String,
         prompt_version: String,
         source_event_ids: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
-        wire__crate__api__save_daily_review_impl(
+        wire__crate__api__period_stats__save_daily_review_impl(
             port_,
             date,
             result_json,
@@ -33636,19 +33960,22 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__select_default_sync_dataset(
+    pub fn wire__crate__api__sync__datasets__select_default_sync_dataset(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         expected_catalog_revision: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
-        wire__crate__api__sync__select_default_sync_dataset_impl(port_, expected_catalog_revision)
+        wire__crate__api__sync__datasets__select_default_sync_dataset_impl(
+            port_,
+            expected_catalog_revision,
+        )
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__select_sync_dataset(
+    pub fn wire__crate__api__sync__datasets__select_sync_dataset(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         entry_id: String,
     ) {
-        wire__crate__api__sync__select_sync_dataset_impl(port_, entry_id)
+        wire__crate__api__sync__datasets__select_sync_dataset_impl(port_, entry_id)
     }
 
     #[wasm_bindgen]
@@ -33669,27 +33996,27 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__send_owner_sync_approval(
+    pub fn wire__crate__api__sync__invite__send_owner_sync_approval(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         invitation_id: String,
     ) {
-        wire__crate__api__sync__send_owner_sync_approval_impl(port_, invitation_id)
+        wire__crate__api__sync__invite__send_owner_sync_approval_impl(port_, invitation_id)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__send_sync_join_proof(
+    pub fn wire__crate__api__sync__join__send_sync_join_proof(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         operation_id: String,
     ) {
-        wire__crate__api__sync__send_sync_join_proof_impl(port_, operation_id)
+        wire__crate__api__sync__join__send_sync_join_proof_impl(port_, operation_id)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__send_sync_join_request(
+    pub fn wire__crate__api__sync__join__send_sync_join_request(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         operation_id: String,
     ) {
-        wire__crate__api__sync__send_sync_join_request_impl(port_, operation_id)
+        wire__crate__api__sync__join__send_sync_join_request_impl(port_, operation_id)
     }
 
     #[wasm_bindgen]
@@ -33706,12 +34033,12 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__set_companion_prefs(
+    pub fn wire__crate__api__companion_flow__set_companion_prefs(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         enabled: bool,
         interval_days: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
     ) {
-        wire__crate__api__set_companion_prefs_impl(port_, enabled, interval_days)
+        wire__crate__api__companion_flow__set_companion_prefs_impl(port_, enabled, interval_days)
     }
 
     #[wasm_bindgen]
@@ -33728,23 +34055,29 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__set_event_recordability(
+    pub fn wire__crate__api__review_flow__set_event_recordability(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         event_id: String,
         recordable: bool,
     ) {
-        wire__crate__api__set_event_recordability_impl(port_, event_id, recordable)
+        wire__crate__api__review_flow__set_event_recordability_impl(port_, event_id, recordable)
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__set_guidance_feedback(
+    pub fn wire__crate__api__companion_flow__set_guidance_feedback(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         analysis_id: String,
         slug: String,
         note: Option<String>,
         feedback: Option<String>,
     ) {
-        wire__crate__api__set_guidance_feedback_impl(port_, analysis_id, slug, note, feedback)
+        wire__crate__api__companion_flow__set_guidance_feedback_impl(
+            port_,
+            analysis_id,
+            slug,
+            note,
+            feedback,
+        )
     }
 
     #[wasm_bindgen]
@@ -33893,13 +34226,13 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__submit_conversation_input(
+    pub fn wire__crate__api__records__submit_conversation_input(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         conversation_id: String,
         raw_text: String,
         idempotency_key: Option<String>,
     ) {
-        wire__crate__api__submit_conversation_input_impl(
+        wire__crate__api__records__submit_conversation_input_impl(
             port_,
             conversation_id,
             raw_text,
@@ -33908,13 +34241,13 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__submit_input(
+    pub fn wire__crate__api__records__submit_input(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         raw_text: String,
         source: String,
         idempotency_key: Option<String>,
     ) {
-        wire__crate__api__submit_input_impl(port_, raw_text, source, idempotency_key)
+        wire__crate__api__records__submit_input_impl(port_, raw_text, source, idempotency_key)
     }
 
     #[wasm_bindgen]
@@ -33966,10 +34299,10 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__review_report__tick_periodic_reports(
+    pub fn wire__crate__api__review_report__detect__tick_periodic_reports(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__review_report__tick_periodic_reports_impl(port_)
+        wire__crate__api__review_report__detect__tick_periodic_reports_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -33982,10 +34315,10 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__trigger_analysis(
+    pub fn wire__crate__api__review_flow__trigger_analysis(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__trigger_analysis_impl(port_)
+        wire__crate__api__review_flow__trigger_analysis_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -33996,10 +34329,10 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__trigger_network_sync(
+    pub fn wire__crate__api__sync__join__trigger_network_sync(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
-        wire__crate__api__sync__trigger_network_sync_impl(port_)
+        wire__crate__api__sync__join__trigger_network_sync_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -34176,11 +34509,11 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__yield_sync_processor(
+    pub fn wire__crate__api__sync__datasets__yield_sync_processor(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         to_device_id: String,
     ) {
-        wire__crate__api__sync__yield_sync_processor_impl(port_, to_device_id)
+        wire__crate__api__sync__datasets__yield_sync_processor_impl(port_, to_device_id)
     }
 }
 #[cfg(target_family = "wasm")]

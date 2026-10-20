@@ -3,9 +3,10 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
-import 'api.dart';
+import 'api/analysis_schema.dart';
 import 'api/chat_proposals.dart';
 import 'api/chat_runs.dart';
+import 'api/companion_flow.dart';
 import 'api/conversations.dart';
 import 'api/db_maintenance.dart';
 import 'api/entities.dart';
@@ -18,12 +19,20 @@ import 'api/knowledge_digest.dart';
 import 'api/knowledge_workflows.dart';
 import 'api/mcp.dart';
 import 'api/page_marks.dart';
+import 'api/period_stats.dart';
 import 'api/provider_config.dart';
 import 'api/provider_reachability.dart';
+import 'api/records.dart';
 import 'api/relations.dart';
-import 'api/review_report.dart';
+import 'api/review_flow.dart';
+import 'api/review_report/detect.dart';
+import 'api/review_report/store.dart';
 import 'api/rules.dart';
-import 'api/sync.dart';
+import 'api/sync/conflicts.dart';
+import 'api/sync/datasets.dart';
+import 'api/sync/handoff.dart';
+import 'api/sync/invite.dart';
+import 'api/sync/join.dart';
 import 'api/theme.dart';
 import 'api/todos.dart';
 import 'api/tweet.dart';
@@ -38,16 +47,17 @@ import 'dart:convert';
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
-import 'knowledge.dart';
+import 'knowledge/health.dart';
 import 'knowledge/maintenance.dart';
 import 'knowledge/organization.dart';
 import 'knowledge/queue.dart';
 import 'knowledge/review.dart';
+import 'knowledge/select.dart';
 import 'knowledge/workflows.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-import 'storage/knowledge.dart';
+import 'storage/knowledge/core.dart';
 
 /// Main entrypoint of the Rust API
 class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
@@ -102,7 +112,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -1317381667;
+  int get rustContentHash => -2127953653;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -149,7 +159,7 @@ abstract class RustLibApi extends BaseApi {
     required bool adopt,
   });
 
-  Future<SyncEnrollmentStateDto> crateApiSyncAdvanceSyncEnrollment({
+  Future<SyncEnrollmentStateDto> crateApiSyncJoinAdvanceSyncEnrollment({
     required String role,
     required String operationId,
     required String invitationId,
@@ -161,13 +171,13 @@ abstract class RustLibApi extends BaseApi {
     required String reason,
   });
 
-  Future<SyncKeyCommitDto> crateApiSyncApproveOwnerSyncInvitation({
+  Future<SyncKeyCommitDto> crateApiSyncInviteApproveOwnerSyncInvitation({
     required String invitationId,
     required String previewToken,
     required bool acknowledgeProviderKeySharing,
   });
 
-  Future<void> crateApiSyncApproveProcessorHandoff({
+  Future<void> crateApiSyncDatasetsApproveProcessorHandoff({
     required ProcessingYieldProofDto proof,
   });
 
@@ -179,7 +189,7 @@ abstract class RustLibApi extends BaseApi {
     required String baseUrl,
   });
 
-  Future<InputRecordDto> crateApiBeginUrlInput({
+  Future<InputRecordDto> crateApiRecordsBeginUrlInput({
     required String rawText,
     String? idempotencyKey,
   });
@@ -193,22 +203,24 @@ abstract class RustLibApi extends BaseApi {
     required PlatformInt64 offset,
   });
 
-  Future<String> crateApiBuildHash();
+  Future<String> crateApiReviewFlowBuildHash();
 
-  Future<PlatformInt64> crateApiSyncBuildSeq();
+  Future<PlatformInt64> crateApiSyncHandoffBuildSeq();
 
   Future<ChatRunDto?> crateApiChatRunsCancelChatRun({
     required String conversationId,
     required String runId,
   });
 
-  Future<void> crateApiSyncCancelOwnerSyncInvitation({
+  Future<void> crateApiSyncInviteCancelOwnerSyncInvitation({
     required String invitationId,
   });
 
-  Future<AppUpdateDto> crateApiSyncCheckAppUpdate({required String relayUrl});
+  Future<AppUpdateDto> crateApiSyncHandoffCheckAppUpdate({
+    required String relayUrl,
+  });
 
-  Future<CompanionRevisitDto?> crateApiCheckCompanionRevisit();
+  Future<CompanionRevisitDto?> crateApiCompanionFlowCheckCompanionRevisit();
 
   Future<String> crateApiWikiComposePageReferenceSupplement({
     required List<String> slugs,
@@ -231,14 +243,14 @@ abstract class RustLibApi extends BaseApi {
     String? expectedSnapshotId,
   });
 
-  Future<void> crateApiSyncConfirmProcessorTakeover();
+  Future<void> crateApiSyncDatasetsConfirmProcessorTakeover();
 
   Future<void> crateApiTodosConfirmReminder({
     required String todoId,
     required String deviceId,
   });
 
-  Future<SyncEnrollmentStateDto> crateApiSyncConfirmSyncEnrollment({
+  Future<SyncEnrollmentStateDto> crateApiSyncJoinConfirmSyncEnrollment({
     required String role,
     required String operationId,
     required String invitationId,
@@ -246,12 +258,12 @@ abstract class RustLibApi extends BaseApi {
     required PlatformInt64 protectedRevision,
   });
 
-  Future<SyncJoinStateDto> crateApiSyncConfirmSyncJoinKey({
+  Future<SyncJoinStateDto> crateApiSyncJoinConfirmSyncJoinKey({
     required String token,
     required PlatformInt64 protectedRevision,
   });
 
-  Future<LocalSyncStateDto> crateApiSyncConfirmSyncKey({
+  Future<LocalSyncStateDto> crateApiSyncInviteConfirmSyncKey({
     required String token,
     required PlatformInt64 protectedRevision,
   });
@@ -273,7 +285,7 @@ abstract class RustLibApi extends BaseApi {
     required String phase,
   });
 
-  Future<SyncInvitationOfferDto> crateApiSyncCreateOwnerSyncInvitation({
+  Future<SyncInvitationOfferDto> crateApiSyncInviteCreateOwnerSyncInvitation({
     required String relayUrl,
     required bool acknowledgeProviderKeySharing,
   });
@@ -336,7 +348,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<bool> crateApiEntitiesDeleteEntityFact({required String id});
 
-  Future<void> crateApiDeleteEventEmotion({
+  Future<void> crateApiCompanionFlowDeleteEventEmotion({
     required String id,
     String? target,
     required String feeling,
@@ -352,9 +364,11 @@ abstract class RustLibApi extends BaseApi {
 
   Future<bool> crateApiWikiDeleteWikiPage({required String slug});
 
-  Future<void> crateApiSyncDiscardSyncJoinStaging({required String entryId});
+  Future<void> crateApiSyncJoinDiscardSyncJoinStaging({
+    required String entryId,
+  });
 
-  Future<void> crateApiReviewReportDismissDeviation({
+  Future<void> crateApiReviewReportStoreDismissDeviation({
     required String reportId,
     required int index,
   });
@@ -367,7 +381,7 @@ abstract class RustLibApi extends BaseApi {
     required String conversationId,
   });
 
-  Future<String> crateApiSyncDownloadUpdateApk({
+  Future<String> crateApiSyncHandoffDownloadUpdateApk({
     required String relayUrl,
     required String buildHash,
     required String apkSha256,
@@ -412,7 +426,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<WikiPageDto?> crateApiTweetFindTweetSourcePage({required String url});
 
-  Future<InputRecordDto> crateApiFinishUrlInput({
+  Future<InputRecordDto> crateApiRecordsFinishUrlInput({
     required String inputId,
     String? wikiPageSlug,
     required bool failed,
@@ -423,7 +437,9 @@ abstract class RustLibApi extends BaseApi {
     required List<ContentChatMessageDto> messages,
   });
 
-  Future<DailyReviewResult> crateApiGenerateDailyReview({required String date});
+  Future<DailyReviewResult> crateApiPeriodStatsGenerateDailyReview({
+    required String date,
+  });
 
   Future<String> crateApiConversationsGenerateReply({
     required String conversationId,
@@ -436,7 +452,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<AiProviderConfigDto?> crateApiProviderConfigGetAiProviderConfig();
 
-  Future<AnalysisJobStatsDto> crateApiGetAnalysisJobStats();
+  Future<AnalysisJobStatsDto> crateApiReviewFlowGetAnalysisJobStats();
 
   Future<ChatInputQueueDto> crateApiChatRunsGetChatInputQueue({
     required String conversationId,
@@ -453,13 +469,15 @@ abstract class RustLibApi extends BaseApi {
     required String parentId,
   });
 
-  Future<CompanionPrefsDto> crateApiGetCompanionPrefs();
+  Future<CompanionPrefsDto> crateApiCompanionFlowGetCompanionPrefs();
 
   Future<ConversationDto?> crateApiConversationsGetConversation({
     required String conversationId,
   });
 
-  Future<DailyOverviewDto> crateApiGetDailyOverview({required String date});
+  Future<DailyOverviewDto> crateApiPeriodStatsGetDailyOverview({
+    required String date,
+  });
 
   Future<List<DailyTokenUsageDto>> crateApiConversationsGetDailyTokenUsage({
     required int days,
@@ -469,7 +487,7 @@ abstract class RustLibApi extends BaseApi {
     required String sourceSlug,
   });
 
-  Future<EventAnalysisDetailDto?> crateApiGetEventAnalysisDetail({
+  Future<EventAnalysisDetailDto?> crateApiReviewFlowGetEventAnalysisDetail({
     required String eventId,
   });
 
@@ -497,7 +515,7 @@ abstract class RustLibApi extends BaseApi {
     required String conversationId,
   });
 
-  Future<LocalSyncStateDto> crateApiSyncGetLocalSyncState();
+  Future<LocalSyncStateDto> crateApiSyncInviteGetLocalSyncState();
 
   Future<List<MessageDto>> crateApiConversationsGetMessageChain({
     required String messageId,
@@ -506,18 +524,19 @@ abstract class RustLibApi extends BaseApi {
   Future<List<KnowledgeCitation>>
   crateApiKnowledgeGetMessageKnowledgeCitations({required String messageId});
 
-  Future<MessageRecordabilityDto?> crateApiGetMessageRecordability({
+  Future<MessageRecordabilityDto?> crateApiReviewFlowGetMessageRecordability({
     required String messageId,
   });
 
   Future<NetworkSettingsDto> crateApiWebSearchGetNetworkSettings();
 
-  Future<PeriodStatsDto> crateApiGetPeriodStats({
+  Future<PeriodStatsDto> crateApiPeriodStatsGetPeriodStats({
     required String periodType,
     required String date,
   });
 
-  Future<ProcessorHandoffStateDto> crateApiSyncGetProcessorHandoffState();
+  Future<ProcessorHandoffStateDto>
+  crateApiSyncDatasetsGetProcessorHandoffState();
 
   Future<String> crateApiRulesGetRuleTriggerMode();
 
@@ -525,11 +544,11 @@ abstract class RustLibApi extends BaseApi {
     required String messageId,
   });
 
-  Future<SyncJoinStateDto> crateApiSyncGetSyncJoinState({
+  Future<SyncJoinStateDto> crateApiSyncJoinGetSyncJoinState({
     required String operationId,
   });
 
-  Future<SyncRosterDto> crateApiSyncGetSyncRoster();
+  Future<SyncRosterDto> crateApiSyncDatasetsGetSyncRoster();
 
   Future<ThemePrefsDto> crateApiThemeGetThemePrefs();
 
@@ -549,13 +568,12 @@ abstract class RustLibApi extends BaseApi {
 
   Future<String> crateApiTweetGuessImportKind({required String url});
 
-  Future<String> crateApiInitBridge({String? databasePath});
+  Future<String> crateApiRecordsInitBridge({String? databasePath});
 
-  Future<SyncInvitationPreviewDto?> crateApiSyncInspectOwnerSyncInvitation({
-    required String invitationId,
-  });
+  Future<SyncInvitationPreviewDto?>
+  crateApiSyncInviteInspectOwnerSyncInvitation({required String invitationId});
 
-  Future<SyncJoinStateDto> crateApiSyncInspectSyncJoinApproval({
+  Future<SyncJoinStateDto> crateApiSyncJoinInspectSyncJoinApproval({
     required String operationId,
   });
 
@@ -571,13 +589,13 @@ abstract class RustLibApi extends BaseApi {
     required String zipPath,
   });
 
-  Future<SyncJoinStateDto> crateApiSyncInstallSyncJoinKey({
+  Future<SyncJoinStateDto> crateApiSyncJoinInstallSyncJoinKey({
     required String token,
     required List<int> key,
     required PlatformInt64 protectedRevision,
   });
 
-  Future<SyncKeyCommitDto> crateApiSyncInstallSyncKey({
+  Future<SyncKeyCommitDto> crateApiSyncInviteInstallSyncKey({
     required String token,
     required List<int> key,
     required PlatformInt64 protectedRevision,
@@ -596,7 +614,7 @@ abstract class RustLibApi extends BaseApi {
   Future<List<AiProviderConfigDto>>
   crateApiProviderConfigListAiProviderConfigs();
 
-  Future<List<AnalysisDto>> crateApiListAnalyses();
+  Future<List<AnalysisDto>> crateApiReviewFlowListAnalyses();
 
   Future<List<ConversationDto>>
   crateApiConversationsListArchivedConversations();
@@ -635,9 +653,12 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<ConversationDto>> crateApiConversationsListConversations();
 
-  Future<List<DailyEntryDto>> crateApiListDailyEntries({required String date});
+  Future<List<DailyEntryDto>> crateApiRecordsListDailyEntries({
+    required String date,
+  });
 
-  Future<List<DeviationReportDto>> crateApiReviewReportListDeviationReports({
+  Future<List<DeviationReportDto>>
+  crateApiReviewReportStoreListDeviationReports({
     required String periodType,
     required int limit,
   });
@@ -652,13 +673,13 @@ abstract class RustLibApi extends BaseApi {
     required String entitySlug,
   });
 
-  Future<List<EventEmotionDto>> crateApiListEventEmotions();
+  Future<List<EventEmotionDto>> crateApiCompanionFlowListEventEmotions();
 
   Future<List<RuleHitDto>> crateApiRulesListEventRuleHits({
     required String eventId,
   });
 
-  Future<List<EventDto>> crateApiListEvents();
+  Future<List<EventDto>> crateApiReviewFlowListEvents();
 
   Future<List<KnowledgeBackgroundRunDto>>
   crateApiKnowledgeListKnowledgeBackgroundRuns();
@@ -707,9 +728,9 @@ abstract class RustLibApi extends BaseApi {
     required String conversationId,
   });
 
-  Future<List<ObjectConflictDto>> crateApiSyncListObjectConflicts();
+  Future<List<ObjectConflictDto>> crateApiSyncConflictsListObjectConflicts();
 
-  Future<List<PageGuidanceDto>> crateApiListPageGuidance({
+  Future<List<PageGuidanceDto>> crateApiCompanionFlowListPageGuidance({
     required String slug,
   });
 
@@ -721,13 +742,13 @@ abstract class RustLibApi extends BaseApi {
     required String conversationId,
   });
 
-  Future<List<SyncJoinEntryDto>> crateApiSyncListPendingSyncJoins();
+  Future<List<SyncJoinEntryDto>> crateApiSyncJoinListPendingSyncJoins();
 
   Future<List<ChatRuleHitDto>> crateApiRulesListRecentChatRuleHits({
     required PlatformInt64 limit,
   });
 
-  Future<List<EventSummaryDto>> crateApiListRecentEvents({
+  Future<List<EventSummaryDto>> crateApiReviewFlowListRecentEvents({
     required PlatformInt64 days,
     required PlatformInt64 limit,
   });
@@ -747,11 +768,12 @@ abstract class RustLibApi extends BaseApi {
   Future<List<RuleDto>> crateApiRulesListRules();
 
   Future<(List<SyncDatasetEntryDto>, PlatformInt64)>
-  crateApiSyncListSyncDatasets();
+  crateApiSyncDatasetsListSyncDatasets();
 
-  Future<List<SyncEnrollmentStateDto>> crateApiSyncListSyncEnrollments();
+  Future<List<SyncEnrollmentStateDto>> crateApiSyncJoinListSyncEnrollments();
 
-  Future<List<ProviderSyncConflictDto>> crateApiSyncListSyncProviderConflicts();
+  Future<List<ProviderSyncConflictDto>>
+  crateApiSyncDatasetsListSyncProviderConflicts();
 
   Future<List<SystemFontFace>> crateApiFontsListSystemFonts();
 
@@ -769,7 +791,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<UserSkillDto>> crateApiUserSkillsListUserSkills();
 
-  Future<List<WikiPageConflictDto>> crateApiSyncListWikiPageConflicts();
+  Future<List<WikiPageConflictDto>>
+  crateApiSyncConflictsListWikiPageConflicts();
 
   Future<List<WikiPageDto>> crateApiWikiListWikiPageDerivatives({
     required String slug,
@@ -784,9 +807,9 @@ abstract class RustLibApi extends BaseApi {
     String? area,
   });
 
-  Future<LocalSyncStateDto> crateApiSyncLockLocalSync();
+  Future<LocalSyncStateDto> crateApiSyncInviteLockLocalSync();
 
-  Future<void> crateApiReviewReportMarkDeviationReportRead({
+  Future<void> crateApiReviewReportStoreMarkDeviationReportRead({
     required String id,
   });
 
@@ -818,18 +841,18 @@ abstract class RustLibApi extends BaseApi {
     required List<String> snapshotIds,
   });
 
-  Future<SyncJoinStateDto> crateApiSyncPrepareSyncJoinKey({
+  Future<SyncJoinStateDto> crateApiSyncJoinPrepareSyncJoinKey({
     required String previewToken,
     required String name,
     required String platform,
     required bool acknowledgeProviderKeySharing,
   });
 
-  Future<SyncJoinStateDto> crateApiSyncPrepareSyncJoinResume({
+  Future<SyncJoinStateDto> crateApiSyncJoinPrepareSyncJoinResume({
     required String entryId,
   });
 
-  Future<SyncKeyRequestDto> crateApiSyncPrepareSyncKeyRequest({
+  Future<SyncKeyRequestDto> crateApiSyncInvitePrepareSyncKeyRequest({
     String? name,
     String? platform,
     required bool acknowledgeProviderKeySharing,
@@ -845,7 +868,7 @@ abstract class RustLibApi extends BaseApi {
     required String contentMd,
   });
 
-  Future<SyncJoinStateDto> crateApiSyncPreviewSyncJoin({
+  Future<SyncJoinStateDto> crateApiSyncJoinPreviewSyncJoin({
     required String invitationCode,
   });
 
@@ -861,19 +884,19 @@ abstract class RustLibApi extends BaseApi {
     String? revisionId,
   });
 
-  Future<bool> crateApiReanalyzeEvent({required String eventId});
+  Future<bool> crateApiReviewFlowReanalyzeEvent({required String eventId});
 
   Future<String> crateApiKnowledgeReconsolidateKnowledgePage({
     required String slug,
   });
 
-  Future<EventDto> crateApiRecordEvent({required String rawText});
+  Future<EventDto> crateApiRecordsRecordEvent({required String rawText});
 
   Future<WikiPageDto> crateApiWikiRefreshProjectPage({required String slug});
 
-  Future<bool> crateApiSyncReleaseSyncJoin({required String operationId});
+  Future<bool> crateApiSyncJoinReleaseSyncJoin({required String operationId});
 
-  Future<bool> crateApiSyncReleaseSyncKeyRequest({required String token});
+  Future<bool> crateApiSyncInviteReleaseSyncKeyRequest({required String token});
 
   Future<void> crateApiKnowledgeRemoveKnowledgeRelation({
     required String slug,
@@ -885,7 +908,7 @@ abstract class RustLibApi extends BaseApi {
     required String title,
   });
 
-  Future<PlatformInt64> crateApiSyncRenameSyncDevice({
+  Future<PlatformInt64> crateApiSyncDatasetsRenameSyncDevice({
     required String deviceId,
     required String newName,
     required PlatformInt64 expectedVaultRevision,
@@ -909,13 +932,13 @@ abstract class RustLibApi extends BaseApi {
     required bool accept,
   });
 
-  Future<void> crateApiSyncResolveObjectConflict({
+  Future<void> crateApiSyncConflictsResolveObjectConflict({
     required String opId,
     String? expectedLocalUpdatedAt,
     required bool acceptRemote,
   });
 
-  Future<void> crateApiSyncResolveSyncProviderConflict({
+  Future<void> crateApiSyncDatasetsResolveSyncProviderConflict({
     required String revisionId,
     required String expectedLocalRevision,
     required String expectedRemoteRevision,
@@ -927,7 +950,7 @@ abstract class RustLibApi extends BaseApi {
     required bool accept,
   });
 
-  Future<void> crateApiSyncResolveWikiPageConflict({
+  Future<void> crateApiSyncConflictsResolveWikiPageConflict({
     required String opId,
     String? expectedLocalUpdatedAt,
     required bool acceptRemote,
@@ -937,7 +960,7 @@ abstract class RustLibApi extends BaseApi {
     required String conversationId,
   });
 
-  Future<void> crateApiSyncRevokeSyncMember({
+  Future<void> crateApiSyncDatasetsRevokeSyncMember({
     required String deviceId,
     required PlatformInt64 expectedRevision,
   });
@@ -946,7 +969,7 @@ abstract class RustLibApi extends BaseApi {
     required AiProviderConfigDto provider,
   });
 
-  Future<String> crateApiSaveDailyReview({
+  Future<String> crateApiPeriodStatsSaveDailyReview({
     required String date,
     required String resultJson,
     required String promptVersion,
@@ -1025,11 +1048,11 @@ abstract class RustLibApi extends BaseApi {
     required String inputMessageId,
   });
 
-  Future<void> crateApiSyncSelectDefaultSyncDataset({
+  Future<void> crateApiSyncDatasetsSelectDefaultSyncDataset({
     required PlatformInt64 expectedCatalogRevision,
   });
 
-  Future<void> crateApiSyncSelectSyncDataset({required String entryId});
+  Future<void> crateApiSyncDatasetsSelectSyncDataset({required String entryId});
 
   Future<MessageDto> crateApiConversationsSendMessage({
     required String conversationId,
@@ -1038,15 +1061,15 @@ abstract class RustLibApi extends BaseApi {
     String? parentMessageId,
   });
 
-  Future<void> crateApiSyncSendOwnerSyncApproval({
+  Future<void> crateApiSyncInviteSendOwnerSyncApproval({
     required String invitationId,
   });
 
-  Future<SyncJoinStateDto> crateApiSyncSendSyncJoinProof({
+  Future<SyncJoinStateDto> crateApiSyncJoinSendSyncJoinProof({
     required String operationId,
   });
 
-  Future<SyncJoinStateDto> crateApiSyncSendSyncJoinRequest({
+  Future<SyncJoinStateDto> crateApiSyncJoinSendSyncJoinRequest({
     required String operationId,
   });
 
@@ -1055,7 +1078,7 @@ abstract class RustLibApi extends BaseApi {
     String? revisionToken,
   });
 
-  Future<void> crateApiSetCompanionPrefs({
+  Future<void> crateApiCompanionFlowSetCompanionPrefs({
     required bool enabled,
     required PlatformInt64 intervalDays,
   });
@@ -1065,12 +1088,12 @@ abstract class RustLibApi extends BaseApi {
     required bool archived,
   });
 
-  Future<MessageRecordabilityDto> crateApiSetEventRecordability({
+  Future<MessageRecordabilityDto> crateApiReviewFlowSetEventRecordability({
     required String eventId,
     required bool recordable,
   });
 
-  Future<bool> crateApiSetGuidanceFeedback({
+  Future<bool> crateApiCompanionFlowSetGuidanceFeedback({
     required String analysisId,
     required String slug,
     String? note,
@@ -1149,13 +1172,13 @@ abstract class RustLibApi extends BaseApi {
     required String idempotencyKey,
   });
 
-  Future<InputRecordDto> crateApiSubmitConversationInput({
+  Future<InputRecordDto> crateApiRecordsSubmitConversationInput({
     required String conversationId,
     required String rawText,
     String? idempotencyKey,
   });
 
-  Future<InputRecordDto> crateApiSubmitInput({
+  Future<InputRecordDto> crateApiRecordsSubmitInput({
     required String rawText,
     required String source,
     String? idempotencyKey,
@@ -1180,7 +1203,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<PlatformInt64> crateApiKnowledgeTickKnowledgeInsights();
 
-  Future<PeriodReportTickResult> crateApiReviewReportTickPeriodicReports();
+  Future<PeriodReportTickResult>
+  crateApiReviewReportDetectTickPeriodicReports();
 
   Future<List<TopicOrganizationPreview>>
   crateApiKnowledgeWorkflowsTopicOrganizationHistory({
@@ -1188,12 +1212,12 @@ abstract class RustLibApi extends BaseApi {
     required PlatformInt64 offset,
   });
 
-  Future<AnalysisTriggerResult> crateApiTriggerAnalysis();
+  Future<AnalysisTriggerResult> crateApiReviewFlowTriggerAnalysis();
 
   Future<KnowledgeDigestTickResult>
   crateApiKnowledgeDigestTriggerKnowledgeDigest();
 
-  Future<SyncTickResultDto> crateApiSyncTriggerNetworkSync();
+  Future<SyncTickResultDto> crateApiSyncJoinTriggerNetworkSync();
 
   Future<bool> crateApiEntitiesUndoEntityMerge({required String sourceSlug});
 
@@ -1273,7 +1297,7 @@ abstract class RustLibApi extends BaseApi {
     required PlatformInt64 queueId,
   });
 
-  Future<ProcessingYieldProofDto> crateApiSyncYieldSyncProcessor({
+  Future<ProcessingYieldProofDto> crateApiSyncDatasetsYieldSyncProcessor({
     required String toDeviceId,
   });
 }
@@ -1505,7 +1529,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<SyncEnrollmentStateDto> crateApiSyncAdvanceSyncEnrollment({
+  Future<SyncEnrollmentStateDto> crateApiSyncJoinAdvanceSyncEnrollment({
     required String role,
     required String operationId,
     required String invitationId,
@@ -1516,7 +1540,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(role);
           var arg1 = cst_encode_String(operationId);
           var arg2 = cst_encode_String(invitationId);
-          return wire.wire__crate__api__sync__advance_sync_enrollment(
+          return wire.wire__crate__api__sync__join__advance_sync_enrollment(
             port_,
             arg0,
             arg1,
@@ -1527,14 +1551,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_sync_enrollment_state_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncAdvanceSyncEnrollmentConstMeta,
+        constMeta: kCrateApiSyncJoinAdvanceSyncEnrollmentConstMeta,
         argValues: [role, operationId, invitationId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncAdvanceSyncEnrollmentConstMeta =>
+  TaskConstMeta get kCrateApiSyncJoinAdvanceSyncEnrollmentConstMeta =>
       const TaskConstMeta(
         debugName: "advance_sync_enrollment",
         argNames: ["role", "operationId", "invitationId"],
@@ -1577,7 +1601,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<SyncKeyCommitDto> crateApiSyncApproveOwnerSyncInvitation({
+  Future<SyncKeyCommitDto> crateApiSyncInviteApproveOwnerSyncInvitation({
     required String invitationId,
     required String previewToken,
     required bool acknowledgeProviderKeySharing,
@@ -1588,25 +1612,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(invitationId);
           var arg1 = cst_encode_String(previewToken);
           var arg2 = cst_encode_bool(acknowledgeProviderKeySharing);
-          return wire.wire__crate__api__sync__approve_owner_sync_invitation(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-          );
+          return wire
+              .wire__crate__api__sync__invite__approve_owner_sync_invitation(
+                port_,
+                arg0,
+                arg1,
+                arg2,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_sync_key_commit_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncApproveOwnerSyncInvitationConstMeta,
+        constMeta: kCrateApiSyncInviteApproveOwnerSyncInvitationConstMeta,
         argValues: [invitationId, previewToken, acknowledgeProviderKeySharing],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncApproveOwnerSyncInvitationConstMeta =>
+  TaskConstMeta get kCrateApiSyncInviteApproveOwnerSyncInvitationConstMeta =>
       const TaskConstMeta(
         debugName: "approve_owner_sync_invitation",
         argNames: [
@@ -1617,30 +1642,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiSyncApproveProcessorHandoff({
+  Future<void> crateApiSyncDatasetsApproveProcessorHandoff({
     required ProcessingYieldProofDto proof,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_box_autoadd_processing_yield_proof_dto(proof);
-          return wire.wire__crate__api__sync__approve_processor_handoff(
-            port_,
-            arg0,
-          );
+          return wire
+              .wire__crate__api__sync__datasets__approve_processor_handoff(
+                port_,
+                arg0,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncApproveProcessorHandoffConstMeta,
+        constMeta: kCrateApiSyncDatasetsApproveProcessorHandoffConstMeta,
         argValues: [proof],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncApproveProcessorHandoffConstMeta =>
+  TaskConstMeta get kCrateApiSyncDatasetsApproveProcessorHandoffConstMeta =>
       const TaskConstMeta(
         debugName: "approve_processor_handoff",
         argNames: ["proof"],
@@ -1724,7 +1750,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "assess_base_url", argNames: ["baseUrl"]);
 
   @override
-  Future<InputRecordDto> crateApiBeginUrlInput({
+  Future<InputRecordDto> crateApiRecordsBeginUrlInput({
     required String rawText,
     String? idempotencyKey,
   }) {
@@ -1733,23 +1759,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(rawText);
           var arg1 = cst_encode_opt_String(idempotencyKey);
-          return wire.wire__crate__api__begin_url_input(port_, arg0, arg1);
+          return wire.wire__crate__api__records__begin_url_input(
+            port_,
+            arg0,
+            arg1,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_input_record_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiBeginUrlInputConstMeta,
+        constMeta: kCrateApiRecordsBeginUrlInputConstMeta,
         argValues: [rawText, idempotencyKey],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiBeginUrlInputConstMeta => const TaskConstMeta(
-    debugName: "begin_url_input",
-    argNames: ["rawText", "idempotencyKey"],
-  );
+  TaskConstMeta get kCrateApiRecordsBeginUrlInputConstMeta =>
+      const TaskConstMeta(
+        debugName: "begin_url_input",
+        argNames: ["rawText", "idempotencyKey"],
+      );
 
   @override
   Future<LibraryPage> crateApiKnowledgeWorkflowsBrowseKnowledge({
@@ -1797,45 +1828,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<String> crateApiBuildHash() {
+  Future<String> crateApiReviewFlowBuildHash() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__build_hash(port_);
+          return wire.wire__crate__api__review_flow__build_hash(port_);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_String,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiBuildHashConstMeta,
+        constMeta: kCrateApiReviewFlowBuildHashConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiBuildHashConstMeta =>
+  TaskConstMeta get kCrateApiReviewFlowBuildHashConstMeta =>
       const TaskConstMeta(debugName: "build_hash", argNames: []);
 
   @override
-  Future<PlatformInt64> crateApiSyncBuildSeq() {
+  Future<PlatformInt64> crateApiSyncHandoffBuildSeq() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__sync__build_seq(port_);
+          return wire.wire__crate__api__sync__handoff__build_seq(port_);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_i_64,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiSyncBuildSeqConstMeta,
+        constMeta: kCrateApiSyncHandoffBuildSeqConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncBuildSeqConstMeta =>
+  TaskConstMeta get kCrateApiSyncHandoffBuildSeqConstMeta =>
       const TaskConstMeta(debugName: "build_seq", argNames: []);
 
   @override
@@ -1872,78 +1903,87 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiSyncCancelOwnerSyncInvitation({
+  Future<void> crateApiSyncInviteCancelOwnerSyncInvitation({
     required String invitationId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(invitationId);
-          return wire.wire__crate__api__sync__cancel_owner_sync_invitation(
-            port_,
-            arg0,
-          );
+          return wire
+              .wire__crate__api__sync__invite__cancel_owner_sync_invitation(
+                port_,
+                arg0,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncCancelOwnerSyncInvitationConstMeta,
+        constMeta: kCrateApiSyncInviteCancelOwnerSyncInvitationConstMeta,
         argValues: [invitationId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncCancelOwnerSyncInvitationConstMeta =>
+  TaskConstMeta get kCrateApiSyncInviteCancelOwnerSyncInvitationConstMeta =>
       const TaskConstMeta(
         debugName: "cancel_owner_sync_invitation",
         argNames: ["invitationId"],
       );
 
   @override
-  Future<AppUpdateDto> crateApiSyncCheckAppUpdate({required String relayUrl}) {
+  Future<AppUpdateDto> crateApiSyncHandoffCheckAppUpdate({
+    required String relayUrl,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(relayUrl);
-          return wire.wire__crate__api__sync__check_app_update(port_, arg0);
+          return wire.wire__crate__api__sync__handoff__check_app_update(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_app_update_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncCheckAppUpdateConstMeta,
+        constMeta: kCrateApiSyncHandoffCheckAppUpdateConstMeta,
         argValues: [relayUrl],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncCheckAppUpdateConstMeta => const TaskConstMeta(
-    debugName: "check_app_update",
-    argNames: ["relayUrl"],
-  );
+  TaskConstMeta get kCrateApiSyncHandoffCheckAppUpdateConstMeta =>
+      const TaskConstMeta(
+        debugName: "check_app_update",
+        argNames: ["relayUrl"],
+      );
 
   @override
-  Future<CompanionRevisitDto?> crateApiCheckCompanionRevisit() {
+  Future<CompanionRevisitDto?> crateApiCompanionFlowCheckCompanionRevisit() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__check_companion_revisit(port_);
+          return wire.wire__crate__api__companion_flow__check_companion_revisit(
+            port_,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_opt_box_autoadd_companion_revisit_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiCheckCompanionRevisitConstMeta,
+        constMeta: kCrateApiCompanionFlowCheckCompanionRevisitConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiCheckCompanionRevisitConstMeta =>
+  TaskConstMeta get kCrateApiCompanionFlowCheckCompanionRevisitConstMeta =>
       const TaskConstMeta(debugName: "check_companion_revisit", argNames: []);
 
   @override
@@ -2083,24 +2123,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiSyncConfirmProcessorTakeover() {
+  Future<void> crateApiSyncDatasetsConfirmProcessorTakeover() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__sync__confirm_processor_takeover(port_);
+          return wire
+              .wire__crate__api__sync__datasets__confirm_processor_takeover(
+                port_,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncConfirmProcessorTakeoverConstMeta,
+        constMeta: kCrateApiSyncDatasetsConfirmProcessorTakeoverConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncConfirmProcessorTakeoverConstMeta =>
+  TaskConstMeta get kCrateApiSyncDatasetsConfirmProcessorTakeoverConstMeta =>
       const TaskConstMeta(
         debugName: "confirm_processor_takeover",
         argNames: [],
@@ -2140,7 +2183,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<SyncEnrollmentStateDto> crateApiSyncConfirmSyncEnrollment({
+  Future<SyncEnrollmentStateDto> crateApiSyncJoinConfirmSyncEnrollment({
     required String role,
     required String operationId,
     required String invitationId,
@@ -2155,7 +2198,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg2 = cst_encode_String(invitationId);
           var arg3 = cst_encode_String(token);
           var arg4 = cst_encode_i_64(protectedRevision);
-          return wire.wire__crate__api__sync__confirm_sync_enrollment(
+          return wire.wire__crate__api__sync__join__confirm_sync_enrollment(
             port_,
             arg0,
             arg1,
@@ -2168,14 +2211,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_sync_enrollment_state_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncConfirmSyncEnrollmentConstMeta,
+        constMeta: kCrateApiSyncJoinConfirmSyncEnrollmentConstMeta,
         argValues: [role, operationId, invitationId, token, protectedRevision],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncConfirmSyncEnrollmentConstMeta =>
+  TaskConstMeta get kCrateApiSyncJoinConfirmSyncEnrollmentConstMeta =>
       const TaskConstMeta(
         debugName: "confirm_sync_enrollment",
         argNames: [
@@ -2188,7 +2231,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<SyncJoinStateDto> crateApiSyncConfirmSyncJoinKey({
+  Future<SyncJoinStateDto> crateApiSyncJoinConfirmSyncJoinKey({
     required String token,
     required PlatformInt64 protectedRevision,
   }) {
@@ -2197,7 +2240,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(token);
           var arg1 = cst_encode_i_64(protectedRevision);
-          return wire.wire__crate__api__sync__confirm_sync_join_key(
+          return wire.wire__crate__api__sync__join__confirm_sync_join_key(
             port_,
             arg0,
             arg1,
@@ -2207,21 +2250,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_sync_join_state_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncConfirmSyncJoinKeyConstMeta,
+        constMeta: kCrateApiSyncJoinConfirmSyncJoinKeyConstMeta,
         argValues: [token, protectedRevision],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncConfirmSyncJoinKeyConstMeta =>
+  TaskConstMeta get kCrateApiSyncJoinConfirmSyncJoinKeyConstMeta =>
       const TaskConstMeta(
         debugName: "confirm_sync_join_key",
         argNames: ["token", "protectedRevision"],
       );
 
   @override
-  Future<LocalSyncStateDto> crateApiSyncConfirmSyncKey({
+  Future<LocalSyncStateDto> crateApiSyncInviteConfirmSyncKey({
     required String token,
     required PlatformInt64 protectedRevision,
   }) {
@@ -2230,7 +2273,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(token);
           var arg1 = cst_encode_i_64(protectedRevision);
-          return wire.wire__crate__api__sync__confirm_sync_key(
+          return wire.wire__crate__api__sync__invite__confirm_sync_key(
             port_,
             arg0,
             arg1,
@@ -2240,17 +2283,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_local_sync_state_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncConfirmSyncKeyConstMeta,
+        constMeta: kCrateApiSyncInviteConfirmSyncKeyConstMeta,
         argValues: [token, protectedRevision],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncConfirmSyncKeyConstMeta => const TaskConstMeta(
-    debugName: "confirm_sync_key",
-    argNames: ["token", "protectedRevision"],
-  );
+  TaskConstMeta get kCrateApiSyncInviteConfirmSyncKeyConstMeta =>
+      const TaskConstMeta(
+        debugName: "confirm_sync_key",
+        argNames: ["token", "protectedRevision"],
+      );
 
   @override
   Future<WikiPageDto> crateApiKnowledgeWorkflowsCreateArtifactFromMessage({
@@ -2356,7 +2400,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  Future<SyncInvitationOfferDto> crateApiSyncCreateOwnerSyncInvitation({
+  Future<SyncInvitationOfferDto> crateApiSyncInviteCreateOwnerSyncInvitation({
     required String relayUrl,
     required bool acknowledgeProviderKeySharing,
   }) {
@@ -2365,24 +2409,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(relayUrl);
           var arg1 = cst_encode_bool(acknowledgeProviderKeySharing);
-          return wire.wire__crate__api__sync__create_owner_sync_invitation(
-            port_,
-            arg0,
-            arg1,
-          );
+          return wire
+              .wire__crate__api__sync__invite__create_owner_sync_invitation(
+                port_,
+                arg0,
+                arg1,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_sync_invitation_offer_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncCreateOwnerSyncInvitationConstMeta,
+        constMeta: kCrateApiSyncInviteCreateOwnerSyncInvitationConstMeta,
         argValues: [relayUrl, acknowledgeProviderKeySharing],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncCreateOwnerSyncInvitationConstMeta =>
+  TaskConstMeta get kCrateApiSyncInviteCreateOwnerSyncInvitationConstMeta =>
       const TaskConstMeta(
         debugName: "create_owner_sync_invitation",
         argNames: ["relayUrl", "acknowledgeProviderKeySharing"],
@@ -2771,7 +2816,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "delete_entity_fact", argNames: ["id"]);
 
   @override
-  Future<void> crateApiDeleteEventEmotion({
+  Future<void> crateApiCompanionFlowDeleteEventEmotion({
     required String id,
     String? target,
     required String feeling,
@@ -2782,7 +2827,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(id);
           var arg1 = cst_encode_opt_String(target);
           var arg2 = cst_encode_String(feeling);
-          return wire.wire__crate__api__delete_event_emotion(
+          return wire.wire__crate__api__companion_flow__delete_event_emotion(
             port_,
             arg0,
             arg1,
@@ -2793,17 +2838,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiDeleteEventEmotionConstMeta,
+        constMeta: kCrateApiCompanionFlowDeleteEventEmotionConstMeta,
         argValues: [id, target, feeling],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiDeleteEventEmotionConstMeta => const TaskConstMeta(
-    debugName: "delete_event_emotion",
-    argNames: ["id", "target", "feeling"],
-  );
+  TaskConstMeta get kCrateApiCompanionFlowDeleteEventEmotionConstMeta =>
+      const TaskConstMeta(
+        debugName: "delete_event_emotion",
+        argNames: ["id", "target", "feeling"],
+      );
 
   @override
   Future<void> crateApiMcpDeleteMcpServer({required String id}) {
@@ -2916,12 +2962,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "delete_wiki_page", argNames: ["slug"]);
 
   @override
-  Future<void> crateApiSyncDiscardSyncJoinStaging({required String entryId}) {
+  Future<void> crateApiSyncJoinDiscardSyncJoinStaging({
+    required String entryId,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(entryId);
-          return wire.wire__crate__api__sync__discard_sync_join_staging(
+          return wire.wire__crate__api__sync__join__discard_sync_join_staging(
             port_,
             arg0,
           );
@@ -2930,21 +2978,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncDiscardSyncJoinStagingConstMeta,
+        constMeta: kCrateApiSyncJoinDiscardSyncJoinStagingConstMeta,
         argValues: [entryId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncDiscardSyncJoinStagingConstMeta =>
+  TaskConstMeta get kCrateApiSyncJoinDiscardSyncJoinStagingConstMeta =>
       const TaskConstMeta(
         debugName: "discard_sync_join_staging",
         argNames: ["entryId"],
       );
 
   @override
-  Future<void> crateApiReviewReportDismissDeviation({
+  Future<void> crateApiReviewReportStoreDismissDeviation({
     required String reportId,
     required int index,
   }) {
@@ -2953,7 +3001,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(reportId);
           var arg1 = cst_encode_i_32(index);
-          return wire.wire__crate__api__review_report__dismiss_deviation(
+          return wire.wire__crate__api__review_report__store__dismiss_deviation(
             port_,
             arg0,
             arg1,
@@ -2963,14 +3011,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiReviewReportDismissDeviationConstMeta,
+        constMeta: kCrateApiReviewReportStoreDismissDeviationConstMeta,
         argValues: [reportId, index],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiReviewReportDismissDeviationConstMeta =>
+  TaskConstMeta get kCrateApiReviewReportStoreDismissDeviationConstMeta =>
       const TaskConstMeta(
         debugName: "dismiss_deviation",
         argNames: ["reportId", "index"],
@@ -3037,7 +3085,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<String> crateApiSyncDownloadUpdateApk({
+  Future<String> crateApiSyncHandoffDownloadUpdateApk({
     required String relayUrl,
     required String buildHash,
     required String apkSha256,
@@ -3052,7 +3100,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg2 = cst_encode_String(apkSha256);
           var arg3 = cst_encode_i_64(apkSize);
           var arg4 = cst_encode_String(destDir);
-          return wire.wire__crate__api__sync__download_update_apk(
+          return wire.wire__crate__api__sync__handoff__download_update_apk(
             port_,
             arg0,
             arg1,
@@ -3065,14 +3113,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_String,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncDownloadUpdateApkConstMeta,
+        constMeta: kCrateApiSyncHandoffDownloadUpdateApkConstMeta,
         argValues: [relayUrl, buildHash, apkSha256, apkSize, destDir],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncDownloadUpdateApkConstMeta =>
+  TaskConstMeta get kCrateApiSyncHandoffDownloadUpdateApkConstMeta =>
       const TaskConstMeta(
         debugName: "download_update_apk",
         argNames: ["relayUrl", "buildHash", "apkSha256", "apkSize", "destDir"],
@@ -3367,7 +3415,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<InputRecordDto> crateApiFinishUrlInput({
+  Future<InputRecordDto> crateApiRecordsFinishUrlInput({
     required String inputId,
     String? wikiPageSlug,
     required bool failed,
@@ -3378,7 +3426,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(inputId);
           var arg1 = cst_encode_opt_String(wikiPageSlug);
           var arg2 = cst_encode_bool(failed);
-          return wire.wire__crate__api__finish_url_input(
+          return wire.wire__crate__api__records__finish_url_input(
             port_,
             arg0,
             arg1,
@@ -3389,17 +3437,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_input_record_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiFinishUrlInputConstMeta,
+        constMeta: kCrateApiRecordsFinishUrlInputConstMeta,
         argValues: [inputId, wikiPageSlug, failed],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiFinishUrlInputConstMeta => const TaskConstMeta(
-    debugName: "finish_url_input",
-    argNames: ["inputId", "wikiPageSlug", "failed"],
-  );
+  TaskConstMeta get kCrateApiRecordsFinishUrlInputConstMeta =>
+      const TaskConstMeta(
+        debugName: "finish_url_input",
+        argNames: ["inputId", "wikiPageSlug", "failed"],
+      );
 
   @override
   Future<String> crateApiTweetGenerateContentChat({
@@ -3435,27 +3484,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<DailyReviewResult> crateApiGenerateDailyReview({
+  Future<DailyReviewResult> crateApiPeriodStatsGenerateDailyReview({
     required String date,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(date);
-          return wire.wire__crate__api__generate_daily_review(port_, arg0);
+          return wire.wire__crate__api__period_stats__generate_daily_review(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_daily_review_result,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGenerateDailyReviewConstMeta,
+        constMeta: kCrateApiPeriodStatsGenerateDailyReviewConstMeta,
         argValues: [date],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGenerateDailyReviewConstMeta =>
+  TaskConstMeta get kCrateApiPeriodStatsGenerateDailyReviewConstMeta =>
       const TaskConstMeta(
         debugName: "generate_daily_review",
         argNames: ["date"],
@@ -3550,24 +3602,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "get_ai_provider_config", argNames: []);
 
   @override
-  Future<AnalysisJobStatsDto> crateApiGetAnalysisJobStats() {
+  Future<AnalysisJobStatsDto> crateApiReviewFlowGetAnalysisJobStats() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__get_analysis_job_stats(port_);
+          return wire.wire__crate__api__review_flow__get_analysis_job_stats(
+            port_,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_analysis_job_stats_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGetAnalysisJobStatsConstMeta,
+        constMeta: kCrateApiReviewFlowGetAnalysisJobStatsConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGetAnalysisJobStatsConstMeta =>
+  TaskConstMeta get kCrateApiReviewFlowGetAnalysisJobStatsConstMeta =>
       const TaskConstMeta(debugName: "get_analysis_job_stats", argNames: []);
 
   @override
@@ -3669,24 +3723,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<CompanionPrefsDto> crateApiGetCompanionPrefs() {
+  Future<CompanionPrefsDto> crateApiCompanionFlowGetCompanionPrefs() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__get_companion_prefs(port_);
+          return wire.wire__crate__api__companion_flow__get_companion_prefs(
+            port_,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_companion_prefs_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGetCompanionPrefsConstMeta,
+        constMeta: kCrateApiCompanionFlowGetCompanionPrefsConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGetCompanionPrefsConstMeta =>
+  TaskConstMeta get kCrateApiCompanionFlowGetCompanionPrefsConstMeta =>
       const TaskConstMeta(debugName: "get_companion_prefs", argNames: []);
 
   @override
@@ -3720,25 +3776,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<DailyOverviewDto> crateApiGetDailyOverview({required String date}) {
+  Future<DailyOverviewDto> crateApiPeriodStatsGetDailyOverview({
+    required String date,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(date);
-          return wire.wire__crate__api__get_daily_overview(port_, arg0);
+          return wire.wire__crate__api__period_stats__get_daily_overview(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_daily_overview_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGetDailyOverviewConstMeta,
+        constMeta: kCrateApiPeriodStatsGetDailyOverviewConstMeta,
         argValues: [date],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGetDailyOverviewConstMeta =>
+  TaskConstMeta get kCrateApiPeriodStatsGetDailyOverviewConstMeta =>
       const TaskConstMeta(debugName: "get_daily_overview", argNames: ["date"]);
 
   @override
@@ -3802,28 +3863,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<EventAnalysisDetailDto?> crateApiGetEventAnalysisDetail({
+  Future<EventAnalysisDetailDto?> crateApiReviewFlowGetEventAnalysisDetail({
     required String eventId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(eventId);
-          return wire.wire__crate__api__get_event_analysis_detail(port_, arg0);
+          return wire.wire__crate__api__review_flow__get_event_analysis_detail(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData:
               dco_decode_opt_box_autoadd_event_analysis_detail_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGetEventAnalysisDetailConstMeta,
+        constMeta: kCrateApiReviewFlowGetEventAnalysisDetailConstMeta,
         argValues: [eventId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGetEventAnalysisDetailConstMeta =>
+  TaskConstMeta get kCrateApiReviewFlowGetEventAnalysisDetailConstMeta =>
       const TaskConstMeta(
         debugName: "get_event_analysis_detail",
         argNames: ["eventId"],
@@ -4012,24 +4076,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<LocalSyncStateDto> crateApiSyncGetLocalSyncState() {
+  Future<LocalSyncStateDto> crateApiSyncInviteGetLocalSyncState() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__sync__get_local_sync_state(port_);
+          return wire.wire__crate__api__sync__invite__get_local_sync_state(
+            port_,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_local_sync_state_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncGetLocalSyncStateConstMeta,
+        constMeta: kCrateApiSyncInviteGetLocalSyncStateConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncGetLocalSyncStateConstMeta =>
+  TaskConstMeta get kCrateApiSyncInviteGetLocalSyncStateConstMeta =>
       const TaskConstMeta(debugName: "get_local_sync_state", argNames: []);
 
   @override
@@ -4093,28 +4159,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<MessageRecordabilityDto?> crateApiGetMessageRecordability({
+  Future<MessageRecordabilityDto?> crateApiReviewFlowGetMessageRecordability({
     required String messageId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(messageId);
-          return wire.wire__crate__api__get_message_recordability(port_, arg0);
+          return wire.wire__crate__api__review_flow__get_message_recordability(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData:
               dco_decode_opt_box_autoadd_message_recordability_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGetMessageRecordabilityConstMeta,
+        constMeta: kCrateApiReviewFlowGetMessageRecordabilityConstMeta,
         argValues: [messageId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGetMessageRecordabilityConstMeta =>
+  TaskConstMeta get kCrateApiReviewFlowGetMessageRecordabilityConstMeta =>
       const TaskConstMeta(
         debugName: "get_message_recordability",
         argNames: ["messageId"],
@@ -4142,7 +4211,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "get_network_settings", argNames: []);
 
   @override
-  Future<PeriodStatsDto> crateApiGetPeriodStats({
+  Future<PeriodStatsDto> crateApiPeriodStatsGetPeriodStats({
     required String periodType,
     required String date,
   }) {
@@ -4151,45 +4220,52 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(periodType);
           var arg1 = cst_encode_String(date);
-          return wire.wire__crate__api__get_period_stats(port_, arg0, arg1);
+          return wire.wire__crate__api__period_stats__get_period_stats(
+            port_,
+            arg0,
+            arg1,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_period_stats_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiGetPeriodStatsConstMeta,
+        constMeta: kCrateApiPeriodStatsGetPeriodStatsConstMeta,
         argValues: [periodType, date],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiGetPeriodStatsConstMeta => const TaskConstMeta(
-    debugName: "get_period_stats",
-    argNames: ["periodType", "date"],
-  );
+  TaskConstMeta get kCrateApiPeriodStatsGetPeriodStatsConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_period_stats",
+        argNames: ["periodType", "date"],
+      );
 
   @override
-  Future<ProcessorHandoffStateDto> crateApiSyncGetProcessorHandoffState() {
+  Future<ProcessorHandoffStateDto>
+  crateApiSyncDatasetsGetProcessorHandoffState() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__sync__get_processor_handoff_state(
-            port_,
-          );
+          return wire
+              .wire__crate__api__sync__datasets__get_processor_handoff_state(
+                port_,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_processor_handoff_state_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncGetProcessorHandoffStateConstMeta,
+        constMeta: kCrateApiSyncDatasetsGetProcessorHandoffStateConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncGetProcessorHandoffStateConstMeta =>
+  TaskConstMeta get kCrateApiSyncDatasetsGetProcessorHandoffStateConstMeta =>
       const TaskConstMeta(
         debugName: "get_processor_handoff_state",
         argNames: [],
@@ -4248,51 +4324,54 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<SyncJoinStateDto> crateApiSyncGetSyncJoinState({
+  Future<SyncJoinStateDto> crateApiSyncJoinGetSyncJoinState({
     required String operationId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(operationId);
-          return wire.wire__crate__api__sync__get_sync_join_state(port_, arg0);
+          return wire.wire__crate__api__sync__join__get_sync_join_state(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_sync_join_state_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncGetSyncJoinStateConstMeta,
+        constMeta: kCrateApiSyncJoinGetSyncJoinStateConstMeta,
         argValues: [operationId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncGetSyncJoinStateConstMeta =>
+  TaskConstMeta get kCrateApiSyncJoinGetSyncJoinStateConstMeta =>
       const TaskConstMeta(
         debugName: "get_sync_join_state",
         argNames: ["operationId"],
       );
 
   @override
-  Future<SyncRosterDto> crateApiSyncGetSyncRoster() {
+  Future<SyncRosterDto> crateApiSyncDatasetsGetSyncRoster() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__sync__get_sync_roster(port_);
+          return wire.wire__crate__api__sync__datasets__get_sync_roster(port_);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_sync_roster_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncGetSyncRosterConstMeta,
+        constMeta: kCrateApiSyncDatasetsGetSyncRosterConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncGetSyncRosterConstMeta =>
+  TaskConstMeta get kCrateApiSyncDatasetsGetSyncRosterConstMeta =>
       const TaskConstMeta(debugName: "get_sync_roster", argNames: []);
 
   @override
@@ -4465,67 +4544,67 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "guess_import_kind", argNames: ["url"]);
 
   @override
-  Future<String> crateApiInitBridge({String? databasePath}) {
+  Future<String> crateApiRecordsInitBridge({String? databasePath}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_opt_String(databasePath);
-          return wire.wire__crate__api__init_bridge(port_, arg0);
+          return wire.wire__crate__api__records__init_bridge(port_, arg0);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_String,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiInitBridgeConstMeta,
+        constMeta: kCrateApiRecordsInitBridgeConstMeta,
         argValues: [databasePath],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiInitBridgeConstMeta =>
+  TaskConstMeta get kCrateApiRecordsInitBridgeConstMeta =>
       const TaskConstMeta(debugName: "init_bridge", argNames: ["databasePath"]);
 
   @override
-  Future<SyncInvitationPreviewDto?> crateApiSyncInspectOwnerSyncInvitation({
-    required String invitationId,
-  }) {
+  Future<SyncInvitationPreviewDto?>
+  crateApiSyncInviteInspectOwnerSyncInvitation({required String invitationId}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(invitationId);
-          return wire.wire__crate__api__sync__inspect_owner_sync_invitation(
-            port_,
-            arg0,
-          );
+          return wire
+              .wire__crate__api__sync__invite__inspect_owner_sync_invitation(
+                port_,
+                arg0,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData:
               dco_decode_opt_box_autoadd_sync_invitation_preview_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncInspectOwnerSyncInvitationConstMeta,
+        constMeta: kCrateApiSyncInviteInspectOwnerSyncInvitationConstMeta,
         argValues: [invitationId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncInspectOwnerSyncInvitationConstMeta =>
+  TaskConstMeta get kCrateApiSyncInviteInspectOwnerSyncInvitationConstMeta =>
       const TaskConstMeta(
         debugName: "inspect_owner_sync_invitation",
         argNames: ["invitationId"],
       );
 
   @override
-  Future<SyncJoinStateDto> crateApiSyncInspectSyncJoinApproval({
+  Future<SyncJoinStateDto> crateApiSyncJoinInspectSyncJoinApproval({
     required String operationId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(operationId);
-          return wire.wire__crate__api__sync__inspect_sync_join_approval(
+          return wire.wire__crate__api__sync__join__inspect_sync_join_approval(
             port_,
             arg0,
           );
@@ -4534,14 +4613,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_sync_join_state_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncInspectSyncJoinApprovalConstMeta,
+        constMeta: kCrateApiSyncJoinInspectSyncJoinApprovalConstMeta,
         argValues: [operationId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncInspectSyncJoinApprovalConstMeta =>
+  TaskConstMeta get kCrateApiSyncJoinInspectSyncJoinApprovalConstMeta =>
       const TaskConstMeta(
         debugName: "inspect_sync_join_approval",
         argNames: ["operationId"],
@@ -4639,7 +4718,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<SyncJoinStateDto> crateApiSyncInstallSyncJoinKey({
+  Future<SyncJoinStateDto> crateApiSyncJoinInstallSyncJoinKey({
     required String token,
     required List<int> key,
     required PlatformInt64 protectedRevision,
@@ -4650,7 +4729,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(token);
           var arg1 = cst_encode_list_prim_u_8_loose(key);
           var arg2 = cst_encode_i_64(protectedRevision);
-          return wire.wire__crate__api__sync__install_sync_join_key(
+          return wire.wire__crate__api__sync__join__install_sync_join_key(
             port_,
             arg0,
             arg1,
@@ -4661,21 +4740,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_sync_join_state_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncInstallSyncJoinKeyConstMeta,
+        constMeta: kCrateApiSyncJoinInstallSyncJoinKeyConstMeta,
         argValues: [token, key, protectedRevision],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncInstallSyncJoinKeyConstMeta =>
+  TaskConstMeta get kCrateApiSyncJoinInstallSyncJoinKeyConstMeta =>
       const TaskConstMeta(
         debugName: "install_sync_join_key",
         argNames: ["token", "key", "protectedRevision"],
       );
 
   @override
-  Future<SyncKeyCommitDto> crateApiSyncInstallSyncKey({
+  Future<SyncKeyCommitDto> crateApiSyncInviteInstallSyncKey({
     required String token,
     required List<int> key,
     required PlatformInt64 protectedRevision,
@@ -4686,7 +4765,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(token);
           var arg1 = cst_encode_list_prim_u_8_loose(key);
           var arg2 = cst_encode_i_64(protectedRevision);
-          return wire.wire__crate__api__sync__install_sync_key(
+          return wire.wire__crate__api__sync__invite__install_sync_key(
             port_,
             arg0,
             arg1,
@@ -4697,17 +4776,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_sync_key_commit_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncInstallSyncKeyConstMeta,
+        constMeta: kCrateApiSyncInviteInstallSyncKeyConstMeta,
         argValues: [token, key, protectedRevision],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncInstallSyncKeyConstMeta => const TaskConstMeta(
-    debugName: "install_sync_key",
-    argNames: ["token", "key", "protectedRevision"],
-  );
+  TaskConstMeta get kCrateApiSyncInviteInstallSyncKeyConstMeta =>
+      const TaskConstMeta(
+        debugName: "install_sync_key",
+        argNames: ["token", "key", "protectedRevision"],
+      );
 
   @override
   Future<KnowledgeHealthReport> crateApiKnowledgeKnowledgeHealth({
@@ -4817,24 +4897,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_ai_provider_configs", argNames: []);
 
   @override
-  Future<List<AnalysisDto>> crateApiListAnalyses() {
+  Future<List<AnalysisDto>> crateApiReviewFlowListAnalyses() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__list_analyses(port_);
+          return wire.wire__crate__api__review_flow__list_analyses(port_);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_analysis_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListAnalysesConstMeta,
+        constMeta: kCrateApiReviewFlowListAnalysesConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListAnalysesConstMeta =>
+  TaskConstMeta get kCrateApiReviewFlowListAnalysesConstMeta =>
       const TaskConstMeta(debugName: "list_analyses", argNames: []);
 
   @override
@@ -5091,29 +5171,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_conversations", argNames: []);
 
   @override
-  Future<List<DailyEntryDto>> crateApiListDailyEntries({required String date}) {
+  Future<List<DailyEntryDto>> crateApiRecordsListDailyEntries({
+    required String date,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(date);
-          return wire.wire__crate__api__list_daily_entries(port_, arg0);
+          return wire.wire__crate__api__records__list_daily_entries(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_daily_entry_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListDailyEntriesConstMeta,
+        constMeta: kCrateApiRecordsListDailyEntriesConstMeta,
         argValues: [date],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListDailyEntriesConstMeta =>
+  TaskConstMeta get kCrateApiRecordsListDailyEntriesConstMeta =>
       const TaskConstMeta(debugName: "list_daily_entries", argNames: ["date"]);
 
   @override
-  Future<List<DeviationReportDto>> crateApiReviewReportListDeviationReports({
+  Future<List<DeviationReportDto>>
+  crateApiReviewReportStoreListDeviationReports({
     required String periodType,
     required int limit,
   }) {
@@ -5122,24 +5208,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(periodType);
           var arg1 = cst_encode_i_32(limit);
-          return wire.wire__crate__api__review_report__list_deviation_reports(
-            port_,
-            arg0,
-            arg1,
-          );
+          return wire
+              .wire__crate__api__review_report__store__list_deviation_reports(
+                port_,
+                arg0,
+                arg1,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_deviation_report_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiReviewReportListDeviationReportsConstMeta,
+        constMeta: kCrateApiReviewReportStoreListDeviationReportsConstMeta,
         argValues: [periodType, limit],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiReviewReportListDeviationReportsConstMeta =>
+  TaskConstMeta get kCrateApiReviewReportStoreListDeviationReportsConstMeta =>
       const TaskConstMeta(
         debugName: "list_deviation_reports",
         argNames: ["periodType", "limit"],
@@ -5212,24 +5299,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<List<EventEmotionDto>> crateApiListEventEmotions() {
+  Future<List<EventEmotionDto>> crateApiCompanionFlowListEventEmotions() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__list_event_emotions(port_);
+          return wire.wire__crate__api__companion_flow__list_event_emotions(
+            port_,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_event_emotion_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListEventEmotionsConstMeta,
+        constMeta: kCrateApiCompanionFlowListEventEmotionsConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListEventEmotionsConstMeta =>
+  TaskConstMeta get kCrateApiCompanionFlowListEventEmotionsConstMeta =>
       const TaskConstMeta(debugName: "list_event_emotions", argNames: []);
 
   @override
@@ -5263,24 +5352,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<List<EventDto>> crateApiListEvents() {
+  Future<List<EventDto>> crateApiReviewFlowListEvents() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__list_events(port_);
+          return wire.wire__crate__api__review_flow__list_events(port_);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_event_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListEventsConstMeta,
+        constMeta: kCrateApiReviewFlowListEventsConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListEventsConstMeta =>
+  TaskConstMeta get kCrateApiReviewFlowListEventsConstMeta =>
       const TaskConstMeta(debugName: "list_events", argNames: []);
 
   @override
@@ -5660,48 +5749,53 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<List<ObjectConflictDto>> crateApiSyncListObjectConflicts() {
+  Future<List<ObjectConflictDto>> crateApiSyncConflictsListObjectConflicts() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__sync__list_object_conflicts(port_);
+          return wire.wire__crate__api__sync__conflicts__list_object_conflicts(
+            port_,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_object_conflict_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncListObjectConflictsConstMeta,
+        constMeta: kCrateApiSyncConflictsListObjectConflictsConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncListObjectConflictsConstMeta =>
+  TaskConstMeta get kCrateApiSyncConflictsListObjectConflictsConstMeta =>
       const TaskConstMeta(debugName: "list_object_conflicts", argNames: []);
 
   @override
-  Future<List<PageGuidanceDto>> crateApiListPageGuidance({
+  Future<List<PageGuidanceDto>> crateApiCompanionFlowListPageGuidance({
     required String slug,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(slug);
-          return wire.wire__crate__api__list_page_guidance(port_, arg0);
+          return wire.wire__crate__api__companion_flow__list_page_guidance(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_page_guidance_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListPageGuidanceConstMeta,
+        constMeta: kCrateApiCompanionFlowListPageGuidanceConstMeta,
         argValues: [slug],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListPageGuidanceConstMeta =>
+  TaskConstMeta get kCrateApiCompanionFlowListPageGuidanceConstMeta =>
       const TaskConstMeta(debugName: "list_page_guidance", argNames: ["slug"]);
 
   @override
@@ -5765,24 +5859,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<List<SyncJoinEntryDto>> crateApiSyncListPendingSyncJoins() {
+  Future<List<SyncJoinEntryDto>> crateApiSyncJoinListPendingSyncJoins() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__sync__list_pending_sync_joins(port_);
+          return wire.wire__crate__api__sync__join__list_pending_sync_joins(
+            port_,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_sync_join_entry_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncListPendingSyncJoinsConstMeta,
+        constMeta: kCrateApiSyncJoinListPendingSyncJoinsConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncListPendingSyncJoinsConstMeta =>
+  TaskConstMeta get kCrateApiSyncJoinListPendingSyncJoinsConstMeta =>
       const TaskConstMeta(debugName: "list_pending_sync_joins", argNames: []);
 
   @override
@@ -5816,7 +5912,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<List<EventSummaryDto>> crateApiListRecentEvents({
+  Future<List<EventSummaryDto>> crateApiReviewFlowListRecentEvents({
     required PlatformInt64 days,
     required PlatformInt64 limit,
   }) {
@@ -5825,23 +5921,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_i_64(days);
           var arg1 = cst_encode_i_64(limit);
-          return wire.wire__crate__api__list_recent_events(port_, arg0, arg1);
+          return wire.wire__crate__api__review_flow__list_recent_events(
+            port_,
+            arg0,
+            arg1,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_event_summary_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiListRecentEventsConstMeta,
+        constMeta: kCrateApiReviewFlowListRecentEventsConstMeta,
         argValues: [days, limit],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiListRecentEventsConstMeta => const TaskConstMeta(
-    debugName: "list_recent_events",
-    argNames: ["days", "limit"],
-  );
+  TaskConstMeta get kCrateApiReviewFlowListRecentEventsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_recent_events",
+        argNames: ["days", "limit"],
+      );
 
   @override
   Future<List<RuleHitDto>> crateApiRulesListRecentRuleHits({
@@ -5968,69 +6069,74 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<(List<SyncDatasetEntryDto>, PlatformInt64)>
-  crateApiSyncListSyncDatasets() {
+  crateApiSyncDatasetsListSyncDatasets() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__sync__list_sync_datasets(port_);
+          return wire.wire__crate__api__sync__datasets__list_sync_datasets(
+            port_,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_record_list_sync_dataset_entry_dto_i_64,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncListSyncDatasetsConstMeta,
+        constMeta: kCrateApiSyncDatasetsListSyncDatasetsConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncListSyncDatasetsConstMeta =>
+  TaskConstMeta get kCrateApiSyncDatasetsListSyncDatasetsConstMeta =>
       const TaskConstMeta(debugName: "list_sync_datasets", argNames: []);
 
   @override
-  Future<List<SyncEnrollmentStateDto>> crateApiSyncListSyncEnrollments() {
+  Future<List<SyncEnrollmentStateDto>> crateApiSyncJoinListSyncEnrollments() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__sync__list_sync_enrollments(port_);
+          return wire.wire__crate__api__sync__join__list_sync_enrollments(
+            port_,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_sync_enrollment_state_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncListSyncEnrollmentsConstMeta,
+        constMeta: kCrateApiSyncJoinListSyncEnrollmentsConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncListSyncEnrollmentsConstMeta =>
+  TaskConstMeta get kCrateApiSyncJoinListSyncEnrollmentsConstMeta =>
       const TaskConstMeta(debugName: "list_sync_enrollments", argNames: []);
 
   @override
   Future<List<ProviderSyncConflictDto>>
-  crateApiSyncListSyncProviderConflicts() {
+  crateApiSyncDatasetsListSyncProviderConflicts() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__sync__list_sync_provider_conflicts(
-            port_,
-          );
+          return wire
+              .wire__crate__api__sync__datasets__list_sync_provider_conflicts(
+                port_,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_provider_sync_conflict_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncListSyncProviderConflictsConstMeta,
+        constMeta: kCrateApiSyncDatasetsListSyncProviderConflictsConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncListSyncProviderConflictsConstMeta =>
+  TaskConstMeta get kCrateApiSyncDatasetsListSyncProviderConflictsConstMeta =>
       const TaskConstMeta(
         debugName: "list_sync_provider_conflicts",
         argNames: [],
@@ -6167,24 +6273,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_user_skills", argNames: []);
 
   @override
-  Future<List<WikiPageConflictDto>> crateApiSyncListWikiPageConflicts() {
+  Future<List<WikiPageConflictDto>>
+  crateApiSyncConflictsListWikiPageConflicts() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__sync__list_wiki_page_conflicts(port_);
+          return wire
+              .wire__crate__api__sync__conflicts__list_wiki_page_conflicts(
+                port_,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_list_wiki_page_conflict_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncListWikiPageConflictsConstMeta,
+        constMeta: kCrateApiSyncConflictsListWikiPageConflictsConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncListWikiPageConflictsConstMeta =>
+  TaskConstMeta get kCrateApiSyncConflictsListWikiPageConflictsConstMeta =>
       const TaskConstMeta(debugName: "list_wiki_page_conflicts", argNames: []);
 
   @override
@@ -6277,28 +6387,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  Future<LocalSyncStateDto> crateApiSyncLockLocalSync() {
+  Future<LocalSyncStateDto> crateApiSyncInviteLockLocalSync() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__sync__lock_local_sync(port_);
+          return wire.wire__crate__api__sync__invite__lock_local_sync(port_);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_local_sync_state_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncLockLocalSyncConstMeta,
+        constMeta: kCrateApiSyncInviteLockLocalSyncConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncLockLocalSyncConstMeta =>
+  TaskConstMeta get kCrateApiSyncInviteLockLocalSyncConstMeta =>
       const TaskConstMeta(debugName: "lock_local_sync", argNames: []);
 
   @override
-  Future<void> crateApiReviewReportMarkDeviationReportRead({
+  Future<void> crateApiReviewReportStoreMarkDeviationReportRead({
     required String id,
   }) {
     return handler.executeNormal(
@@ -6306,7 +6416,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(id);
           return wire
-              .wire__crate__api__review_report__mark_deviation_report_read(
+              .wire__crate__api__review_report__store__mark_deviation_report_read(
                 port_,
                 arg0,
               );
@@ -6315,14 +6425,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiReviewReportMarkDeviationReportReadConstMeta,
+        constMeta: kCrateApiReviewReportStoreMarkDeviationReportReadConstMeta,
         argValues: [id],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiReviewReportMarkDeviationReportReadConstMeta =>
+  TaskConstMeta
+  get kCrateApiReviewReportStoreMarkDeviationReportReadConstMeta =>
       const TaskConstMeta(
         debugName: "mark_deviation_report_read",
         argNames: ["id"],
@@ -6533,7 +6644,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<SyncJoinStateDto> crateApiSyncPrepareSyncJoinKey({
+  Future<SyncJoinStateDto> crateApiSyncJoinPrepareSyncJoinKey({
     required String previewToken,
     required String name,
     required String platform,
@@ -6546,7 +6657,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg1 = cst_encode_String(name);
           var arg2 = cst_encode_String(platform);
           var arg3 = cst_encode_bool(acknowledgeProviderKeySharing);
-          return wire.wire__crate__api__sync__prepare_sync_join_key(
+          return wire.wire__crate__api__sync__join__prepare_sync_join_key(
             port_,
             arg0,
             arg1,
@@ -6558,7 +6669,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_sync_join_state_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncPrepareSyncJoinKeyConstMeta,
+        constMeta: kCrateApiSyncJoinPrepareSyncJoinKeyConstMeta,
         argValues: [
           previewToken,
           name,
@@ -6570,7 +6681,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     );
   }
 
-  TaskConstMeta get kCrateApiSyncPrepareSyncJoinKeyConstMeta =>
+  TaskConstMeta get kCrateApiSyncJoinPrepareSyncJoinKeyConstMeta =>
       const TaskConstMeta(
         debugName: "prepare_sync_join_key",
         argNames: [
@@ -6582,14 +6693,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<SyncJoinStateDto> crateApiSyncPrepareSyncJoinResume({
+  Future<SyncJoinStateDto> crateApiSyncJoinPrepareSyncJoinResume({
     required String entryId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(entryId);
-          return wire.wire__crate__api__sync__prepare_sync_join_resume(
+          return wire.wire__crate__api__sync__join__prepare_sync_join_resume(
             port_,
             arg0,
           );
@@ -6598,21 +6709,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_sync_join_state_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncPrepareSyncJoinResumeConstMeta,
+        constMeta: kCrateApiSyncJoinPrepareSyncJoinResumeConstMeta,
         argValues: [entryId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncPrepareSyncJoinResumeConstMeta =>
+  TaskConstMeta get kCrateApiSyncJoinPrepareSyncJoinResumeConstMeta =>
       const TaskConstMeta(
         debugName: "prepare_sync_join_resume",
         argNames: ["entryId"],
       );
 
   @override
-  Future<SyncKeyRequestDto> crateApiSyncPrepareSyncKeyRequest({
+  Future<SyncKeyRequestDto> crateApiSyncInvitePrepareSyncKeyRequest({
     String? name,
     String? platform,
     required bool acknowledgeProviderKeySharing,
@@ -6623,7 +6734,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_opt_String(name);
           var arg1 = cst_encode_opt_String(platform);
           var arg2 = cst_encode_bool(acknowledgeProviderKeySharing);
-          return wire.wire__crate__api__sync__prepare_sync_key_request(
+          return wire.wire__crate__api__sync__invite__prepare_sync_key_request(
             port_,
             arg0,
             arg1,
@@ -6634,14 +6745,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_sync_key_request_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncPrepareSyncKeyRequestConstMeta,
+        constMeta: kCrateApiSyncInvitePrepareSyncKeyRequestConstMeta,
         argValues: [name, platform, acknowledgeProviderKeySharing],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncPrepareSyncKeyRequestConstMeta =>
+  TaskConstMeta get kCrateApiSyncInvitePrepareSyncKeyRequestConstMeta =>
       const TaskConstMeta(
         debugName: "prepare_sync_key_request",
         argNames: ["name", "platform", "acknowledgeProviderKeySharing"],
@@ -6714,27 +6825,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<SyncJoinStateDto> crateApiSyncPreviewSyncJoin({
+  Future<SyncJoinStateDto> crateApiSyncJoinPreviewSyncJoin({
     required String invitationCode,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(invitationCode);
-          return wire.wire__crate__api__sync__preview_sync_join(port_, arg0);
+          return wire.wire__crate__api__sync__join__preview_sync_join(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_sync_join_state_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncPreviewSyncJoinConstMeta,
+        constMeta: kCrateApiSyncJoinPreviewSyncJoinConstMeta,
         argValues: [invitationCode],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncPreviewSyncJoinConstMeta =>
+  TaskConstMeta get kCrateApiSyncJoinPreviewSyncJoinConstMeta =>
       const TaskConstMeta(
         debugName: "preview_sync_join",
         argNames: ["invitationCode"],
@@ -6830,25 +6944,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<bool> crateApiReanalyzeEvent({required String eventId}) {
+  Future<bool> crateApiReviewFlowReanalyzeEvent({required String eventId}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(eventId);
-          return wire.wire__crate__api__reanalyze_event(port_, arg0);
+          return wire.wire__crate__api__review_flow__reanalyze_event(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_bool,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiReanalyzeEventConstMeta,
+        constMeta: kCrateApiReviewFlowReanalyzeEventConstMeta,
         argValues: [eventId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiReanalyzeEventConstMeta =>
+  TaskConstMeta get kCrateApiReviewFlowReanalyzeEventConstMeta =>
       const TaskConstMeta(debugName: "reanalyze_event", argNames: ["eventId"]);
 
   @override
@@ -6882,25 +6999,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<EventDto> crateApiRecordEvent({required String rawText}) {
+  Future<EventDto> crateApiRecordsRecordEvent({required String rawText}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(rawText);
-          return wire.wire__crate__api__record_event(port_, arg0);
+          return wire.wire__crate__api__records__record_event(port_, arg0);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_event_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiRecordEventConstMeta,
+        constMeta: kCrateApiRecordsRecordEventConstMeta,
         argValues: [rawText],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiRecordEventConstMeta =>
+  TaskConstMeta get kCrateApiRecordsRecordEventConstMeta =>
       const TaskConstMeta(debugName: "record_event", argNames: ["rawText"]);
 
   @override
@@ -6929,37 +7046,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<bool> crateApiSyncReleaseSyncJoin({required String operationId}) {
+  Future<bool> crateApiSyncJoinReleaseSyncJoin({required String operationId}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(operationId);
-          return wire.wire__crate__api__sync__release_sync_join(port_, arg0);
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_bool,
-          decodeErrorData: dco_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiSyncReleaseSyncJoinConstMeta,
-        argValues: [operationId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSyncReleaseSyncJoinConstMeta =>
-      const TaskConstMeta(
-        debugName: "release_sync_join",
-        argNames: ["operationId"],
-      );
-
-  @override
-  Future<bool> crateApiSyncReleaseSyncKeyRequest({required String token}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(token);
-          return wire.wire__crate__api__sync__release_sync_key_request(
+          return wire.wire__crate__api__sync__join__release_sync_join(
             port_,
             arg0,
           );
@@ -6968,14 +7060,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_bool,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncReleaseSyncKeyRequestConstMeta,
+        constMeta: kCrateApiSyncJoinReleaseSyncJoinConstMeta,
+        argValues: [operationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncJoinReleaseSyncJoinConstMeta =>
+      const TaskConstMeta(
+        debugName: "release_sync_join",
+        argNames: ["operationId"],
+      );
+
+  @override
+  Future<bool> crateApiSyncInviteReleaseSyncKeyRequest({
+    required String token,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(token);
+          return wire.wire__crate__api__sync__invite__release_sync_key_request(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncInviteReleaseSyncKeyRequestConstMeta,
         argValues: [token],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncReleaseSyncKeyRequestConstMeta =>
+  TaskConstMeta get kCrateApiSyncInviteReleaseSyncKeyRequestConstMeta =>
       const TaskConstMeta(
         debugName: "release_sync_key_request",
         argNames: ["token"],
@@ -7048,7 +7170,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<PlatformInt64> crateApiSyncRenameSyncDevice({
+  Future<PlatformInt64> crateApiSyncDatasetsRenameSyncDevice({
     required String deviceId,
     required String newName,
     required PlatformInt64 expectedVaultRevision,
@@ -7059,7 +7181,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(deviceId);
           var arg1 = cst_encode_String(newName);
           var arg2 = cst_encode_i_64(expectedVaultRevision);
-          return wire.wire__crate__api__sync__rename_sync_device(
+          return wire.wire__crate__api__sync__datasets__rename_sync_device(
             port_,
             arg0,
             arg1,
@@ -7070,14 +7192,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_i_64,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncRenameSyncDeviceConstMeta,
+        constMeta: kCrateApiSyncDatasetsRenameSyncDeviceConstMeta,
         argValues: [deviceId, newName, expectedVaultRevision],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncRenameSyncDeviceConstMeta =>
+  TaskConstMeta get kCrateApiSyncDatasetsRenameSyncDeviceConstMeta =>
       const TaskConstMeta(
         debugName: "rename_sync_device",
         argNames: ["deviceId", "newName", "expectedVaultRevision"],
@@ -7193,7 +7315,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiSyncResolveObjectConflict({
+  Future<void> crateApiSyncConflictsResolveObjectConflict({
     required String opId,
     String? expectedLocalUpdatedAt,
     required bool acceptRemote,
@@ -7204,32 +7326,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(opId);
           var arg1 = cst_encode_opt_String(expectedLocalUpdatedAt);
           var arg2 = cst_encode_bool(acceptRemote);
-          return wire.wire__crate__api__sync__resolve_object_conflict(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-          );
+          return wire
+              .wire__crate__api__sync__conflicts__resolve_object_conflict(
+                port_,
+                arg0,
+                arg1,
+                arg2,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncResolveObjectConflictConstMeta,
+        constMeta: kCrateApiSyncConflictsResolveObjectConflictConstMeta,
         argValues: [opId, expectedLocalUpdatedAt, acceptRemote],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncResolveObjectConflictConstMeta =>
+  TaskConstMeta get kCrateApiSyncConflictsResolveObjectConflictConstMeta =>
       const TaskConstMeta(
         debugName: "resolve_object_conflict",
         argNames: ["opId", "expectedLocalUpdatedAt", "acceptRemote"],
       );
 
   @override
-  Future<void> crateApiSyncResolveSyncProviderConflict({
+  Future<void> crateApiSyncDatasetsResolveSyncProviderConflict({
     required String revisionId,
     required String expectedLocalRevision,
     required String expectedRemoteRevision,
@@ -7242,19 +7365,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg1 = cst_encode_String(expectedLocalRevision);
           var arg2 = cst_encode_String(expectedRemoteRevision);
           var arg3 = cst_encode_bool(acceptRemote);
-          return wire.wire__crate__api__sync__resolve_sync_provider_conflict(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-            arg3,
-          );
+          return wire
+              .wire__crate__api__sync__datasets__resolve_sync_provider_conflict(
+                port_,
+                arg0,
+                arg1,
+                arg2,
+                arg3,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncResolveSyncProviderConflictConstMeta,
+        constMeta: kCrateApiSyncDatasetsResolveSyncProviderConflictConstMeta,
         argValues: [
           revisionId,
           expectedLocalRevision,
@@ -7266,7 +7390,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     );
   }
 
-  TaskConstMeta get kCrateApiSyncResolveSyncProviderConflictConstMeta =>
+  TaskConstMeta get kCrateApiSyncDatasetsResolveSyncProviderConflictConstMeta =>
       const TaskConstMeta(
         debugName: "resolve_sync_provider_conflict",
         argNames: [
@@ -7311,7 +7435,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiSyncResolveWikiPageConflict({
+  Future<void> crateApiSyncConflictsResolveWikiPageConflict({
     required String opId,
     String? expectedLocalUpdatedAt,
     required bool acceptRemote,
@@ -7322,25 +7446,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(opId);
           var arg1 = cst_encode_opt_String(expectedLocalUpdatedAt);
           var arg2 = cst_encode_bool(acceptRemote);
-          return wire.wire__crate__api__sync__resolve_wiki_page_conflict(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-          );
+          return wire
+              .wire__crate__api__sync__conflicts__resolve_wiki_page_conflict(
+                port_,
+                arg0,
+                arg1,
+                arg2,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncResolveWikiPageConflictConstMeta,
+        constMeta: kCrateApiSyncConflictsResolveWikiPageConflictConstMeta,
         argValues: [opId, expectedLocalUpdatedAt, acceptRemote],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncResolveWikiPageConflictConstMeta =>
+  TaskConstMeta get kCrateApiSyncConflictsResolveWikiPageConflictConstMeta =>
       const TaskConstMeta(
         debugName: "resolve_wiki_page_conflict",
         argNames: ["opId", "expectedLocalUpdatedAt", "acceptRemote"],
@@ -7377,7 +7502,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiSyncRevokeSyncMember({
+  Future<void> crateApiSyncDatasetsRevokeSyncMember({
     required String deviceId,
     required PlatformInt64 expectedRevision,
   }) {
@@ -7386,7 +7511,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(deviceId);
           var arg1 = cst_encode_i_64(expectedRevision);
-          return wire.wire__crate__api__sync__revoke_sync_member(
+          return wire.wire__crate__api__sync__datasets__revoke_sync_member(
             port_,
             arg0,
             arg1,
@@ -7396,14 +7521,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncRevokeSyncMemberConstMeta,
+        constMeta: kCrateApiSyncDatasetsRevokeSyncMemberConstMeta,
         argValues: [deviceId, expectedRevision],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncRevokeSyncMemberConstMeta =>
+  TaskConstMeta get kCrateApiSyncDatasetsRevokeSyncMemberConstMeta =>
       const TaskConstMeta(
         debugName: "revoke_sync_member",
         argNames: ["deviceId", "expectedRevision"],
@@ -7441,7 +7566,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<String> crateApiSaveDailyReview({
+  Future<String> crateApiPeriodStatsSaveDailyReview({
     required String date,
     required String resultJson,
     required String promptVersion,
@@ -7454,7 +7579,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg1 = cst_encode_String(resultJson);
           var arg2 = cst_encode_String(promptVersion);
           var arg3 = cst_encode_list_String(sourceEventIds);
-          return wire.wire__crate__api__save_daily_review(
+          return wire.wire__crate__api__period_stats__save_daily_review(
             port_,
             arg0,
             arg1,
@@ -7466,17 +7591,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_String,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSaveDailyReviewConstMeta,
+        constMeta: kCrateApiPeriodStatsSaveDailyReviewConstMeta,
         argValues: [date, resultJson, promptVersion, sourceEventIds],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSaveDailyReviewConstMeta => const TaskConstMeta(
-    debugName: "save_daily_review",
-    argNames: ["date", "resultJson", "promptVersion", "sourceEventIds"],
-  );
+  TaskConstMeta get kCrateApiPeriodStatsSaveDailyReviewConstMeta =>
+      const TaskConstMeta(
+        debugName: "save_daily_review",
+        argNames: ["date", "resultJson", "promptVersion", "sourceEventIds"],
+      );
 
   @override
   Future<void> crateApiWebSearchSaveDohSettings({
@@ -7908,14 +8034,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiSyncSelectDefaultSyncDataset({
+  Future<void> crateApiSyncDatasetsSelectDefaultSyncDataset({
     required PlatformInt64 expectedCatalogRevision,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_i_64(expectedCatalogRevision);
-          return wire.wire__crate__api__sync__select_default_sync_dataset(
+          return wire
+              .wire__crate__api__sync__datasets__select_default_sync_dataset(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncDatasetsSelectDefaultSyncDatasetConstMeta,
+        argValues: [expectedCatalogRevision],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncDatasetsSelectDefaultSyncDatasetConstMeta =>
+      const TaskConstMeta(
+        debugName: "select_default_sync_dataset",
+        argNames: ["expectedCatalogRevision"],
+      );
+
+  @override
+  Future<void> crateApiSyncDatasetsSelectSyncDataset({
+    required String entryId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(entryId);
+          return wire.wire__crate__api__sync__datasets__select_sync_dataset(
             port_,
             arg0,
           );
@@ -7924,39 +8081,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncSelectDefaultSyncDatasetConstMeta,
-        argValues: [expectedCatalogRevision],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSyncSelectDefaultSyncDatasetConstMeta =>
-      const TaskConstMeta(
-        debugName: "select_default_sync_dataset",
-        argNames: ["expectedCatalogRevision"],
-      );
-
-  @override
-  Future<void> crateApiSyncSelectSyncDataset({required String entryId}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(entryId);
-          return wire.wire__crate__api__sync__select_sync_dataset(port_, arg0);
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiSyncSelectSyncDatasetConstMeta,
+        constMeta: kCrateApiSyncDatasetsSelectSyncDatasetConstMeta,
         argValues: [entryId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncSelectSyncDatasetConstMeta =>
+  TaskConstMeta get kCrateApiSyncDatasetsSelectSyncDatasetConstMeta =>
       const TaskConstMeta(
         debugName: "select_sync_dataset",
         argNames: ["entryId"],
@@ -8002,14 +8134,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiSyncSendOwnerSyncApproval({
+  Future<void> crateApiSyncInviteSendOwnerSyncApproval({
     required String invitationId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(invitationId);
-          return wire.wire__crate__api__sync__send_owner_sync_approval(
+          return wire.wire__crate__api__sync__invite__send_owner_sync_approval(
             port_,
             arg0,
           );
@@ -8018,55 +8150,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncSendOwnerSyncApprovalConstMeta,
+        constMeta: kCrateApiSyncInviteSendOwnerSyncApprovalConstMeta,
         argValues: [invitationId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncSendOwnerSyncApprovalConstMeta =>
+  TaskConstMeta get kCrateApiSyncInviteSendOwnerSyncApprovalConstMeta =>
       const TaskConstMeta(
         debugName: "send_owner_sync_approval",
         argNames: ["invitationId"],
       );
 
   @override
-  Future<SyncJoinStateDto> crateApiSyncSendSyncJoinProof({
+  Future<SyncJoinStateDto> crateApiSyncJoinSendSyncJoinProof({
     required String operationId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(operationId);
-          return wire.wire__crate__api__sync__send_sync_join_proof(port_, arg0);
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_sync_join_state_dto,
-          decodeErrorData: dco_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiSyncSendSyncJoinProofConstMeta,
-        argValues: [operationId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSyncSendSyncJoinProofConstMeta =>
-      const TaskConstMeta(
-        debugName: "send_sync_join_proof",
-        argNames: ["operationId"],
-      );
-
-  @override
-  Future<SyncJoinStateDto> crateApiSyncSendSyncJoinRequest({
-    required String operationId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(operationId);
-          return wire.wire__crate__api__sync__send_sync_join_request(
+          return wire.wire__crate__api__sync__join__send_sync_join_proof(
             port_,
             arg0,
           );
@@ -8075,14 +8180,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_sync_join_state_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncSendSyncJoinRequestConstMeta,
+        constMeta: kCrateApiSyncJoinSendSyncJoinProofConstMeta,
         argValues: [operationId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncSendSyncJoinRequestConstMeta =>
+  TaskConstMeta get kCrateApiSyncJoinSendSyncJoinProofConstMeta =>
+      const TaskConstMeta(
+        debugName: "send_sync_join_proof",
+        argNames: ["operationId"],
+      );
+
+  @override
+  Future<SyncJoinStateDto> crateApiSyncJoinSendSyncJoinRequest({
+    required String operationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(operationId);
+          return wire.wire__crate__api__sync__join__send_sync_join_request(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_join_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncJoinSendSyncJoinRequestConstMeta,
+        argValues: [operationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncJoinSendSyncJoinRequestConstMeta =>
       const TaskConstMeta(
         debugName: "send_sync_join_request",
         argNames: ["operationId"],
@@ -8123,7 +8258,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiSetCompanionPrefs({
+  Future<void> crateApiCompanionFlowSetCompanionPrefs({
     required bool enabled,
     required PlatformInt64 intervalDays,
   }) {
@@ -8132,23 +8267,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_bool(enabled);
           var arg1 = cst_encode_i_64(intervalDays);
-          return wire.wire__crate__api__set_companion_prefs(port_, arg0, arg1);
+          return wire.wire__crate__api__companion_flow__set_companion_prefs(
+            port_,
+            arg0,
+            arg1,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSetCompanionPrefsConstMeta,
+        constMeta: kCrateApiCompanionFlowSetCompanionPrefsConstMeta,
         argValues: [enabled, intervalDays],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSetCompanionPrefsConstMeta => const TaskConstMeta(
-    debugName: "set_companion_prefs",
-    argNames: ["enabled", "intervalDays"],
-  );
+  TaskConstMeta get kCrateApiCompanionFlowSetCompanionPrefsConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_companion_prefs",
+        argNames: ["enabled", "intervalDays"],
+      );
 
   @override
   Future<void> crateApiConversationsSetConversationArchived({
@@ -8185,7 +8325,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<MessageRecordabilityDto> crateApiSetEventRecordability({
+  Future<MessageRecordabilityDto> crateApiReviewFlowSetEventRecordability({
     required String eventId,
     required bool recordable,
   }) {
@@ -8194,7 +8334,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(eventId);
           var arg1 = cst_encode_bool(recordable);
-          return wire.wire__crate__api__set_event_recordability(
+          return wire.wire__crate__api__review_flow__set_event_recordability(
             port_,
             arg0,
             arg1,
@@ -8204,21 +8344,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_message_recordability_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSetEventRecordabilityConstMeta,
+        constMeta: kCrateApiReviewFlowSetEventRecordabilityConstMeta,
         argValues: [eventId, recordable],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSetEventRecordabilityConstMeta =>
+  TaskConstMeta get kCrateApiReviewFlowSetEventRecordabilityConstMeta =>
       const TaskConstMeta(
         debugName: "set_event_recordability",
         argNames: ["eventId", "recordable"],
       );
 
   @override
-  Future<bool> crateApiSetGuidanceFeedback({
+  Future<bool> crateApiCompanionFlowSetGuidanceFeedback({
     required String analysisId,
     required String slug,
     String? note,
@@ -8231,7 +8371,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg1 = cst_encode_String(slug);
           var arg2 = cst_encode_opt_String(note);
           var arg3 = cst_encode_opt_String(feedback);
-          return wire.wire__crate__api__set_guidance_feedback(
+          return wire.wire__crate__api__companion_flow__set_guidance_feedback(
             port_,
             arg0,
             arg1,
@@ -8243,14 +8383,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_bool,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSetGuidanceFeedbackConstMeta,
+        constMeta: kCrateApiCompanionFlowSetGuidanceFeedbackConstMeta,
         argValues: [analysisId, slug, note, feedback],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSetGuidanceFeedbackConstMeta =>
+  TaskConstMeta get kCrateApiCompanionFlowSetGuidanceFeedbackConstMeta =>
       const TaskConstMeta(
         debugName: "set_guidance_feedback",
         argNames: ["analysisId", "slug", "note", "feedback"],
@@ -8745,7 +8885,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<InputRecordDto> crateApiSubmitConversationInput({
+  Future<InputRecordDto> crateApiRecordsSubmitConversationInput({
     required String conversationId,
     required String rawText,
     String? idempotencyKey,
@@ -8756,7 +8896,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(conversationId);
           var arg1 = cst_encode_String(rawText);
           var arg2 = cst_encode_opt_String(idempotencyKey);
-          return wire.wire__crate__api__submit_conversation_input(
+          return wire.wire__crate__api__records__submit_conversation_input(
             port_,
             arg0,
             arg1,
@@ -8767,21 +8907,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_input_record_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSubmitConversationInputConstMeta,
+        constMeta: kCrateApiRecordsSubmitConversationInputConstMeta,
         argValues: [conversationId, rawText, idempotencyKey],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSubmitConversationInputConstMeta =>
+  TaskConstMeta get kCrateApiRecordsSubmitConversationInputConstMeta =>
       const TaskConstMeta(
         debugName: "submit_conversation_input",
         argNames: ["conversationId", "rawText", "idempotencyKey"],
       );
 
   @override
-  Future<InputRecordDto> crateApiSubmitInput({
+  Future<InputRecordDto> crateApiRecordsSubmitInput({
     required String rawText,
     required String source,
     String? idempotencyKey,
@@ -8792,20 +8932,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(rawText);
           var arg1 = cst_encode_String(source);
           var arg2 = cst_encode_opt_String(idempotencyKey);
-          return wire.wire__crate__api__submit_input(port_, arg0, arg1, arg2);
+          return wire.wire__crate__api__records__submit_input(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_input_record_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSubmitInputConstMeta,
+        constMeta: kCrateApiRecordsSubmitInputConstMeta,
         argValues: [rawText, source, idempotencyKey],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSubmitInputConstMeta => const TaskConstMeta(
+  TaskConstMeta get kCrateApiRecordsSubmitInputConstMeta => const TaskConstMeta(
     debugName: "submit_input",
     argNames: ["rawText", "source", "idempotencyKey"],
   );
@@ -8955,26 +9100,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "tick_knowledge_insights", argNames: []);
 
   @override
-  Future<PeriodReportTickResult> crateApiReviewReportTickPeriodicReports() {
+  Future<PeriodReportTickResult>
+  crateApiReviewReportDetectTickPeriodicReports() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__review_report__tick_periodic_reports(
-            port_,
-          );
+          return wire
+              .wire__crate__api__review_report__detect__tick_periodic_reports(
+                port_,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_period_report_tick_result,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiReviewReportTickPeriodicReportsConstMeta,
+        constMeta: kCrateApiReviewReportDetectTickPeriodicReportsConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiReviewReportTickPeriodicReportsConstMeta =>
+  TaskConstMeta get kCrateApiReviewReportDetectTickPeriodicReportsConstMeta =>
       const TaskConstMeta(debugName: "tick_periodic_reports", argNames: []);
 
   @override
@@ -9014,24 +9161,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<AnalysisTriggerResult> crateApiTriggerAnalysis() {
+  Future<AnalysisTriggerResult> crateApiReviewFlowTriggerAnalysis() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__trigger_analysis(port_);
+          return wire.wire__crate__api__review_flow__trigger_analysis(port_);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_analysis_trigger_result,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiTriggerAnalysisConstMeta,
+        constMeta: kCrateApiReviewFlowTriggerAnalysisConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiTriggerAnalysisConstMeta =>
+  TaskConstMeta get kCrateApiReviewFlowTriggerAnalysisConstMeta =>
       const TaskConstMeta(debugName: "trigger_analysis", argNames: []);
 
   @override
@@ -9060,24 +9207,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "trigger_knowledge_digest", argNames: []);
 
   @override
-  Future<SyncTickResultDto> crateApiSyncTriggerNetworkSync() {
+  Future<SyncTickResultDto> crateApiSyncJoinTriggerNetworkSync() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__sync__trigger_network_sync(port_);
+          return wire.wire__crate__api__sync__join__trigger_network_sync(port_);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_sync_tick_result_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncTriggerNetworkSyncConstMeta,
+        constMeta: kCrateApiSyncJoinTriggerNetworkSyncConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncTriggerNetworkSyncConstMeta =>
+  TaskConstMeta get kCrateApiSyncJoinTriggerNetworkSyncConstMeta =>
       const TaskConstMeta(debugName: "trigger_network_sync", argNames: []);
 
   @override
@@ -9639,27 +9786,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<ProcessingYieldProofDto> crateApiSyncYieldSyncProcessor({
+  Future<ProcessingYieldProofDto> crateApiSyncDatasetsYieldSyncProcessor({
     required String toDeviceId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(toDeviceId);
-          return wire.wire__crate__api__sync__yield_sync_processor(port_, arg0);
+          return wire.wire__crate__api__sync__datasets__yield_sync_processor(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_processing_yield_proof_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSyncYieldSyncProcessorConstMeta,
+        constMeta: kCrateApiSyncDatasetsYieldSyncProcessorConstMeta,
         argValues: [toDeviceId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSyncYieldSyncProcessorConstMeta =>
+  TaskConstMeta get kCrateApiSyncDatasetsYieldSyncProcessorConstMeta =>
       const TaskConstMeta(
         debugName: "yield_sync_processor",
         argNames: ["toDeviceId"],
