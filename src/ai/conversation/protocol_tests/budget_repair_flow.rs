@@ -183,10 +183,17 @@ fn short_main_stream_input_survives_424_with_32k_fallback() {
     assert!(requests[0]["tools"].is_array());
     assert!(crate::ai::budget::input_tokens("fixture", &requests[0]) <= 27034);
     assert!(!requests[0].to_string().contains("record_event"));
-    assert_eq!(
-        store.active_ai_provider_config().unwrap().unwrap().id,
-        fallback
-    );
+    // failover 落点现在写 ai_provider_runtime_active（本机事实，迁移 55），
+    // 不再改写 is_active——is_active 只表达用户显式激活。校验运行时落点。
+    let runtime_head: String = store
+        .connection
+        .query_row(
+            "SELECT config_id FROM ai_provider_runtime_active WHERE singleton=1",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(runtime_head, fallback);
     assert_eq!(store.list_events().unwrap().len(), 1);
     drop(store);
     let _ = std::fs::remove_file(path);

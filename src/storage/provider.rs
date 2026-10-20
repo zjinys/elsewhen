@@ -91,7 +91,8 @@ impl Store {
             "SELECT id,name,provider_type,base_url,model,api_key_source,
                 COALESCE(api_key,''),is_active,temperature,max_tokens,context_window
          FROM ai_provider_configs
-         ORDER BY is_active DESC,
+         ORDER BY (id = COALESCE((SELECT config_id FROM ai_provider_runtime_active WHERE singleton=1), '')) DESC,
+             is_active DESC,
              COALESCE((SELECT position FROM ai_provider_sync_order WHERE config_id=ai_provider_configs.id), 9223372036854775807),
              created_at ASC, id ASC",
         )?;
@@ -310,29 +311,48 @@ impl Store {
     /// 记号：`mark_sync` 控制是否把变更纳入同步域。
     ///
     /// AI 运行时的 failover 落点（`conversation.rs` 成功后写 active）传 false：
-    /// active 是本机运行时事实——哪台拿 503 哪台才需要切，它不属于用户配置意图。
-    /// 若纳入同步，两端对话行为会各自改 active，provider bundle 永久分叉，
+    /// 落点写 `ai_provider_runtime_active`（本机事实，迁移 55），**不碰**
+    /// `is_active`/`updated_at` —— is_active 只表达用户显式激活。此前 failover
+    /// 直接改 is_active，令同一 revision_id 的 bundle 明文漂移（active_id 与
+    /// failover_order 都按 is_active 导出），对端已 ack 的信封永远等不到匹配
+    /// 内容，每个同步 tick 都命中 acknowledged re-seal 幂等防线且变更永不
+    /// 同步。若纳入同步域，两端对话各自改 active，provider bundle 永久分叉，
     /// 每轮同步都制造新的冲突审阅（用户裁决无法收敛的真根源）。
     /// 用户在设置页的显式激活（`api/provider_config.rs`）仍传 true 同步。
-    pub fn set_active_ai_provider_config_for_sync(
-        &self,
-        id: &str,
-        mark_sync: bool,
-    ) -> Result<()> {
+    pub fn set_active_ai_provider_config_for_sync(&self, id: &str, mark_sync: bool) -> Result<()> {
         let transaction = self.begin_write_transaction()?;
-        self.connection.execute(
-            "UPDATE ai_provider_configs SET is_active=0, updated_at=?1",
-            params![chrono::Utc::now().to_rfc3339()],
-        )?;
-        let changed = self.connection.execute(
-            "UPDATE ai_provider_configs SET is_active=1, updated_at=?1 WHERE id=?2",
-            params![chrono::Utc::now().to_rfc3339(), id],
-        )?;
-        if changed == 0 {
-            anyhow::bail!("未找到要激活的配置（id={id}）");
-        }
         if mark_sync {
+            // 用户显式激活：is_active 生效并进同步域；本机临时落点随之失效
+            // （用户亲手点的才是意图，不该被 failover 落点压过）。
+            self.connection.execute(
+                "UPDATE ai_provider_configs SET is_active=0, updated_at=?1",
+                params![chrono::Utc::now().to_rfc3339()],
+            )?;
+            let changed = self.connection.execute(
+                "UPDATE ai_provider_configs SET is_active=1, updated_at=?1 WHERE id=?2",
+                params![chrono::Utc::now().to_rfc3339(), id],
+            )?;
+            if changed == 0 {
+                anyhow::bail!("未找到要激活的配置（id={id}）");
+            }
+            self.connection
+                .execute("DELETE FROM ai_provider_runtime_active", [])?;
             self.sync_mark_provider_dirty()?;
+        } else {
+            // 运行时 failover 落点：仅写本机表，同步无从感知，明文稳定。
+            let known: bool = self.connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM ai_provider_configs WHERE id=?1)",
+                params![id],
+                |r| r.get(0),
+            )?;
+            if !known {
+                anyhow::bail!("未找到要激活的配置（id={id}）");
+            }
+            self.connection.execute(
+                "INSERT INTO ai_provider_runtime_active(singleton,config_id) VALUES(1,?1)
+                 ON CONFLICT(singleton) DO UPDATE SET config_id=excluded.config_id",
+                params![id],
+            )?;
         }
         if let Some(transaction) = transaction {
             transaction.commit()?;
@@ -361,6 +381,12 @@ impl Store {
                 params![chrono::Utc::now().to_rfc3339()],
             )?;
         }
+        // 运行时落点若指向被删配置，读取端排序表达式 join 不到会自然回退
+        // 用户显式 is_active，但显式清掉更干净（避免幽灵落点一直占头位）。
+        self.connection.execute(
+            "DELETE FROM ai_provider_runtime_active WHERE config_id=?1",
+            params![id],
+        )?;
         self.sync_mark_provider_dirty()?;
         if let Some(transaction) = transaction {
             transaction.commit()?;

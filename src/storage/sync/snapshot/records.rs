@@ -90,6 +90,9 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     // Record::McpServer 与门禁测试一起撤。
     // ("mcp_servers", "per-device-execution-environment"),
     ("ai_provider_sync_order", "rebuilt-by-provider-bundle-apply"),
+    // 运行时 failover 落点（迁移 55）：本机会话事实，永不入同步域——
+    // 入域则 bundle 明文随每次 failover 漂移（对端已 ack 信封无限 re-seal）。
+    ("ai_provider_runtime_active", "per-device-runtime-failover"),
     ("analysis_jobs", "per-device-sync-state"),
     ("sync_operation_fragment_outbox", "per-device-sync-state"),
     ("sync_operation_fragment_parts", "per-device-sync-state"),

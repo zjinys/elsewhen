@@ -366,9 +366,10 @@ pub(crate) fn generate_with_provider_configs(
         ) {
             Ok(result) => {
                 if let Some(id) = provider_id {
-                    // failover 落点不进同步域：active 是本机运行时事实，
-                    // 不跨设备——否则两端对话各自改 active，provider bundle
-                    // 永久分叉，同步冲突审阅永远无法收敛。
+                    // failover 落点不进同步域：active 是本机运行时事实，写
+                    // ai_provider_runtime_active（迁移 55），不碰 is_active——
+                    // 否则 bundle 明文随每次切换漂移，对端已 ack 信封永远
+                    // 等不到匹配内容，同步永远幂等吞掉这份重发。
                     store.set_active_ai_provider_config_for_sync(&id, false)?;
                 }
                 context = attempt_context;

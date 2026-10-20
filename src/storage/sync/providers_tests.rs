@@ -384,9 +384,12 @@ fn invalid_bundle_and_revoked_sender_leave_no_partial_configuration() {
     assert_eq!(count, 0);
 }
 
-/// active 的双语义分野：显式激活进同步域（dirty 记账），运行时 failover
-/// 落点不进。这是同步冲突审阅能否收敛的分水岭——两端对话行为各自改
-/// active 会让 provider bundle 永久分叉（详见 set_active_ai_provider_config_for_sync）。
+/// active 的双语义分野：显式激活进同步域（dirty 记账 + is_active 列），
+/// 运行时 failover 落点只写本机 runtime 表（迁移 55），不入 bundle。这是
+/// 同步冲突审阅能否收敛的分水岭——两端对话行为各自改 active 会让
+/// provider bundle 永久分叉（详见 set_active_ai_provider_config_for_sync）。
+/// 且 failover 不得改写 bundle 明文的任何字节：同 revision 的重发必须
+/// 幂等短路，否则已 ack 信封每个 tick 都重新封口（re-seal skipped 刷屏）。
 #[test]
 fn runtime_failover_activates_without_entering_sync_domain() {
     let a = configured();
@@ -413,10 +416,37 @@ fn runtime_failover_activates_without_entering_sync_domain() {
         )
         .unwrap();
 
-    // 运行时 failover 落点：切换生效，但不进同步域。
+    // 运行时 failover 落点：runtime 表生效，但不碰 is_active/同步域。
+    let bundle_before = a.store.current_provider_bundle().unwrap();
+    let mut before_bytes = Vec::new();
+    serde_json::to_writer(&mut before_bytes, &bundle_before).unwrap();
     a.store
         .set_active_ai_provider_config_for_sync(second, false)
         .unwrap();
+    let runtime_head: String = a
+        .store
+        .connection
+        .query_row(
+            "SELECT config_id FROM ai_provider_runtime_active WHERE singleton=1",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(runtime_head, *second);
+    let head_of_list = a
+        .store
+        .list_ai_provider_configs_for_runtime()
+        .unwrap()
+        .remove(0);
+    assert_eq!(
+        head_of_list.id, *second,
+        "failover 落点应成为运行时候选头位"
+    );
+    // 同步域零扰动：bundle 序列化字节逐位一致（同 revision 幂等的前提）。
+    let bundle_after = a.store.current_provider_bundle().unwrap();
+    let mut after_bytes = Vec::new();
+    serde_json::to_writer(&mut after_bytes, &bundle_after).unwrap();
+    assert_eq!(before_bytes, after_bytes, "failover 不得改写 bundle 明文");
     let active: Option<String> = a
         .store
         .connection
@@ -426,7 +456,11 @@ fn runtime_failover_activates_without_entering_sync_domain() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(active.as_deref(), Some(second.as_str()));
+    assert_eq!(
+        active.as_deref(),
+        Some(first.as_str()),
+        "is_active 归用户显式激活"
+    );
     let dirty_after: Option<String> = a
         .store
         .connection
