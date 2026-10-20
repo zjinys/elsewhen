@@ -473,35 +473,6 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                       icon: const Icon(Icons.arrow_upward, size: 16),
                       tooltip: _busy ? '保存并排队下一问' : '发送',
                     ),
-                    if (ref
-                        .watch(conversationRepositoryProvider)
-                        .supportsChatQueue)
-                      PopupMenuButton<String>(
-                        tooltip: '输入保存方式',
-                        enabled: _ready && !_sending,
-                        onSelected: (mode) => _send(
-                          _inputController.text,
-                          recordOnly: mode == 'record',
-                          supplement: mode == 'supplement',
-                        ),
-                        itemBuilder: (_) => [
-                          const PopupMenuItem(
-                            value: 'record',
-                            child: Text('仅保存，不生成回复'),
-                          ),
-                          if (_conversationId != null &&
-                              ref
-                                  .read(
-                                    chatRunControllerProvider(_conversationId!),
-                                  )
-                                  .state
-                                  .active)
-                            const PopupMenuItem(
-                              value: 'supplement',
-                              child: Text('补充当前任务'),
-                            ),
-                        ],
-                      ),
                   ],
                 ),
               ),

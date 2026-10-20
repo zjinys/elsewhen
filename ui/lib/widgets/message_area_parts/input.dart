@@ -495,23 +495,6 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
                   tooltip: isGenerating && queueEnabled ? '保存并排队下一问' : '发送',
                 ),
               ),
-              if (queueEnabled)
-                PopupMenuButton<ChatInputMode>(
-                  tooltip: '输入保存方式',
-                  enabled: !_isSubmitting,
-                  onSelected: (mode) => _handleSubmit(mode: mode),
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: ChatInputMode.recordOnly,
-                      child: Text('仅保存，不生成回复'),
-                    ),
-                    if (isGenerating)
-                      const PopupMenuItem(
-                        value: ChatInputMode.supplement,
-                        child: Text('补充当前任务'),
-                      ),
-                  ],
-                ),
             ],
           ),
         ],
