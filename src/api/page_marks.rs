@@ -6,7 +6,7 @@
 //! 在生成链路内落标，不经本 FFI 创建，但展示/撤销共用本面。
 
 use super::*;
-use anyhow::{ensure, Context};
+use anyhow::{Context, ensure};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PageMarkDto {
@@ -50,10 +50,7 @@ pub fn list_page_marks(conversation_id: String) -> Result<Vec<PageMarkDto>> {
 
 /// 生成翻篇摘要并落标。kind 只接受 "manual"——自动档在生成链路内触发。
 /// 同步阻塞耗时（真实 AI 往返），调用方在工作线程触发。
-pub fn create_page_mark(
-    conversation_id: String,
-    boundary_message_id: String,
-) -> Result<String> {
+pub fn create_page_mark(conversation_id: String, boundary_message_id: String) -> Result<String> {
     let store = store_from_config()?;
     let mut providers = store.list_ai_provider_configs_for_runtime()?;
     providers.retain(|config| config.is_active);

@@ -236,7 +236,11 @@ pub fn set_wiki_opinion(slug: String, opinion: Option<String>) -> Result<WikiPag
 
 /// 创建记事本（kind=memo 唯一建档入口；评审 3.3：无 migration，复用 wiki_pages）。
 /// 标题重复时 slug 自动加后缀，与 unique_slug 同语义。
-pub fn create_wiki_page(title: String, content_md: String, tags: Vec<String>) -> Result<WikiPageDto> {
+pub fn create_wiki_page(
+    title: String,
+    content_md: String,
+    tags: Vec<String>,
+) -> Result<WikiPageDto> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
     let page = store.create_wiki_page("memo", &title, &content_md, &tags)?;
