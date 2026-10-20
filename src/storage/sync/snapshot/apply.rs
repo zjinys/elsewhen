@@ -323,13 +323,14 @@ impl Store {
                 updated_at,
                 conversation_id,
                 review_version,
+                essence,
             } => {
                 validate_id(id)?;
                 ensure!(
                     matches!(status.as_str(), "active" | "pending"),
                     "sync_snapshot_rule_status_invalid"
                 );
-                self.connection.execute("INSERT INTO rules(id,content,status,conversation_id,created_at,updated_at,review_version) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![id,content,status,conversation_id,created_at,updated_at,review_version])?;
+                self.connection.execute("INSERT INTO rules(id,content,status,conversation_id,essence,created_at,updated_at,review_version) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",params![id,content,status,conversation_id,essence,created_at,updated_at,review_version])?;
             }
             Record::WikiAsset {
                 rel,

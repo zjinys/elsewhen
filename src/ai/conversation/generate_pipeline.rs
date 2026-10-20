@@ -432,8 +432,13 @@ pub(crate) fn generate_with_provider_configs(
     // 5) 解析规则提议：若 AI 在末尾提交了一条规则，剥离标记转为友好提示展示，
     //    并把规则文本暂存为「待确认」，等待用户下一条消息确认后入库生效
     let (mut content, proposed_rule) = parse_rule_proposal(&raw);
-    if let Some(rule) = proposed_rule {
-        let id = store.add_rule(&rule, RuleStatus::Pending, Some(conversation_id))?;
+    if let Some(proposal) = proposed_rule {
+        let id = store.add_rule_with_essence(
+            &proposal.rule,
+            RuleStatus::Pending,
+            Some(conversation_id),
+            proposal.essence.as_deref(),
+        )?;
         super::generation::event(
             store,
             "proposal_ready",

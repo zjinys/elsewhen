@@ -205,8 +205,15 @@ pub(crate) fn pending_review_context(
 /// 解析 assistant 回复中的规则提议：返回（展示给用户的消息内容，提议的规则文本）。
 /// AI 按 system 提示在末尾另起一行输出 `[规则提议]xxx`。
 /// 这里剥离标记、以友好提示呈现给用户，规则文本由调用方暂存为待确认规则。
-pub(crate) fn parse_rule_proposal(content: &str) -> (String, Option<String>) {
+/// 规则提议解析结果：规则原文 + AI 提取的语义内核（可选）。
+pub(crate) struct RuleProposal {
+    pub rule: String,
+    pub essence: Option<String>,
+}
+
+pub(crate) fn parse_rule_proposal(content: &str) -> (String, Option<RuleProposal>) {
     const MARKER: &str = "[规则提议]";
+    const ESSENCE_MARKER: &str = "[规则本质]";
     let Some(idx) = content.find(MARKER) else {
         return (content.to_string(), None);
     };
@@ -215,20 +222,36 @@ pub(crate) fn parse_rule_proposal(content: &str) -> (String, Option<String>) {
     if rule.is_empty() {
         return (content.to_string(), None);
     }
-    // 从消息中移除提议所在行
+    // 可选的 essence 行：紧跟在规则提议行之后
+    let essence = after
+        .lines()
+        .nth(1)
+        .and_then(|line| line.trim().strip_prefix(ESSENCE_MARKER))
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    // 从消息中移除提议所在行（含可选的 essence 行）
     let line_start = content[..idx].rfind('\n').map(|i| i + 1).unwrap_or(0);
-    let line_end = content[idx..]
+    let mut line_end = content[idx..]
         .find('\n')
         .map(|i| i + idx + 1)
         .unwrap_or(content.len());
+    // 如果下一行是 essence 行，也一并移除
+    if essence.is_some() {
+        if let Some(next_nl) = content[line_end..].find('\n') {
+            line_end += next_nl + 1;
+        } else {
+            line_end = content.len();
+        }
+    }
     let mut cleaned = String::with_capacity(content.len());
     cleaned.push_str(&content[..line_start]);
     cleaned.push_str(&content[line_end..]);
     let cleaned = cleaned.trim().to_string();
     let hint = format!("（建议沉淀成一条个人规则：「{rule}」—— 在审阅卡点击接受即可加入规则库）");
+    let proposal = RuleProposal { rule, essence };
     if cleaned.is_empty() {
-        (hint, Some(rule))
+        (hint, Some(proposal))
     } else {
-        (format!("{cleaned}\n\n{hint}"), Some(rule))
+        (format!("{cleaned}\n\n{hint}"), Some(proposal))
     }
 }

@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -2127953653;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -700106266;
 
 // Section: executor
 
@@ -4063,6 +4063,27 @@ fn wire__crate__api__rules__list_rules_impl(
         },
     )
 }
+fn wire__crate__api__rules__list_rules_missing_essence_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_rules_missing_essence",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::rules::list_rules_missing_essence()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__sync__datasets__list_sync_datasets_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -6933,6 +6954,32 @@ fn wire__crate__api__wiki__update_project_path_impl(
                     (move || {
                         let output_ok =
                             crate::api::wiki::update_project_path(api_slug, api_new_path)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__rules__update_rule_essence_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    rule_id: impl CstDecode<String>,
+    essence: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_rule_essence",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_rule_id = rule_id.cst_decode();
+            let api_essence = essence.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::rules::update_rule_essence(api_rule_id, api_essence)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -10576,6 +10623,7 @@ impl SseDecode for crate::api::rules::RuleDto {
         let mut var_createdAt = <String>::sse_decode(deserializer);
         let mut var_triggerScene = <String>::sse_decode(deserializer);
         let mut var_triggerKeywords = <Vec<String>>::sse_decode(deserializer);
+        let mut var_essence = <String>::sse_decode(deserializer);
         return crate::api::rules::RuleDto {
             id: var_id,
             content: var_content,
@@ -10583,6 +10631,7 @@ impl SseDecode for crate::api::rules::RuleDto {
             created_at: var_createdAt,
             trigger_scene: var_triggerScene,
             trigger_keywords: var_triggerKeywords,
+            essence: var_essence,
         };
     }
 }
@@ -13671,6 +13720,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::rules::RuleDto {
             self.created_at.into_into_dart().into_dart(),
             self.trigger_scene.into_into_dart().into_dart(),
             self.trigger_keywords.into_into_dart().into_dart(),
+            self.essence.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -16739,6 +16789,7 @@ impl SseEncode for crate::api::rules::RuleDto {
         <String>::sse_encode(self.created_at, serializer);
         <String>::sse_encode(self.trigger_scene, serializer);
         <Vec<String>>::sse_encode(self.trigger_keywords, serializer);
+        <String>::sse_encode(self.essence, serializer);
     }
 }
 
@@ -19567,6 +19618,7 @@ mod io {
                 created_at: self.created_at.cst_decode(),
                 trigger_scene: self.trigger_scene.cst_decode(),
                 trigger_keywords: self.trigger_keywords.cst_decode(),
+                essence: self.essence.cst_decode(),
             }
         }
     }
@@ -21619,6 +21671,7 @@ mod io {
                 created_at: core::ptr::null_mut(),
                 trigger_scene: core::ptr::null_mut(),
                 trigger_keywords: core::ptr::null_mut(),
+                essence: core::ptr::null_mut(),
             }
         }
     }
@@ -23629,6 +23682,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__rules__list_rules_missing_essence(
+        port_: i64,
+    ) {
+        wire__crate__api__rules__list_rules_missing_essence_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__datasets__list_sync_datasets(
         port_: i64,
     ) {
@@ -24727,6 +24787,15 @@ mod io {
         new_path: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__wiki__update_project_path_impl(port_, slug, new_path)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__rules__update_rule_essence(
+        port_: i64,
+        rule_id: *mut wire_cst_list_prim_u_8_strict,
+        essence: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__rules__update_rule_essence_impl(port_, rule_id, essence)
     }
 
     #[unsafe(no_mangle)]
@@ -27516,6 +27585,7 @@ mod io {
         created_at: *mut wire_cst_list_prim_u_8_strict,
         trigger_scene: *mut wire_cst_list_prim_u_8_strict,
         trigger_keywords: *mut wire_cst_list_String,
+        essence: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -30996,8 +31066,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                6,
-                "Expected 6 elements, got {}",
+                7,
+                "Expected 7 elements, got {}",
                 self_.length()
             );
             crate::api::rules::RuleDto {
@@ -31007,6 +31077,7 @@ mod web {
                 created_at: self_.get(3).cst_decode(),
                 trigger_scene: self_.get(4).cst_decode(),
                 trigger_keywords: self_.get(5).cst_decode(),
+                essence: self_.get(6).cst_decode(),
             }
         }
     }
@@ -33322,6 +33393,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__rules__list_rules_missing_essence(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__rules__list_rules_missing_essence_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__sync__datasets__list_sync_datasets(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
@@ -34422,6 +34500,15 @@ mod web {
         new_path: String,
     ) {
         wire__crate__api__wiki__update_project_path_impl(port_, slug, new_path)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__rules__update_rule_essence(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        rule_id: String,
+        essence: String,
+    ) {
+        wire__crate__api__rules__update_rule_essence_impl(port_, rule_id, essence)
     }
 
     #[wasm_bindgen]

@@ -290,12 +290,12 @@ impl Store {
                 } else {
                     // 规则行复制不是执行授权（不变式 4）：只动 rules 表。
                     self.connection.execute(
-                        "INSERT INTO rules(id,content,status,conversation_id,created_at,updated_at) \
-                         VALUES(?1,?2,?3,?4,?5,?6) \
+                        "INSERT INTO rules(id,content,status,conversation_id,essence,created_at,updated_at) \
+                         VALUES(?1,?2,?3,?4,?5,?6,?7) \
                          ON CONFLICT(id) DO UPDATE SET content=excluded.content,status=excluded.status, \
-                         conversation_id=excluded.conversation_id,updated_at=excluded.updated_at",
+                         conversation_id=excluded.conversation_id,essence=excluded.essence,updated_at=excluded.updated_at",
                         params![rule.id, rule.content, rule.status, rule.conversation_id,
-                                rule.created_at, rule.updated_at],
+                                rule.essence, rule.created_at, rule.updated_at],
                     )?;
                 }
                 self.sync_set_head("rule", &rule.id, &op.op_id, *deleted)?;

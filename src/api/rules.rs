@@ -14,6 +14,8 @@ pub struct RuleDto {
     pub trigger_scene: String,
     /// 触发关键词（空 = 不参与事件预筛）
     pub trigger_keywords: Vec<String>,
+    /// 语义内核：AI 提议时提取的一句话语义标签（空 = 旧规则或AI未产出）
+    pub essence: String,
 }
 
 /// 列出规则库（含已生效与待确认）
@@ -34,6 +36,7 @@ pub fn list_rules() -> Result<Vec<RuleDto>> {
                 .trigger_keywords
                 .and_then(|json| serde_json::from_str::<Vec<String>>(&json).ok())
                 .unwrap_or_default(),
+            essence: r.essence.unwrap_or_default(),
         })
         .collect())
 }
@@ -44,6 +47,37 @@ pub fn add_rule(content: String) -> Result<String> {
     let store = Store::open(&config.database_path)?;
 
     store.add_rule(&content, RuleStatus::Active, None)
+}
+
+/// 为已有规则回填语义内核（essence）。
+/// 用于迁移 56 之后旧规则的批量补充：AI 读规则原文，产出一句话语义标签。
+pub fn update_rule_essence(rule_id: String, essence: String) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.update_rule_essence(&rule_id, &essence)
+}
+
+/// 列出缺少 essence 的已生效规则（回填用）
+pub fn list_rules_missing_essence() -> Result<Vec<RuleDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let rules = store.list_active_rules()?;
+    Ok(rules
+        .into_iter()
+        .filter(|r| r.essence.is_none())
+        .map(|r| RuleDto {
+            id: r.id,
+            content: r.content,
+            status: r.status.as_str().to_string(),
+            created_at: r.created_at,
+            trigger_scene: r.trigger_scene.unwrap_or_default(),
+            trigger_keywords: r
+                .trigger_keywords
+                .and_then(|json| serde_json::from_str::<Vec<String>>(&json).ok())
+                .unwrap_or_default(),
+            essence: r.essence.unwrap_or_default(),
+        })
+        .collect())
 }
 
 /// 删除一条规则

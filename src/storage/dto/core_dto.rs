@@ -94,6 +94,8 @@ pub struct RuleSummary {
     pub trigger_scene: Option<String>,
     /// 触发关键词 JSON 数组字符串（None = 不参与事件预筛）
     pub trigger_keywords: Option<String>,
+    /// 语义内核：AI 在提议时提取的一句话语义标签（None = 旧规则或AI未产出）
+    pub essence: Option<String>,
 }
 
 /// 待办状态

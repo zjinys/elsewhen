@@ -3988,6 +3988,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.createdAt),
       cst_encode_String(raw.triggerScene),
       cst_encode_list_String(raw.triggerKeywords),
+      cst_encode_String(raw.essence),
     ].jsify()!;
   }
 
@@ -7072,6 +7073,10 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__rules__list_rules(NativePortType port_) =>
       wasmModule.wire__crate__api__rules__list_rules(port_);
 
+  void wire__crate__api__rules__list_rules_missing_essence(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__rules__list_rules_missing_essence(port_);
+
   void wire__crate__api__sync__datasets__list_sync_datasets(
     NativePortType port_,
   ) => wasmModule.wire__crate__api__sync__datasets__list_sync_datasets(port_);
@@ -8068,6 +8073,16 @@ class RustLibWire implements BaseWire {
     new_path,
   );
 
+  void wire__crate__api__rules__update_rule_essence(
+    NativePortType port_,
+    String rule_id,
+    String essence,
+  ) => wasmModule.wire__crate__api__rules__update_rule_essence(
+    port_,
+    rule_id,
+    essence,
+  );
+
   void wire__crate__api__theme__update_theme_prefs(
     NativePortType port_,
     String mode,
@@ -9017,6 +9032,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__rules__list_rules(NativePortType port_);
 
+  external void wire__crate__api__rules__list_rules_missing_essence(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__sync__datasets__list_sync_datasets(
     NativePortType port_,
   );
@@ -9656,6 +9675,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String slug,
     String new_path,
+  );
+
+  external void wire__crate__api__rules__update_rule_essence(
+    NativePortType port_,
+    String rule_id,
+    String essence,
   );
 
   external void wire__crate__api__theme__update_theme_prefs(

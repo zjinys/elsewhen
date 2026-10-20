@@ -112,7 +112,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -2127953653;
+  int get rustContentHash => -700106266;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -767,6 +767,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<RuleDto>> crateApiRulesListRules();
 
+  Future<List<RuleDto>> crateApiRulesListRulesMissingEssence();
+
   Future<(List<SyncDatasetEntryDto>, PlatformInt64)>
   crateApiSyncDatasetsListSyncDatasets();
 
@@ -1256,6 +1258,11 @@ abstract class RustLibApi extends BaseApi {
   Future<WikiPageDto> crateApiWikiUpdateProjectPath({
     required String slug,
     required String newPath,
+  });
+
+  Future<void> crateApiRulesUpdateRuleEssence({
+    required String ruleId,
+    required String essence,
   });
 
   Future<void> crateApiThemeUpdateThemePrefs({
@@ -6068,6 +6075,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_rules", argNames: []);
 
   @override
+  Future<List<RuleDto>> crateApiRulesListRulesMissingEssence() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__rules__list_rules_missing_essence(
+            port_,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_rule_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRulesListRulesMissingEssenceConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRulesListRulesMissingEssenceConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_rules_missing_essence",
+        argNames: [],
+      );
+
+  @override
   Future<(List<SyncDatasetEntryDto>, PlatformInt64)>
   crateApiSyncDatasetsListSyncDatasets() {
     return handler.executeNormal(
@@ -9508,6 +9541,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiRulesUpdateRuleEssence({
+    required String ruleId,
+    required String essence,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(ruleId);
+          var arg1 = cst_encode_String(essence);
+          return wire.wire__crate__api__rules__update_rule_essence(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRulesUpdateRuleEssenceConstMeta,
+        argValues: [ruleId, essence],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRulesUpdateRuleEssenceConstMeta =>
+      const TaskConstMeta(
+        debugName: "update_rule_essence",
+        argNames: ["ruleId", "essence"],
+      );
+
+  @override
   Future<void> crateApiThemeUpdateThemePrefs({
     required String mode,
     required String preset,
@@ -12191,8 +12257,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RuleDto dco_decode_rule_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return RuleDto(
       id: dco_decode_String(arr[0]),
       content: dco_decode_String(arr[1]),
@@ -12200,6 +12266,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       createdAt: dco_decode_String(arr[3]),
       triggerScene: dco_decode_String(arr[4]),
       triggerKeywords: dco_decode_list_String(arr[5]),
+      essence: dco_decode_String(arr[6]),
     );
   }
 
@@ -16207,6 +16274,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_createdAt = sse_decode_String(deserializer);
     var var_triggerScene = sse_decode_String(deserializer);
     var var_triggerKeywords = sse_decode_list_String(deserializer);
+    var var_essence = sse_decode_String(deserializer);
     return RuleDto(
       id: var_id,
       content: var_content,
@@ -16214,6 +16282,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       createdAt: var_createdAt,
       triggerScene: var_triggerScene,
       triggerKeywords: var_triggerKeywords,
+      essence: var_essence,
     );
   }
 
@@ -19660,6 +19729,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.createdAt, serializer);
     sse_encode_String(self.triggerScene, serializer);
     sse_encode_list_String(self.triggerKeywords, serializer);
+    sse_encode_String(self.essence, serializer);
   }
 
   @protected

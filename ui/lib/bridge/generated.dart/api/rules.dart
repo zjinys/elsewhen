@@ -18,6 +18,20 @@ Future<List<RuleDto>> listRules() =>
 Future<String> addRule({required String content}) =>
     RustLib.instance.api.crateApiRulesAddRule(content: content);
 
+/// 为已有规则回填语义内核（essence）。
+/// 用于迁移 56 之后旧规则的批量补充：AI 读规则原文，产出一句话语义标签。
+Future<void> updateRuleEssence({
+  required String ruleId,
+  required String essence,
+}) => RustLib.instance.api.crateApiRulesUpdateRuleEssence(
+  ruleId: ruleId,
+  essence: essence,
+);
+
+/// 列出缺少 essence 的已生效规则（回填用）
+Future<List<RuleDto>> listRulesMissingEssence() =>
+    RustLib.instance.api.crateApiRulesListRulesMissingEssence();
+
 /// 删除一条规则
 Future<void> deleteRule({required String ruleId}) =>
     RustLib.instance.api.crateApiRulesDeleteRule(ruleId: ruleId);
@@ -126,6 +140,9 @@ class RuleDto {
   /// 触发关键词（空 = 不参与事件预筛）
   final List<String> triggerKeywords;
 
+  /// 语义内核：AI 提议时提取的一句话语义标签（空 = 旧规则或AI未产出）
+  final String essence;
+
   const RuleDto({
     required this.id,
     required this.content,
@@ -133,6 +150,7 @@ class RuleDto {
     required this.createdAt,
     required this.triggerScene,
     required this.triggerKeywords,
+    required this.essence,
   });
 
   @override
@@ -142,7 +160,8 @@ class RuleDto {
       status.hashCode ^
       createdAt.hashCode ^
       triggerScene.hashCode ^
-      triggerKeywords.hashCode;
+      triggerKeywords.hashCode ^
+      essence.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -154,7 +173,8 @@ class RuleDto {
           status == other.status &&
           createdAt == other.createdAt &&
           triggerScene == other.triggerScene &&
-          triggerKeywords == other.triggerKeywords;
+          triggerKeywords == other.triggerKeywords &&
+          essence == other.essence;
 }
 
 /// 规则命中 DTO

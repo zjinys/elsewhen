@@ -99,7 +99,7 @@ impl Store {
     fn sync_rule_record(&self, id: &str) -> Result<Option<RuleRecord>> {
         self.connection
             .query_row(
-                "SELECT id,content,status,conversation_id,created_at,updated_at \
+                "SELECT id,content,status,conversation_id,essence,created_at,updated_at \
                  FROM rules WHERE id=?1",
                 [id],
                 |r| {
@@ -108,8 +108,9 @@ impl Store {
                         content: r.get(1)?,
                         status: r.get(2)?,
                         conversation_id: r.get(3)?,
-                        created_at: r.get(4)?,
-                        updated_at: r.get(5)?,
+                        essence: r.get(4)?,
+                        created_at: r.get(5)?,
+                        updated_at: r.get(6)?,
                     })
                 },
             )
@@ -360,15 +361,16 @@ impl Store {
             return Ok(Apply::Applied);
         }
         self.connection.execute(
-            "INSERT INTO rules(id,content,status,conversation_id,created_at,updated_at) \
-             VALUES(?1,?2,?3,?4,?5,?6) \
+            "INSERT INTO rules(id,content,status,conversation_id,essence,created_at,updated_at) \
+             VALUES(?1,?2,?3,?4,?5,?6,?7) \
              ON CONFLICT(id) DO UPDATE SET content=excluded.content,status=excluded.status, \
-             conversation_id=excluded.conversation_id,updated_at=excluded.updated_at",
+             conversation_id=excluded.conversation_id,essence=excluded.essence,updated_at=excluded.updated_at",
             params![
                 rule.id,
                 rule.content,
                 rule.status,
                 rule.conversation_id,
+                rule.essence,
                 rule.created_at,
                 rule.updated_at
             ],

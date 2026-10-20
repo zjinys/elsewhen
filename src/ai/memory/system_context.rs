@@ -112,8 +112,20 @@ pub(crate) fn build_system_context(
     let rules_note = if rule_count == 0 {
         "\n\n个人规则库当前为空。".to_string()
     } else {
+        // essence 轻量注入：每条规则的语义标签一句话，让模型在对话中按本质
+        // 匹配到相关规则，而不是靠「觉得需要」才调 list_rules。
+        let rules = store.list_active_rules()?;
+        let essences: Vec<String> = rules
+            .iter()
+            .filter_map(|r| r.essence.as_deref().map(|e| format!("- {e}")))
+            .collect();
+        let essence_block = if essences.is_empty() {
+            String::new()
+        } else {
+            format!("\n已有规则的语义标签：\n{}", essences.join("\n"))
+        };
         format!(
-            "\n\n个人规则库现有 {rule_count} 条生效规则，回复需要引用既有经验规范时先用 list_rules 工具查询，再对照检查。"
+            "\n\n个人规则库现有 {rule_count} 条生效规则，回复需要引用既有经验规范时先用 list_rules 工具查询，再对照检查。{essence_block}"
         )
     };
     prompt.push_str(&rules_note);

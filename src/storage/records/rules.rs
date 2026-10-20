@@ -14,7 +14,7 @@ impl Store {
         conversation_id: Option<&str>,
     ) -> Result<Vec<RuleSummary>> {
         let mut sql =
-            "SELECT id, content, status, created_at, trigger_scene, trigger_keywords FROM rules"
+            "SELECT id, content, status, created_at, trigger_scene, trigger_keywords, essence FROM rules"
                 .to_string();
         let mut conditions: Vec<String> = Vec::new();
         let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
@@ -46,6 +46,7 @@ impl Store {
                 created_at: row.get(3)?,
                 trigger_scene: row.get(4)?,
                 trigger_keywords: row.get(5)?,
+                essence: row.get(6)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -111,13 +112,25 @@ impl Store {
         status: RuleStatus,
         conversation_id: Option<&str>,
     ) -> Result<String> {
+        self.add_rule_with_essence(content, status, conversation_id, None)
+    }
+
+    /// 新增一条规则（带语义内核）。
+    /// essence 是 AI 在提议时提取的一句话语义标签，用于对话装配时的轻量匹配注入。
+    pub fn add_rule_with_essence(
+        &self,
+        content: &str,
+        status: RuleStatus,
+        conversation_id: Option<&str>,
+        essence: Option<&str>,
+    ) -> Result<String> {
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now().to_rfc3339();
         let tx = self.begin_write_transaction()?;
         self.connection.execute(
-            "INSERT INTO rules (id, content, status, conversation_id, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
-            params![id, content, status.as_str(), conversation_id, now],
+            "INSERT INTO rules (id, content, status, conversation_id, essence, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)",
+            params![id, content, status.as_str(), conversation_id, essence, now],
         )?;
         self.sync_record_rule(&id, false)?;
         if let Some(tx) = tx {
@@ -175,6 +188,20 @@ impl Store {
             tx.commit()?;
         }
         Ok(ids.len())
+    }
+
+    /// 更新规则的语义内核（essence）。
+    /// 用于 AI 回填：旧规则在迁移 56 之前没有 essence 字段。
+    pub fn update_rule_essence(&self, rule_id: &str, essence: &str) -> Result<()> {
+        let updated = self.connection.execute(
+            "UPDATE rules SET essence = ?2, updated_at = ?3 WHERE id = ?1",
+            params![rule_id, essence, chrono::Utc::now().to_rfc3339()],
+        )?;
+        if updated == 0 {
+            anyhow::bail!("规则不存在：{rule_id}");
+        }
+        self.sync_record_rule(rule_id, false)?;
+        Ok(())
     }
 
     /// 删除一条规则；返回是否存在并删除。先捕获（deleted，行在）后删。

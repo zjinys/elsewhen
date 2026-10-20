@@ -56,6 +56,9 @@ pub struct RuleRecord {
     pub content: String,
     pub status: String,
     pub conversation_id: Option<String>,
+    /// 语义内核：AI 提议时提取的一句话语义标签（迁移 56 新增；旧规则为 None）
+    #[serde(default)]
+    pub essence: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }

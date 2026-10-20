@@ -89,9 +89,9 @@ fn declination_words() {
 #[test]
 fn parse_rule_proposal_extracts_and_cleans() {
     let reply = "这口气确实难咽，明明是对方的问题却让你兜底 💢\n\n[规则提议]和大型企业的人沟通重要事项必须留痕（文字或邮件记录）";
-    let (shown, rule) = parse_rule_proposal(reply);
-    let rule = rule.expect("应有提议规则");
-    assert!(rule.starts_with("和大型企业的人沟通"), "规则文本: {rule}");
+    let (shown, proposal) = parse_rule_proposal(reply);
+    let proposal = proposal.expect("应有提议规则");
+    assert!(proposal.rule.starts_with("和大型企业的人沟通"), "规则文本: {}", proposal.rule);
     assert!(!shown.contains("[规则提议]"), "展示文本不应含原始标记");
     assert!(
         shown.contains("建议沉淀成一条个人规则"),
