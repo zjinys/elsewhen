@@ -186,7 +186,10 @@ Future<void> openWikiImportDialog(
     context: context,
     builder: (_) => Dialog(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 720, maxHeight: 680),
+        constraints: BoxConstraints(
+          maxWidth: 720,
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
         child: Padding(
           padding: const EdgeInsets.all(4),
           child: _ImportTab(
