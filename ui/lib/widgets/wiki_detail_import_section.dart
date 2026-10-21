@@ -129,12 +129,91 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
 
   @override
   Widget build(BuildContext context) {
+    // 编辑器不能放在 SingleChildScrollView 内（滚动容器拦截内部手势），
+    // 文本模式改用 Column 布局：上方字段可滚动，编辑器固定区域。
+    if (!_isUrlMode) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppTheme.space4),
+              child: _buildTextFields(),
+            ),
+          ),
+          // 正文 markdown 编辑器（固定区域，不随上方滚动）
+          Container(
+            margin: const EdgeInsets.fromLTRB(
+              AppTheme.space4,
+              0,
+              AppTheme.space4,
+              AppTheme.space4,
+            ),
+            constraints: const BoxConstraints(minHeight: 200, maxHeight: 320),
+            decoration: BoxDecoration(
+              color: AppTheme.surface2,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              border: Border.all(color: AppTheme.surface3),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: WikiContentEditor(
+              key: _editorKey,
+              slug: '',
+              contentMd: '',
+              editable: !_busy,
+              shrinkWrap: true,
+              enableSaveShortcut: false,
+              onWikiLinkTap: (_) {},
+              onSave: (_) async {},
+            ),
+          ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.space4,
+                0,
+                AppTheme.space4,
+                AppTheme.space4,
+              ),
+              child: Text(
+                _error!,
+                style: TextStyle(fontSize: 12, color: AppTheme.error),
+              ),
+            ),
+          // 保存按钮（编辑器下方，固定区域）
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTheme.space4,
+              0,
+              AppTheme.space4,
+              AppTheme.space4,
+            ),
+            child: Row(
+              children: [
+                const Spacer(),
+                FilledButton.icon(
+                  onPressed: _busy ? null : _saveText,
+                  icon: _busy
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.bookmark_add_outlined, size: 16),
+                  label: Text(_busy ? '保存中…' : '保存到知识库'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_isUrlMode) ...[_buildUrlInput()] else ...[_buildTextInput()],
+          _buildUrlInput(),
           if (_error != null) ...[
             const SizedBox(height: AppTheme.space2),
             Text(
@@ -236,7 +315,8 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
     );
   }
 
-  Widget _buildTextInput() {
+  /// 文本模式的标题/标签字段（供 build 的滚动区域使用）
+  Widget _buildTextFields() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -303,44 +383,6 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
               borderSide: BorderSide(color: AppTheme.accentPrimary, width: 1.5),
             ),
           ),
-        ),
-        const SizedBox(height: AppTheme.space2),
-        // 正文 markdown 编辑器（复用知识页 WikiContentEditor）。
-        Container(
-          constraints: const BoxConstraints(minHeight: 200, maxHeight: 320),
-          decoration: BoxDecoration(
-            color: AppTheme.surface2,
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-            border: Border.all(color: AppTheme.surface3),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: WikiContentEditor(
-            key: _editorKey,
-            slug: '',
-            contentMd: '',
-            editable: !_busy,
-            shrinkWrap: true,
-            enableSaveShortcut: false,
-            onWikiLinkTap: (_) {},
-            onSave: (_) async {},
-          ),
-        ),
-        const SizedBox(height: AppTheme.space3),
-        Row(
-          children: [
-            const Spacer(),
-            FilledButton.icon(
-              onPressed: _busy ? null : _saveText,
-              icon: _busy
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.bookmark_add_outlined, size: 16),
-              label: Text(_busy ? '保存中…' : '保存到知识库'),
-            ),
-          ],
         ),
       ],
     );
