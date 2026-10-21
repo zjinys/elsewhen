@@ -19,6 +19,9 @@ class _ChatProposalReviewDialogState
   bool _loading = true, _history = false, _changed = false;
   int _offset = 0;
   String? _error;
+  // 主从布局：右栏当前展示的单条详情或批量集。
+  api.ChatProposalDto? _viewing;
+  bool _viewingBatch = false;
 
   @override
   void initState() {
@@ -59,34 +62,36 @@ class _ChatProposalReviewDialogState
   }
 
   Future<void> _review(api.ChatProposalDto proposal) async {
-    final changed = await showDialog<bool>(
-      context: context,
-      builder: (_) => ChatProposalDetailDialog(proposal: proposal),
-    );
-    await _afterReview(changed);
+    setState(() {
+      _viewing = proposal;
+      _viewingBatch = false;
+    });
   }
 
   Future<void> _reviewSelected() async {
-    final selected = _proposals
-        .where((p) => _selected.contains('${p.kind}:${p.id}'))
-        .toList();
-    if (selected.isEmpty) return;
-    final changed = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => ChatProposalBatchDialog(proposals: selected),
-    );
-    await _afterReview(changed);
+    if (_selected.isEmpty) return;
+    setState(() {
+      _viewing = null;
+      _viewingBatch = true;
+    });
   }
+
+  void _closeDetail() => setState(() {
+    _viewing = null;
+    _viewingBatch = false;
+  });
 
   Future<void> _afterReview(bool? changed) async {
     if (!mounted) return;
     _changed = _changed || changed == true;
     _offset = 0;
+    _viewing = null;
+    _viewingBatch = false;
     ref.invalidate(pendingActionsProvider);
     ref.invalidate(todosProvider);
     ref.invalidate(wikiPagesProvider);
     ref.invalidate(conversationsProvider);
+    ref.invalidate(_hasPendingProvider(widget.conversationId));
     await _load();
   }
 
@@ -96,9 +101,61 @@ class _ChatProposalReviewDialogState
     return AlertDialog(
       title: Text(widget.conversationId == null ? '历史全局规则审阅' : '对话提议审阅'),
       content: SizedBox(
-        width: 640,
-        height: MediaQuery.sizeOf(context).height * .6,
-        child: Column(
+        width: 1000,
+        height: MediaQuery.sizeOf(context).height * .75,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final wide = constraints.maxWidth >= 720;
+            final listPane = _buildListPane(count);
+            final detailPane = _buildDetailPane();
+            if (wide) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(width: 400, child: listPane),
+                  const VerticalDivider(width: 1),
+                  Expanded(child: detailPane),
+                ],
+              );
+            }
+            // 窄屏：详情打开时页内切换，不叠对话框。
+            final showDetail = !_history && (_viewing != null || _viewingBatch);
+            return showDetail ? detailPane : listPane;
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, _changed),
+          child: const Text('关闭'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailPane() {
+    if (_viewingBatch) {
+      final selected = _proposals
+          .where((p) => _selected.contains('${p.kind}:${p.id}'))
+          .toList();
+      return ChatProposalBatchPanel(
+        proposals: selected,
+        onClose: () => _afterReview(true),
+      );
+    }
+    final proposal = _viewing;
+    if (proposal == null) {
+      return const Center(child: Text('选择左侧一条提议查看详情'));
+    }
+    return ChatProposalDetailPanel(
+      key: ValueKey('${proposal.kind}:${proposal.id}:${proposal.version}'),
+      proposal: proposal,
+      onClose: () => _afterReview(_changed),
+    );
+  }
+
+  Widget _buildListPane(int count) {
+    return Column(
           children: [
             Wrap(
               spacing: 8,
@@ -188,71 +245,63 @@ class _ChatProposalReviewDialogState
                             ],
                           );
                         }
-                        final proposal = _proposals[index];
-                        final args = _args(proposal.argsJson);
-                        return ListTile(
-                          key: ValueKey('${proposal.kind}:${proposal.id}'),
-                          leading: Checkbox(
-                            key: ValueKey(
-                              'select-${proposal.kind}-${proposal.id}',
-                            ),
-                            value: _selected.contains(
-                              '${proposal.kind}:${proposal.id}',
-                            ),
-                            onChanged: (selected) => setState(() {
-                              final key = '${proposal.kind}:${proposal.id}';
-                              if (selected == true) {
-                                _selected.add(key);
-                              } else {
-                                _selected.remove(key);
-                              }
-                            }),
-                          ),
-                          title: Text(
-                            '${args?['title'] ?? args?['content'] ?? _actionLabel(proposal.action)}',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: Text(
-                            '${_actionLabel(proposal.action)} · 版本 ${proposal.version}',
-                          ),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () => _review(proposal),
-                        );
-                      },
-                    ),
+                    final proposal = _proposals[index];
+                    final args = _args(proposal.argsJson);
+                    final key = '${proposal.kind}:${proposal.id}';
+                    final isViewing =
+                        _viewing != null &&
+                        '${_viewing!.kind}:${_viewing!.id}' == key;
+                    return ListTile(
+                      key: ValueKey(key),
+                      selected: isViewing,
+                      leading: Checkbox(
+                        key: ValueKey('select-${proposal.kind}-${proposal.id}'),
+                        value: _selected.contains(key),
+                        onChanged: (selected) => setState(() {
+                          if (selected == true) {
+                            _selected.add(key);
+                          } else {
+                            _selected.remove(key);
+                          }
+                        }),
+                      ),
+                      title: Text(
+                        '${args?['title'] ?? args?['content'] ?? _actionLabel(proposal.action)}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        '${_actionLabel(proposal.action)} · 版本 ${proposal.version}',
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _review(proposal),
+                    );
+                  },
+                ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TextButton(
+              onPressed: _loading || _offset == 0
+                  ? null
+                  : () {
+                      _offset = (_offset - _pageSize).clamp(0, _offset);
+                      _load();
+                    },
+              child: const Text('上一页'),
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: _loading || _offset == 0
-                      ? null
-                      : () {
-                          _offset = (_offset - _pageSize).clamp(0, _offset);
-                          _load();
-                        },
-                  child: const Text('上一页'),
-                ),
-                Text('第 ${_offset ~/ _pageSize + 1} 页'),
-                TextButton(
-                  onPressed: _loading || count < _pageSize
-                      ? null
-                      : () {
-                          _offset += _pageSize;
-                          _load();
-                        },
-                  child: const Text('下一页'),
-                ),
-              ],
+            Text('第 ${_offset ~/ _pageSize + 1} 页'),
+            TextButton(
+              onPressed: _loading || count < _pageSize
+                  ? null
+                  : () {
+                      _offset += _pageSize;
+                      _load();
+                    },
+              child: const Text('下一页'),
             ),
           ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, _changed),
-          child: const Text('关闭'),
         ),
       ],
     );
@@ -282,7 +331,8 @@ class _ProposalContent extends StatelessWidget {
             '${args['title']}',
             style: Theme.of(context).textTheme.titleMedium,
           ),
-        if (body != null) SelectableText('$body'),
+        // 正文按 markdown 渲染（知识页/规则/记录多为 md），不再用纯文本
+        if (body != null) MarkdownView(markdown: '$body'),
         if (rest.isNotEmpty) ...[
           const SizedBox(height: 12),
           ExpansionTile(

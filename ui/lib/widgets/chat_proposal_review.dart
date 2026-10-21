@@ -7,6 +7,7 @@ import '../bridge/api.dart' as api;
 import '../providers/conversation_provider.dart';
 import '../providers/todo_provider.dart';
 import '../providers/wiki_provider.dart';
+import 'markdown_view.dart';
 
 part 'chat_proposal_parts/proposal_review_dialog.dart';
 part 'chat_proposal_parts/proposal_batch_dialog.dart';
@@ -59,7 +60,7 @@ String _statusLabel(String status) =>
     }[status] ??
     status;
 
-class ChatProposalReviewButton extends StatelessWidget {
+class ChatProposalReviewButton extends ConsumerWidget {
   const ChatProposalReviewButton({
     super.key,
     required this.conversationId,
@@ -81,17 +82,40 @@ class ChatProposalReviewButton extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => compact
-      ? IconButton(
-          tooltip: label,
-          icon: const Icon(Icons.fact_check_outlined, size: 16),
-          visualDensity: VisualDensity.compact,
-          onPressed: () => _open(context),
-        )
-      : TextButton.icon(
-          icon: const Icon(Icons.fact_check_outlined, size: 16),
-          label: Text(label),
-          style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-          onPressed: () => _open(context),
-        );
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 有待审提议时显示徽标（只探测是否有，不取全量）。
+    final pending = ref.watch(_hasPendingProvider(conversationId));
+    final hasPending = pending.value == true;
+    final icon = hasPending
+        ? Badge(
+            label: const Text(' '),
+            smallSize: 8,
+            child: const Icon(Icons.fact_check_outlined, size: 16),
+          )
+        : const Icon(Icons.fact_check_outlined, size: 16);
+    return compact
+        ? IconButton(
+            tooltip: label,
+            icon: icon,
+            visualDensity: VisualDensity.compact,
+            onPressed: () => _open(context),
+          )
+        : TextButton.icon(
+            icon: icon,
+            label: Text(label),
+            style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+            onPressed: () => _open(context),
+          );
+  }
 }
+
+/// 是否有待审提议（轻量探测，limit 1）。dialog 内 _afterReview 会
+/// invalidate，触发徽标刷新。
+final _hasPendingProvider = FutureProvider.family<bool, String?>((
+  ref,
+  conversationId,
+) async {
+  final repo = ref.watch(conversationRepositoryProvider);
+  final rows = await repo.listChatProposals(conversationId, offset: 0, limit: 1);
+  return rows.isNotEmpty;
+});
