@@ -22,6 +22,8 @@ class _ChatProposalReviewDialogState
   // 主从布局：右栏当前展示的单条详情或批量集。
   api.ChatProposalDto? _viewing;
   bool _viewingBatch = false;
+  // 处理记录：右栏展示的回执。
+  api.ChatDecisionDto? _viewingReceipt;
 
   @override
   void initState() {
@@ -79,6 +81,13 @@ class _ChatProposalReviewDialogState
   void _closeDetail() => setState(() {
     _viewing = null;
     _viewingBatch = false;
+    _viewingReceipt = null;
+  });
+
+  void _reviewReceipt(api.ChatDecisionDto receipt) => setState(() {
+    _viewingReceipt = receipt;
+    _viewing = null;
+    _viewingBatch = false;
   });
 
   Future<void> _afterReview(bool? changed) async {
@@ -87,6 +96,7 @@ class _ChatProposalReviewDialogState
     _offset = 0;
     _viewing = null;
     _viewingBatch = false;
+    _viewingReceipt = null;
     ref.invalidate(pendingActionsProvider);
     ref.invalidate(todosProvider);
     ref.invalidate(wikiPagesProvider);
@@ -118,8 +128,10 @@ class _ChatProposalReviewDialogState
                 ],
               );
             }
-            // 窄屏：详情打开时页内切换，不叠对话框。
-            final showDetail = !_history && (_viewing != null || _viewingBatch);
+            // 窄屏：详情/回执打开时页内切换，不叠对话框。
+            final showDetail = _history
+                ? _viewingReceipt != null
+                : _viewing != null || _viewingBatch;
             return showDetail ? detailPane : listPane;
           },
         ),
@@ -134,6 +146,28 @@ class _ChatProposalReviewDialogState
   }
 
   Widget _buildDetailPane() {
+    if (_history) {
+      final receipt = _viewingReceipt;
+      if (receipt == null) {
+        return const Center(child: Text('选择左侧一条记录查看回执'));
+      }
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${_actionLabel(receipt.action)} · ${_statusLabel(receipt.status)}',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            _ReceiptText(receipt.result),
+            const SizedBox(height: 12),
+            _ProposalContent(argsJson: receipt.argsJson),
+          ],
+        ),
+      );
+    }
     if (_viewingBatch) {
       final selected = _proposals
           .where((p) => _selected.contains('${p.kind}:${p.id}'))
@@ -156,126 +190,75 @@ class _ChatProposalReviewDialogState
 
   Widget _buildListPane(int count) {
     return Column(
+      children: [
+        Wrap(
+          spacing: 8,
           children: [
-            Wrap(
-              spacing: 8,
-              children: [
-                ChoiceChip(
-                  label: const Text('待审'),
-                  selected: !_history,
-                  onSelected: _loading
-                      ? null
-                      : (_) {
-                          setState(() {
-                            _history = false;
-                            _offset = 0;
-                          });
-                          _load();
-                        },
-                ),
-                ChoiceChip(
-                  label: const Text('处理记录'),
-                  selected: _history,
-                  onSelected: _loading
-                      ? null
-                      : (_) {
-                          setState(() {
-                            _history = true;
-                            _offset = 0;
-                          });
-                          _load();
-                        },
-                ),
-                IconButton(
-                  tooltip: '刷新',
-                  onPressed: _loading ? null : _load,
-                  icon: const Icon(Icons.refresh),
-                ),
-              ],
+            ChoiceChip(
+              label: const Text('待审'),
+              selected: !_history,
+              onSelected: _loading
+                  ? null
+                  : (_) {
+                      setState(() {
+                        _history = false;
+                        _offset = 0;
+                        _viewing = null;
+                        _viewingBatch = false;
+                        _viewingReceipt = null;
+                      });
+                      _load();
+                    },
             ),
-            if (!_history && _selected.isNotEmpty)
-              TextButton.icon(
-                onPressed: _loading ? null : _reviewSelected,
-                icon: const Icon(Icons.checklist),
-                label: Text('审阅选中（${_selected.length}）'),
-              ),
-            const Text('接受或拒绝只作用于你打开的具体提议；普通聊天回复不会批准操作。'),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : count == 0
-                  ? Center(child: Text(_history ? '暂无处理记录' : '暂无待审提议'))
-                  : ListView.builder(
-                      itemCount: count,
-                      itemBuilder: (context, index) {
-                        if (_history) {
-                          final receipt = _decisions[index];
-                          return ExpansionTile(
-                            key: ValueKey('${receipt.kind}:${receipt.id}'),
-                            title: Text(
-                              '${_actionLabel(receipt.action)} · ${_statusLabel(receipt.status)}',
-                            ),
-                            subtitle: Text(
-                              receipt.result,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _ReceiptText(receipt.result),
-                                    const SizedBox(height: 12),
-                                    _ProposalContent(
-                                      argsJson: receipt.argsJson,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          );
-                        }
-                    final proposal = _proposals[index];
-                    final args = _args(proposal.argsJson);
-                    final key = '${proposal.kind}:${proposal.id}';
-                    final isViewing =
-                        _viewing != null &&
-                        '${_viewing!.kind}:${_viewing!.id}' == key;
-                    return ListTile(
-                      key: ValueKey(key),
-                      selected: isViewing,
-                      leading: Checkbox(
-                        key: ValueKey('select-${proposal.kind}-${proposal.id}'),
-                        value: _selected.contains(key),
-                        onChanged: (selected) => setState(() {
-                          if (selected == true) {
-                            _selected.add(key);
-                          } else {
-                            _selected.remove(key);
-                          }
-                        }),
-                      ),
-                      title: Text(
-                        '${args?['title'] ?? args?['content'] ?? _actionLabel(proposal.action)}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text(
-                        '${_actionLabel(proposal.action)} · 版本 ${proposal.version}',
-                      ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => _review(proposal),
-                    );
+            ChoiceChip(
+              label: const Text('处理记录'),
+              selected: _history,
+              onSelected: _loading
+                  ? null
+                  : (_) {
+                      setState(() {
+                        _history = true;
+                        _offset = 0;
+                        _viewing = null;
+                        _viewingBatch = false;
+                        _viewingReceipt = null;
+                      });
+                      _load();
+                    },
+            ),
+            IconButton(
+              tooltip: '刷新',
+              onPressed: _loading ? null : _load,
+              icon: const Icon(Icons.refresh),
+            ),
+          ],
+        ),
+        if (!_history && _selected.isNotEmpty)
+          TextButton.icon(
+            onPressed: _loading ? null : _reviewSelected,
+            icon: const Icon(Icons.checklist),
+            label: Text('审阅选中（${_selected.length}）'),
+          ),
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : count == 0
+              ? Center(child: Text(_history ? '暂无处理记录' : '暂无待审提议'))
+              : ListView.builder(
+                  itemCount: count,
+                  itemBuilder: (context, index) {
+                    if (_history) {
+                      return _receiptTile(_decisions[index]);
+                    }
+                    return _proposalTile(_proposals[index]);
                   },
                 ),
         ),
@@ -306,6 +289,139 @@ class _ChatProposalReviewDialogState
       ],
     );
   }
+
+  Widget _proposalTile(api.ChatProposalDto proposal) {
+    final args = _args(proposal.argsJson);
+    final key = '${proposal.kind}:${proposal.id}';
+    final isViewing =
+        _viewing != null && '${_viewing!.kind}:${_viewing!.id}' == key;
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      elevation: 0,
+      color: isViewing
+          ? theme.colorScheme.primaryContainer
+          : theme.colorScheme.surfaceContainerHighest,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _review(proposal),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Checkbox(
+                key: ValueKey('select-${proposal.kind}-${proposal.id}'),
+                value: _selected.contains(key),
+                visualDensity: VisualDensity.compact,
+                onChanged: (selected) => setState(() {
+                  if (selected == true) {
+                    _selected.add(key);
+                  } else {
+                    _selected.remove(key);
+                  }
+                }),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${args?['title'] ?? args?['content'] ?? _actionLabel(proposal.action)}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${_actionLabel(proposal.action)} · 版本 ${proposal.version}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _receiptTile(api.ChatDecisionDto receipt) {
+    final theme = Theme.of(context);
+    final key = '${receipt.kind}:${receipt.id}';
+    final isViewing =
+        _viewingReceipt != null &&
+        '${_viewingReceipt!.kind}:${_viewingReceipt!.id}' == key;
+    final (icon, color) = _statusIcon(receipt.status, theme);
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      elevation: 0,
+      color: isViewing
+          ? theme.colorScheme.primaryContainer
+          : theme.colorScheme.surfaceContainerHighest,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _reviewReceipt(receipt),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: color),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${_actionLabel(receipt.action)} · ${_statusLabel(receipt.status)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      receipt.result,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  (IconData, Color) _statusIcon(String status, ThemeData theme) => switch (
+    status
+  ) {
+    'succeeded' => (Icons.check_circle_outline, theme.colorScheme.primary),
+    'failed' => (Icons.error_outline, theme.colorScheme.error),
+    'declined' => (Icons.cancel_outlined, theme.colorScheme.onSurfaceVariant),
+    'uncertain' => (Icons.help_outline, theme.colorScheme.tertiary),
+    _ => (Icons.hourglass_empty, theme.colorScheme.onSurfaceVariant),
+  };
 }
 
 class _ProposalContent extends StatelessWidget {
