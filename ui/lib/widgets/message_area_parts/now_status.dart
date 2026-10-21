@@ -52,7 +52,6 @@ class _NowStatus extends ConsumerWidget {
   final String? conversationId;
   final List<Message> messages;
   final bool showSearch;
-  final VoidCallback? onOpenDrafts;
   final VoidCallback? onOpenTodos;
   final VoidCallback? onOpenGoals;
   final VoidCallback? onOpenPageMarks;
@@ -62,7 +61,6 @@ class _NowStatus extends ConsumerWidget {
     this.conversationId,
     required this.messages,
     this.showSearch = false,
-    this.onOpenDrafts,
     this.onOpenPageMarks,
     this.onOpenTodos,
     this.onOpenGoals,
@@ -87,9 +85,6 @@ class _NowStatus extends ConsumerWidget {
     // 目标为空时入口仍必须显示：目标功能没有独立一级 tab，这里是唯一入口，
     // 显示为「目标 0」会让人以为无路可走。
     final goalLabel = activeGoals.isEmpty ? '目标' : '目标${activeGoals.length}';
-    final draftCount = (ref.watch(pendingActionsProvider).value ?? const [])
-        .where((action) => action.action == 'save_knowledge_draft')
-        .length;
 
     final today = DateTime.now();
     final count = messages
@@ -136,14 +131,6 @@ class _NowStatus extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  TextButton.icon(
-                    onPressed: onOpenDrafts,
-                    icon: const Icon(Icons.drafts_outlined, size: 16),
-                    label: Text('草稿$draftCount份'),
-                    style: TextButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ),
                   if (!compact) ...[
                     // 目标入口在宽屏才与草稿、待办并排：窄屏第一行放不下三个带文案的
                     // 按钮（实测 360px 下会溢出 51px），窄屏改由第二行承载。

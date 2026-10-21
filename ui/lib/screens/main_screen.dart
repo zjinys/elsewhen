@@ -226,9 +226,6 @@ class TodayTitleBarActions extends ConsumerWidget {
         .value
         ?.where((todo) => !todo.isDone)
         .length;
-    final draftCount = (ref.watch(pendingActionsProvider).value ?? const [])
-        .where((action) => action.action == 'save_knowledge_draft')
-        .length;
     final searchVisible =
         conversationId != null &&
         ref.watch(messageSearchVisibleProvider(conversationId));
@@ -248,11 +245,6 @@ class TodayTitleBarActions extends ConsumerWidget {
           tooltip: '待办（${openTodos ?? 0}）',
           icon: Icons.check_circle_outlined,
           onPressed: () => openTodoDialog(context),
-        ),
-        _TitleBarIconAction(
-          tooltip: '待入库草稿（$draftCount）',
-          icon: Icons.drafts_outlined,
-          onPressed: () => openKnowledgeDraftsDialog(context),
         ),
         _TitleBarIconAction(
           tooltip: searchVisible ? '隐藏搜索' : '搜索与日期定位',

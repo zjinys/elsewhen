@@ -42,7 +42,6 @@ import 'goal_view.dart';
 import 'reminder_banner.dart';
 
 // ── 消息区拆分为 part（行为零变化，见 message_area_parts/）──
-part 'message_area_parts/drafts_sheets.dart';
 part 'message_area_parts/pending_banner.dart';
 part 'message_area_parts/now_status.dart';
 part 'message_area_parts/message_bubble.dart';
@@ -165,20 +164,76 @@ Future<void> _showAdaptivePanel(
   return showDialog<void>(context: context, builder: (_) => dialog);
 }
 
-/// 待入库草稿面板。抽成顶层函数供标题栏「今天」操作行复用。
-void openKnowledgeDraftsDialog(BuildContext context) {
-  _showAdaptivePanel(
-    context,
-    dialog: const _KnowledgeDraftsDialog(),
-    sheetBuilder: (sheetContext) => DraggableScrollableSheet(
-      initialChildSize: 0.7,
-      minChildSize: 0.4,
-      maxChildSize: 0.95,
-      expand: false,
-      builder: (context, scrollController) =>
-          _KnowledgeDraftsSheet(scrollController: scrollController),
-    ),
-  );
+/// 通用底部面板壳（待办/目标等 bottom sheet 复用）。原在 drafts_sheets.dart，
+/// 草稿面板拆除后保留于此。
+class _PanelSheet extends StatelessWidget {
+  final String title;
+  final Widget Function(BuildContext) builder;
+
+  const _PanelSheet({required this.title, required this.builder});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const _SheetHandle(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 8, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: '关闭',
+                  icon: const Icon(Icons.close, size: 20),
+                  color: AppTheme.textSecondary,
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          Flexible(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.7,
+              ),
+              child: builder(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SheetHandle extends StatelessWidget {
+  const _SheetHandle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 10),
+      child: Container(
+        width: 36,
+        height: 4,
+        decoration: BoxDecoration(
+          color: AppTheme.surface3,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
+  }
 }
 
 void openTodoDialog(BuildContext context) {
@@ -325,7 +380,6 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
           conversationId: selectedId,
           messages: messagesAsync.value ?? const [],
           showSearch: showSearch,
-          onOpenDrafts: () => openKnowledgeDraftsDialog(context),
           // 翻篇记录入口暂隐藏：与「翻篇到此」同批放量。
           onOpenPageMarks: null,
           onOpenTodos: () => openTodoDialog(context),
