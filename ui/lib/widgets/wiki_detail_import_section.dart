@@ -18,9 +18,6 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
   final _urlController = TextEditingController();
   final _titleController = TextEditingController();
   final _tagsController = TextEditingController();
-  // 正文改用 markdown 编辑器（复用知识页 WikiContentEditor），
-  // 保存时从 editorState 提取 markdown。
-  final _editorKey = GlobalKey<WikiContentEditorState>();
   bool _busy = false;
   String? _error;
   late bool _isUrlMode;
@@ -84,16 +81,8 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
     }
   }
 
-  /// 文本模式：直接保存到知识库（正文从 markdown 编辑器提取）
-  Future<void> _saveText() async {
-    final editor = _editorKey.currentState;
-    final text = editor == null
-        ? ''
-        : wikiDocumentToMarkdown(editor.editorState.document).trim();
-    if (text.isEmpty) {
-      setState(() => _error = '请先输入要保存的内容');
-      return;
-    }
+  /// 文本模式：创建空页并跳转到知识页 tab 编辑（不在对话框内编辑正文）
+  Future<void> _createAndOpen() async {
     setState(() {
       _busy = true;
       _error = null;
@@ -101,24 +90,15 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
       final title = _titleController.text.trim();
-      // 标签随保存一次写入（Rust 侧会保留「note」锚点标签并去重）
-      var page = await repo.saveTextPage(
-        text: text,
+      final page = await repo.saveTextPage(
+        text: '',
         title: title.isEmpty ? null : title,
         tags: _parsedTags(),
       );
       if (!mounted) return;
-      _titleController.clear();
-      _tagsController.clear();
       ref.invalidate(wikiPagesProvider);
       openWikiPageTab(ref, page);
       widget.onCompleted?.call();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('已保存到知识库：《${page.title}》'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
@@ -129,83 +109,46 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
 
   @override
   Widget build(BuildContext context) {
-    // 编辑器不能放在 SingleChildScrollView 内（滚动容器拦截内部手势），
-    // 文本模式改用 Column 布局：上方字段可滚动，编辑器固定区域。
+    // 文本模式：只收标题/标签，创建空页后跳转到知识页 tab 用完整编辑器写正文。
     if (!_isUrlMode) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppTheme.space4),
-              child: _buildTextFields(),
+      return Padding(
+        padding: const EdgeInsets.all(AppTheme.space4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildTextFields(),
+            const SizedBox(height: AppTheme.space3),
+            Text(
+              '创建后将在知识页打开编辑器撰写正文',
+              style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
             ),
-          ),
-          // 正文 markdown 编辑器（固定区域，不随上方滚动）
-          Container(
-            margin: const EdgeInsets.fromLTRB(
-              AppTheme.space4,
-              0,
-              AppTheme.space4,
-              AppTheme.space4,
-            ),
-            constraints: const BoxConstraints(minHeight: 200, maxHeight: 320),
-            decoration: BoxDecoration(
-              color: AppTheme.surface2,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              border: Border.all(color: AppTheme.surface3),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: WikiContentEditor(
-              key: _editorKey,
-              slug: '',
-              contentMd: '',
-              editable: !_busy,
-              shrinkWrap: true,
-              enableSaveShortcut: false,
-              onWikiLinkTap: (_) {},
-              onSave: (_) async {},
-            ),
-          ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppTheme.space4,
-                0,
-                AppTheme.space4,
-                AppTheme.space4,
-              ),
-              child: Text(
+            if (_error != null) ...[
+              const SizedBox(height: AppTheme.space2),
+              Text(
                 _error!,
                 style: TextStyle(fontSize: 12, color: AppTheme.error),
               ),
-            ),
-          // 保存按钮（编辑器下方，固定区域）
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppTheme.space4,
-              0,
-              AppTheme.space4,
-              AppTheme.space4,
-            ),
-            child: Row(
+            ],
+            const SizedBox(height: AppTheme.space3),
+            Row(
               children: [
                 const Spacer(),
                 FilledButton.icon(
-                  onPressed: _busy ? null : _saveText,
+                  onPressed: _busy ? null : _createAndOpen,
                   icon: _busy
                       ? const SizedBox(
                           width: 14,
                           height: 14,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.bookmark_add_outlined, size: 16),
-                  label: Text(_busy ? '保存中…' : '保存到知识库'),
+                      : const Icon(Icons.add_outlined, size: 16),
+                  label: Text(_busy ? '创建中…' : '创建并编辑'),
                 ),
               ],
             ),
-          ),
-        ],
+          ],
+        ),
       );
     }
     return SingleChildScrollView(

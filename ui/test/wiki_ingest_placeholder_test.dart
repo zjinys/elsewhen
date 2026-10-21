@@ -43,9 +43,7 @@ void main() {
     await tester.tap(find.text('创建主题'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
-    expect(find.text('保存到知识库'), findsOneWidget, reason: '创建主题对话框应有保存按钮');
-    await tester.tap(find.text('保存到知识库'));
-    await tester.pump();
-    expect(find.text('请先输入要保存的内容'), findsOneWidget);
+    expect(find.text('创建并编辑'), findsOneWidget, reason: '创建主题对话框应有创建按钮');
+    expect(find.text('创建后将在知识页打开编辑器撰写正文'), findsOneWidget);
   });
 }
