@@ -385,7 +385,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
           onOpenPageMarks: null,
           onOpenTodos: () => openTodoDialog(context),
           onOpenGoals: () => openGoalDialog(context),
-          onCreateTopic: () => openWikiImportDialog(context, urlMode: false),
+          onCreateTopic: () => openCreateTopicTab(ref),
           onToggleSearch: () => ref
               .read(messageSearchVisibleProvider(selectedId).notifier)
               .set(!showSearch),

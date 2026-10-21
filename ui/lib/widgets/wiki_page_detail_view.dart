@@ -25,6 +25,7 @@ import '../theme/app_theme.dart';
 import '../theme/content_font.dart';
 import '../wiki/wiki_content_editor.dart';
 import '../wiki/wiki_markdown_codec.dart';
+import 'create_topic_body.dart';
 import 'wiki_reading_settings_dialog.dart';
 import 'wiki_ai_chat_panel.dart';
 import 'wiki_derivatives.dart';
@@ -167,6 +168,7 @@ class _WikiPageDetailViewState extends ConsumerState<WikiPageDetailView> {
                   ImportFetchTabEntry(:final fetch) => _ImportFetchTabBody(
                     fetch: fetch,
                   ),
+                  CreateTopicTabEntry() => const CreateTopicBody(),
                 },
             ],
           ),

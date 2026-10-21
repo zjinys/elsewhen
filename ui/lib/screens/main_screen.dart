@@ -163,7 +163,7 @@ class _WikiTitleBarActions extends ConsumerWidget {
         _TitleBarIconAction(
           tooltip: '创建主题',
           icon: Icons.note_add_outlined,
-          onPressed: () => openWikiImportDialog(context, urlMode: false),
+          onPressed: () => openCreateTopicTab(ref),
         ),
         _TitleBarIconAction(
           tooltip: '网址导入',

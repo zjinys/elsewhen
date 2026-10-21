@@ -2,11 +2,11 @@ part of '../wiki_page_detail_view.dart';
 
 //! 首页 tab、维护入口、tab 栏与页面 tab 体。
 
-class _HomeTab extends StatelessWidget {
+class _HomeTab extends ConsumerWidget {
   const _HomeTab();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final narrow = MediaQuery.sizeOf(context).width < 560;
     return Column(
       children: [
@@ -26,8 +26,7 @@ class _HomeTab extends StatelessWidget {
                       icon: Icons.notes_outlined,
                       title: '创建主题',
                       subtitle: '输入内容并创建知识页',
-                      onTap: () =>
-                          openWikiImportDialog(context, urlMode: false),
+                      onTap: () => openCreateTopicTab(ref),
                     ),
                   ],
                 )
@@ -48,8 +47,7 @@ class _HomeTab extends StatelessWidget {
                         icon: Icons.notes_outlined,
                         title: '创建主题',
                         subtitle: '输入内容并创建知识页',
-                        onTap: () =>
-                            openWikiImportDialog(context, urlMode: false),
+                        onTap: () => openCreateTopicTab(ref),
                       ),
                     ),
                   ],
