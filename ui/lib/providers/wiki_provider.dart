@@ -251,7 +251,9 @@ void openWikiImportFetchTab(WidgetRef ref, ImportFetch fetch) {
 }
 
 /// 打开「创建主题」tab（标题/标签/正文一步完成的知识页创建表单）
+/// 不在知识库主 tab 时自动切换过去。
 void openCreateTopicTab(WidgetRef ref) {
+  ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
   openWikiTab(ref, const CreateTopicTabEntry());
 }
 

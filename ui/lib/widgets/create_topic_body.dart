@@ -102,7 +102,7 @@ class _CreateTopicBodyState extends ConsumerState<CreateTopicBody> {
                 slug: '',
                 contentMd: '',
                 editable: !_busy,
-                shrinkWrap: true,
+                shrinkWrap: false,
                 enableSaveShortcut: false,
                 onWikiLinkTap: (_) {},
                 onSave: (_) async {},
