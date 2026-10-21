@@ -16,9 +16,11 @@ class _ImportTab extends ConsumerStatefulWidget {
 
 class _ImportTabState extends ConsumerState<_ImportTab> {
   final _urlController = TextEditingController();
-  final _textController = TextEditingController();
   final _titleController = TextEditingController();
   final _tagsController = TextEditingController();
+  // 正文改用 markdown 编辑器（复用知识页 WikiContentEditor），
+  // 保存时从 editorState 提取 markdown。
+  final _editorKey = GlobalKey<WikiContentEditorState>();
   bool _busy = false;
   String? _error;
   late bool _isUrlMode;
@@ -32,7 +34,6 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
   @override
   void dispose() {
     _urlController.dispose();
-    _textController.dispose();
     _titleController.dispose();
     _tagsController.dispose();
     super.dispose();
@@ -83,9 +84,12 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
     }
   }
 
-  /// 文本模式：直接保存到知识库
+  /// 文本模式：直接保存到知识库（正文从 markdown 编辑器提取）
   Future<void> _saveText() async {
-    final text = _textController.text.trim();
+    final editor = _editorKey.currentState;
+    final text = editor == null
+        ? ''
+        : wikiDocumentToMarkdown(editor.editorState.document).trim();
     if (text.isEmpty) {
       setState(() => _error = '请先输入要保存的内容');
       return;
@@ -104,7 +108,6 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
         tags: _parsedTags(),
       );
       if (!mounted) return;
-      _textController.clear();
       _titleController.clear();
       _tagsController.clear();
       ref.invalidate(wikiPagesProvider);
@@ -302,36 +305,23 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
           ),
         ),
         const SizedBox(height: AppTheme.space2),
-        SizedBox(
+        // 正文 markdown 编辑器（复用知识页 WikiContentEditor）。
+        Container(
           height: 260,
-          child: TextField(
-            controller: _textController,
-            enabled: !_busy,
-            maxLines: null,
-            expands: true,
-            textAlignVertical: TextAlignVertical.top,
-            decoration: InputDecoration(
-              hintText: '粘贴或输入要保存的内容（Markdown 语法支持）',
-              hintStyle: TextStyle(fontSize: 13, color: AppTheme.textTertiary),
-              filled: true,
-              fillColor: AppTheme.surface2,
-              contentPadding: const EdgeInsets.all(12),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                borderSide: BorderSide(color: AppTheme.surface3),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                borderSide: BorderSide(color: AppTheme.surface3),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                borderSide: BorderSide(
-                  color: AppTheme.accentPrimary,
-                  width: 1.5,
-                ),
-              ),
-            ),
+          decoration: BoxDecoration(
+            color: AppTheme.surface2,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+            border: Border.all(color: AppTheme.surface3),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: WikiContentEditor(
+            key: _editorKey,
+            slug: '',
+            contentMd: '',
+            editable: !_busy,
+            shrinkWrap: false,
+            onWikiLinkTap: (_) {},
+            onSave: (_) async {},
           ),
         ),
         const SizedBox(height: AppTheme.space3),

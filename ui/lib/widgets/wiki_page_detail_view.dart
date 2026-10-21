@@ -24,6 +24,7 @@ import '../models/todo.dart';
 import '../theme/app_theme.dart';
 import '../theme/content_font.dart';
 import '../wiki/wiki_content_editor.dart';
+import '../wiki/wiki_markdown_codec.dart';
 import 'wiki_reading_settings_dialog.dart';
 import 'wiki_ai_chat_panel.dart';
 import 'wiki_derivatives.dart';

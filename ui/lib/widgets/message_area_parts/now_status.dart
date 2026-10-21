@@ -54,6 +54,7 @@ class _NowStatus extends ConsumerWidget {
   final bool showSearch;
   final VoidCallback? onOpenTodos;
   final VoidCallback? onOpenGoals;
+  final VoidCallback? onCreateTopic;
   final VoidCallback? onOpenPageMarks;
   final VoidCallback? onToggleSearch;
   final VoidCallback? onCopyAll;
@@ -64,6 +65,7 @@ class _NowStatus extends ConsumerWidget {
     this.onOpenPageMarks,
     this.onOpenTodos,
     this.onOpenGoals,
+    this.onCreateTopic,
     this.onToggleSearch,
     this.onCopyAll,
   });
@@ -169,6 +171,15 @@ class _NowStatus extends ConsumerWidget {
                       const SizedBox(width: 6),
                       ChatProposalReviewButton(conversationId: conversationId),
                     ],
+                    const SizedBox(width: 6),
+                    TextButton.icon(
+                      onPressed: onCreateTopic,
+                      icon: const Icon(Icons.note_add_outlined, size: 16),
+                      label: const Text('创建主题'),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
                     const Spacer(),
                     // 防跳动：会出现/消失的 widget 全部排在左边，常驻按钮钉死
                     // 最右。provider 名加载异步、最长、最易有/无 → 挪到最左，
@@ -301,6 +312,14 @@ class _NowStatus extends ConsumerWidget {
                               ? AppTheme.accentPrimary
                               : AppTheme.textTertiary,
                           onPressed: onOpenGoals,
+                        ),
+                        const SizedBox(width: 4),
+                        NowStatusIconButton(
+                          tooltip: '创建主题',
+                          icon: Icons.note_add_outlined,
+                          label: '主题',
+                          color: AppTheme.textTertiary,
+                          onPressed: onCreateTopic,
                         ),
                         if (conversationId != null) ...[
                           const SizedBox(width: 4),

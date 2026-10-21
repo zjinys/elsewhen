@@ -29,6 +29,7 @@ import '../models/wiki_page.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/state_holder.dart';
 import '../providers/wiki_provider.dart';
+import 'wiki_page_detail_view.dart';
 import '../providers/todo_provider.dart';
 import '../providers/goal_provider.dart';
 import '../utils/error_report.dart';
@@ -384,6 +385,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
           onOpenPageMarks: null,
           onOpenTodos: () => openTodoDialog(context),
           onOpenGoals: () => openGoalDialog(context),
+          onCreateTopic: () => openWikiImportDialog(context, urlMode: false),
           onToggleSearch: () => ref
               .read(messageSearchVisibleProvider(selectedId).notifier)
               .set(!showSearch),

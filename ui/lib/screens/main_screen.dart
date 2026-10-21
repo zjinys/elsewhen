@@ -161,7 +161,7 @@ class _WikiTitleBarActions extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _TitleBarIconAction(
-          tooltip: '文本导入',
+          tooltip: '创建主题',
           icon: Icons.note_add_outlined,
           onPressed: () => openWikiImportDialog(context, urlMode: false),
         ),

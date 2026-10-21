@@ -24,8 +24,8 @@ class _HomeTab extends StatelessWidget {
                     const SizedBox(height: 8),
                     _HomeAction(
                       icon: Icons.notes_outlined,
-                      title: '文本导入',
-                      subtitle: '粘贴内容并创建知识页',
+                      title: '创建主题',
+                      subtitle: '输入内容并创建知识页',
                       onTap: () =>
                           openWikiImportDialog(context, urlMode: false),
                     ),
@@ -46,8 +46,8 @@ class _HomeTab extends StatelessWidget {
                     Expanded(
                       child: _HomeAction(
                         icon: Icons.notes_outlined,
-                        title: '文本导入',
-                        subtitle: '粘贴内容并创建知识页',
+                        title: '创建主题',
+                        subtitle: '输入内容并创建知识页',
                         onTap: () =>
                             openWikiImportDialog(context, urlMode: false),
                       ),
