@@ -307,7 +307,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
         const SizedBox(height: AppTheme.space2),
         // 正文 markdown 编辑器（复用知识页 WikiContentEditor）。
         Container(
-          height: 260,
+          constraints: const BoxConstraints(minHeight: 200, maxHeight: 320),
           decoration: BoxDecoration(
             color: AppTheme.surface2,
             borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
@@ -319,7 +319,8 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
             slug: '',
             contentMd: '',
             editable: !_busy,
-            shrinkWrap: false,
+            shrinkWrap: true,
+            enableSaveShortcut: false,
             onWikiLinkTap: (_) {},
             onSave: (_) async {},
           ),

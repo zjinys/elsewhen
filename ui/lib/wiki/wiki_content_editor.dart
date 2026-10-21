@@ -35,6 +35,7 @@ class WikiContentEditor extends StatefulWidget {
     this.textColor,
     this.fontFamily,
     this.lineHeight,
+    this.enableSaveShortcut = true,
   });
 
   /// 页面 slug：用于在页面切换时重建对应正文。
@@ -77,6 +78,10 @@ class WikiContentEditor extends StatefulWidget {
   /// 由知识页详情页从「AA」浮层写入。
   final double? lineHeight;
 
+  /// 是否监听 `Ctrl/Cmd+S` 全局快捷键（dialog 场景传 false，避免
+  /// HardwareKeyboard 全局监听干扰输入焦点）。
+  final bool enableSaveShortcut;
+
   @override
   State<WikiContentEditor> createState() => WikiContentEditorState();
 }
@@ -100,7 +105,9 @@ class WikiContentEditorState extends State<WikiContentEditor> {
   void initState() {
     super.initState();
     _initEditor(widget.contentMd, widget.slug);
-    HardwareKeyboard.instance.addHandler(_onKeyEvent);
+    if (widget.enableSaveShortcut) {
+      HardwareKeyboard.instance.addHandler(_onKeyEvent);
+    }
   }
 
   /// 文档生命周期：解码正文 + 尾部对话块 → 建 EditorState → 定格 markdown 快照。
@@ -132,7 +139,9 @@ class WikiContentEditorState extends State<WikiContentEditor> {
 
   @override
   void dispose() {
-    HardwareKeyboard.instance.removeHandler(_onKeyEvent);
+    if (widget.enableSaveShortcut) {
+      HardwareKeyboard.instance.removeHandler(_onKeyEvent);
+    }
     _txSub?.cancel();
     super.dispose();
   }
