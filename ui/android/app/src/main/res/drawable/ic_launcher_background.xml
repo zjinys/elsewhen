@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Matches the app icon tile gradient: #24262D at the top to #15161B at the bottom. -->
+    <gradient
+        android:angle="270"
+        android:startColor="#24262D"
+        android:endColor="#15161B"
+        android:type="linear" />
+</shape>

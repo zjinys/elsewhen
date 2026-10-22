@@ -4,9 +4,10 @@
          中央图标用 windowSplashScreenAnimatedIcon（库的 attr，
          兼容写法），结束后回落到 NormalTheme。 -->
     <style name="LaunchTheme" parent="Theme.SplashScreen">
-        <!-- 浅色系统：亮背景，圆角 logo（深色底+图案）在中央自然呈现 -->
+        <!-- 浅色系统：亮背景，深色圆角图标在中央自然呈现 -->
         <item name="windowSplashScreenBackground">#f4f5f7</item>
-        <!-- splash 用透明底图案版：白底上只显示 G 字，不出现深色方块 -->
+        <!-- Android 12 会把 splash 图标裁进内圈圆形。ic_splash 自带
+             深色圆角底，并把图案缩进 192dp 安全圈，避免圆角/圆环被圆形蒙版切掉。 -->
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_splash</item>
         <item name="windowSplashScreenAnimationDuration">200</item>
         <item name="postSplashScreenTheme">@style/NormalTheme</item>

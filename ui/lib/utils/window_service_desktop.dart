@@ -167,10 +167,12 @@ class DesktopWindowService implements WindowService {
   /// 没有唤回入口。设置页据此禁用「最小化到托盘」。
   Future<void> _initTray() async {
     try {
-      // Windows 需要 .ico 格式（tray_manager 文档明确要求），其他平台用 .png
+      // Windows 需要 .ico 格式（tray_manager 文档明确要求），其他平台用 .png。
+      // 文件名带 -v2：KDE/plasmashell 会按文件路径缓存托盘图标，沿用旧文件名时
+      // 即使资源内容已更新，重启后仍显示旧图。
       final iconPath = Platform.isWindows
-          ? 'assets/brand/elsewhen-tray.ico'
-          : 'assets/brand/elsewhen-tray.png';
+          ? 'assets/brand/elsewhen-tray-v2.ico'
+          : 'assets/brand/elsewhen-tray-v2.png';
       await tray.trayManager.setIcon(iconPath);
       // Linux 后端（appindicator）未实现 setToolTip，调用会抛
       // MissingPluginException 把整个托盘初始化带崩；只在 Windows/macOS 设。
