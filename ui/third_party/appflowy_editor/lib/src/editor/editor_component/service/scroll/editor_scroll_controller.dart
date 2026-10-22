@@ -151,9 +151,9 @@ class EditorScrollController {
     } else {
       _scrollOffsetSubscription.cancel();
       _itemPositionsListener.itemPositions.removeListener(_listenItemPositions);
-      (_itemPositionsListener as ItemPositionsNotifier?)
-          ?.itemPositions
-          .dispose();
+      // elsewhen 补丁：走 notifier 的 dispose，标记已销毁；PositionedList 的
+      // post-frame 回调据此跳过写入，避免 used-after-dispose。
+      (_itemPositionsListener as ItemPositionsNotifier?)?.dispose();
     }
 
     if (shouldDisposeScrollController) {

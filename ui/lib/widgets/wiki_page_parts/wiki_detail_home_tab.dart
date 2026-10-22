@@ -26,7 +26,7 @@ class _HomeTab extends ConsumerWidget {
                       icon: Icons.notes_outlined,
                       title: '创建主题',
                       subtitle: '输入内容并创建知识页',
-                      onTap: () => openCreateTopicTab(ref),
+                      onTap: () => openCreateTopicDialog(context),
                     ),
                   ],
                 )
@@ -47,7 +47,7 @@ class _HomeTab extends ConsumerWidget {
                         icon: Icons.notes_outlined,
                         title: '创建主题',
                         subtitle: '输入内容并创建知识页',
-                        onTap: () => openCreateTopicTab(ref),
+                        onTap: () => openCreateTopicDialog(context),
                       ),
                     ),
                   ],

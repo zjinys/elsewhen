@@ -86,7 +86,8 @@ class WikiContentEditor extends StatefulWidget {
   State<WikiContentEditor> createState() => WikiContentEditorState();
 }
 
-class WikiContentEditorState extends State<WikiContentEditor> {
+class WikiContentEditorState extends State<WikiContentEditor>
+    with WidgetsBindingObserver {
   late EditorState _editorState;
   late String _loadedMd;
   StreamSubscription<EditorTransactionValue>? _txSub;
@@ -101,12 +102,117 @@ class WikiContentEditorState extends State<WikiContentEditor> {
   /// 测试/外部访问：当前编辑器状态
   EditorState get editorState => _editorState;
 
+  /// 最后一次选区：窗口失活时 primary focus 可能已被 GTK 提前丢弃（vendor 在
+  /// 键盘服务失焦时清空选区），这里持续跟踪，供焦点恢复取用。
+  Selection? _lastSelection;
+
+  /// selectionNotifier 当前绑定的 EditorState（_initEditor 重建时换绑用）。
+  EditorState? _boundSelectionState;
+
+  /// 跟踪 vendor 内部节点的 selectionNotifier 绑定（_initEditor 会重建
+  /// [_editorState]，监听须随之换绑）。
+  void _bindSelectionNotifier() {
+    _boundSelectionState?.selectionNotifier.removeListener(_onSelectionChanged);
+    _boundSelectionState = _editorState;
+    _editorState.selectionNotifier.addListener(_onSelectionChanged);
+  }
+
+  void _onSelectionChanged() {
+    final selection = _editorState.selection;
+    if (selection != null) _lastSelection = selection;
+  }
+
+  /// 测试观测：最后一次选区是否被跟踪。
+  @visibleForTesting
+  bool get debugHasTrackedSelection => _lastSelection != null;
+
+  /// 测试观测：当前焦点恢复认领者是否为本编辑器。
+  @visibleForTesting
+  bool get debugIsFocusRecoveryOwner => _focusRecoveryOwner == this;
+
+  // ---- 窗口焦点恢复（Linux 桌面：窗口失活会丢光标）----
+  // 失活时 GTK 把 Flutter primary focus 抹掉，vendor 键盘服务随即清空选区、
+  // 断开 IME；切回前台没有任何恢复逻辑，只能重新点击。
+  // 修复：失活(inactive/hidden)时记下选区（认领恢复权）；回到前台(resumed)
+  // 用 uiEvent 重放选区 —— vendor 按该原因 requestFocus + 重挂 IME，一步恢复输入态。
+  // 多实例（编辑态知识页 + 顶层「创建主题」对话框）守卫：有 primary focus 才认领；
+  // 无 focus 时仅当全局唯一候选；认领者为准，避免多个编辑器互相抢焦点。
+  static WikiContentEditorState? _focusRecoveryOwner;
+  static Selection? _focusRecoverySelection;
+  static final Set<WikiContentEditorState> _mountedEditable = {};
+
+  void _claimFocusRecovery() {
+    final selection = _editorState.selection ?? _lastSelection;
+    if (!widget.editable || !mounted || selection == null) return;
+    final primary = FocusManager.instance.primaryFocus;
+    if (primary != null) {
+      if (!_isFocusInside(primary)) return;
+    } else {
+      // primary focus 已被窗口失活提前清掉：只有全局唯一候选才敢认领，
+      // 多个编辑器有残存选区分不清谁在前台，宁可维持原状（点一下恢复）。
+      final candidates = _mountedEditable.where((state) {
+        return state.mounted &&
+            state.widget.editable &&
+            state._lastSelection != null;
+      }).toList();
+      if (candidates.length != 1) return;
+    }
+    _focusRecoveryOwner = this;
+    _focusRecoverySelection = selection;
+  }
+
+  /// 判定一个 FocusNode 是否属于本编辑器子树（含内层对话框/浮层）。
+  bool _isFocusInside(FocusNode node) {
+    final nodeContext = node.context;
+    if (nodeContext == null || !mounted) return false;
+    var inside = false;
+    nodeContext.visitAncestorElements((ancestor) {
+      if (identical(ancestor, context)) {
+        inside = true;
+        return false;
+      }
+      return true;
+    });
+    return inside;
+  }
+
+  void _restoreFocusRecovery() {
+    if (_focusRecoveryOwner != this) return;
+    final selection = _focusRecoverySelection;
+    _focusRecoveryOwner = null;
+    _focusRecoverySelection = null;
+    if (selection == null || !widget.editable || !mounted) return;
+    unawaited(
+      _editorState.updateSelectionWithReason(
+        selection,
+        reason: SelectionUpdateReason.uiEvent,
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
     _initEditor(widget.contentMd, widget.slug);
     if (widget.enableSaveShortcut) {
       HardwareKeyboard.instance.addHandler(_onKeyEvent);
+    }
+    WidgetsBinding.instance.addObserver(this);
+    if (widget.editable) _mountedEditable.add(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!mounted) return;
+    switch (state) {
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+        _claimFocusRecovery();
+      case AppLifecycleState.resumed:
+        _restoreFocusRecovery();
+      case AppLifecycleState.detached:
+      case AppLifecycleState.paused:
+        break;
     }
   }
 
@@ -117,6 +223,8 @@ class WikiContentEditorState extends State<WikiContentEditor> {
   void _initEditor(String contentMd, String slug) {
     _txSub?.cancel();
     _editorState = _buildEditorState(contentMd, slug);
+    _lastSelection = null;
+    _bindSelectionNotifier();
     _loadedMd = wikiDocumentToMarkdown(_editorState.document);
     _txSub = _editorState.transactionStream.listen((_) {
       widget.onDirtyChanged?.call(isDirty);
@@ -142,13 +250,27 @@ class WikiContentEditorState extends State<WikiContentEditor> {
     if (widget.enableSaveShortcut) {
       HardwareKeyboard.instance.removeHandler(_onKeyEvent);
     }
+    WidgetsBinding.instance.removeObserver(this);
+    _mountedEditable.remove(this);
+    _boundSelectionState?.selectionNotifier.removeListener(_onSelectionChanged);
+    if (_focusRecoveryOwner == this) {
+      _focusRecoveryOwner = null;
+      _focusRecoverySelection = null;
+    }
     _txSub?.cancel();
     super.dispose();
   }
 
   /// 文档构造：仅包含正文。AI 对话由页面右侧的独立面板承载。
   static EditorState _buildEditorState(String contentMd, String slug) {
-    return EditorState(document: wikiMarkdownToDocument(contentMd));
+    final document = wikiMarkdownToDocument(contentMd);
+    // 空 markdown 解码后是零子节点的 Document.blank()，编辑器没有可聚焦的
+    // 段落，点击/键盘都无法进入输入态（「创建主题」空正文 tab 的实测问题）。
+    // 这里补一个空段落，让新建页从一开始就有落点。
+    if (document.root.children.isEmpty) {
+      document.insert([0], [paragraphNode()]);
+    }
+    return EditorState(document: document);
   }
 
   /// `Ctrl/Cmd+S`：编辑态内全局保存
@@ -209,7 +331,7 @@ class WikiContentEditorState extends State<WikiContentEditor> {
 
   @override
   Widget build(BuildContext context) {
-    return AppFlowyEditor(
+    final editor = AppFlowyEditor(
       editorState: _editorState,
       editable: widget.editable,
       autoFocus: false,
@@ -250,8 +372,15 @@ class WikiContentEditorState extends State<WikiContentEditor> {
         // 加「上留白大、下留白小」的标题间距，观感对齐 AppFlowy 桌面端。
         HeadingBlockKeys.type: HeadingBlockComponentBuilder(
           configuration: standardBlockComponentConfiguration.copyWith(
-            placeholderText: (node) =>
-                'Heading ${node.attributes[HeadingBlockKeys.level]}',
+            placeholderText: (node) {
+              final level = node.attributes[HeadingBlockKeys.level];
+              return switch (level) {
+                1 => AppFlowyEditorL10n.current.heading1,
+                2 => AppFlowyEditorL10n.current.heading2,
+                3 => AppFlowyEditorL10n.current.heading3,
+                _ => '标题 $level',
+              };
+            },
             padding: (node) {
               final level = node.attributes[HeadingBlockKeys.level] as int?;
               final top = switch (level) {
@@ -278,6 +407,288 @@ class WikiContentEditorState extends State<WikiContentEditor> {
           ),
         ),
       },
+    );
+
+    if (!widget.editable) return editor;
+
+    return Column(
+      children: [
+        _WikiEditorToolbar(editorState: _editorState),
+        Expanded(child: editor),
+      ],
+    );
+  }
+}
+
+/// 编辑态格式工具栏：固定显示在正文上方，避免选区工具栏在对话框/窄屏里
+/// 被遮住；按钮直接操作同一个 [EditorState]，与快捷键行为一致。
+class _WikiEditorToolbar extends StatefulWidget {
+  const _WikiEditorToolbar({required this.editorState});
+
+  final EditorState editorState;
+
+  @override
+  State<_WikiEditorToolbar> createState() => _WikiEditorToolbarState();
+}
+
+class _WikiEditorToolbarState extends State<_WikiEditorToolbar> {
+  StreamSubscription<EditorTransactionValue>? _txSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _bind();
+  }
+
+  @override
+  void didUpdateWidget(covariant _WikiEditorToolbar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.editorState != oldWidget.editorState) {
+      _unbind();
+      _bind();
+    }
+  }
+
+  @override
+  void dispose() {
+    _unbind();
+    super.dispose();
+  }
+
+  void _bind() {
+    widget.editorState.selectionNotifier.addListener(_refresh);
+    _txSub = widget.editorState.transactionStream.listen((_) => _refresh());
+  }
+
+  void _unbind() {
+    widget.editorState.selectionNotifier.removeListener(_refresh);
+    _txSub?.cancel();
+    _txSub = null;
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  Selection? get _selection => widget.editorState.selection;
+
+  Node? get _currentNode {
+    final selection = _selection;
+    if (selection == null) return null;
+    return widget.editorState.getNodeAtPath(selection.start.path);
+  }
+
+  bool _isFormatActive(String key) {
+    final selection = _selection;
+    if (selection == null) return false;
+    if (selection.isCollapsed) {
+      return widget.editorState.toggledStyle[key] == true;
+    }
+    final nodes = widget.editorState.getNodesInSelection(selection);
+    if (nodes.isEmpty) return false;
+    return nodes.allSatisfyInSelection(
+      selection,
+      (delta) =>
+          delta.isNotEmpty &&
+          delta.everyAttributes((attributes) => attributes[key] == true),
+    );
+  }
+
+  bool _isBlock(String type) => _currentNode?.type == type;
+
+  bool _isHeading(int level) =>
+      _isBlock(HeadingBlockKeys.type) &&
+      _currentNode?.attributes[HeadingBlockKeys.level] == level;
+
+  Future<void> _toggleAttribute(String key) =>
+      widget.editorState.toggleAttribute(key);
+
+  Future<void> _formatBlock(String type, {int? level}) async {
+    final selection = _selection;
+    if (selection == null) return;
+    await widget.editorState.formatNode(selection, (node) {
+      // 列表 / 引用沿用 vendor toolbar 的做法：只换 type，保留节点已有属性。
+      if (type != HeadingBlockKeys.type && type != ParagraphBlockKeys.type) {
+        return node.copyWith(type: type);
+      }
+      final delta = (node.delta ?? Delta()).toJson();
+      final attributes = <String, Object?>{
+        blockComponentDelta: delta,
+        blockComponentBackgroundColor:
+            node.attributes[blockComponentBackgroundColor],
+        blockComponentTextDirection:
+            node.attributes[blockComponentTextDirection],
+      };
+      if (type == HeadingBlockKeys.type) {
+        attributes[HeadingBlockKeys.level] = level;
+      }
+      return node.copyWith(type: type, attributes: attributes);
+    });
+  }
+
+  Future<void> _toggleHeading(int level) => _formatBlock(
+    _isHeading(level) ? ParagraphBlockKeys.type : HeadingBlockKeys.type,
+    level: level,
+  );
+
+  Future<void> _toggleBlock(String type) =>
+      _formatBlock(_isBlock(type) ? ParagraphBlockKeys.type : type);
+
+  Widget _iconButton({
+    required IconData icon,
+    required String tooltip,
+    required bool active,
+    required VoidCallback onPressed,
+  }) {
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: Icon(icon),
+      iconSize: 18,
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.all(6),
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      style: IconButton.styleFrom(
+        foregroundColor: active
+            ? AppTheme.accentPrimary
+            : AppTheme.textSecondary,
+        backgroundColor: active
+            ? AppTheme.accentPrimary.withValues(alpha: 0.12)
+            : null,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      ),
+    );
+  }
+
+  Widget _textButton({
+    required String label,
+    required String tooltip,
+    required bool active,
+    required VoidCallback onPressed,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: TextButton(
+        onPressed: onPressed,
+        style: TextButton.styleFrom(
+          minimumSize: const Size(32, 32),
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          foregroundColor: active
+              ? AppTheme.accentPrimary
+              : AppTheme.textSecondary,
+          backgroundColor: active
+              ? AppTheme.accentPrimary.withValues(alpha: 0.12)
+              : null,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+
+  Widget _divider() => Container(
+    width: 1,
+    height: 20,
+    margin: const EdgeInsets.symmetric(horizontal: 4),
+    color: AppTheme.surface3,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.surface1,
+        border: Border(bottom: BorderSide(color: AppTheme.surface3)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        // 工具栏按钮不抢编辑器焦点：点完格式后光标仍在正文，可以继续输入。
+        child: ExcludeFocus(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _textButton(
+                label: '正文',
+                tooltip: '正文',
+                active: _isBlock(ParagraphBlockKeys.type),
+                onPressed: () => _formatBlock(ParagraphBlockKeys.type),
+              ),
+              _textButton(
+                label: 'H1',
+                tooltip: '一级标题',
+                active: _isHeading(1),
+                onPressed: () => _toggleHeading(1),
+              ),
+              _textButton(
+                label: 'H2',
+                tooltip: '二级标题',
+                active: _isHeading(2),
+                onPressed: () => _toggleHeading(2),
+              ),
+              _textButton(
+                label: 'H3',
+                tooltip: '三级标题',
+                active: _isHeading(3),
+                onPressed: () => _toggleHeading(3),
+              ),
+              _divider(),
+              _iconButton(
+                icon: Icons.format_bold,
+                tooltip: '加粗',
+                active: _isFormatActive('bold'),
+                onPressed: () => _toggleAttribute('bold'),
+              ),
+              _iconButton(
+                icon: Icons.format_italic,
+                tooltip: '斜体',
+                active: _isFormatActive('italic'),
+                onPressed: () => _toggleAttribute('italic'),
+              ),
+              _iconButton(
+                icon: Icons.format_underlined,
+                tooltip: '下划线',
+                active: _isFormatActive('underline'),
+                onPressed: () => _toggleAttribute('underline'),
+              ),
+              _iconButton(
+                icon: Icons.format_strikethrough,
+                tooltip: '删除线',
+                active: _isFormatActive('strikethrough'),
+                onPressed: () => _toggleAttribute('strikethrough'),
+              ),
+              _iconButton(
+                icon: Icons.code,
+                tooltip: '行内代码',
+                active: _isFormatActive('code'),
+                onPressed: () => _toggleAttribute('code'),
+              ),
+              _divider(),
+              _iconButton(
+                icon: Icons.format_list_bulleted,
+                tooltip: '无序列表',
+                active: _isBlock(BulletedListBlockKeys.type),
+                onPressed: () => _toggleBlock(BulletedListBlockKeys.type),
+              ),
+              _iconButton(
+                icon: Icons.format_list_numbered,
+                tooltip: '有序列表',
+                active: _isBlock(NumberedListBlockKeys.type),
+                onPressed: () => _toggleBlock(NumberedListBlockKeys.type),
+              ),
+              _iconButton(
+                icon: Icons.format_quote,
+                tooltip: '引用',
+                active: _isBlock(QuoteBlockKeys.type),
+                onPressed: () => _toggleBlock(QuoteBlockKeys.type),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

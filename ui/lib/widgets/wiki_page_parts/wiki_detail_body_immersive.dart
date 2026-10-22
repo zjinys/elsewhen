@@ -1,7 +1,7 @@
 part of '../wiki_page_detail_view.dart';
 
 //! 沉浸模式遮罩、分区条与分区内容渲染。
-  /// 进入沉浸阅读：创建全屏覆盖层并插入 app Overlay（盖住含左侧导航在内的整个窗口）。
+/// 进入沉浸阅读：创建全屏覆盖层并插入 app Overlay（盖住含左侧导航在内的整个窗口）。
 extension _WikiPageBodyImmersive on _WikiPageBodyState {
   void _showImmersive() {
     if (_immersiveEntry != null) return;
@@ -31,14 +31,22 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
+                // 手机/窄窗：margin 收到 8、不压 760 上限——panel 铺满正文区，
+                // 避免浮动小窗在最矮可用区里只剩半屏；宽屏保持原尺寸逻辑。
                 final width = math.min(
                   720.0,
-                  math.max(0.0, constraints.maxWidth - 24),
+                  math.max(
+                    0.0,
+                    constraints.maxWidth -
+                        (constraints.maxWidth < 700 ? 8 : 24),
+                  ),
                 );
-                final height = math.min(
-                  760.0,
-                  math.max(0.0, constraints.maxHeight - 24),
-                );
+                final height = constraints.maxWidth < 700
+                    ? math.max(0.0, constraints.maxHeight - 4)
+                    : math.min(
+                        760.0,
+                        math.max(0.0, constraints.maxHeight - 24),
+                      );
                 final maxX = math.max(0.0, constraints.maxWidth - width);
                 final maxY = math.max(0.0, constraints.maxHeight - height);
                 final x = _chatPosition == null
@@ -55,10 +63,11 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
                         right: 16,
                         bottom: 16,
                         child: FloatingActionButton.small(
-                          // 显式 heroTag：不设时 FAB 用默认 tag，路由切换时
-                          // 若前后页面（或嵌套 Navigator）各有一个 FAB，
-                          // Hero 控制器会抛「multiple heroes share the same tag」。
-                          heroTag: 'wiki-detail-ai-chat-fab',
+                          // 每个页面 body 一个唯一 tag。详情页用 IndexedStack
+                          // 同时挂载多个 page tab；固定字符串会让多个 FAB 共享
+                          // tag，路由切换时 Hero 扫描抛
+                          // 「multiple heroes share the same tag」。
+                          heroTag: _chatFabHeroTag,
                           tooltip: '和 AI 讨论此页',
                           onPressed: () => setState(() {
                             _chatOpen = true;
@@ -134,14 +143,22 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 // 聊天面板定位逻辑与正常态一致（同一份 _chatPosition / 夹取范围）。
+                // 手机/窄窗：margin 收到 8、不压 760 上限，沉浸层里 panel
+                // 基本铺满全屏。
                 final width = math.min(
                   720.0,
-                  math.max(0.0, constraints.maxWidth - 24),
+                  math.max(
+                    0.0,
+                    constraints.maxWidth -
+                        (constraints.maxWidth < 700 ? 8 : 24),
+                  ),
                 );
-                final height = math.min(
-                  760.0,
-                  math.max(0.0, constraints.maxHeight - 24),
-                );
+                final height = constraints.maxWidth < 700
+                    ? math.max(0.0, constraints.maxHeight - 4)
+                    : math.min(
+                        760.0,
+                        math.max(0.0, constraints.maxHeight - 24),
+                      );
                 final maxX = math.max(0.0, constraints.maxWidth - width);
                 final maxY = math.max(0.0, constraints.maxHeight - height);
                 final x = _chatPosition == null
@@ -309,6 +326,14 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
     );
   }
 
+  /// 小节标签文案：素材页的「内容」显示为「原文」（只读）；窄屏时
+  /// 「来源与修订」缩写为「来源」，为右侧操作组让出宽度。
+  String _sectionTabLabel(_WikiPageSection section, bool compact) {
+    if (section == _WikiPageSection.content && !_canEdit) return '原文';
+    if (compact && section == _WikiPageSection.sources) return '来源';
+    return section.label;
+  }
+
   Widget _buildSectionBar() {
     return Container(
       height: 48,
@@ -335,22 +360,25 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
                   unselectedLabelColor: AppTheme.textTertiary,
                   indicatorColor: AppTheme.accentPrimary,
                   indicatorWeight: 2,
-                  labelStyle: const TextStyle(
-                    fontSize: 13,
+                  labelStyle: TextStyle(
+                    fontSize: compact ? 12.5 : 13,
                     fontWeight: FontWeight.w600,
                   ),
-                  unselectedLabelStyle: const TextStyle(fontSize: 13),
+                  unselectedLabelStyle: TextStyle(
+                    fontSize: compact ? 12.5 : 13,
+                  ),
+                  // 窄屏收紧标签左右留白：4 个标签自然宽 ≈ 240px，不加紧时
+                  // 加上右侧操作组在 360dp 手机上溢出，Tab 直接盖到图标上。
+                  labelPadding: EdgeInsets.symmetric(
+                    horizontal: compact ? 6 : 12,
+                  ),
                   dividerColor: Colors.transparent,
                   onTap: (index) => setState(() {
                     _section = _WikiPageSection.values[index];
                   }),
                   tabs: [
                     for (final section in _WikiPageSection.values)
-                      Tab(
-                        text: section == _WikiPageSection.content && !_canEdit
-                            ? '原文'
-                            : section.label,
-                      ),
+                      Tab(text: _sectionTabLabel(section, compact)),
                   ],
                 ),
               ),

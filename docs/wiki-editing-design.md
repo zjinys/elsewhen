@@ -219,6 +219,7 @@ AI 对人工编辑页仍可走既有 `save_wiki_revision` 草拟确认制修订�
 - **编辑器自持滚动，不进外层 `SingleChildScrollView`**：vendor 的 overlay（`_Theatre`）断言有限约束，放进无界高滚动父级会直接抛 `constraints.biggest.isFinite`（widget 测试实证）。布局改为：header → 编辑工具栏 → `Expanded(编辑器，含页尾对话块滚动流)` → 下方「卡座」条（派生产物 / 事实 / 相关待办，高度上限约 42% 内自滚动）；
 - 编辑入口「编辑正文」仅对**可编辑 kind** 显示（`!kind ∈ {source, note}`），与 Rust 侧 `save_wiki_page_content` 守卫一致（素材采集页全链路只读）；
 - 编辑工具栏：浏览态「编辑正文」；编辑态「取消 · 完成（保存）+ 提示 Ctrl/⌘+S」；保存失败展示错误条并留在编辑态。
+- 编辑态正文上方固定显示格式工具栏：正文 / H1–H3、加粗 / 斜体 / 下划线 / 删除线 / 行内代码、无序 / 有序列表、引用；按钮 `ExcludeFocus`，点完格式后光标仍留在正文。创建主题也复用同一编辑器与工具栏（对话框形态，见 `openCreateTopicDialog`）。
 
 ### 6.2 保存链路
 

@@ -384,8 +384,8 @@ class _ScrollablePositionedListState extends State<ScrollablePositionedList>
     secondary.itemPositionsNotifier.itemPositions
         .removeListener(_updatePositions);
     _animationController?.dispose();
-    primary.itemPositionsNotifier.itemPositions.dispose();
-    secondary.itemPositionsNotifier.itemPositions.dispose();
+    primary.itemPositionsNotifier.dispose();
+    secondary.itemPositionsNotifier.dispose();
     if (secondary.scrollController.hasClients) {
       secondary.scrollController.dispose();
     }
@@ -671,6 +671,9 @@ class _ScrollablePositionedListState extends State<ScrollablePositionedList>
   }
 
   void _updatePositions() {
+    if (!mounted) {
+      return;
+    }
     final itemPositions =
         primary.itemPositionsNotifier.itemPositions.value.where(
       (ItemPosition position) =>
@@ -685,7 +688,10 @@ class _ScrollablePositionedListState extends State<ScrollablePositionedList>
         ),
       );
     }
-    widget.itemPositionsNotifier?.itemPositions.value = itemPositions;
+    final notifier = widget.itemPositionsNotifier;
+    if (notifier != null && !notifier.isDisposed) {
+      notifier.itemPositions.value = itemPositions;
+    }
   }
 }
 
@@ -706,6 +712,6 @@ class _ListDisplayDetails {
   final Key key;
 
   void dispose() {
-    itemPositionsNotifier.itemPositions.dispose();
+    itemPositionsNotifier.dispose();
   }
 }

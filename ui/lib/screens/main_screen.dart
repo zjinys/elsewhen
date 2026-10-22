@@ -38,6 +38,8 @@ class MainScreen extends ConsumerWidget {
     final topInset = isMobilePlatform
         ? MediaQuery.viewPaddingOf(context).top
         : 0.0;
+    // 顶栏标题：桌面端与移动端都用应用名（移动端 mobile 分支不显示）。
+    final String title = 'Elsewhen';
 
     return Scaffold(
       backgroundColor: AppTheme.surface0,
@@ -50,7 +52,7 @@ class MainScreen extends ConsumerWidget {
             // 设置收进导航抽屉 footer，标题栏不再出现设置图标。
             // 桌面端保留窗口 chrome 风格：标题在左，设置图标 + 窗口按钮在右。
             CustomTitleBar(
-              title: 'Elsewhen',
+              title: title,
               topInset: topInset,
               leading: compact
                   ? Builder(
@@ -63,8 +65,14 @@ class MainScreen extends ConsumerWidget {
                   : null,
               middleActions: compact
                   ? (tab == SidebarTab.conversation
+                        // 对话：高频「今天」操作行（目标/待办/创建主题/搜索）。
                         ? const [TodayTitleBarActions()]
-                        : const [_WikiTitleBarActions()])
+                        // 知识库/回顾/同步：顶栏放「对话/知识」快速导航按钮
+                        //（当前 tab 高亮），免开抽屉切回主 tab；抽屉保留，
+                        // 里面的最近页面/回顾日期/同步仪表导航不变。
+                        : tab == SidebarTab.wiki
+                        ? const [_WikiTabTitleBarActions()]
+                        : const [_TabNavTitleBarActions()])
                   : null,
               actions: [
                 if (!compact)
@@ -150,10 +158,35 @@ class MainScreen extends ConsumerWidget {
   }
 }
 
-/// 移动端知识库 Tab 的标题栏操作行：文本导入 / 网址导入 / 设置。
-/// 与桌面端 logo 标题不同——移动端标题栏空间有限，放高频操作入口。
-class _WikiTitleBarActions extends ConsumerWidget {
-  const _WikiTitleBarActions();
+/// 移动端知识库 tab 顶栏动作：创建主题 / 网址导入（本页高频入口）。
+/// 设置不进顶栏，统一收在抽屉 footer（移动端唯一设置入口）。
+class _WikiTabTitleBarActions extends StatelessWidget {
+  const _WikiTabTitleBarActions();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _TitleBarIconAction(
+          tooltip: '创建主题',
+          icon: Icons.note_add_outlined,
+          onPressed: () => openCreateTopicDialog(context),
+        ),
+        _TitleBarIconAction(
+          tooltip: '网址导入',
+          icon: Icons.link_outlined,
+          onPressed: () => openWikiImportDialog(context, urlMode: true),
+        ),
+      ],
+    );
+  }
+}
+
+/// 移动端回顾/同步 tab 顶栏动作：对话 / 知识 两个快速导航按钮（语义与
+/// 抽屉 footer 一致，知识按钮先复位知识库 tab 再切）。
+class _TabNavTitleBarActions extends ConsumerWidget {
+  const _TabNavTitleBarActions();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -161,23 +194,18 @@ class _WikiTitleBarActions extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _TitleBarIconAction(
-          tooltip: '创建主题',
-          icon: Icons.note_add_outlined,
-          onPressed: () => openCreateTopicTab(ref),
+          tooltip: '对话',
+          icon: Icons.chat_bubble_outline,
+          onPressed: () => ref
+              .read(sidebarTabProvider.notifier)
+              .set(SidebarTab.conversation),
         ),
         _TitleBarIconAction(
-          tooltip: '网址导入',
-          icon: Icons.link_outlined,
-          onPressed: () => openWikiImportDialog(context, urlMode: true),
-        ),
-        _TitleBarIconAction(
-          tooltip: '设置',
-          icon: Icons.settings_outlined,
-          onPressed: () async {
-            await Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
-            ref.invalidate(aiProviderConfiguredProvider);
+          tooltip: '知识',
+          icon: Icons.menu_book_outlined,
+          onPressed: () {
+            ref.read(wikiActiveTabIdProvider.notifier).set('import');
+            ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
           },
         ),
       ],
@@ -247,6 +275,11 @@ class TodayTitleBarActions extends ConsumerWidget {
           onPressed: () => openTodoDialog(context),
         ),
         _TitleBarIconAction(
+          tooltip: '创建主题',
+          icon: Icons.note_add_outlined,
+          onPressed: () => openCreateTopicDialog(context),
+        ),
+        _TitleBarIconAction(
           tooltip: searchVisible ? '隐藏搜索' : '搜索与日期定位',
           icon: searchVisible ? Icons.search_off : Icons.search,
           color: searchVisible ? AppTheme.accentPrimary : null,
@@ -256,6 +289,7 @@ class TodayTitleBarActions extends ConsumerWidget {
                     .read(messageSearchVisibleProvider(conversationId).notifier)
                     .set(!searchVisible),
         ),
+        // 设置不进顶栏，统一收在抽屉 footer（移动端唯一设置入口）。
       ],
     );
   }

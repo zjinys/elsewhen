@@ -8,6 +8,8 @@
 //  7. 聊天移入正文尾部对话块（页尾仅一个聊天面板），footer 不再有独立聊天面板；
 //  8. wikilink 点击跳转目标页 tab；
 //  9. 关闭有未保存修改的 tab 前弹确认。
+import 'dart:async';
+
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/gestures.dart';
@@ -34,7 +36,6 @@ part 'wiki_editor_integration_parts/wiki_editor_core_steps.dart';
 part 'wiki_editor_integration_parts/wiki_editor_nav_steps.dart';
 part 'wiki_editor_integration_parts/wiki_editor_dirty_tab_steps.dart';
 part 'wiki_editor_integration_parts/wiki_editor_fake_class.dart';
-
 
 void main() {
   group('wiki 详情页 · M3 编辑器集成', () {

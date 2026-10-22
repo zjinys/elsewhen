@@ -323,6 +323,13 @@ class _PositionedListState extends State<PositionedList> {
     if (!updateScheduled) {
       updateScheduled = true;
       SchedulerBinding.instance.addPostFrameCallback((_) {
+        // elsewhen 补丁：列表可能在 post-frame 回调执行前被销毁，此时
+        // registeredElements / itemPositionsNotifier 都已 dispose。
+        if (!mounted) {
+          updateScheduled = false;
+
+          return;
+        }
         final elements = registeredElements.value;
         if (elements == null) {
           updateScheduled = false;
@@ -383,7 +390,10 @@ class _PositionedListState extends State<PositionedList> {
             );
           }
         }
-        widget.itemPositionsNotifier?.itemPositions.value = positions;
+        final notifier = widget.itemPositionsNotifier;
+        if (notifier != null && !notifier.isDisposed) {
+          notifier.itemPositions.value = positions;
+        }
         updateScheduled = false;
       });
     }

@@ -156,14 +156,23 @@ extension SelectionTransform on EditorState {
 
         // Otherwise, we can just delete the selected text.
         else {
+          // elsewhen 补丁：选区首节点可能是不带 delta 的块（分割线 / 图片 /
+          // 表格）。原实现直接 deleteText 会触发 vendor 断言
+          // `The node must have a delta.`；这里改为删除整个块。
+          final delta = node.delta;
+          if (delta == null) {
+            if (!ignoreNodeTypes.contains(node.type)) {
+              transaction.deleteNode(node);
+            }
+          }
           // If the last or first node is inside table we will only delete
           // selection part of first node.
-          if (ignoreNodeTypes.contains(nodes.last.parent?.type) ||
+          else if (ignoreNodeTypes.contains(nodes.last.parent?.type) ||
               ignoreNodeTypes.contains(node.parent?.type)) {
             transaction.deleteText(
               node,
               selection.startIndex,
-              node.delta!.length - selection.startIndex,
+              delta.length - selection.startIndex,
             );
           } else {
             transaction.deleteText(

@@ -135,17 +135,6 @@ class PageTabEntry extends WikiTabEntry {
   String get id => 'page-$slug';
 }
 
-/// 「创建主题」tab：标题/标签/正文一步完成的知识页创建表单。
-class CreateTopicTabEntry extends WikiTabEntry {
-  const CreateTopicTabEntry();
-
-  @override
-  String get id => 'create-topic';
-
-  @override
-  String get title => '创建主题';
-}
-
 /// 已抓取推文的预览 tab（内含内容对话 + 保存按钮，点保存才入库）
 class TweetTabEntry extends WikiTabEntry {
   final TweetFetch fetch;
@@ -248,13 +237,6 @@ String wikiImportTabId(ImportFetch fetch) =>
 /// 打开一个已抓取任意网址内容的预览 tab（网页/推文通用）
 void openWikiImportFetchTab(WidgetRef ref, ImportFetch fetch) {
   openWikiTab(ref, ImportFetchTabEntry(fetch: fetch));
-}
-
-/// 打开「创建主题」tab（标题/标签/正文一步完成的知识页创建表单）
-/// 不在知识库主 tab 时自动切换过去。
-void openCreateTopicTab(WidgetRef ref) {
-  ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
-  openWikiTab(ref, const CreateTopicTabEntry());
 }
 
 /// 关闭一个 tab（导入 tab 不可关闭）

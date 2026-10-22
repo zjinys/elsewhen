@@ -1,7 +1,7 @@
 part of 'wiki_page_detail_view.dart';
 
 // ─────────────────────────────────────────────
-// Tab 1（固定）：导入（网址 / 文本）
+// 导入对话框：网址导入 / 创建主题（文本）
 // ─────────────────────────────────────────────
 
 class _ImportTab extends ConsumerStatefulWidget {
@@ -109,6 +109,9 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
       _titleController.clear();
       _tagsController.clear();
       ref.invalidate(wikiPagesProvider);
+      // 从对话/回顾等一级 tab 打开创建主题时，保存后把主工作区切回知识库，
+      // 否则新页面 tab 虽然打开了，用户仍停在原来的 tab 看不到结果。
+      ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
       openWikiPageTab(ref, page);
       widget.onCompleted?.call();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -150,7 +153,9 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
                   slug: '',
                   contentMd: '',
                   editable: !_busy,
-                  shrinkWrap: true,
+                  // 对话框用 Expanded 给了编辑器有界高度，走 ListView 内部滚动；
+                  // shrinkWrap 只在无界高度/自适应容器里才需要。
+                  shrinkWrap: false,
                   enableSaveShortcut: false,
                   onWikiLinkTap: (_) {},
                   onSave: (_) async {},
@@ -292,7 +297,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
     );
   }
 
-  /// 文本模式的标题/标签字段（供 build 的滚动区域使用）
+  /// 文本模式（创建主题）的标题/标签字段。
   Widget _buildTextFields() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

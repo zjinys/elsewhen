@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'main.dart' show ElsewhenApp;
 import 'models/app_config.dart';
 import 'screens/capture_screen.dart';
+import 'utils/editor_localization.dart';
 import 'utils/error_report.dart';
 import 'utils/single_instance.dart';
 import 'utils/window_geometry_store.dart';
@@ -21,6 +22,8 @@ import 'utils/window_service_desktop.dart';
 /// 可达图干净；桌面构建用 --target=lib/main_desktop.dart。
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // AppFlowy editor 的占位符/斜杠菜单读静态 l10n，启动时先加载中文文案。
+  await configureEditorLocalization();
   // 漏网异常也要进诊断日志；此处早于窗口 chrome 初始化，任何一步崩掉都能记到。
   installGlobalErrorHandlers();
 

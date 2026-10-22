@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:appflowy_editor/appflowy_editor.dart';
 
 import 'theme/app_theme.dart';
 import 'theme/content_font.dart';
@@ -14,6 +13,7 @@ import 'models/settings.dart';
 import 'screens/main_screen.dart';
 import 'providers/app_provider.dart';
 import 'providers/settings_provider.dart';
+import 'utils/editor_localization.dart';
 import 'utils/error_report.dart';
 import 'utils/system_fonts.dart';
 
@@ -22,6 +22,8 @@ import 'utils/system_fonts.dart';
 /// 在 main_desktop.dart 里初始化，桌面构建用 --target=lib/main_desktop.dart。
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // AppFlowy editor 的占位符/斜杠菜单读静态 l10n，启动时先加载中文文案。
+  await configureEditorLocalization();
   // 漏网异常（widget 构建失败、没 await 的 Future）也要进诊断日志，
   // 必须在 runApp 之前装。
   installGlobalErrorHandlers();
@@ -168,7 +170,7 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
           localizationsDelegates: const [
             DefaultMaterialLocalizations.delegate,
             DefaultWidgetsLocalizations.delegate,
-            AppFlowyEditorLocalizations.delegate,
+            ChineseAppFlowyEditorLocalizationsDelegate(),
           ],
           // 桌面窗口不裁圆角（FlClash 纪律）：窗口不透明直角，圆角交给系统
           // （Win11 DWM 自动圆角、macOS 系统圆角、Linux 直角）。自裁圆角需要
