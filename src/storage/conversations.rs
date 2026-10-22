@@ -268,17 +268,52 @@ impl Store {
         parent_message_id: Option<&str>,
         input_message_id: Option<&str>,
     ) -> Result<String> {
+        let transaction = self.begin_write_transaction()?;
+        let id = self.insert_message_with_kind(
+            conversation_id,
+            role,
+            content,
+            parent_message_id,
+            input_message_id,
+            "chat",
+            None,
+        )?;
+        if let Some(transaction) = transaction {
+            transaction.commit()?;
+        }
+        Ok(id)
+    }
+
+    /// 插入一条消息。调用方若需要把消息与业务写入放在同一事务里，必须先
+    /// `begin_write_transaction`；本方法只借用当前连接，不自行提交。
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn insert_message_with_kind(
+        &self,
+        conversation_id: &str,
+        role: &str,
+        content: &str,
+        parent_message_id: Option<&str>,
+        input_message_id: Option<&str>,
+        kind: &str,
+        message_ref: Option<&str>,
+    ) -> Result<String> {
         let id = Uuid::new_v4().to_string();
         let now = chrono::Utc::now().to_rfc3339();
 
-        let transaction = self.begin_write_transaction()?;
-
-        // Insert message
         self.connection.execute(
-        "INSERT INTO messages (id, conversation_id, parent_message_id, role, content, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        params![id, conversation_id, parent_message_id, role, content, now],
-    )?;
+            "INSERT INTO messages (id, conversation_id, parent_message_id, role, content, created_at, kind, ref)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                id,
+                conversation_id,
+                parent_message_id,
+                role,
+                content,
+                now,
+                kind,
+                message_ref
+            ],
+        )?;
 
         // Update conversation timestamp
         self.connection.execute(
@@ -293,9 +328,6 @@ impl Store {
             )?;
         }
         self.sync_record_message(&id)?;
-        if let Some(transaction) = transaction {
-            transaction.commit()?;
-        }
         Ok(id)
     }
 
@@ -377,6 +409,9 @@ impl Store {
         // Unassociated legacy messages keep their order within their old turn.
         let mut turns = std::collections::BTreeMap::<Option<usize>, Vec<MessageSummary>>::new();
         let mut current_turn = None;
+        // 习惯问候是独立的一轮：它没有 response link，不能沿用「未关联的
+        // assistant 归入当前 user turn」旧规则；回答消息按 parent 归到同一轮。
+        let mut nudge_turns = std::collections::HashMap::<String, usize>::new();
         for (position, message) in messages.into_iter().enumerate() {
             let answer_turn = (message.role == "assistant")
                 .then(|| {
@@ -389,6 +424,23 @@ impl Store {
             if let Some(owner) = answer_turn {
                 turns.entry(Some(owner)).or_default().push(message);
             } else if position <= index {
+                if message.kind == "habit_nudge" {
+                    nudge_turns.insert(message.id.clone(), position);
+                    current_turn = Some(position);
+                    turns.entry(current_turn).or_default().push(message);
+                    continue;
+                }
+                if message.kind == "habit_checkin"
+                    && let Some(owner) = message
+                        .parent_message_id
+                        .as_ref()
+                        .and_then(|id| nudge_turns.get(id))
+                        .copied()
+                {
+                    turns.entry(Some(owner)).or_default().push(message);
+                    current_turn = Some(owner);
+                    continue;
+                }
                 if message.role == "user" {
                     current_turn = Some(position);
                 }
@@ -421,7 +473,7 @@ impl Store {
             }
         }
         let mut statement = self.connection.prepare(
-            "SELECT m.id, m.conversation_id, m.parent_message_id, m.role, m.content, m.created_at, l.input_message_id
+            "SELECT m.id, m.conversation_id, m.parent_message_id, m.role, m.content, m.created_at, l.input_message_id, m.kind, m.ref
          FROM messages m
              LEFT JOIN sync_message_order s ON s.message_id=m.id
              LEFT JOIN message_response_links l ON l.message_id=m.id
@@ -438,6 +490,8 @@ impl Store {
                 content: row.get(4)?,
                 created_at: row.get(5)?,
                 input_message_id: row.get(6)?,
+                kind: row.get(7)?,
+                message_ref: row.get(8)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -455,7 +509,7 @@ impl Store {
             }
         }
         let mut statement = self.connection.prepare(
-            "SELECT m.id, m.conversation_id, m.parent_message_id, m.role, m.content, m.created_at, l.input_message_id
+            "SELECT m.id, m.conversation_id, m.parent_message_id, m.role, m.content, m.created_at, l.input_message_id, m.kind, m.ref
          FROM messages m
              LEFT JOIN sync_message_order s ON s.message_id=m.id
              LEFT JOIN message_response_links l ON l.message_id=m.id
@@ -475,6 +529,8 @@ impl Store {
                 content: row.get(4)?,
                 created_at: row.get(5)?,
                 input_message_id: row.get(6)?,
+                kind: row.get(7)?,
+                message_ref: row.get(8)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -484,7 +540,7 @@ impl Store {
     // Get child messages of a specific message (for branching conversations)
     pub fn get_child_messages(&self, parent_id: &str) -> Result<Vec<MessageSummary>> {
         let mut statement = self.connection.prepare(
-            "SELECT id, conversation_id, parent_message_id, role, content, created_at, NULL
+            "SELECT id, conversation_id, parent_message_id, role, content, created_at, NULL, kind, ref
          FROM messages
          WHERE parent_message_id = ?1
          ORDER BY created_at ASC, id ASC",
@@ -498,6 +554,8 @@ impl Store {
                 content: row.get(4)?,
                 created_at: row.get(5)?,
                 input_message_id: row.get(6)?,
+                kind: row.get(7)?,
+                message_ref: row.get(8)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -523,7 +581,7 @@ impl Store {
 
         while let Some(id) = current_id {
             let message: MessageSummary = self.connection.query_row(
-                "SELECT id, conversation_id, parent_message_id, role, content, created_at, NULL
+                "SELECT id, conversation_id, parent_message_id, role, content, created_at, NULL, kind, ref
              FROM messages WHERE id = ?1",
                 [&id],
                 |row| {
@@ -535,6 +593,8 @@ impl Store {
                         content: row.get(4)?,
                         created_at: row.get(5)?,
                         input_message_id: row.get(6)?,
+                        kind: row.get(7)?,
+                        message_ref: row.get(8)?,
                     })
                 },
             )?;

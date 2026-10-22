@@ -12,8 +12,8 @@ use rusqlite::{OptionalExtension, params};
 
 use super::{Apply, Store};
 use crate::sync::protocol::{
-    GoalRecord, KnowledgeReadingStateRecord, KnowledgeReviewRecord, RuleRecord, SyncMutation,
-    SyncOperation, TodoRecord,
+    GoalRecord, HabitNudgeRecord, KnowledgeReadingStateRecord, KnowledgeReviewRecord, RuleRecord,
+    SyncMutation, SyncOperation, TodoRecord,
 };
 
 fn todo_record_from_row(
@@ -39,6 +39,36 @@ fn todo_record_from_row(
         related_event_id,
         related_wiki_slug,
         note,
+        created_at,
+        updated_at,
+    }
+}
+
+fn habit_nudge_record_from_row(
+    id: String,
+    page_slug: String,
+    question: String,
+    done_label: String,
+    done_text: String,
+    missed_label: String,
+    missed_text: String,
+    weekdays: i64,
+    local_time: String,
+    enabled: i64,
+    created_at: String,
+    updated_at: String,
+) -> HabitNudgeRecord {
+    HabitNudgeRecord {
+        id,
+        page_slug,
+        question,
+        done_label,
+        done_text,
+        missed_label,
+        missed_text,
+        weekdays,
+        local_time,
+        enabled: enabled != 0,
         created_at,
         updated_at,
     }
@@ -136,6 +166,52 @@ impl Store {
         Ok(())
     }
 
+    fn sync_habit_nudge_record(&self, id: &str) -> Result<Option<HabitNudgeRecord>> {
+        self.connection
+            .query_row(
+                "SELECT id,page_slug,question,done_label,done_text,missed_label,missed_text,weekdays,local_time,enabled,created_at,updated_at \
+                 FROM habit_nudges WHERE id=?1",
+                [id],
+                |r| {
+                    Ok(habit_nudge_record_from_row(
+                        r.get(0)?,
+                        r.get(1)?,
+                        r.get(2)?,
+                        r.get(3)?,
+                        r.get(4)?,
+                        r.get(5)?,
+                        r.get(6)?,
+                        r.get(7)?,
+                        r.get(8)?,
+                        r.get(9)?,
+                        r.get(10)?,
+                        r.get(11)?,
+                    ))
+                },
+            )
+            .optional()
+            .context("sync_habit_nudge_record")
+    }
+
+    /// 习惯问候计划捕获点。删除必须先捕获再删行。
+    pub(crate) fn sync_record_habit_nudge(&self, id: &str, deleted: bool) -> Result<()> {
+        if self.sync_identity()?.is_none() {
+            return Ok(());
+        }
+        let nudge = self
+            .sync_habit_nudge_record(id)?
+            .context("sync_habit_nudge_missing")?;
+        let base_revision = self.sync_object_head("habit_nudge", id)?.map(|h| h.0);
+        if let Some(op_id) = self.append_sync_mutation(SyncMutation::HabitNudgeChanged {
+            nudge,
+            base_revision,
+            deleted,
+        })? {
+            self.sync_set_head("habit_nudge", id, &op_id, deleted)?;
+        }
+        Ok(())
+    }
+
     /// 目标捕获点（归档/复活/编辑/新建同一入口）。目标没有删除语义，
     /// deleted 恒为 false；归档是状态迁移不是删除。
     pub(crate) fn sync_record_goal(&self, id: &str) -> Result<()> {
@@ -203,6 +279,7 @@ impl Store {
             let deleted_reason = match kind {
                 "todo" => "todo_deleted",
                 "goal" => "goal_deleted",
+                "habit_nudge" => "habit_nudge_deleted",
                 _ => "rule_deleted",
             };
             return Ok(Some(Apply::Conflict {
@@ -273,6 +350,60 @@ impl Store {
         )?;
         ensure!(changed == 1, "sync_todo_apply_failed");
         self.sync_set_head("todo", &todo.id, &op.op_id, false)?;
+        Ok(Apply::Applied)
+    }
+
+    pub(super) fn apply_sync_habit_nudge(
+        &self,
+        op: &SyncOperation,
+        nudge: &HabitNudgeRecord,
+        base_revision: &Option<String>,
+        deleted: bool,
+    ) -> Result<Apply> {
+        if let Some(result) = self.mutable_cas_guard(
+            "habit_nudge",
+            "habit_nudges",
+            &nudge.id,
+            base_revision,
+            &op.op_id,
+            deleted,
+        )? {
+            return Ok(result);
+        }
+        if deleted {
+            self.connection
+                .execute("DELETE FROM habit_nudges WHERE id=?1", [&nudge.id])?;
+            self.connection.execute(
+                "DELETE FROM habit_nudge_fires WHERE nudge_id=?1",
+                [&nudge.id],
+            )?;
+            self.sync_set_head("habit_nudge", &nudge.id, &op.op_id, true)?;
+            return Ok(Apply::Applied);
+        }
+        let changed = self.connection.execute(
+            "INSERT INTO habit_nudges(id,page_slug,question,done_label,done_text,missed_label,missed_text,weekdays,local_time,enabled,created_at,updated_at) \
+             VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12) \
+             ON CONFLICT(id) DO UPDATE SET page_slug=excluded.page_slug,question=excluded.question, \
+             done_label=excluded.done_label,done_text=excluded.done_text,missed_label=excluded.missed_label, \
+             missed_text=excluded.missed_text,weekdays=excluded.weekdays,local_time=excluded.local_time, \
+             enabled=excluded.enabled,updated_at=excluded.updated_at",
+            params![
+                nudge.id,
+                nudge.page_slug,
+                nudge.question,
+                nudge.done_label,
+                nudge.done_text,
+                nudge.missed_label,
+                nudge.missed_text,
+                nudge.weekdays,
+                nudge.local_time,
+                nudge.enabled as i64,
+                nudge.created_at,
+                nudge.updated_at
+            ],
+        )?;
+        ensure!(changed == 1, "sync_habit_nudge_apply_failed");
+        self.sync_set_head("habit_nudge", &nudge.id, &op.op_id, false)?;
         Ok(Apply::Applied)
     }
 

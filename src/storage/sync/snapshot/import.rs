@@ -67,7 +67,7 @@ impl Store {
         Ok(())
     }
     pub(crate) fn ensure_empty_snapshot_target(&self) -> Result<()> {
-        let has_data:bool=self.connection.query_row("SELECT EXISTS(SELECT 1 FROM events UNION ALL SELECT 1 FROM conversations UNION ALL SELECT 1 FROM messages UNION ALL SELECT 1 FROM input_records UNION ALL SELECT 1 FROM ai_provider_configs UNION ALL SELECT 1 FROM wiki_pages UNION ALL SELECT 1 FROM todos UNION ALL SELECT 1 FROM rules UNION ALL SELECT 1 FROM goals UNION ALL SELECT 1 FROM sync_operations)",[],|r|r.get(0))?;
+        let has_data:bool=self.connection.query_row("SELECT EXISTS(SELECT 1 FROM events UNION ALL SELECT 1 FROM conversations UNION ALL SELECT 1 FROM messages UNION ALL SELECT 1 FROM input_records UNION ALL SELECT 1 FROM ai_provider_configs UNION ALL SELECT 1 FROM wiki_pages UNION ALL SELECT 1 FROM todos UNION ALL SELECT 1 FROM habit_nudges UNION ALL SELECT 1 FROM rules UNION ALL SELECT 1 FROM goals UNION ALL SELECT 1 FROM sync_operations)",[],|r|r.get(0))?;
         ensure!(!has_data, "sync_snapshot_requires_fresh_staging_database");
         Ok(())
     }

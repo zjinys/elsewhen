@@ -116,11 +116,11 @@ pub(crate) fn validate_history_path(messages: &[MessageSummary]) -> Result<()> {
 
 fn live_message(store: &Store, conversation: &str, id: &str) -> Result<MessageSummary> {
     store.connection.query_row(
-        "SELECT id,conversation_id,parent_message_id,role,content,created_at,NULL FROM messages WHERE id=?1 AND conversation_id=?2",
+        "SELECT id,conversation_id,parent_message_id,role,content,created_at,NULL,kind,ref FROM messages WHERE id=?1 AND conversation_id=?2",
         params![id, conversation], |row| Ok(MessageSummary {
             id: row.get(0)?, conversation_id: row.get(1)?, parent_message_id: row.get(2)?,
             role: row.get(3)?, content: row.get(4)?, created_at: row.get(5)?,
-            input_message_id: row.get(6)?,
+            input_message_id: row.get(6)?, kind: row.get(7)?, message_ref: row.get(8)?,
         }),
     ).optional()?.context("摘要原始消息不存在或不属于此会话")
 }

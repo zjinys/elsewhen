@@ -1,8 +1,5 @@
 //! 推文媒体图片下载（fxtwitter + DoH 解析），自 tweet_import.rs 分段平移。
 
-
-
-
 use anyhow::{Context, Result};
 
 use super::{FxTweetContent, image_placeholder};

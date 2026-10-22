@@ -103,6 +103,7 @@ fn migrations_are_discovered_from_the_directory() {
             "54-chat-rule-shadow-screening",
             "55-provider-runtime-active",
             "56-rule-essence",
+            "57-habit-nudges",
         ],
         "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
     );
@@ -134,7 +135,7 @@ fn migration_applies_goals_table() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 56, "五十六条迁移跑完，user_version 应为 56");
+    assert_eq!(version, 57, "五十七条迁移跑完，user_version 应为 57");
     assert_eq!(
         latest_version().unwrap(),
         version,

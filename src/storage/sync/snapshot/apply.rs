@@ -44,7 +44,7 @@ impl Store {
                 self.connection.execute("INSERT INTO conversations(id,title,tag,archived,wiki_page_slug,assistant_mode,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",params![value.id,value.title,value.tag,value.archived,value.wiki_page_slug,value.assistant_mode,value.created_at,value.updated_at])?;
             }
             Record::Message { value, order } => {
-                validate_id(&value.id)?;
+                value.validate()?;
                 if let Some(parent) = &value.parent_message_id {
                     let parent: Option<String> = self
                         .connection
@@ -59,7 +59,7 @@ impl Store {
                         "sync_snapshot_parent_missing_or_invalid"
                     );
                 }
-                self.connection.execute("INSERT INTO messages(id,conversation_id,parent_message_id,role,content,created_at) VALUES(?1,?2,?3,?4,?5,?6)",params![value.id,value.conversation_id,value.parent_message_id,value.role,value.content,value.created_at])?;
+                self.connection.execute("INSERT INTO messages(id,conversation_id,parent_message_id,role,content,created_at,kind,ref) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",params![value.id,value.conversation_id,value.parent_message_id,value.role,value.content,value.created_at,value.kind,value.message_ref])?;
                 if let Some(input) = &value.input_message_id {
                     self.connection.execute("INSERT INTO message_response_links(message_id,input_message_id) VALUES(?1,?2)",params![value.id,input])?;
                 }
@@ -295,6 +295,27 @@ impl Store {
                     "sync_snapshot_todo_status_invalid"
                 );
                 self.connection.execute("INSERT INTO todos(id,title,status,priority,due_at,reminder,related_event_id,related_wiki_slug,note,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",params![id,title,status,priority,due_at,reminder,related_event_id,related_wiki_slug,note,created_at,updated_at])?;
+            }
+            Record::HabitNudge { value } => {
+                value.validate()?;
+                self.connection.execute(
+                    "INSERT INTO habit_nudges(id,page_slug,question,done_label,done_text,missed_label,missed_text,weekdays,local_time,enabled,created_at,updated_at) \
+                     VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
+                    params![
+                        value.id,
+                        value.page_slug,
+                        value.question,
+                        value.done_label,
+                        value.done_text,
+                        value.missed_label,
+                        value.missed_text,
+                        value.weekdays,
+                        value.local_time,
+                        value.enabled as i64,
+                        value.created_at,
+                        value.updated_at
+                    ],
+                )?;
             }
             Record::Goal {
                 id,

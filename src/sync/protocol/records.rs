@@ -33,6 +33,75 @@ pub struct TodoRecord {
     pub updated_at: String,
 }
 
+/// 习惯主动问候计划整行（migration 57）。时间存本地墙钟，触发去重是
+/// 设备本地行为，由 `habit_nudge_fires` 承担，不进入本记录。
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HabitNudgeRecord {
+    pub id: String,
+    pub page_slug: String,
+    pub question: String,
+    pub done_label: String,
+    pub done_text: String,
+    pub missed_label: String,
+    pub missed_text: String,
+    pub weekdays: i64,
+    pub local_time: String,
+    pub enabled: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl HabitNudgeRecord {
+    pub(crate) fn validate(&self) -> Result<()> {
+        validate_id(&self.id)?;
+        ensure!(
+            !self.page_slug.is_empty()
+                && self.page_slug.chars().count() <= 255
+                && !self.page_slug.chars().any(char::is_control),
+            "sync_habit_nudge_page_invalid"
+        );
+        for (value, max) in [
+            (&self.question, 500usize),
+            (&self.done_label, 40),
+            (&self.done_text, 500),
+            (&self.missed_label, 40),
+            (&self.missed_text, 500),
+        ] {
+            ensure!(
+                !value.trim().is_empty() && value.chars().count() <= max,
+                "sync_habit_nudge_text_invalid"
+            );
+        }
+        ensure!(
+            (1..=127).contains(&self.weekdays),
+            "sync_habit_nudge_weekdays_invalid"
+        );
+        ensure!(
+            valid_local_time(&self.local_time),
+            "sync_habit_nudge_time_invalid"
+        );
+        ensure!(
+            !self.created_at.trim().is_empty() && !self.updated_at.trim().is_empty(),
+            "sync_habit_nudge_timestamp_invalid"
+        );
+        Ok(())
+    }
+}
+
+fn valid_local_time(value: &str) -> bool {
+    let Some((hour, minute)) = value.split_once(':') else {
+        return false;
+    };
+    if hour.len() != 2 || minute.len() != 2 {
+        return false;
+    }
+    let (Ok(hour), Ok(minute)) = (hour.parse::<u32>(), minute.parse::<u32>()) else {
+        return false;
+    };
+    (7..=22).contains(&hour) && minute < 60
+}
+
 /// 目标整行。活跃上限 3 由收端触发器强制；远端写入越限按显式冲突立案
 /// （`goal_active_limit`），不静默顶掉本端目标。
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -120,6 +189,24 @@ pub struct MessageRecord {
     pub created_at: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub input_message_id: Option<String>,
+    /// `chat` / `habit_nudge` / `habit_checkin`；旧消息缺省为 chat，
+    /// 序列化时也省略，保持既有消息编码哈希不变。
+    #[serde(
+        default = "default_message_kind",
+        skip_serializing_if = "is_chat_message"
+    )]
+    pub kind: String,
+    /// 习惯问候去重锚：`<nudge_id>:<YYYY-MM-DD>`。
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "ref")]
+    pub message_ref: Option<String>,
+}
+
+fn default_message_kind() -> String {
+    "chat".to_string()
+}
+
+fn is_chat_message(kind: &str) -> bool {
+    kind == "chat"
 }
 
 impl MessageRecord {
@@ -133,6 +220,28 @@ impl MessageRecord {
             matches!(self.role.as_str(), "user" | "assistant"),
             "sync_message_role_invalid"
         );
+        ensure!(
+            matches!(self.kind.as_str(), "chat" | "habit_nudge" | "habit_checkin"),
+            "sync_message_kind_invalid"
+        );
+        if self.kind == "habit_nudge" {
+            ensure!(self.role == "assistant", "sync_habit_nudge_role_invalid");
+        }
+        if self.kind == "habit_checkin" {
+            ensure!(self.role == "user", "sync_habit_checkin_role_invalid");
+        }
+        if self.kind != "chat" {
+            let reference = self
+                .message_ref
+                .as_deref()
+                .context("sync_message_ref_missing")?;
+            ensure!(
+                !reference.is_empty()
+                    && reference.len() <= 128
+                    && !reference.chars().any(char::is_control),
+                "sync_message_ref_invalid"
+            );
+        }
         if let Some(input) = &self.input_message_id {
             validate_id(input)?;
             ensure!(

@@ -236,18 +236,9 @@ pub fn trigger_analysis() -> Result<AnalysisTriggerResult> {
     if !store.background_processing_allowed()? {
         return Ok(AnalysisTriggerResult::Processed { count: 0 });
     }
-    let provider_config = store.active_ai_provider_config()?;
-    let Some(provider_config) = provider_config else {
+    let Some(provider) = crate::ai::provider::active_first_provider_chain(&store)? else {
         return Ok(AnalysisTriggerResult::NoProvider);
     };
-    let provider = OpenAiCompatibleProvider::new(OpenAiCompatibleConfig {
-        base_url: provider_config.base_url,
-        api_key: provider_config.api_key,
-        model: provider_config.model,
-        temperature: provider_config.temperature as f32,
-        max_tokens: provider_config.max_tokens.map(|v| v as u32),
-        context_window: provider_config.context_window.map(|v| v as u32),
-    })?;
     // 每次 worker tick 先重新清扫遗留的 running 任务：GUI 只在启动时恢复一次，
     // 若上一次队列运行中途退出，被 claim 的任务会孤悬到下次启动。
     crate::storage::with_busy_retry(|| {
@@ -255,10 +246,10 @@ pub fn trigger_analysis() -> Result<AnalysisTriggerResult> {
             .recover_interrupted_analysis_jobs()
             .context("analysis worker: recover interrupted jobs")
     })?;
-    let processed = process_analysis_queue(&store, &provider)?;
+    let processed = process_analysis_queue(&store, provider.as_ref())?;
     // 对话影子校验判定阶段（迁移 54）：预筛在聊天生成链已落 pending，
     // 这里用同一 provider 逐条判定适用性。失败不档其它队列（下轮重试）。
-    let judged = process_chat_rule_check_queue(&store, &provider)?;
+    let judged = process_chat_rule_check_queue(&store, provider.as_ref())?;
     Ok(AnalysisTriggerResult::Processed {
         count: processed + judged,
     })

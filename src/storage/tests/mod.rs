@@ -53,10 +53,11 @@ fn wiki_draft(slug: &str, kind: &str, content_md: &str) -> WikiPageDraft {
     }
 }
 
-mod events;
 mod analysis_jobs;
-mod infra;
-mod entities;
-mod todos_misc;
 mod digest_content;
+mod entities;
+mod events;
+mod habit_nudges;
+mod infra;
+mod todos_misc;
 mod wiki_pages;

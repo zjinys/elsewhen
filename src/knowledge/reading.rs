@@ -192,7 +192,7 @@ fn read_node(
     let mut parsed = None;
     for attempt in 0..2 {
         let reply = provider.generate_reply(messages.clone())?;
-        if let Some(u) = reply.usage {
+        if let Some(u) = &reply.usage {
             store.record_token_usage(
                 None,
                 u.prompt_tokens as i64,
@@ -201,26 +201,35 @@ fn read_node(
                 reply.model.as_deref(),
             )?;
         }
-        let raw = reply
-            .content
-            .trim()
-            .trim_start_matches("```json")
-            .trim_start_matches("```")
-            .trim_end_matches("```")
-            .trim();
-        let result = serde_json::from_str::<Reading>(raw)
-            .map_err(anyhow::Error::from)
+        let result = super::structured_text(&reply, "阅读")
+            .and_then(|text| {
+                let raw = text
+                    .trim_start_matches("```json")
+                    .trim_start_matches("```")
+                    .trim_end_matches("```")
+                    .trim();
+                serde_json::from_str::<Reading>(raw).map_err(anyhow::Error::from)
+            })
             .and_then(|r| {
+                ensure!(!r.summary.trim().is_empty(), "阅读结果缺少归纳");
                 ensure!(
-                    !r.summary.trim().is_empty()
-                        && r.summary.chars().count() <= 900
-                        && r.quotes.len() <= 3,
-                    "阅读结果格式或长度不合法"
+                    r.summary.chars().count() <= 900,
+                    "阅读归纳超过 900 字（当前 {} 字）",
+                    r.summary.chars().count()
+                );
+                ensure!(
+                    r.quotes.len() <= 3,
+                    "阅读摘录超过 3 条（当前 {} 条）",
+                    r.quotes.len()
                 );
                 for q in &r.quotes {
                     ensure!(
-                        (8..=140).contains(&q.chars().count())
-                            && source.content_md.contains(q)
+                        (8..=140).contains(&q.chars().count()),
+                        "阅读摘录长度须为 8–140 字（当前 {} 字）",
+                        q.chars().count()
+                    );
+                    ensure!(
+                        source.content_md.contains(q)
                             && if node.level == 0 {
                                 node.input.contains(q)
                             } else {
@@ -236,9 +245,9 @@ fn read_node(
                 parsed = Some(r);
                 break;
             }
-            Err(_) if attempt == 0 => messages.push(ContextMessage::new(
+            Err(e) if attempt == 0 => messages.push(ContextMessage::new(
                 "system",
-                "校验失败：返回完整合法 JSON；归纳不超过900字，摘录须逐字来自输入，不补造。",
+                format!("校验失败：{e}。返回完整合法 JSON；归纳不超过900字（建议800字以内），摘录须逐字来自输入，不补造。"),
             )),
             Err(e) => return Err(e),
         }

@@ -204,6 +204,8 @@ fn missing_or_invalid_timestamp_is_not_invented() {
         content: "昨天".into(),
         created_at: "not a timestamp".into(),
         input_message_id: None,
+        kind: "chat".into(),
+        message_ref: None,
     };
     let mut context = vec![ContextMessage::from_record(message)];
     let clock = FixedClock(at("2026-09-30T12:00:00Z"));

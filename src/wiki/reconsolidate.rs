@@ -1,7 +1,10 @@
 //! 自 wiki.rs 机械分段平移（行为零变化）。
 
 use crate::ai::memory::ContextMessage;
-use crate::ai::provider::{AiProvider, OpenAiCompatibleConfig, OpenAiCompatibleProvider};
+use crate::ai::provider::{
+    AiProvider, FailoverEntry, FailoverProvider, OpenAiCompatibleConfig, OpenAiCompatibleProvider,
+    last_good_background_provider,
+};
 
 use crate::storage::{ContentPolicy, EventRecord, Store, WikiPage, WikiPageDraft};
 use anyhow::{Context, Result};
@@ -137,32 +140,55 @@ fn build_reconsolidation_user_prompt(page: &WikiPage, events: &[EventRecord]) ->
 
 /// 知识消化用的 provider：沿用当前启用配置，温度与输出上限固定为 digest 调参。
 /// 没有可用配置时返回 None（事件照常保存，任务等待）。
-pub fn digest_provider(store: &Store) -> Result<Option<(OpenAiCompatibleProvider, String)>> {
-    // 后台任务（知识整理/周期报告/来源编译）与主对话分流：多个渠道时
-    // 优先挑**非活跃**的渠道，避免 524 重试风浪与长任务挤占主对话的
-    // 响应速度；只配了一个渠道时回退活跃渠道（有总比没有强）。
-    // 无 key 的配置直接跳过（取不到 key 时静默用主渠道是历史坑）。
+///
+/// 返回的是顺序 failover 链：后台任务与主对话分流，优先非活跃渠道；某个
+/// 渠道 5xx/429/超时/鉴权失败时自动换下一个，全部失败才向上报错。上次成功
+/// 的渠道会排到最前，避免每轮都先撞已知失败的渠道。
+pub fn digest_provider(store: &Store) -> Result<Option<(Box<dyn AiProvider>, String)>> {
     let configs = store.list_ai_provider_configs_for_runtime()?;
     let mut usable: Vec<_> = configs
         .into_iter()
+        .filter(|c| c.provider_type == "openai-compatible")
         .filter(|c| !c.api_key.trim().is_empty())
         .collect();
-    let idx = match usable.iter().position(|c| c.is_active) {
-        Some(active) => usable.iter().position(|c| !c.is_active).unwrap_or(active),
-        None => match usable.len() {
-            0 => return Ok(None),
-            n => n - 1,
-        },
-    };
-    let config = usable.remove(idx);
-    let model = config.model.clone();
-    let provider = OpenAiCompatibleProvider::new(OpenAiCompatibleConfig {
-        base_url: config.base_url,
-        api_key: config.api_key,
-        model: config.model,
-        temperature: 0.3,
-        max_tokens: Some(3000),
-        context_window: config.context_window.map(|v| v as u32),
-    })?;
-    Ok(Some((provider, model)))
+    if usable.is_empty() {
+        return Ok(None);
+    }
+
+    // 排序：上次成功者 → 其余非活跃渠道 → 活跃渠道兜底。
+    let mut ordered = Vec::with_capacity(usable.len());
+    if let Some(id) = last_good_background_provider()
+        && let Some(pos) = usable.iter().position(|c| c.id == id)
+    {
+        ordered.push(usable.remove(pos));
+    }
+    let (mut non_active, mut active): (Vec<_>, Vec<_>) =
+        usable.into_iter().partition(|c| !c.is_active);
+    ordered.append(&mut non_active);
+    ordered.append(&mut active);
+
+    let model = ordered[0].model.clone();
+    let entries = ordered
+        .into_iter()
+        .map(|config| {
+            let provider = OpenAiCompatibleProvider::new(OpenAiCompatibleConfig {
+                base_url: config.base_url,
+                api_key: config.api_key,
+                model: config.model,
+                temperature: 0.3,
+                // 知识整理允许 5000 字正文；固定 3000 会在 reasoning 或
+                // 长 JSON 上把输出截断。尊重用户配置，未配置时给 8192。
+                max_tokens: Some(
+                    config.max_tokens.filter(|value| *value > 0).unwrap_or(8192) as u32
+                ),
+                context_window: config.context_window.map(|v| v as u32),
+            })?;
+            Ok(FailoverEntry::new(
+                config.id,
+                config.name,
+                Box::new(provider),
+            ))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(Some((Box::new(FailoverProvider::new(entries)), model)))
 }

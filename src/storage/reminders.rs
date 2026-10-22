@@ -80,12 +80,7 @@ impl Store {
 
     /// 推迟提醒：**同事务**把 due_at 顺延并删除本机触发记录。
     /// 分两步就会踩「due_at 已推后但 fire 行还在 → 本机永不再弹」的坑（评审 3.1）。
-    pub fn snooze_reminder(
-        &self,
-        todo_id: &str,
-        minutes: i64,
-        device_id: &str,
-    ) -> Result<Todo> {
+    pub fn snooze_reminder(&self, todo_id: &str, minutes: i64, device_id: &str) -> Result<Todo> {
         let until = (chrono::Utc::now() + chrono::Duration::minutes(minutes.max(1))).to_rfc3339();
         let tx = self.begin_write_transaction()?;
         let changed = self.connection.execute(
@@ -112,11 +107,11 @@ impl Store {
     pub fn set_todo_reminder(&self, id: &str, reminder: bool) -> Result<()> {
         let tx = self.begin_write_transaction()?;
         if reminder {
-            let due_at: Option<String> = self.connection.query_row(
-                "SELECT due_at FROM todos WHERE id=?1",
-                [id],
-                |row| row.get(0),
-            )?;
+            let due_at: Option<String> =
+                self.connection
+                    .query_row("SELECT due_at FROM todos WHERE id=?1", [id], |row| {
+                        row.get(0)
+                    })?;
             match due_at {
                 Some(due) => {
                     let parsed = chrono::DateTime::parse_from_rfc3339(&due);
@@ -131,21 +126,15 @@ impl Store {
         }
         let changed = self.connection.execute(
             "UPDATE todos SET reminder=?1, updated_at=?2 WHERE id=?3",
-            params![
-                reminder as i64,
-                chrono::Utc::now().to_rfc3339(),
-                id
-            ],
+            params![reminder as i64, chrono::Utc::now().to_rfc3339(), id],
         )?;
         if changed > 0 {
             self.sync_record_todo(id, false)?;
         }
         // 关掉提醒时清掉本机触发记录，重新开启后可在新时刻再响。
         if !reminder {
-            self.connection.execute(
-                "DELETE FROM todo_reminder_fires WHERE todo_id=?1",
-                [id],
-            )?;
+            self.connection
+                .execute("DELETE FROM todo_reminder_fires WHERE todo_id=?1", [id])?;
         }
         if let Some(tx) = tx {
             tx.commit()?;

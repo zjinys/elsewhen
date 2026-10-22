@@ -27,6 +27,7 @@ fn parse_compilation(text: &str, automatic: bool, revision: bool) -> Result<Comp
         .trim_start_matches("```")
         .trim_end_matches("```")
         .trim();
+    anyhow::ensure!(!raw.is_empty(), "知识建议响应为空");
     let result: Compilation = serde_json::from_str(raw).context("知识建议须为合法 JSON 对象")?;
     if automatic && result.kind.as_deref() == Some("skip") {
         return Ok(result);
@@ -259,17 +260,24 @@ summary 是这页的挂载摘要：一到两句概括正文讲了什么、何时
                 reply.model.as_deref(),
             )?;
         }
-        match parse_compilation(&reply.content, automatic, kind == "revision") {
+        match structured_text(&reply, "知识整理")
+            .and_then(|text| parse_compilation(text, automatic, kind == "revision"))
+        {
             Ok(parsed) => {
                 result = Some(parsed);
                 break;
             }
             Err(error) if attempt == 0 => {
-                context.push(ContextMessage::new(
-                    "assistant",
-                    shorten(&reply.content, 6000),
-                ));
-                context.push(ContextMessage::new("system", format!("上次结构校验未通过：{error}。请按上述 JSON 契约修正，只返回对象。不能补造来源或用户经历。")));
+                let content = reply.content.trim();
+                if !content.is_empty() {
+                    context.push(ContextMessage::new("assistant", shorten(content, 6000)));
+                }
+                let length_hint = if reply.finish_reason.as_deref() == Some("length") {
+                    "上次输出达到上限；请压缩 content_md 并确保 JSON 完整闭合。"
+                } else {
+                    ""
+                };
+                context.push(ContextMessage::new("system", format!("上次结构校验未通过：{error}。请按上述 JSON 契约修正，只返回对象。不能补造来源或用户经历。{length_hint}")));
             }
             Err(error) => return Err(error.context("知识整理校验未通过，未保存任何页面")),
         }

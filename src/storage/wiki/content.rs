@@ -234,7 +234,11 @@ impl Store {
         } else {
             0
         };
-        // 4) 审计修订记录
+        // 4) 习惯问候计划跟随 slug 迁移（唯一索引按 page_slug 绑定）。
+        if new_slug != slug {
+            self.move_habit_nudges_page(slug, Some(&new_slug))?;
+        }
+        // 5) 审计修订记录
         self.connection.execute(
         "INSERT INTO wiki_revisions (id, page_id, content_md, reason, source_event_id, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",

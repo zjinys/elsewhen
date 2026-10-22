@@ -15,8 +15,8 @@ use crate::storage::Store;
 use crate::sync::{
     crypto::{self, ContentKey, DeviceIdentity, EncryptedEnvelope, EnvelopeHeader},
     protocol::{
-        ConversationRecord, EventRecord, InputRecord, MessageRecord, ProviderBundle, SyncOperation,
-        validate_id,
+        ConversationRecord, EventRecord, HabitNudgeRecord, InputRecord, MessageRecord,
+        ProviderBundle, SyncOperation, validate_id,
     },
 };
 

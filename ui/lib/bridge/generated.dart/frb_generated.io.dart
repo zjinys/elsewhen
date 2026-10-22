@@ -13,6 +13,7 @@ import 'api/entities.dart';
 import 'api/event_stats.dart';
 import 'api/fonts.dart';
 import 'api/goals.dart';
+import 'api/habit_nudges.dart';
 import 'api/import.dart';
 import 'api/knowledge.dart';
 import 'api/knowledge_digest.dart';
@@ -134,6 +135,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GuidanceDto dco_decode_box_autoadd_guidance_dto(dynamic raw);
+
+  @protected
+  HabitNudgeDto dco_decode_box_autoadd_habit_nudge_dto(dynamic raw);
+
+  @protected
+  HabitNudgeInputDto dco_decode_box_autoadd_habit_nudge_input_dto(dynamic raw);
 
   @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
@@ -280,6 +287,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GuidanceRefDto dco_decode_guidance_ref_dto(dynamic raw);
+
+  @protected
+  HabitNudgeAnswerDto dco_decode_habit_nudge_answer_dto(dynamic raw);
+
+  @protected
+  HabitNudgeDto dco_decode_habit_nudge_dto(dynamic raw);
+
+  @protected
+  HabitNudgeInputDto dco_decode_habit_nudge_input_dto(dynamic raw);
+
+  @protected
+  HabitNudgeStateDto dco_decode_habit_nudge_state_dto(dynamic raw);
+
+  @protected
+  HabitNudgeSuggestionDto dco_decode_habit_nudge_suggestion_dto(dynamic raw);
+
+  @protected
+  HabitNudgeTickDto dco_decode_habit_nudge_tick_dto(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
@@ -439,6 +464,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GuidanceRefDto> dco_decode_list_guidance_ref_dto(dynamic raw);
+
+  @protected
+  List<HabitNudgeStateDto> dco_decode_list_habit_nudge_state_dto(dynamic raw);
 
   @protected
   List<KnowledgeBackgroundRunDto> dco_decode_list_knowledge_background_run_dto(
@@ -676,6 +704,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GuidanceDto? dco_decode_opt_box_autoadd_guidance_dto(dynamic raw);
+
+  @protected
+  HabitNudgeDto? dco_decode_opt_box_autoadd_habit_nudge_dto(dynamic raw);
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
@@ -955,6 +986,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GuidanceDto sse_decode_box_autoadd_guidance_dto(SseDeserializer deserializer);
 
   @protected
+  HabitNudgeDto sse_decode_box_autoadd_habit_nudge_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HabitNudgeInputDto sse_decode_box_autoadd_habit_nudge_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
@@ -1133,6 +1174,34 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GuidanceRefDto sse_decode_guidance_ref_dto(SseDeserializer deserializer);
+
+  @protected
+  HabitNudgeAnswerDto sse_decode_habit_nudge_answer_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HabitNudgeDto sse_decode_habit_nudge_dto(SseDeserializer deserializer);
+
+  @protected
+  HabitNudgeInputDto sse_decode_habit_nudge_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HabitNudgeStateDto sse_decode_habit_nudge_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HabitNudgeSuggestionDto sse_decode_habit_nudge_suggestion_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HabitNudgeTickDto sse_decode_habit_nudge_tick_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
@@ -1354,6 +1423,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GuidanceRefDto> sse_decode_list_guidance_ref_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<HabitNudgeStateDto> sse_decode_list_habit_nudge_state_dto(
     SseDeserializer deserializer,
   );
 
@@ -1655,6 +1729,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GuidanceDto? sse_decode_opt_box_autoadd_guidance_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HabitNudgeDto? sse_decode_opt_box_autoadd_habit_nudge_dto(
     SseDeserializer deserializer,
   );
 
@@ -2014,6 +2093,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     // Codec=Cst (C-struct based), see doc to use other codecs
     final ptr = wire.cst_new_box_autoadd_guidance_dto();
     cst_api_fill_to_wire_guidance_dto(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_habit_nudge_dto> cst_encode_box_autoadd_habit_nudge_dto(
+    HabitNudgeDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_habit_nudge_dto();
+    cst_api_fill_to_wire_habit_nudge_dto(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_habit_nudge_input_dto>
+  cst_encode_box_autoadd_habit_nudge_input_dto(HabitNudgeInputDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_habit_nudge_input_dto();
+    cst_api_fill_to_wire_habit_nudge_input_dto(raw, ptr.ref);
     return ptr;
   }
 
@@ -2422,6 +2520,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_guidance_ref_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_guidance_ref_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_habit_nudge_state_dto>
+  cst_encode_list_habit_nudge_state_dto(List<HabitNudgeStateDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_habit_nudge_state_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_habit_nudge_state_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -3077,6 +3186,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_habit_nudge_dto>
+  cst_encode_opt_box_autoadd_habit_nudge_dto(HabitNudgeDto? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? ffi.nullptr
+        : cst_encode_box_autoadd_habit_nudge_dto(raw);
+  }
+
+  @protected
   ffi.Pointer<ffi.Int64> cst_encode_opt_box_autoadd_i_64(PlatformInt64? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? ffi.nullptr : cst_encode_box_autoadd_i_64(raw);
@@ -3336,6 +3454,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_guidance_dto> wireObj,
   ) {
     cst_api_fill_to_wire_guidance_dto(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_habit_nudge_dto(
+    HabitNudgeDto apiObj,
+    ffi.Pointer<wire_cst_habit_nudge_dto> wireObj,
+  ) {
+    cst_api_fill_to_wire_habit_nudge_dto(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_habit_nudge_input_dto(
+    HabitNudgeInputDto apiObj,
+    ffi.Pointer<wire_cst_habit_nudge_input_dto> wireObj,
+  ) {
+    cst_api_fill_to_wire_habit_nudge_input_dto(apiObj, wireObj.ref);
   }
 
   @protected
@@ -3893,6 +4027,93 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_habit_nudge_answer_dto(
+    HabitNudgeAnswerDto apiObj,
+    wire_cst_habit_nudge_answer_dto wireObj,
+  ) {
+    wireObj.message_id = cst_encode_String(apiObj.messageId);
+    wireObj.event_created = cst_encode_bool(apiObj.eventCreated);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_habit_nudge_dto(
+    HabitNudgeDto apiObj,
+    wire_cst_habit_nudge_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.page_slug = cst_encode_String(apiObj.pageSlug);
+    wireObj.question = cst_encode_String(apiObj.question);
+    wireObj.done_label = cst_encode_String(apiObj.doneLabel);
+    wireObj.done_text = cst_encode_String(apiObj.doneText);
+    wireObj.missed_label = cst_encode_String(apiObj.missedLabel);
+    wireObj.missed_text = cst_encode_String(apiObj.missedText);
+    wireObj.weekdays = cst_encode_i_32(apiObj.weekdays);
+    wireObj.local_time = cst_encode_String(apiObj.localTime);
+    wireObj.enabled = cst_encode_bool(apiObj.enabled);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
+    wireObj.updated_at = cst_encode_String(apiObj.updatedAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_habit_nudge_input_dto(
+    HabitNudgeInputDto apiObj,
+    wire_cst_habit_nudge_input_dto wireObj,
+  ) {
+    wireObj.page_slug = cst_encode_String(apiObj.pageSlug);
+    wireObj.question = cst_encode_String(apiObj.question);
+    wireObj.done_label = cst_encode_String(apiObj.doneLabel);
+    wireObj.done_text = cst_encode_String(apiObj.doneText);
+    wireObj.missed_label = cst_encode_String(apiObj.missedLabel);
+    wireObj.missed_text = cst_encode_String(apiObj.missedText);
+    wireObj.weekdays = cst_encode_i_32(apiObj.weekdays);
+    wireObj.local_time = cst_encode_String(apiObj.localTime);
+    wireObj.enabled = cst_encode_bool(apiObj.enabled);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_habit_nudge_state_dto(
+    HabitNudgeStateDto apiObj,
+    wire_cst_habit_nudge_state_dto wireObj,
+  ) {
+    wireObj.nudge_id = cst_encode_String(apiObj.nudgeId);
+    wireObj.local_date = cst_encode_String(apiObj.localDate);
+    wireObj.response = cst_encode_opt_String(apiObj.response);
+    wireObj.snooze_until = cst_encode_opt_String(apiObj.snoozeUntil);
+    wireObj.ask_count = cst_encode_i_32(apiObj.askCount);
+    wireObj.message_id = cst_encode_opt_String(apiObj.messageId);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_habit_nudge_suggestion_dto(
+    HabitNudgeSuggestionDto apiObj,
+    wire_cst_habit_nudge_suggestion_dto wireObj,
+  ) {
+    wireObj.page_slug = cst_encode_String(apiObj.pageSlug);
+    wireObj.page_title = cst_encode_String(apiObj.pageTitle);
+    wireObj.question = cst_encode_String(apiObj.question);
+    wireObj.weekdays = cst_encode_i_32(apiObj.weekdays);
+    wireObj.local_time = cst_encode_String(apiObj.localTime);
+    wireObj.done_label = cst_encode_String(apiObj.doneLabel);
+    wireObj.done_text = cst_encode_String(apiObj.doneText);
+    wireObj.missed_label = cst_encode_String(apiObj.missedLabel);
+    wireObj.missed_text = cst_encode_String(apiObj.missedText);
+    wireObj.basis_excerpt = cst_encode_String(apiObj.basisExcerpt);
+    wireObj.confidence = cst_encode_f_64(apiObj.confidence);
+    wireObj.existing = cst_encode_opt_box_autoadd_habit_nudge_dto(
+      apiObj.existing,
+    );
+  }
+
+  @protected
+  void cst_api_fill_to_wire_habit_nudge_tick_dto(
+    HabitNudgeTickDto apiObj,
+    wire_cst_habit_nudge_tick_dto wireObj,
+  ) {
+    wireObj.message_ids = cst_encode_list_String(apiObj.messageIds);
+    wireObj.pending_count = cst_encode_i_32(apiObj.pendingCount);
+  }
+
+  @protected
   void cst_api_fill_to_wire_import_url_dto(
     ImportUrlDto apiObj,
     wire_cst_import_url_dto wireObj,
@@ -4345,6 +4566,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.content = cst_encode_String(apiObj.content);
     wireObj.created_at = cst_encode_String(apiObj.createdAt);
     wireObj.input_message_id = cst_encode_opt_String(apiObj.inputMessageId);
+    wireObj.kind = cst_encode_String(apiObj.kind);
+    wireObj.message_ref = cst_encode_opt_String(apiObj.messageRef);
   }
 
   @protected
@@ -5258,6 +5481,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_habit_nudge_dto(
+    HabitNudgeDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_habit_nudge_input_dto(
+    HabitNudgeInputDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
     SseSerializer serializer,
@@ -5500,6 +5735,39 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_guidance_ref_dto(
     GuidanceRefDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_habit_nudge_answer_dto(
+    HabitNudgeAnswerDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_habit_nudge_dto(HabitNudgeDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_habit_nudge_input_dto(
+    HabitNudgeInputDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_habit_nudge_state_dto(
+    HabitNudgeStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_habit_nudge_suggestion_dto(
+    HabitNudgeSuggestionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_habit_nudge_tick_dto(
+    HabitNudgeTickDto self,
     SseSerializer serializer,
   );
 
@@ -5782,6 +6050,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_guidance_ref_dto(
     List<GuidanceRefDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_habit_nudge_state_dto(
+    List<HabitNudgeStateDto> self,
     SseSerializer serializer,
   );
 
@@ -6157,6 +6431,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_guidance_dto(
     GuidanceDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_habit_nudge_dto(
+    HabitNudgeDto? self,
     SseSerializer serializer,
   );
 
@@ -6658,6 +6938,33 @@ class RustLibWire implements BaseWire {
   late final _cst_new_box_autoadd_guidance_dto =
       _cst_new_box_autoadd_guidance_dtoPtr
           .asFunction<ffi.Pointer<wire_cst_guidance_dto> Function()>();
+
+  ffi.Pointer<wire_cst_habit_nudge_dto> cst_new_box_autoadd_habit_nudge_dto() {
+    return _cst_new_box_autoadd_habit_nudge_dto();
+  }
+
+  late final _cst_new_box_autoadd_habit_nudge_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Pointer<wire_cst_habit_nudge_dto> Function()>
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_habit_nudge_dto');
+  late final _cst_new_box_autoadd_habit_nudge_dto =
+      _cst_new_box_autoadd_habit_nudge_dtoPtr
+          .asFunction<ffi.Pointer<wire_cst_habit_nudge_dto> Function()>();
+
+  ffi.Pointer<wire_cst_habit_nudge_input_dto>
+  cst_new_box_autoadd_habit_nudge_input_dto() {
+    return _cst_new_box_autoadd_habit_nudge_input_dto();
+  }
+
+  late final _cst_new_box_autoadd_habit_nudge_input_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_habit_nudge_input_dto> Function()
+        >
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_habit_nudge_input_dto');
+  late final _cst_new_box_autoadd_habit_nudge_input_dto =
+      _cst_new_box_autoadd_habit_nudge_input_dtoPtr
+          .asFunction<ffi.Pointer<wire_cst_habit_nudge_input_dto> Function()>();
 
   ffi.Pointer<ffi.Int64> cst_new_box_autoadd_i_64(int value) {
     return _cst_new_box_autoadd_i_64(value);
@@ -7227,6 +7534,23 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_guidance_ref_dto');
   late final _cst_new_list_guidance_ref_dto = _cst_new_list_guidance_ref_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_list_guidance_ref_dto> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_habit_nudge_state_dto>
+  cst_new_list_habit_nudge_state_dto(int len) {
+    return _cst_new_list_habit_nudge_state_dto(len);
+  }
+
+  late final _cst_new_list_habit_nudge_state_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_habit_nudge_state_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_habit_nudge_state_dto');
+  late final _cst_new_list_habit_nudge_state_dto =
+      _cst_new_list_habit_nudge_state_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_habit_nudge_state_dto> Function(int)
+          >();
 
   ffi.Pointer<wire_cst_list_knowledge_background_run_dto>
   cst_new_list_knowledge_background_run_dto(int len) {
@@ -9722,6 +10046,252 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             )
           >();
+
+  void wire__crate__api__habit_nudges__answer_habit_nudge(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> response,
+  ) {
+    return _wire__crate__api__habit_nudges__answer_habit_nudge(
+      port_,
+      message_id,
+      response,
+    );
+  }
+
+  late final _wire__crate__api__habit_nudges__answer_habit_nudgePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__habit_nudges__answer_habit_nudge',
+      );
+  late final _wire__crate__api__habit_nudges__answer_habit_nudge =
+      _wire__crate__api__habit_nudges__answer_habit_nudgePtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__habit_nudges__delete_habit_nudge(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+  ) {
+    return _wire__crate__api__habit_nudges__delete_habit_nudge(port_, id);
+  }
+
+  late final _wire__crate__api__habit_nudges__delete_habit_nudgePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__habit_nudges__delete_habit_nudge',
+      );
+  late final _wire__crate__api__habit_nudges__delete_habit_nudge =
+      _wire__crate__api__habit_nudges__delete_habit_nudgePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__habit_nudges__dismiss_habit_nudge(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id,
+  ) {
+    return _wire__crate__api__habit_nudges__dismiss_habit_nudge(
+      port_,
+      message_id,
+    );
+  }
+
+  late final _wire__crate__api__habit_nudges__dismiss_habit_nudgePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__habit_nudges__dismiss_habit_nudge',
+      );
+  late final _wire__crate__api__habit_nudges__dismiss_habit_nudge =
+      _wire__crate__api__habit_nudges__dismiss_habit_nudgePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__habit_nudges__get_habit_nudge(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+  ) {
+    return _wire__crate__api__habit_nudges__get_habit_nudge(port_, id);
+  }
+
+  late final _wire__crate__api__habit_nudges__get_habit_nudgePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__habit_nudges__get_habit_nudge');
+  late final _wire__crate__api__habit_nudges__get_habit_nudge =
+      _wire__crate__api__habit_nudges__get_habit_nudgePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__habit_nudges__get_habit_nudge_for_page(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug,
+  ) {
+    return _wire__crate__api__habit_nudges__get_habit_nudge_for_page(
+      port_,
+      page_slug,
+    );
+  }
+
+  late final _wire__crate__api__habit_nudges__get_habit_nudge_for_pagePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__habit_nudges__get_habit_nudge_for_page',
+      );
+  late final _wire__crate__api__habit_nudges__get_habit_nudge_for_page =
+      _wire__crate__api__habit_nudges__get_habit_nudge_for_pagePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__habit_nudges__get_habit_nudge_suggestion(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug,
+  ) {
+    return _wire__crate__api__habit_nudges__get_habit_nudge_suggestion(
+      port_,
+      page_slug,
+    );
+  }
+
+  late final _wire__crate__api__habit_nudges__get_habit_nudge_suggestionPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__habit_nudges__get_habit_nudge_suggestion',
+      );
+  late final _wire__crate__api__habit_nudges__get_habit_nudge_suggestion =
+      _wire__crate__api__habit_nudges__get_habit_nudge_suggestionPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__habit_nudges__list_habit_nudge_states(int port_) {
+    return _wire__crate__api__habit_nudges__list_habit_nudge_states(port_);
+  }
+
+  late final _wire__crate__api__habit_nudges__list_habit_nudge_statesPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__habit_nudges__list_habit_nudge_states',
+      );
+  late final _wire__crate__api__habit_nudges__list_habit_nudge_states =
+      _wire__crate__api__habit_nudges__list_habit_nudge_statesPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__habit_nudges__pending_habit_nudge_count(int port_) {
+    return _wire__crate__api__habit_nudges__pending_habit_nudge_count(port_);
+  }
+
+  late final _wire__crate__api__habit_nudges__pending_habit_nudge_countPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__habit_nudges__pending_habit_nudge_count',
+      );
+  late final _wire__crate__api__habit_nudges__pending_habit_nudge_count =
+      _wire__crate__api__habit_nudges__pending_habit_nudge_countPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__habit_nudges__save_habit_nudge(
+    int port_,
+    ffi.Pointer<wire_cst_habit_nudge_input_dto> input,
+  ) {
+    return _wire__crate__api__habit_nudges__save_habit_nudge(port_, input);
+  }
+
+  late final _wire__crate__api__habit_nudges__save_habit_nudgePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_habit_nudge_input_dto>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__habit_nudges__save_habit_nudge');
+  late final _wire__crate__api__habit_nudges__save_habit_nudge =
+      _wire__crate__api__habit_nudges__save_habit_nudgePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_habit_nudge_input_dto>)
+          >();
+
+  void wire__crate__api__habit_nudges__snooze_habit_nudge(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id,
+  ) {
+    return _wire__crate__api__habit_nudges__snooze_habit_nudge(
+      port_,
+      message_id,
+    );
+  }
+
+  late final _wire__crate__api__habit_nudges__snooze_habit_nudgePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__habit_nudges__snooze_habit_nudge',
+      );
+  late final _wire__crate__api__habit_nudges__snooze_habit_nudge =
+      _wire__crate__api__habit_nudges__snooze_habit_nudgePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__habit_nudges__tick_habit_nudges(int port_) {
+    return _wire__crate__api__habit_nudges__tick_habit_nudges(port_);
+  }
+
+  late final _wire__crate__api__habit_nudges__tick_habit_nudgesPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__habit_nudges__tick_habit_nudges',
+      );
+  late final _wire__crate__api__habit_nudges__tick_habit_nudges =
+      _wire__crate__api__habit_nudges__tick_habit_nudgesPtr
+          .asFunction<void Function(int)>();
 
   void wire__crate__api__import__fetch_import_url(
     int port_,
@@ -16947,6 +17517,223 @@ final class wire_cst_guidance_ref_dto extends ffi.Struct {
     ..ref.note = note;
 }
 
+final class wire_cst_habit_nudge_answer_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id;
+
+  @ffi.Bool()
+  external bool event_created;
+
+  static ffi.Pointer<wire_cst_habit_nudge_answer_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id,
+    required bool event_created,
+  }) => $allocator<wire_cst_habit_nudge_answer_dto>()
+    ..ref.message_id = message_id
+    ..ref.event_created = event_created;
+}
+
+final class wire_cst_habit_nudge_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> question;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> done_label;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> done_text;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> missed_label;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> missed_text;
+
+  @ffi.Int32()
+  external int weekdays;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> local_time;
+
+  @ffi.Bool()
+  external bool enabled;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at;
+
+  static ffi.Pointer<wire_cst_habit_nudge_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> question,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> done_label,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> done_text,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> missed_label,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> missed_text,
+    required int weekdays,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> local_time,
+    required bool enabled,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at,
+  }) => $allocator<wire_cst_habit_nudge_dto>()
+    ..ref.id = id
+    ..ref.page_slug = page_slug
+    ..ref.question = question
+    ..ref.done_label = done_label
+    ..ref.done_text = done_text
+    ..ref.missed_label = missed_label
+    ..ref.missed_text = missed_text
+    ..ref.weekdays = weekdays
+    ..ref.local_time = local_time
+    ..ref.enabled = enabled
+    ..ref.created_at = created_at
+    ..ref.updated_at = updated_at;
+}
+
+final class wire_cst_habit_nudge_input_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> question;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> done_label;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> done_text;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> missed_label;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> missed_text;
+
+  @ffi.Int32()
+  external int weekdays;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> local_time;
+
+  @ffi.Bool()
+  external bool enabled;
+
+  static ffi.Pointer<wire_cst_habit_nudge_input_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> question,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> done_label,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> done_text,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> missed_label,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> missed_text,
+    required int weekdays,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> local_time,
+    required bool enabled,
+  }) => $allocator<wire_cst_habit_nudge_input_dto>()
+    ..ref.page_slug = page_slug
+    ..ref.question = question
+    ..ref.done_label = done_label
+    ..ref.done_text = done_text
+    ..ref.missed_label = missed_label
+    ..ref.missed_text = missed_text
+    ..ref.weekdays = weekdays
+    ..ref.local_time = local_time
+    ..ref.enabled = enabled;
+}
+
+final class wire_cst_habit_nudge_state_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> nudge_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> local_date;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> response;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> snooze_until;
+
+  @ffi.Int32()
+  external int ask_count;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id;
+
+  static ffi.Pointer<wire_cst_habit_nudge_state_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> nudge_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> local_date,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> response,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> snooze_until,
+    required int ask_count,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id,
+  }) => $allocator<wire_cst_habit_nudge_state_dto>()
+    ..ref.nudge_id = nudge_id
+    ..ref.local_date = local_date
+    ..ref.response = response
+    ..ref.snooze_until = snooze_until
+    ..ref.ask_count = ask_count
+    ..ref.message_id = message_id;
+}
+
+final class wire_cst_habit_nudge_suggestion_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> page_title;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> question;
+
+  @ffi.Int32()
+  external int weekdays;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> local_time;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> done_label;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> done_text;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> missed_label;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> missed_text;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> basis_excerpt;
+
+  @ffi.Double()
+  external double confidence;
+
+  external ffi.Pointer<wire_cst_habit_nudge_dto> existing;
+
+  static ffi.Pointer<wire_cst_habit_nudge_suggestion_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> page_title,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> question,
+    required int weekdays,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> local_time,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> done_label,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> done_text,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> missed_label,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> missed_text,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> basis_excerpt,
+    required double confidence,
+    required ffi.Pointer<wire_cst_habit_nudge_dto> existing,
+  }) => $allocator<wire_cst_habit_nudge_suggestion_dto>()
+    ..ref.page_slug = page_slug
+    ..ref.page_title = page_title
+    ..ref.question = question
+    ..ref.weekdays = weekdays
+    ..ref.local_time = local_time
+    ..ref.done_label = done_label
+    ..ref.done_text = done_text
+    ..ref.missed_label = missed_label
+    ..ref.missed_text = missed_text
+    ..ref.basis_excerpt = basis_excerpt
+    ..ref.confidence = confidence
+    ..ref.existing = existing;
+}
+
+final class wire_cst_habit_nudge_tick_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_String> message_ids;
+
+  @ffi.Int32()
+  external int pending_count;
+
+  static ffi.Pointer<wire_cst_habit_nudge_tick_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_String> message_ids,
+    required int pending_count,
+  }) => $allocator<wire_cst_habit_nudge_tick_dto>()
+    ..ref.message_ids = message_ids
+    ..ref.pending_count = pending_count;
+}
+
 final class wire_cst_import_url_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> source_url;
 
@@ -18231,6 +19018,21 @@ final class wire_cst_list_guidance_ref_dto extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_habit_nudge_state_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_habit_nudge_state_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_habit_nudge_state_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_habit_nudge_state_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_habit_nudge_state_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_knowledge_background_run_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_knowledge_background_run_dto> ptr;
 
@@ -19122,6 +19924,10 @@ final class wire_cst_message_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> input_message_id;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message_ref;
+
   static ffi.Pointer<wire_cst_message_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
@@ -19131,6 +19937,8 @@ final class wire_cst_message_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> input_message_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> message_ref,
   }) => $allocator<wire_cst_message_dto>()
     ..ref.id = id
     ..ref.conversation_id = conversation_id
@@ -19138,7 +19946,9 @@ final class wire_cst_message_dto extends ffi.Struct {
     ..ref.role = role
     ..ref.content = content
     ..ref.created_at = created_at
-    ..ref.input_message_id = input_message_id;
+    ..ref.input_message_id = input_message_id
+    ..ref.kind = kind
+    ..ref.message_ref = message_ref;
 }
 
 final class wire_cst_message_recordability_dto extends ffi.Struct {

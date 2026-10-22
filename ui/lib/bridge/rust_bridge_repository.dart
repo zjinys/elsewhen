@@ -20,6 +20,7 @@ import '../models/rule.dart';
 import '../models/relation.dart';
 import '../models/goal.dart';
 import '../sync/sync_setup_controller.dart';
+import 'ai_activity.dart';
 import 'api.dart' as api;
 import 'chat_queue_dispatcher.dart';
 import 'generated.dart/frb_generated.dart';
@@ -54,10 +55,15 @@ class RustBridgeRepository implements StorageRepository {
   bool _analysisWorkerScheduled = false;
   bool _analysisRerunRequested = false;
   bool _disposed = false;
+  bool _housekeepingRunning = false;
   Timer? _analysisTimer;
 
-  /// 后台知识消化进行中（标题栏 AI 活动指示订阅，见 [knowledgeDigestBusyProvider]）。
-  final ValueNotifier<bool> knowledgeDigestBusy = ValueNotifier(false);
+  /// 后台 AI 活动（标题栏指示器订阅，见 [backgroundAiActivityProvider]）。
+  final ValueNotifier<AiActivity?> backgroundAiActivity = ValueNotifier(null);
+
+  /// 后台活动栈：分析、消化、报告、整理可能前后/嵌套发生，用栈保证
+  /// 内层结束时恢复到外层文案，而不是直接清空。
+  final List<AiActivity> _backgroundAiActivityStack = [];
 
   /// 最近一次网络同步 tick 的结果（状态页展示范围/待同步/最近成功/错误）。
   /// `ran == false` 表示本轮按防线跳过（锁定/他 worker 占用/快照导入中），不是错误。
@@ -76,6 +82,12 @@ class RustBridgeRepository implements StorageRepository {
   /// knowledgeRevision 上会让聊天页被无关重查反复拆装（列表闪跳、滚动
   /// 位置丢失）。
   final ValueNotifier<int> syncArrivalRevision = ValueNotifier(0);
+
+  /// 习惯问候插入/回答后递增，驱动主对话消息重查。
+  final ValueNotifier<int> habitNudgeRevision = ValueNotifier(0);
+
+  /// 未处理习惯问候数（侧边栏「对话」未读点）。
+  final ValueNotifier<int> pendingHabitNudges = ValueNotifier(0);
 
   /// 打包成 .app（macOS DMG）后，frb 默认加载路径（CWD 相对的 ioDirectory /
   /// elsewhen.framework）在 Finder 启动时找不到 dylib——CWD 是 `/`。
@@ -136,7 +148,18 @@ class RustBridgeRepository implements StorageRepository {
     if (!runBackgroundWorker) return;
     // Resume durable work after process restart. The timer also covers retry
     // backoff expiry and the Rust-side 50-job invocation bound.
-    _analysisTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    _analysisTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      // 提醒/习惯问候必须每 5s 真跑，不能跟空闲退避一起降到 30s；它们只做
+      // 本地 SQL 判断，成本低。失败各自隔离，不影响后面的后台序列。
+      if (!_disposed && !_housekeepingRunning) {
+        _housekeepingRunning = true;
+        try {
+          await _tickDueReminders();
+          await _tickHabitNudges();
+        } finally {
+          _housekeepingRunning = false;
+        }
+      }
       // 空转退避：连续空闲时每 6 拍（≈30s）才做一次完整序列（开库+vault+
       // 同步 tick+洞察 tick），其余拍零 FFI 直接返回。实测（release 空转）
       // 每 5s 整序列贡献 ~5% CPU 毛刺，退避后抹平。显式唤醒（记事件/配
@@ -147,6 +170,8 @@ class RustBridgeRepository implements StorageRepository {
       if (_idleWakes % _idleWakeFullEvery != 0) return;
       _wakeAnalysisWorker();
     });
+    await _tickDueReminders();
+    await _tickHabitNudges();
     _wakeAnalysisWorker();
   }
 
@@ -356,7 +381,6 @@ class RustBridgeRepository implements StorageRepository {
   static const int _idleWakeFullEvery = 6;
   int _idleWakes = 0;
 
-
   /// 到期提醒广播（UI 订阅弹出）。只进不出：tick 只负责发现+记录 fire+广播，
   /// 确认/推迟由 UI 动作走独立 API（见 confirmReminder/snoozeReminder）。
   final ValueNotifier<List<api.DueReminderDto>> dueReminders =
@@ -394,6 +418,8 @@ class RustBridgeRepository implements StorageRepository {
             content: dto.content,
             createdAt: DateTime.parse(dto.createdAt).toLocal(),
             inputMessageId: dto.inputMessageId,
+            kind: dto.kind,
+            messageRef: dto.messageRef,
           ),
         )
         .toList();
@@ -424,6 +450,8 @@ class RustBridgeRepository implements StorageRepository {
       role: MessageRole.fromString(dto.role),
       content: dto.content,
       createdAt: DateTime.parse(dto.createdAt).toLocal(),
+      kind: dto.kind,
+      messageRef: dto.messageRef,
     );
   }
 
@@ -535,15 +563,21 @@ final storageRepositoryProvider = Provider<StorageRepository>((ref) {
   return RustBridgeRepository();
 });
 
-/// 后台知识消化是否进行中（标题栏 AI 活动指示）。非桥接仓库（mock）恒为 false。
-final knowledgeDigestBusyProvider = Provider<bool>((ref) {
+/// 后台 AI 活动（标题栏指示器）。非桥接仓库（mock）恒为 null。
+final backgroundAiActivityProvider = Provider<AiActivity?>((ref) {
   final repo = ref.watch(storageRepositoryProvider);
-  if (repo is! RustBridgeRepository) return false;
-  final busy = repo.knowledgeDigestBusy;
+  if (repo is! RustBridgeRepository) return null;
+  final activity = repo.backgroundAiActivity;
   void onChange() => ref.invalidateSelf();
-  busy.addListener(onChange);
-  ref.onDispose(() => busy.removeListener(onChange));
-  return busy.value;
+  activity.addListener(onChange);
+  ref.onDispose(() => activity.removeListener(onChange));
+  return activity.value;
+});
+
+/// 后台知识消化/整理是否进行中（知识运行记录刷新用）。
+final knowledgeDigestBusyProvider = Provider<bool>((ref) {
+  final activity = ref.watch(backgroundAiActivityProvider);
+  return activity == AiActivity.digest || activity == AiActivity.insights;
 });
 
 final knowledgeRevisionProvider = Provider<int>((ref) {
@@ -567,3 +601,53 @@ final syncArrivalRevisionProvider = Provider<int>((ref) {
   ref.onDispose(() => revision.removeListener(onChange));
   return revision.value;
 });
+
+/// 习惯问候插入/回答修订号：消息列表与卡片状态订阅它。
+final habitNudgeRevisionProvider = Provider<int>((ref) {
+  final repo = ref.watch(storageRepositoryProvider);
+  if (repo is! RustBridgeRepository) return 0;
+  final revision = repo.habitNudgeRevision;
+  void onChange() => ref.invalidateSelf();
+  revision.addListener(onChange);
+  ref.onDispose(() => revision.removeListener(onChange));
+  return revision.value;
+});
+
+/// 侧边栏未读点：未处理习惯问候数。
+final pendingHabitNudgesProvider = Provider<int>((ref) {
+  final repo = ref.watch(storageRepositoryProvider);
+  if (repo is! RustBridgeRepository) return 0;
+  final pending = repo.pendingHabitNudges;
+  void onChange() => ref.invalidateSelf();
+  pending.addListener(onChange);
+  ref.onDispose(() => pending.removeListener(onChange));
+  return pending.value;
+});
+
+/// 今日问候状态（卡片显示已记录/已推迟）。按需重查。
+final habitNudgeStatesProvider = FutureProvider<List<api.HabitNudgeStateDto>>((
+  ref,
+) async {
+  ref.watch(habitNudgeRevisionProvider);
+  final repo = ref.watch(storageRepositoryProvider);
+  if (repo is! RustBridgeRepository) return const [];
+  return repo.listHabitNudgeStates();
+});
+
+/// 单条问候计划（卡片按钮文案）。按 nudge id 缓存。
+final habitNudgePlanProvider =
+    FutureProvider.family<api.HabitNudgeDto?, String>((ref, id) async {
+      ref.watch(habitNudgeRevisionProvider);
+      final repo = ref.watch(storageRepositoryProvider);
+      if (repo is! RustBridgeRepository) return null;
+      return repo.getHabitNudge(id);
+    });
+
+/// 某个习惯页的问候计划（详情页入口文案）。
+final habitNudgeForPageProvider =
+    FutureProvider.family<api.HabitNudgeDto?, String>((ref, slug) async {
+      ref.watch(habitNudgeRevisionProvider);
+      final repo = ref.watch(storageRepositoryProvider);
+      if (repo is! RustBridgeRepository) return null;
+      return repo.getHabitNudgeForPage(slug);
+    });

@@ -13,6 +13,7 @@ import 'api/entities.dart';
 import 'api/event_stats.dart';
 import 'api/fonts.dart';
 import 'api/goals.dart';
+import 'api/habit_nudges.dart';
 import 'api/import.dart';
 import 'api/knowledge.dart';
 import 'api/knowledge_digest.dart';
@@ -112,7 +113,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -700106266;
+  int get rustContentHash => 1538488772;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -163,6 +164,11 @@ abstract class RustLibApi extends BaseApi {
     required String role,
     required String operationId,
     required String invitationId,
+  });
+
+  Future<HabitNudgeAnswerDto> crateApiHabitNudgesAnswerHabitNudge({
+    required String messageId,
+    required String response,
   });
 
   Future<WikiPageDto> crateApiWikiAppendWikiPageContent({
@@ -354,6 +360,8 @@ abstract class RustLibApi extends BaseApi {
     required String feeling,
   });
 
+  Future<bool> crateApiHabitNudgesDeleteHabitNudge({required String id});
+
   Future<void> crateApiMcpDeleteMcpServer({required String id});
 
   Future<bool> crateApiRelationsDeleteRelation({required String id});
@@ -371,6 +379,10 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiReviewReportStoreDismissDeviation({
     required String reportId,
     required int index,
+  });
+
+  Future<void> crateApiHabitNudgesDismissHabitNudge({
+    required String messageId,
   });
 
   Future<void> crateApiKnowledgeDismissKnowledgeIssue({
@@ -489,6 +501,16 @@ abstract class RustLibApi extends BaseApi {
 
   Future<EventAnalysisDetailDto?> crateApiReviewFlowGetEventAnalysisDetail({
     required String eventId,
+  });
+
+  Future<HabitNudgeDto?> crateApiHabitNudgesGetHabitNudge({required String id});
+
+  Future<HabitNudgeDto?> crateApiHabitNudgesGetHabitNudgeForPage({
+    required String pageSlug,
+  });
+
+  Future<HabitNudgeSuggestionDto> crateApiHabitNudgesGetHabitNudgeSuggestion({
+    required String pageSlug,
   });
 
   Future<List<KnowledgeCitation>> crateApiKnowledgeGetKnowledgeCitations({
@@ -681,6 +703,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<EventDto>> crateApiReviewFlowListEvents();
 
+  Future<List<HabitNudgeStateDto>> crateApiHabitNudgesListHabitNudgeStates();
+
   Future<List<KnowledgeBackgroundRunDto>>
   crateApiKnowledgeListKnowledgeBackgroundRuns();
 
@@ -828,6 +852,8 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiChatRunsPauseChatInputQueue({
     required String conversationId,
   });
+
+  Future<int> crateApiHabitNudgesPendingHabitNudgeCount();
 
   Future<List<DueReminderDto>> crateApiTodosPopDueReminders({
     required String deviceId,
@@ -981,6 +1007,10 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiWebSearchSaveDohSettings({
     required String dohUri,
     required String dohMode,
+  });
+
+  Future<HabitNudgeDto> crateApiHabitNudgesSaveHabitNudge({
+    required HabitNudgeInputDto input,
   });
 
   Future<WikiPageDto> crateApiImportSaveImportedPage({
@@ -1162,6 +1192,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<int> crateApiChatRunsShutdownChatRuns();
 
+  Future<void> crateApiHabitNudgesSnoozeHabitNudge({required String messageId});
+
   Future<void> crateApiTodosSnoozeReminder({
     required String todoId,
     required PlatformInt64 minutes,
@@ -1202,6 +1234,8 @@ abstract class RustLibApi extends BaseApi {
   Future<String> crateApiWebSearchTestProxyConnection({
     required String proxyUrl,
   });
+
+  Future<HabitNudgeTickDto> crateApiHabitNudgesTickHabitNudges();
 
   Future<PlatformInt64> crateApiKnowledgeTickKnowledgeInsights();
 
@@ -1569,6 +1603,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "advance_sync_enrollment",
         argNames: ["role", "operationId", "invitationId"],
+      );
+
+  @override
+  Future<HabitNudgeAnswerDto> crateApiHabitNudgesAnswerHabitNudge({
+    required String messageId,
+    required String response,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(messageId);
+          var arg1 = cst_encode_String(response);
+          return wire.wire__crate__api__habit_nudges__answer_habit_nudge(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_habit_nudge_answer_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiHabitNudgesAnswerHabitNudgeConstMeta,
+        argValues: [messageId, response],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiHabitNudgesAnswerHabitNudgeConstMeta =>
+      const TaskConstMeta(
+        debugName: "answer_habit_nudge",
+        argNames: ["messageId", "response"],
       );
 
   @override
@@ -2859,6 +2926,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<bool> crateApiHabitNudgesDeleteHabitNudge({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire.wire__crate__api__habit_nudges__delete_habit_nudge(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiHabitNudgesDeleteHabitNudgeConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiHabitNudgesDeleteHabitNudgeConstMeta =>
+      const TaskConstMeta(debugName: "delete_habit_nudge", argNames: ["id"]);
+
+  @override
   Future<void> crateApiMcpDeleteMcpServer({required String id}) {
     return handler.executeNormal(
       NormalTask(
@@ -3029,6 +3121,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "dismiss_deviation",
         argNames: ["reportId", "index"],
+      );
+
+  @override
+  Future<void> crateApiHabitNudgesDismissHabitNudge({
+    required String messageId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(messageId);
+          return wire.wire__crate__api__habit_nudges__dismiss_habit_nudge(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiHabitNudgesDismissHabitNudgeConstMeta,
+        argValues: [messageId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiHabitNudgesDismissHabitNudgeConstMeta =>
+      const TaskConstMeta(
+        debugName: "dismiss_habit_nudge",
+        argNames: ["messageId"],
       );
 
   @override
@@ -3898,6 +4020,94 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "get_event_analysis_detail",
         argNames: ["eventId"],
+      );
+
+  @override
+  Future<HabitNudgeDto?> crateApiHabitNudgesGetHabitNudge({
+    required String id,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire.wire__crate__api__habit_nudges__get_habit_nudge(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_opt_box_autoadd_habit_nudge_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiHabitNudgesGetHabitNudgeConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiHabitNudgesGetHabitNudgeConstMeta =>
+      const TaskConstMeta(debugName: "get_habit_nudge", argNames: ["id"]);
+
+  @override
+  Future<HabitNudgeDto?> crateApiHabitNudgesGetHabitNudgeForPage({
+    required String pageSlug,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(pageSlug);
+          return wire.wire__crate__api__habit_nudges__get_habit_nudge_for_page(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_opt_box_autoadd_habit_nudge_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiHabitNudgesGetHabitNudgeForPageConstMeta,
+        argValues: [pageSlug],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiHabitNudgesGetHabitNudgeForPageConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_habit_nudge_for_page",
+        argNames: ["pageSlug"],
+      );
+
+  @override
+  Future<HabitNudgeSuggestionDto> crateApiHabitNudgesGetHabitNudgeSuggestion({
+    required String pageSlug,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(pageSlug);
+          return wire
+              .wire__crate__api__habit_nudges__get_habit_nudge_suggestion(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_habit_nudge_suggestion_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiHabitNudgesGetHabitNudgeSuggestionConstMeta,
+        argValues: [pageSlug],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiHabitNudgesGetHabitNudgeSuggestionConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_habit_nudge_suggestion",
+        argNames: ["pageSlug"],
       );
 
   @override
@@ -5380,6 +5590,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_events", argNames: []);
 
   @override
+  Future<List<HabitNudgeStateDto>> crateApiHabitNudgesListHabitNudgeStates() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__habit_nudges__list_habit_nudge_states(
+            port_,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_habit_nudge_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiHabitNudgesListHabitNudgeStatesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiHabitNudgesListHabitNudgeStatesConstMeta =>
+      const TaskConstMeta(debugName: "list_habit_nudge_states", argNames: []);
+
+  @override
   Future<List<KnowledgeBackgroundRunDto>>
   crateApiKnowledgeListKnowledgeBackgroundRuns() {
     return handler.executeNormal(
@@ -6583,6 +6816,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<int> crateApiHabitNudgesPendingHabitNudgeCount() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__habit_nudges__pending_habit_nudge_count(
+            port_,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_i_32,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiHabitNudgesPendingHabitNudgeCountConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiHabitNudgesPendingHabitNudgeCountConstMeta =>
+      const TaskConstMeta(debugName: "pending_habit_nudge_count", argNames: []);
+
+  @override
   Future<List<DueReminderDto>> crateApiTodosPopDueReminders({
     required String deviceId,
   }) {
@@ -7669,6 +7925,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "save_doh_settings",
         argNames: ["dohUri", "dohMode"],
       );
+
+  @override
+  Future<HabitNudgeDto> crateApiHabitNudgesSaveHabitNudge({
+    required HabitNudgeInputDto input,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_box_autoadd_habit_nudge_input_dto(input);
+          return wire.wire__crate__api__habit_nudges__save_habit_nudge(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_habit_nudge_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiHabitNudgesSaveHabitNudgeConstMeta,
+        argValues: [input],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiHabitNudgesSaveHabitNudgeConstMeta =>
+      const TaskConstMeta(debugName: "save_habit_nudge", argNames: ["input"]);
 
   @override
   Future<WikiPageDto> crateApiImportSaveImportedPage({
@@ -8846,6 +9129,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "shutdown_chat_runs", argNames: []);
 
   @override
+  Future<void> crateApiHabitNudgesSnoozeHabitNudge({
+    required String messageId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(messageId);
+          return wire.wire__crate__api__habit_nudges__snooze_habit_nudge(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiHabitNudgesSnoozeHabitNudgeConstMeta,
+        argValues: [messageId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiHabitNudgesSnoozeHabitNudgeConstMeta =>
+      const TaskConstMeta(
+        debugName: "snooze_habit_nudge",
+        argNames: ["messageId"],
+      );
+
+  @override
   Future<void> crateApiTodosSnoozeReminder({
     required String todoId,
     required PlatformInt64 minutes,
@@ -9108,6 +9421,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "test_proxy_connection",
         argNames: ["proxyUrl"],
       );
+
+  @override
+  Future<HabitNudgeTickDto> crateApiHabitNudgesTickHabitNudges() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__habit_nudges__tick_habit_nudges(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_habit_nudge_tick_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiHabitNudgesTickHabitNudgesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiHabitNudgesTickHabitNudgesConstMeta =>
+      const TaskConstMeta(debugName: "tick_habit_nudges", argNames: []);
 
   @override
   Future<PlatformInt64> crateApiKnowledgeTickKnowledgeInsights() {
@@ -10091,6 +10425,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  HabitNudgeDto dco_decode_box_autoadd_habit_nudge_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_habit_nudge_dto(raw);
+  }
+
+  @protected
+  HabitNudgeInputDto dco_decode_box_autoadd_habit_nudge_input_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_habit_nudge_input_dto(raw);
+  }
+
+  @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_i_64(raw);
@@ -10734,6 +11080,109 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  HabitNudgeAnswerDto dco_decode_habit_nudge_answer_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return HabitNudgeAnswerDto(
+      messageId: dco_decode_String(arr[0]),
+      eventCreated: dco_decode_bool(arr[1]),
+    );
+  }
+
+  @protected
+  HabitNudgeDto dco_decode_habit_nudge_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 12)
+      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    return HabitNudgeDto(
+      id: dco_decode_String(arr[0]),
+      pageSlug: dco_decode_String(arr[1]),
+      question: dco_decode_String(arr[2]),
+      doneLabel: dco_decode_String(arr[3]),
+      doneText: dco_decode_String(arr[4]),
+      missedLabel: dco_decode_String(arr[5]),
+      missedText: dco_decode_String(arr[6]),
+      weekdays: dco_decode_i_32(arr[7]),
+      localTime: dco_decode_String(arr[8]),
+      enabled: dco_decode_bool(arr[9]),
+      createdAt: dco_decode_String(arr[10]),
+      updatedAt: dco_decode_String(arr[11]),
+    );
+  }
+
+  @protected
+  HabitNudgeInputDto dco_decode_habit_nudge_input_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return HabitNudgeInputDto(
+      pageSlug: dco_decode_String(arr[0]),
+      question: dco_decode_String(arr[1]),
+      doneLabel: dco_decode_String(arr[2]),
+      doneText: dco_decode_String(arr[3]),
+      missedLabel: dco_decode_String(arr[4]),
+      missedText: dco_decode_String(arr[5]),
+      weekdays: dco_decode_i_32(arr[6]),
+      localTime: dco_decode_String(arr[7]),
+      enabled: dco_decode_bool(arr[8]),
+    );
+  }
+
+  @protected
+  HabitNudgeStateDto dco_decode_habit_nudge_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return HabitNudgeStateDto(
+      nudgeId: dco_decode_String(arr[0]),
+      localDate: dco_decode_String(arr[1]),
+      response: dco_decode_opt_String(arr[2]),
+      snoozeUntil: dco_decode_opt_String(arr[3]),
+      askCount: dco_decode_i_32(arr[4]),
+      messageId: dco_decode_opt_String(arr[5]),
+    );
+  }
+
+  @protected
+  HabitNudgeSuggestionDto dco_decode_habit_nudge_suggestion_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 12)
+      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    return HabitNudgeSuggestionDto(
+      pageSlug: dco_decode_String(arr[0]),
+      pageTitle: dco_decode_String(arr[1]),
+      question: dco_decode_String(arr[2]),
+      weekdays: dco_decode_i_32(arr[3]),
+      localTime: dco_decode_String(arr[4]),
+      doneLabel: dco_decode_String(arr[5]),
+      doneText: dco_decode_String(arr[6]),
+      missedLabel: dco_decode_String(arr[7]),
+      missedText: dco_decode_String(arr[8]),
+      basisExcerpt: dco_decode_String(arr[9]),
+      confidence: dco_decode_f_64(arr[10]),
+      existing: dco_decode_opt_box_autoadd_habit_nudge_dto(arr[11]),
+    );
+  }
+
+  @protected
+  HabitNudgeTickDto dco_decode_habit_nudge_tick_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return HabitNudgeTickDto(
+      messageIds: dco_decode_list_String(arr[0]),
+      pendingCount: dco_decode_i_32(arr[1]),
+    );
+  }
+
+  @protected
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodePrimitiveInt(raw);
@@ -11333,6 +11782,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<HabitNudgeStateDto> dco_decode_list_habit_nudge_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_habit_nudge_state_dto).toList();
+  }
+
+  @protected
   List<KnowledgeBackgroundRunDto> dco_decode_list_knowledge_background_run_dto(
     dynamic raw,
   ) {
@@ -11738,8 +12193,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   MessageDto dco_decode_message_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return MessageDto(
       id: dco_decode_String(arr[0]),
       conversationId: dco_decode_String(arr[1]),
@@ -11748,6 +12203,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       content: dco_decode_String(arr[4]),
       createdAt: dco_decode_String(arr[5]),
       inputMessageId: dco_decode_opt_String(arr[6]),
+      kind: dco_decode_String(arr[7]),
+      messageRef: dco_decode_opt_String(arr[8]),
     );
   }
 
@@ -11899,6 +12356,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   GuidanceDto? dco_decode_opt_box_autoadd_guidance_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_guidance_dto(raw);
+  }
+
+  @protected
+  HabitNudgeDto? dco_decode_opt_box_autoadd_habit_nudge_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_habit_nudge_dto(raw);
   }
 
   @protected
@@ -13073,6 +13536,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  HabitNudgeDto sse_decode_box_autoadd_habit_nudge_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_habit_nudge_dto(deserializer));
+  }
+
+  @protected
+  HabitNudgeInputDto sse_decode_box_autoadd_habit_nudge_input_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_habit_nudge_input_dto(deserializer));
+  }
+
+  @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_i_64(deserializer));
@@ -13856,6 +14335,144 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_slug = sse_decode_String(deserializer);
     var var_note = sse_decode_String(deserializer);
     return GuidanceRefDto(slug: var_slug, note: var_note);
+  }
+
+  @protected
+  HabitNudgeAnswerDto sse_decode_habit_nudge_answer_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_messageId = sse_decode_String(deserializer);
+    var var_eventCreated = sse_decode_bool(deserializer);
+    return HabitNudgeAnswerDto(
+      messageId: var_messageId,
+      eventCreated: var_eventCreated,
+    );
+  }
+
+  @protected
+  HabitNudgeDto sse_decode_habit_nudge_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_pageSlug = sse_decode_String(deserializer);
+    var var_question = sse_decode_String(deserializer);
+    var var_doneLabel = sse_decode_String(deserializer);
+    var var_doneText = sse_decode_String(deserializer);
+    var var_missedLabel = sse_decode_String(deserializer);
+    var var_missedText = sse_decode_String(deserializer);
+    var var_weekdays = sse_decode_i_32(deserializer);
+    var var_localTime = sse_decode_String(deserializer);
+    var var_enabled = sse_decode_bool(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    var var_updatedAt = sse_decode_String(deserializer);
+    return HabitNudgeDto(
+      id: var_id,
+      pageSlug: var_pageSlug,
+      question: var_question,
+      doneLabel: var_doneLabel,
+      doneText: var_doneText,
+      missedLabel: var_missedLabel,
+      missedText: var_missedText,
+      weekdays: var_weekdays,
+      localTime: var_localTime,
+      enabled: var_enabled,
+      createdAt: var_createdAt,
+      updatedAt: var_updatedAt,
+    );
+  }
+
+  @protected
+  HabitNudgeInputDto sse_decode_habit_nudge_input_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_pageSlug = sse_decode_String(deserializer);
+    var var_question = sse_decode_String(deserializer);
+    var var_doneLabel = sse_decode_String(deserializer);
+    var var_doneText = sse_decode_String(deserializer);
+    var var_missedLabel = sse_decode_String(deserializer);
+    var var_missedText = sse_decode_String(deserializer);
+    var var_weekdays = sse_decode_i_32(deserializer);
+    var var_localTime = sse_decode_String(deserializer);
+    var var_enabled = sse_decode_bool(deserializer);
+    return HabitNudgeInputDto(
+      pageSlug: var_pageSlug,
+      question: var_question,
+      doneLabel: var_doneLabel,
+      doneText: var_doneText,
+      missedLabel: var_missedLabel,
+      missedText: var_missedText,
+      weekdays: var_weekdays,
+      localTime: var_localTime,
+      enabled: var_enabled,
+    );
+  }
+
+  @protected
+  HabitNudgeStateDto sse_decode_habit_nudge_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_nudgeId = sse_decode_String(deserializer);
+    var var_localDate = sse_decode_String(deserializer);
+    var var_response = sse_decode_opt_String(deserializer);
+    var var_snoozeUntil = sse_decode_opt_String(deserializer);
+    var var_askCount = sse_decode_i_32(deserializer);
+    var var_messageId = sse_decode_opt_String(deserializer);
+    return HabitNudgeStateDto(
+      nudgeId: var_nudgeId,
+      localDate: var_localDate,
+      response: var_response,
+      snoozeUntil: var_snoozeUntil,
+      askCount: var_askCount,
+      messageId: var_messageId,
+    );
+  }
+
+  @protected
+  HabitNudgeSuggestionDto sse_decode_habit_nudge_suggestion_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_pageSlug = sse_decode_String(deserializer);
+    var var_pageTitle = sse_decode_String(deserializer);
+    var var_question = sse_decode_String(deserializer);
+    var var_weekdays = sse_decode_i_32(deserializer);
+    var var_localTime = sse_decode_String(deserializer);
+    var var_doneLabel = sse_decode_String(deserializer);
+    var var_doneText = sse_decode_String(deserializer);
+    var var_missedLabel = sse_decode_String(deserializer);
+    var var_missedText = sse_decode_String(deserializer);
+    var var_basisExcerpt = sse_decode_String(deserializer);
+    var var_confidence = sse_decode_f_64(deserializer);
+    var var_existing = sse_decode_opt_box_autoadd_habit_nudge_dto(deserializer);
+    return HabitNudgeSuggestionDto(
+      pageSlug: var_pageSlug,
+      pageTitle: var_pageTitle,
+      question: var_question,
+      weekdays: var_weekdays,
+      localTime: var_localTime,
+      doneLabel: var_doneLabel,
+      doneText: var_doneText,
+      missedLabel: var_missedLabel,
+      missedText: var_missedText,
+      basisExcerpt: var_basisExcerpt,
+      confidence: var_confidence,
+      existing: var_existing,
+    );
+  }
+
+  @protected
+  HabitNudgeTickDto sse_decode_habit_nudge_tick_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_messageIds = sse_decode_list_String(deserializer);
+    var var_pendingCount = sse_decode_i_32(deserializer);
+    return HabitNudgeTickDto(
+      messageIds: var_messageIds,
+      pendingCount: var_pendingCount,
+    );
   }
 
   @protected
@@ -14812,6 +15429,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<HabitNudgeStateDto> sse_decode_list_habit_nudge_state_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <HabitNudgeStateDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_habit_nudge_state_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<KnowledgeBackgroundRunDto> sse_decode_list_knowledge_background_run_dto(
     SseDeserializer deserializer,
   ) {
@@ -15551,6 +16182,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_content = sse_decode_String(deserializer);
     var var_createdAt = sse_decode_String(deserializer);
     var var_inputMessageId = sse_decode_opt_String(deserializer);
+    var var_kind = sse_decode_String(deserializer);
+    var var_messageRef = sse_decode_opt_String(deserializer);
     return MessageDto(
       id: var_id,
       conversationId: var_conversationId,
@@ -15559,6 +16192,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       content: var_content,
       createdAt: var_createdAt,
       inputMessageId: var_inputMessageId,
+      kind: var_kind,
+      messageRef: var_messageRef,
     );
   }
 
@@ -15781,6 +16416,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_guidance_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  HabitNudgeDto? sse_decode_opt_box_autoadd_habit_nudge_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_habit_nudge_dto(deserializer));
     } else {
       return null;
     }
@@ -17238,6 +17886,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_habit_nudge_dto(
+    HabitNudgeDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_habit_nudge_dto(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_habit_nudge_input_dto(
+    HabitNudgeInputDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_habit_nudge_input_dto(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
     SseSerializer serializer,
@@ -17815,6 +18481,97 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.slug, serializer);
     sse_encode_String(self.note, serializer);
+  }
+
+  @protected
+  void sse_encode_habit_nudge_answer_dto(
+    HabitNudgeAnswerDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.messageId, serializer);
+    sse_encode_bool(self.eventCreated, serializer);
+  }
+
+  @protected
+  void sse_encode_habit_nudge_dto(
+    HabitNudgeDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.pageSlug, serializer);
+    sse_encode_String(self.question, serializer);
+    sse_encode_String(self.doneLabel, serializer);
+    sse_encode_String(self.doneText, serializer);
+    sse_encode_String(self.missedLabel, serializer);
+    sse_encode_String(self.missedText, serializer);
+    sse_encode_i_32(self.weekdays, serializer);
+    sse_encode_String(self.localTime, serializer);
+    sse_encode_bool(self.enabled, serializer);
+    sse_encode_String(self.createdAt, serializer);
+    sse_encode_String(self.updatedAt, serializer);
+  }
+
+  @protected
+  void sse_encode_habit_nudge_input_dto(
+    HabitNudgeInputDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.pageSlug, serializer);
+    sse_encode_String(self.question, serializer);
+    sse_encode_String(self.doneLabel, serializer);
+    sse_encode_String(self.doneText, serializer);
+    sse_encode_String(self.missedLabel, serializer);
+    sse_encode_String(self.missedText, serializer);
+    sse_encode_i_32(self.weekdays, serializer);
+    sse_encode_String(self.localTime, serializer);
+    sse_encode_bool(self.enabled, serializer);
+  }
+
+  @protected
+  void sse_encode_habit_nudge_state_dto(
+    HabitNudgeStateDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.nudgeId, serializer);
+    sse_encode_String(self.localDate, serializer);
+    sse_encode_opt_String(self.response, serializer);
+    sse_encode_opt_String(self.snoozeUntil, serializer);
+    sse_encode_i_32(self.askCount, serializer);
+    sse_encode_opt_String(self.messageId, serializer);
+  }
+
+  @protected
+  void sse_encode_habit_nudge_suggestion_dto(
+    HabitNudgeSuggestionDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.pageSlug, serializer);
+    sse_encode_String(self.pageTitle, serializer);
+    sse_encode_String(self.question, serializer);
+    sse_encode_i_32(self.weekdays, serializer);
+    sse_encode_String(self.localTime, serializer);
+    sse_encode_String(self.doneLabel, serializer);
+    sse_encode_String(self.doneText, serializer);
+    sse_encode_String(self.missedLabel, serializer);
+    sse_encode_String(self.missedText, serializer);
+    sse_encode_String(self.basisExcerpt, serializer);
+    sse_encode_f_64(self.confidence, serializer);
+    sse_encode_opt_box_autoadd_habit_nudge_dto(self.existing, serializer);
+  }
+
+  @protected
+  void sse_encode_habit_nudge_tick_dto(
+    HabitNudgeTickDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_String(self.messageIds, serializer);
+    sse_encode_i_32(self.pendingCount, serializer);
   }
 
   @protected
@@ -18520,6 +19277,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_habit_nudge_state_dto(
+    List<HabitNudgeStateDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_habit_nudge_state_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_knowledge_background_run_dto(
     List<KnowledgeBackgroundRunDto> self,
     SseSerializer serializer,
@@ -19152,6 +19921,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.content, serializer);
     sse_encode_String(self.createdAt, serializer);
     sse_encode_opt_String(self.inputMessageId, serializer);
+    sse_encode_String(self.kind, serializer);
+    sse_encode_opt_String(self.messageRef, serializer);
   }
 
   @protected
@@ -19345,6 +20116,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_guidance_dto(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_habit_nudge_dto(
+    HabitNudgeDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_habit_nudge_dto(self, serializer);
     }
   }
 

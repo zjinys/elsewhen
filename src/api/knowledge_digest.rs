@@ -90,7 +90,7 @@ pub fn trigger_knowledge_digest() -> Result<KnowledgeDigestTickResult> {
             .context("digest worker: recover interrupted jobs")
     })?;
     Ok(
-        match crate::wiki::process_digest_queue(&store, &provider, Some(model.as_str()))? {
+        match crate::wiki::process_digest_queue(&store, provider.as_ref(), Some(model.as_str()))? {
             crate::wiki::DigestTick::Idle => KnowledgeDigestTickResult::Idle,
             crate::wiki::DigestTick::Processed { events, outcome } => {
                 KnowledgeDigestTickResult::Processed {

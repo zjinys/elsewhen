@@ -79,9 +79,7 @@ pub(crate) fn with_outbound_proxy(
 
 /// async 版 [`with_outbound_proxy`]——AI 流式（streaming.rs）与 MCP 会话
 /// 等异步出站必须走同一策略，否则「off 屏蔽环境变量」名存实亡。
-pub(crate) fn with_outbound_proxy_async(
-    builder: reqwest::ClientBuilder,
-) -> reqwest::ClientBuilder {
+pub(crate) fn with_outbound_proxy_async(builder: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
     let (mode, custom_url) = current_policy();
 
     if mode == "off" {

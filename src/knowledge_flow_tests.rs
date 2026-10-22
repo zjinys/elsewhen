@@ -34,6 +34,39 @@ fn compilation_repairs_invalid_output_once_without_saving_half_a_page() {
 }
 
 #[test]
+fn structured_reply_gate_distinguishes_empty_reasoning_and_truncation() {
+    let empty = AiReply::text("");
+    let error = structured_text(&empty, "知识整理").unwrap_err().to_string();
+    assert!(error.contains("为空"));
+
+    let mut reasoning_only = AiReply::text("");
+    reasoning_only.reasoning_content = Some("先想一想".into());
+    let error = structured_text(&reasoning_only, "知识整理")
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("推理"));
+
+    let mut truncated = AiReply::text("{\"title\":");
+    truncated.finish_reason = Some("length".into());
+    let error = structured_text(&truncated, "知识整理")
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("输出上限"));
+}
+
+#[test]
+fn compilation_retries_empty_reply_and_saves_only_complete_output() {
+    let db = Db::new();
+    let s = &db.store;
+    let original = source(s, "https://example.com/empty-reply", "SQLite 事务边界");
+    let replies = Replies(std::cell::RefCell::new(vec!["".into(), compile_stub().0]));
+    let id = propose_knowledge(s, &original.slug, "method", &replies).unwrap();
+    assert!(replies.0.borrow().is_empty());
+    assert_eq!(s.knowledge_proposals(None).unwrap().len(), 1);
+    s.resolve_knowledge_proposal(&id, true).unwrap();
+}
+
+#[test]
 fn compiled_pages_navigate_both_ways_without_based_on_or_backfill() {
     let db = Db::new();
     let s = &db.store;
@@ -291,11 +324,12 @@ fn existing_text_derivative_does_not_prevent_automatic_reference_compilation() {
         crate::knowledge_background::run_automatic_source_compilation(s, &auto_stub()).unwrap(),
         1
     );
-    assert!(s
-        .knowledge_output_pages(&original.slug)
-        .unwrap()
-        .iter()
-        .any(|p| p.kind == "method"));
+    assert!(
+        s.knowledge_output_pages(&original.slug)
+            .unwrap()
+            .iter()
+            .any(|p| p.kind == "method")
+    );
 }
 
 struct EditDuringCompilation<'a> {

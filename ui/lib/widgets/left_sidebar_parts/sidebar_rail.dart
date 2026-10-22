@@ -39,6 +39,9 @@ class _FooterAction extends StatelessWidget {
   final VoidCallback onTap;
   final bool isActive;
 
+  /// 未读点：只在非当前域时显示（见 `_footerActions`）。
+  final bool showDot;
+
   /// 窄轨模式：只显示图标（居中），文字进 tooltip。
   final bool iconOnly;
 
@@ -47,8 +50,30 @@ class _FooterAction extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.isActive = false,
+    this.showDot = false,
     this.iconOnly = false,
   });
+
+  Widget _icon(Color color) => Stack(
+    clipBehavior: Clip.none,
+    children: [
+      Icon(icon, size: 18, color: color),
+      if (showDot)
+        Positioned(
+          right: -3,
+          top: -2,
+          child: Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              color: AppTheme.accentPrimary,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppTheme.surface1, width: 1.2),
+            ),
+          ),
+        ),
+    ],
+  );
 
   @override
   Widget build(BuildContext context) => AppPressable(
@@ -83,10 +108,8 @@ class _FooterAction extends StatelessWidget {
               ? Tooltip(
                   message: label,
                   child: Center(
-                    child: Icon(
-                      icon,
-                      size: 18,
-                      color: isActive
+                    child: _icon(
+                      isActive
                           ? AppTheme.accentPrimary
                           : AppTheme.textSecondary,
                     ),
@@ -94,10 +117,8 @@ class _FooterAction extends StatelessWidget {
                 )
               : Row(
                   children: [
-                    Icon(
-                      icon,
-                      size: 18,
-                      color: isActive
+                    _icon(
+                      isActive
                           ? AppTheme.accentPrimary
                           : AppTheme.textSecondary,
                     ),

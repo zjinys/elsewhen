@@ -77,11 +77,7 @@ fn preliminary_selection_never_keeps_an_orphan_tool_result() {
     let mut context = vec![
         ContextMessage::new("system", "rules"),
         ContextMessage::new("user", "early question ".repeat(400)),
-        ContextMessage::assistant_with_tool_calls(
-            String::new(),
-            vec![early_call.clone()],
-            None,
-        ),
+        ContextMessage::assistant_with_tool_calls(String::new(), vec![early_call.clone()], None),
         ContextMessage::tool_result(early_call.id.clone(), "early result".into()),
         ContextMessage::new("user", "middle question ".repeat(400)),
         ContextMessage::new("assistant", "middle answer"),

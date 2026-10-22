@@ -438,6 +438,7 @@ final messagesProvider = FutureProvider<List<Message>>((ref) async {
   if (conversationId == null) return [];
 
   ref.watch(syncArrivalRevisionProvider);
+  ref.watch(habitNudgeRevisionProvider);
   final repo = ref.read(conversationRepositoryProvider);
   return await repo.getMessages(conversationId);
 });

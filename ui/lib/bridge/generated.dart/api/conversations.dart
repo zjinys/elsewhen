@@ -249,6 +249,12 @@ class MessageDto {
   /// 展示配对：assistant 回复对应的输入消息 id（仅展示用）。
   final String? inputMessageId;
 
+  /// 消息类型：chat / habit_nudge / habit_checkin。
+  final String kind;
+
+  /// 习惯问候去重锚：`<nudge_id>:<YYYY-MM-DD>`。
+  final String? messageRef;
+
   const MessageDto({
     required this.id,
     required this.conversationId,
@@ -257,6 +263,8 @@ class MessageDto {
     required this.content,
     required this.createdAt,
     this.inputMessageId,
+    required this.kind,
+    this.messageRef,
   });
 
   @override
@@ -267,7 +275,9 @@ class MessageDto {
       role.hashCode ^
       content.hashCode ^
       createdAt.hashCode ^
-      inputMessageId.hashCode;
+      inputMessageId.hashCode ^
+      kind.hashCode ^
+      messageRef.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -280,7 +290,9 @@ class MessageDto {
           role == other.role &&
           content == other.content &&
           createdAt == other.createdAt &&
-          inputMessageId == other.inputMessageId;
+          inputMessageId == other.inputMessageId &&
+          kind == other.kind &&
+          messageRef == other.messageRef;
 }
 
 class PendingActionDto {

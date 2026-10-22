@@ -30,7 +30,7 @@ pub fn prepare_knowledge_source_repair(slug: String, snapshot_ids: Vec<String>) 
     let Some((provider, _)) = crate::wiki::digest_provider(&store)? else {
         anyhow::bail!("请先配置 AI Provider");
     };
-    crate::knowledge::prepare_source_repair(&store, &slug, &snapshot_ids, &provider)
+    crate::knowledge::prepare_source_repair(&store, &slug, &snapshot_ids, provider.as_ref())
 }
 
 pub fn list_knowledge_resolution_targets(fingerprint: String) -> Result<Vec<WikiPageDto>> {
@@ -77,7 +77,7 @@ pub fn prepare_topic_organization(slugs: Vec<String>, mode: String) -> Result<St
     let Some((provider, _)) = crate::wiki::digest_provider(&store)? else {
         anyhow::bail!("请先配置 AI Provider");
     };
-    crate::knowledge::organization::prepare(&store, &slugs, &mode, &provider)
+    crate::knowledge::organization::prepare(&store, &slugs, &mode, provider.as_ref())
 }
 pub fn list_topic_organizations(
     slug: String,
@@ -106,21 +106,28 @@ pub fn tick_knowledge_insights() -> Result<i64> {
         return Ok(0);
     };
     // P1 追赶修复：长会话摘要后台预热（发生在知识任务之前——用户在
-    // 主对话流里等待的就是这批摘要，优先回血）。
-    let preheated = crate::ai::summary::background_preheat(&store)?;
-    crate::knowledge::reading::advance(&store, &provider)?;
-    let refreshed = crate::knowledge_background::run_knowledge_refresh(&store, &provider)?;
+    // 主对话流里等待的就是这批摘要，优先回血）。预热是尽力而为的优化，
+    // 失败不应阻断后面已接入 failover 的知识任务。
+    let preheated = crate::ai::summary::background_preheat(&store).unwrap_or_else(|error| {
+        if std::env::var_os("ELSEWHEN_DEBUG").is_some() {
+            eprintln!("[knowledge-insights] 摘要预热失败，继续知识任务：{error:#}");
+        }
+        0
+    });
+    crate::knowledge::reading::advance(&store, provider.as_ref())?;
+    let refreshed = crate::knowledge_background::run_knowledge_refresh(&store, provider.as_ref())?;
     let compiled =
-        crate::knowledge_background::run_automatic_source_compilation(&store, &provider)?;
-    let integrated = crate::knowledge_background::run_automatic_integration(&store, &provider)?;
+        crate::knowledge_background::run_automatic_source_compilation(&store, provider.as_ref())?;
+    let integrated =
+        crate::knowledge_background::run_automatic_integration(&store, provider.as_ref())?;
     let reconsolidated =
-        crate::knowledge_background::run_knowledge_reconsolidation(&store, &provider)?;
+        crate::knowledge_background::run_knowledge_reconsolidation(&store, provider.as_ref())?;
     Ok(preheated
         + refreshed
         + compiled
         + integrated
         + reconsolidated
-        + crate::knowledge_background::run_automatic_insights(&store, &provider)?)
+        + crate::knowledge_background::run_automatic_insights(&store, provider.as_ref())?)
 }
 
 #[derive(Clone, Debug)]
@@ -242,7 +249,7 @@ pub fn reconsolidate_knowledge_page(slug: String) -> Result<String> {
     let Some((provider, _)) = crate::wiki::digest_provider(&store)? else {
         anyhow::bail!("没有可用的 AI Provider 配置，请先在设置里配置")
     };
-    crate::wiki::reconsolidate_page(&store, &provider, &slug)
+    crate::wiki::reconsolidate_page(&store, provider.as_ref(), &slug)
 }
 
 /// 相关页面的关系边（P3 导航面载体）；origin='human' 才可删，
@@ -340,7 +347,7 @@ pub fn propose_knowledge_page(slug: String, kind: String) -> Result<String> {
     let Some((provider, _)) = crate::wiki::digest_provider(&store)? else {
         anyhow::bail!("请先在设置中配置 AI Provider");
     };
-    crate::knowledge::compile_requested_knowledge(&store, &slug, &kind, &provider)
+    crate::knowledge::compile_requested_knowledge(&store, &slug, &kind, provider.as_ref())
 }
 
 pub fn resolve_knowledge_proposal(id: String, accept: bool) -> Result<Option<WikiPageDto>> {

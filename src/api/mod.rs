@@ -6,6 +6,7 @@ pub mod entities;
 pub mod event_stats;
 pub mod fonts;
 pub mod goals;
+pub mod habit_nudges;
 pub mod import;
 pub mod knowledge;
 pub mod knowledge_digest;

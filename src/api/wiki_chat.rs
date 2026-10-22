@@ -66,6 +66,8 @@ pub fn submit_wiki_chat_input(
         content: message.content,
         created_at: message.created_at,
         input_message_id: message.input_message_id,
+        kind: message.kind,
+        message_ref: message.message_ref,
     })
 }
 

@@ -10,7 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../bridge/rust_bridge_repository.dart';
-import '../bridge/api.dart' show EntityFactDto, KnowledgeRelationDto, PageGuidanceDto;
+import '../bridge/api.dart'
+    show EntityFactDto, KnowledgeRelationDto, PageGuidanceDto;
 import '../utils/error_report.dart';
 import '../models/relation.dart';
 import '../models/tweet_fetch.dart';
@@ -25,8 +26,8 @@ import '../theme/app_theme.dart';
 import '../theme/content_font.dart';
 import '../wiki/wiki_content_editor.dart';
 import '../wiki/wiki_markdown_codec.dart';
-import 'create_topic_body.dart';
 import 'wiki_reading_settings_dialog.dart';
+import 'habit_nudge_dialog.dart';
 import 'wiki_ai_chat_panel.dart';
 import 'wiki_derivatives.dart';
 import 'markdown_view.dart';
@@ -168,7 +169,6 @@ class _WikiPageDetailViewState extends ConsumerState<WikiPageDetailView> {
                   ImportFetchTabEntry(:final fetch) => _ImportFetchTabBody(
                     fetch: fetch,
                   ),
-                  CreateTopicTabEntry() => const CreateTopicBody(),
                 },
             ],
           ),
@@ -180,17 +180,33 @@ class _WikiPageDetailViewState extends ConsumerState<WikiPageDetailView> {
 
 /// 打开知识库导入对话框（文本 / 网址模式）。
 /// 供首页 _HomeAction 与移动端标题栏 _WikiTitleBarActions 共用。
+/// 打开「创建主题」对话框：标题 / 标签 / 正文一步完成入库。
+Future<void> openCreateTopicDialog(BuildContext context) =>
+    openWikiImportDialog(context, urlMode: false);
+
 Future<void> openWikiImportDialog(
   BuildContext context, {
   required bool urlMode,
 }) async {
+  final screen = MediaQuery.sizeOf(context);
+  // 创建主题是「标题 + 标签 + 正文」的长内容编辑器，横向给足行宽；
+  // 网址导入只有一行输入，保持紧凑高度，避免出现大片空白。
+  final dialogWidth = urlMode
+      ? math.min(760.0, screen.width - 48)
+      : math.min(960.0, screen.width - 48);
+  final dialogMaxHeight = urlMode
+      ? math.min(260.0, screen.height * 0.45)
+      : math.min(680.0, screen.height * 0.72);
   await showDialog<void>(
     context: context,
     builder: (_) => Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: ConstrainedBox(
+        key: const ValueKey('wiki-import-dialog-content'),
         constraints: BoxConstraints(
-          maxWidth: 720,
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
+          minWidth: dialogWidth,
+          maxWidth: dialogWidth,
+          maxHeight: dialogMaxHeight,
         ),
         child: Padding(
           padding: const EdgeInsets.all(4),
@@ -297,6 +313,10 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
   bool _chatOpen = false;
   bool _chatInitialized = false;
   Offset? _chatPosition;
+
+  /// 每个页面 body 唯一的 FAB Hero tag。IndexedStack 会同时挂载多个
+  /// page tab，固定字符串会让多个 FAB 共享同一 tag。
+  final Object _chatFabHeroTag = Object();
 
   /// 沉浸阅读：插到 app Overlay 的全屏覆盖层，盖住一切 chrome（含左侧导航 / 顶栏）。
   /// 非空 = 沉浸中。用 OverlayEntry 而非内部 Stack，才能盖住本 widget 之外的导航栏。

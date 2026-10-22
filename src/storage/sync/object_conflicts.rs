@@ -66,6 +66,17 @@ fn mutation_incoming(mutation: &SyncMutation) -> Result<ObjectConflictIncoming> 
             base_revision: base_revision.clone(),
             updated_at: todo.updated_at.clone(),
         },
+        SyncMutation::HabitNudgeChanged {
+            nudge,
+            base_revision,
+            deleted,
+        } => ObjectConflictIncoming {
+            summary: nudge.question.clone(),
+            status: if nudge.enabled { "enabled" } else { "disabled" }.to_string(),
+            deleted: *deleted,
+            base_revision: base_revision.clone(),
+            updated_at: nudge.updated_at.clone(),
+        },
         SyncMutation::GoalChanged {
             goal,
             base_revision,
@@ -100,7 +111,7 @@ impl Store {
             let mut statement = self.connection.prepare(
                 "SELECT c.op_id,c.object_kind,c.object_id,c.reason,o.origin_device_id,o.payload \
                  FROM sync_conflicts c JOIN sync_operations o ON o.op_id=c.op_id \
-                 WHERE c.object_kind IN ('todo','goal','rule') AND o.state='conflict' \
+                 WHERE c.object_kind IN ('todo','habit_nudge','goal','rule') AND o.state='conflict' \
                  ORDER BY o.origin_stream_id,o.origin_sequence",
             )?;
             statement
@@ -127,6 +138,14 @@ impl Store {
                     .connection
                     .query_row(
                         "SELECT title,status,updated_at FROM todos WHERE id=?1",
+                        [&row.object_id],
+                        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+                    )
+                    .optional()?,
+                "habit_nudge" => self
+                    .connection
+                    .query_row(
+                        "SELECT question,CASE WHEN enabled=1 THEN 'enabled' ELSE 'disabled' END,updated_at FROM habit_nudges WHERE id=?1",
                         [&row.object_id],
                         |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
                     )
@@ -180,7 +199,7 @@ impl Store {
             .query_row(
                 "SELECT c.object_kind,c.object_id,c.reason,o.payload \
                  FROM sync_conflicts c JOIN sync_operations o ON o.op_id=c.op_id \
-                 WHERE c.op_id=?1 AND c.object_kind IN ('todo','goal','rule') \
+                 WHERE c.op_id=?1 AND c.object_kind IN ('todo','habit_nudge','goal','rule') \
                    AND o.state='conflict'",
                 [op_id],
                 |r| {
@@ -198,6 +217,7 @@ impl Store {
         // 本端现状绑定：与审阅时展示的行一致才允许裁决。
         let table = match kind.as_str() {
             "todo" => "todos",
+            "habit_nudge" => "habit_nudges",
             "goal" => "goals",
             _ => "rules",
         };
@@ -231,6 +251,7 @@ impl Store {
                 if !head.as_ref().is_some_and(|h| h.1) && row_present {
                     match kind.as_str() {
                         "todo" => self.sync_record_todo(&object_id, false)?,
+                        "habit_nudge" => self.sync_record_habit_nudge(&object_id, false)?,
                         "goal" => self.sync_record_goal(&object_id)?,
                         _ => self.sync_record_rule(&object_id, false)?,
                     }
@@ -280,6 +301,42 @@ impl Store {
                             goal.created_at, goal.updated_at, goal.superseded_at],
                 )?;
                 self.sync_set_head("goal", &goal.id, &op.op_id, false)?;
+                self.connection
+                    .execute("DELETE FROM sync_conflicts WHERE op_id=?1", [op_id])?;
+            }
+            (SyncMutation::HabitNudgeChanged { nudge, deleted, .. }, true) => {
+                if *deleted {
+                    self.connection
+                        .execute("DELETE FROM habit_nudges WHERE id=?1", [&nudge.id])?;
+                    self.connection.execute(
+                        "DELETE FROM habit_nudge_fires WHERE nudge_id=?1",
+                        [&nudge.id],
+                    )?;
+                } else {
+                    self.connection.execute(
+                        "INSERT INTO habit_nudges(id,page_slug,question,done_label,done_text,missed_label,missed_text,weekdays,local_time,enabled,created_at,updated_at) \
+                         VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12) \
+                         ON CONFLICT(id) DO UPDATE SET page_slug=excluded.page_slug,question=excluded.question, \
+                         done_label=excluded.done_label,done_text=excluded.done_text,missed_label=excluded.missed_label, \
+                         missed_text=excluded.missed_text,weekdays=excluded.weekdays,local_time=excluded.local_time, \
+                         enabled=excluded.enabled,updated_at=excluded.updated_at",
+                        params![
+                            nudge.id,
+                            nudge.page_slug,
+                            nudge.question,
+                            nudge.done_label,
+                            nudge.done_text,
+                            nudge.missed_label,
+                            nudge.missed_text,
+                            nudge.weekdays,
+                            nudge.local_time,
+                            nudge.enabled as i64,
+                            nudge.created_at,
+                            nudge.updated_at
+                        ],
+                    )?;
+                }
+                self.sync_set_head("habit_nudge", &nudge.id, &op.op_id, *deleted)?;
                 self.connection
                     .execute("DELETE FROM sync_conflicts WHERE op_id=?1", [op_id])?;
             }

@@ -80,7 +80,8 @@ impl Store {
     }
 
     /// Full provider configurations for runtime failover, including secrets.
-    /// The active provider is returned first, followed by creation order.
+    /// Disabled profiles are excluded; the active provider is returned first,
+    /// followed by creation order.
     pub fn list_ai_provider_configs_for_runtime(&self) -> Result<Vec<AiProviderConfig>> {
         let tx = if self.connection.is_autocommit() {
             Some(self.connection.unchecked_transaction()?)
@@ -91,6 +92,7 @@ impl Store {
             "SELECT id,name,provider_type,base_url,model,api_key_source,
                 COALESCE(api_key,''),is_active,temperature,max_tokens,context_window
          FROM ai_provider_configs
+         WHERE enabled=1
          ORDER BY (id = COALESCE((SELECT config_id FROM ai_provider_runtime_active WHERE singleton=1), '')) DESC,
              is_active DESC,
              COALESCE((SELECT position FROM ai_provider_sync_order WHERE config_id=ai_provider_configs.id), 9223372036854775807),

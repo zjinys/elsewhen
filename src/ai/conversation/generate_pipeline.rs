@@ -346,10 +346,34 @@ pub(crate) fn generate_with_provider_configs(
                     &attempt_context,
                 );
             }
+            // 用户明确提出修改本页时，问答/总结任务自动升级为编辑任务：
+            // 全页修订直接走 revise_full 流水；带选区的问答转局部编辑、
+            // 仍进常规 agent 循环。升级只影响本轮，不回写已保存的任务。
+            let escalated = super::page_tasks::escalate_page_task(task)
+                .filter(|_| super::page_tasks::explicit_page_revision_intent(query.unwrap_or("")));
+            if escalated
+                .as_ref()
+                .is_some_and(|escalated| escalated.kind == "full_revision")
+            {
+                super::generation::event(
+                    store,
+                    "page_task",
+                    serde_json::json!({"kind":"full_revision","escalated_from":task.kind}),
+                )?;
+                return super::page_tasks::revise_full(
+                    store,
+                    conversation_id,
+                    escalated.as_ref().unwrap(),
+                    query.unwrap_or(""),
+                    &*provider,
+                    &provider_name,
+                    &attempt_context,
+                );
+            }
             attempt_context.push(super::page_tasks::prepare(
                 store,
                 conversation_id,
-                task,
+                escalated.as_ref().unwrap_or(task),
                 query.unwrap_or(""),
                 &*provider,
                 &provider_name,

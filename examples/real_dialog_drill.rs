@@ -4,7 +4,7 @@
 //! 用法：cargo run --release --example real_dialog_drill -- [db路径]
 //! 库要求：含真实 ai_provider_configs + provider_key_secrets（生产备份副本）。
 
-use elsewhen::ai::conversation::{generate_conversation_reply, ConversationConfig};
+use elsewhen::ai::conversation::{ConversationConfig, generate_conversation_reply};
 use elsewhen::storage::Store;
 
 fn main() -> anyhow::Result<()> {
@@ -24,8 +24,7 @@ fn main() -> anyhow::Result<()> {
     )?;
     println!("演练会话：{conversation}");
 
-    let long_material =
-        "这段素材讨论了长期记忆系统里『压缩表述但不压缩事实』的原则：摘要可以改写措辞、省略细节，\
+    let long_material = "这段素材讨论了长期记忆系统里『压缩表述但不压缩事实』的原则：摘要可以改写措辞、省略细节，\
          但关键事实（人名、日期、决定、未解决问题的状态）不得走样；被压缩掉的原始内容必须仍然可以回溯，\
          回溯不了的压缩等于销毁证据；因此每一次有损压缩都应该留下审计线索，让未来的自己能判断这则摘要还能不能信。";
 

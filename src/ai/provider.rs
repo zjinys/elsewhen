@@ -77,10 +77,14 @@ pub(crate) fn provider_error_body(status: impl std::fmt::Display, body: &str) ->
 
 /// Token usage reported by an AI provider
 mod contract;
+mod failover;
 mod ollama;
 mod openai;
 
 pub use contract::{AiProvider, AiReply, ProviderEvent, TokenUsage};
+pub(crate) use failover::{
+    FailoverEntry, FailoverProvider, active_first_provider_chain, last_good_background_provider,
+};
 pub use ollama::{OllamaConfig, OllamaProvider};
 #[cfg(test)]
 pub(crate) use ollama::{

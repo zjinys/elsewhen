@@ -1,11 +1,9 @@
 //! 自 wiki.rs 机械分段平移（行为零变化）。
 
-
-
-use crate::storage::{Store};
-use anyhow::{Context, Result};
-use std::path::{Path};
+use crate::storage::Store;
 use crate::wiki::{build_index_md, kind_dir};
+use anyhow::{Context, Result};
+use std::path::Path;
 // ── export：物化 markdown 树（可接 Obsidian）──────────────────────────────
 
 pub struct ExportReport {

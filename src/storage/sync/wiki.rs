@@ -392,6 +392,17 @@ impl Store {
         if deleted {
             ensure!(existing_slug.is_some(), "sync_wiki_delete_missing");
             self.sync_mark_wiki_slug_seen(&page.slug)?;
+            let nudge_ids = self
+                .connection
+                .prepare("SELECT id FROM habit_nudges WHERE page_slug=?1")?
+                .query_map([&page.slug], |row| row.get::<_, String>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            for id in nudge_ids {
+                self.connection
+                    .execute("DELETE FROM habit_nudges WHERE id=?1", [&id])?;
+                self.connection
+                    .execute("DELETE FROM habit_nudge_fires WHERE nudge_id=?1", [&id])?;
+            }
             self.connection
                 .execute("DELETE FROM wiki_pages WHERE id=?1", params![page.id])?;
             self.sync_set_head("wiki_page", &page.id, &op.op_id, true)?;
@@ -543,6 +554,11 @@ impl Store {
         self.connection.execute(
             "UPDATE todos SET related_wiki_slug=?1 WHERE related_wiki_slug=?2",
             params![new_slug, old_slug],
+        )?;
+        // 习惯问候计划绑定 page_slug；重命名后必须跟页走，否则变成幽灵计划。
+        self.connection.execute(
+            "UPDATE habit_nudges SET page_slug=?1,updated_at=?2 WHERE page_slug=?3",
+            params![new_slug, chrono::Utc::now().to_rfc3339(), old_slug],
         )?;
         Ok(())
     }

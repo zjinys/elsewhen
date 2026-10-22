@@ -273,6 +273,7 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
               _buildRelatedPagesRow(context),
               // 标签直接展开，避免用户还要打开一个元数据折叠行。
               _buildTagRow(context),
+              if (widget.page.kind == 'habit') _buildHabitNudgeEntry(context),
               KnowledgePageActions(
                 page: widget.page,
                 showSourcesButton:
@@ -285,6 +286,104 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
         ),
       ),
     );
+  }
+
+  /// 习惯页的主动问候入口。时间/问法/按钮都来自已确认的计划；没有计划时
+  /// 打开推断确认框，推断结果不会静默生效。
+  Widget _buildHabitNudgeEntry(BuildContext context) {
+    final plan = ref.watch(habitNudgeForPageProvider(widget.page.slug)).value;
+    final String summary;
+    if (plan == null) {
+      summary = '到点在主对话里问我，问法和按钮先由你确认';
+    } else if (!plan.enabled) {
+      summary = '已暂停 · ${plan.localTime}';
+    } else {
+      summary =
+          '${_habitWeekdaySummary(plan.weekdays)} ${plan.localTime} · '
+          '${plan.doneLabel}/${plan.missedLabel}';
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: AppTheme.space2),
+      child: Material(
+        color: AppTheme.surface0,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+          onTap: () async {
+            final changed = await showHabitNudgeDialog(
+              context,
+              page: widget.page,
+            );
+            if (changed == true && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('定期问候已更新'),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.space3,
+              vertical: AppTheme.space2,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  plan?.enabled == true
+                      ? Icons.notifications_active_outlined
+                      : Icons.notifications_none,
+                  size: 17,
+                  color: plan?.enabled == true
+                      ? AppTheme.accentPrimary
+                      : AppTheme.textTertiary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        plan == null ? '定期问我' : '定期问候',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        summary,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: AppTheme.textTertiary,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _habitWeekdaySummary(int mask) {
+    if (mask == 127) return '每天';
+    const names = ['一', '二', '三', '四', '五', '六', '日'];
+    final days = [
+      for (var i = 0; i < 7; i++)
+        if ((mask & (1 << i)) != 0) names[i],
+    ];
+    return '每周 ${days.join('、')}';
   }
 
   /// 相关页面（P3 导航面）：数据来自详情派生读（details.relations），

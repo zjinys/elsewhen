@@ -16,12 +16,14 @@ pub(crate) const SNAPSHOT_CARRIED_DIRS: &[&str] = &["tweet_images"];
 /// v6：新增 Record::KnowledgeSource（摘录孵化闭环）：负知识（identity +
 /// opinion + reject_reason）跨设备可见——「你否定过这条来源」的提示
 /// 必须在新设备上仍然成立。
+/// v7：新增 Record::HabitNudge（习惯主动问候计划）；消息记录同时携带
+/// kind/ref，旧消息缺省仍按 chat 解释。
 /// 同步语义：定义随人走，激活看平台——stdio 的 platform 变体不再导致
 /// 整表排除；行上不含 headers（凭据不离本机）与 trusted（信任是本机
 /// 事实，apply 强制置 0 回到逐次审批）。新增 serde 变体后旧端标签分发
 /// 失败会整份拒收，跨 v4/v5 必须显式 bump——与 wire 枚举不同（那边
 /// append-only 可被旧端忽略）。
-pub(crate) const SNAPSHOT_VERSION: u32 = 6;
+pub(crate) const SNAPSHOT_VERSION: u32 = 7;
 
 /// 随快照携带的表。QUERIES 必须真实覆盖这里的每一张（覆盖性由门禁测试
 /// `snapshot_carries_every_table_or_explicitly_excludes_it` 兜住：新增表不登记
@@ -39,6 +41,7 @@ pub(crate) const SNAPSHOT_CARRIED_TABLES: &[&str] = &[
     "event_analyses",
     "event_recordability_decisions",
     "todos",
+    "habit_nudges",
     "goals",
     "rules",
     "sync_object_heads",
@@ -124,6 +127,9 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     // 定时提醒的本机触发去重（migration 50）：「提醒在哪台设备响是设备侧行为」，
     // 多设备各自弹各自的，不同步触发记录（与 rule_hits 同纪律）。
     ("todo_reminder_fires", "local-event-reminders"),
+    // 习惯问候的触发/回答状态是本机事实（同 todo_reminder_fires）；计划本身
+    // habit_nudges 随快照走。
+    ("habit_nudge_fires", "local-event-reminders"),
     ("rule_trigger_settings", "local-event-reminders"),
     // 情感回访偏好与记账：本机提醒体验状态，不属于跨设备数据集。
     ("companion_settings", "local-event-reminders"),
@@ -366,6 +372,9 @@ pub(crate) enum Record {
         created_at: String,
         updated_at: String,
     },
+    HabitNudge {
+        value: HabitNudgeRecord,
+    },
     Goal {
         id: String,
         content: String,
@@ -463,11 +472,12 @@ pub(crate) const QUERIES: &[&str] = &[
     "SELECT rowid,json_object('kind','knowledge_reading_state','page_id',page_id,'state',state,'updated_at',updated_at) FROM knowledge_reading_states WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','wiki_asset','rel',rel,'sha256',sha256,'mime',mime,'size',size) FROM wiki_assets WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','conversation','value',json_object('id',id,'title',title,'tag',tag,'archived',json(CASE WHEN archived=1 THEN 'true' ELSE 'false' END),'wiki_page_slug',wiki_page_slug,'assistant_mode',assistant_mode,'created_at',created_at,'updated_at',updated_at)) FROM conversations WHERE rowid>?1 ORDER BY rowid LIMIT 1",
-    "SELECT m.rowid,json_object('kind','message','value',json_object('id',m.id,'conversation_id',m.conversation_id,'parent_message_id',m.parent_message_id,'role',m.role,'content',m.content,'created_at',m.created_at,'input_message_id',(SELECT input_message_id FROM message_response_links WHERE message_id=m.id)),'order',CASE WHEN s.message_id IS NULL THEN NULL ELSE json_object('origin_stream_id',s.origin_stream_id,'origin_sequence',s.origin_sequence,'logical_clock',s.logical_clock,'input_message_id',s.input_message_id) END) FROM messages m JOIN conversations c ON c.id=m.conversation_id LEFT JOIN sync_message_order s ON s.message_id=m.id WHERE m.rowid>?1 ORDER BY m.rowid LIMIT 1",
+    "SELECT m.rowid,json_object('kind','message','value',json_object('id',m.id,'conversation_id',m.conversation_id,'parent_message_id',m.parent_message_id,'role',m.role,'content',m.content,'created_at',m.created_at,'kind',m.kind,'ref',m.ref,'input_message_id',(SELECT input_message_id FROM message_response_links WHERE message_id=m.id)),'order',CASE WHEN s.message_id IS NULL THEN NULL ELSE json_object('origin_stream_id',s.origin_stream_id,'origin_sequence',s.origin_sequence,'logical_clock',s.logical_clock,'input_message_id',s.input_message_id) END) FROM messages m JOIN conversations c ON c.id=m.conversation_id LEFT JOIN sync_message_order s ON s.message_id=m.id WHERE m.rowid>?1 ORDER BY m.rowid LIMIT 1",
     "SELECT i.rowid,json_object('kind','input','value',json_object('id',i.id,'raw_text',i.raw_text,'source',i.source,'event_id',i.event_id,'message_id',i.message_id,'created_at',i.created_at)) FROM input_records i WHERE i.rowid>?1 AND i.event_id IS NOT NULL AND (i.message_id IS NULL OR EXISTS(SELECT 1 FROM messages m WHERE m.id=i.message_id)) ORDER BY i.rowid LIMIT 1",
     "SELECT rowid,json_object('kind','analysis','id',id,'event_id',event_id,'prompt_version',prompt_version,'result_json',result_json,'created_at',created_at) FROM event_analyses WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','classification','id',id,'event_id',event_id,'recordable',json(CASE WHEN recordable=1 THEN 'true' ELSE 'false' END),'event_kind',kind,'reason',reason,'created_at',created_at) FROM event_recordability_decisions WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','todo','id',id,'title',title,'status',status,'priority',priority,'due_at',due_at,'reminder',(reminder!=0),'related_event_id',related_event_id,'related_wiki_slug',related_wiki_slug,'note',note,'created_at',created_at,'updated_at',updated_at) FROM todos WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','habit_nudge','value',json_object('id',id,'page_slug',page_slug,'question',question,'done_label',done_label,'done_text',done_text,'missed_label',missed_label,'missed_text',missed_text,'weekdays',weekdays,'local_time',local_time,'enabled',json(CASE WHEN enabled=1 THEN 'true' ELSE 'false' END),'created_at',created_at,'updated_at',updated_at)) FROM habit_nudges WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','goal','id',id,'content',content,'phase',phase,'status',status,'created_at',created_at,'updated_at',updated_at,'superseded_at',superseded_at) FROM goals WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','rule','id',id,'content',content,'status',status,'created_at',created_at,'updated_at',updated_at,'conversation_id',conversation_id,'review_version',review_version,'essence',essence) FROM rules WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT h.rowid,json_object('kind','head','object_kind',h.object_kind,'object_id',h.object_id,'revision_id',h.revision_id,'deleted',json(CASE WHEN h.deleted=1 THEN 'true' ELSE 'false' END)) FROM sync_object_heads h WHERE h.rowid>?1 ORDER BY h.rowid LIMIT 1",

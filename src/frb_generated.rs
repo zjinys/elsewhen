@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -700106266;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1538488772;
 
 // Section: executor
 
@@ -257,6 +257,34 @@ fn wire__crate__api__sync__join__advance_sync_enrollment_impl(
                             api_role,
                             api_operation_id,
                             api_invitation_id,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__habit_nudges__answer_habit_nudge_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    message_id: impl CstDecode<String>,
+    response: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "answer_habit_nudge",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_message_id = message_id.cst_decode();
+            let api_response = response.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::habit_nudges::answer_habit_nudge(
+                            api_message_id,
+                            api_response,
                         )?;
                         std::result::Result::Ok(output_ok)
                     })(),
@@ -1331,6 +1359,29 @@ fn wire__crate__api__companion_flow__delete_event_emotion_impl(
         },
     )
 }
+fn wire__crate__api__habit_nudges__delete_habit_nudge_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "delete_habit_nudge",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::habit_nudges::delete_habit_nudge(api_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__mcp__delete_mcp_server_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     id: impl CstDecode<String>,
@@ -1491,6 +1542,30 @@ fn wire__crate__api__review_report__store__dismiss_deviation_impl(
                             api_report_id,
                             api_index,
                         )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__habit_nudges__dismiss_habit_nudge_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    message_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "dismiss_habit_nudge",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_message_id = message_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::habit_nudges::dismiss_habit_nudge(api_message_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2223,6 +2298,77 @@ fn wire__crate__api__review_flow__get_event_analysis_detail_impl(
                     (move || {
                         let output_ok =
                             crate::api::review_flow::get_event_analysis_detail(api_event_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__habit_nudges__get_habit_nudge_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_habit_nudge",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::habit_nudges::get_habit_nudge(api_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__habit_nudges__get_habit_nudge_for_page_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    page_slug: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_habit_nudge_for_page",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_page_slug = page_slug.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::habit_nudges::get_habit_nudge_for_page(api_page_slug)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__habit_nudges__get_habit_nudge_suggestion_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    page_slug: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_habit_nudge_suggestion",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_page_slug = page_slug.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::habit_nudges::get_habit_nudge_suggestion(api_page_slug)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -3485,6 +3631,27 @@ fn wire__crate__api__review_flow__list_events_impl(
         },
     )
 }
+fn wire__crate__api__habit_nudges__list_habit_nudge_states_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_habit_nudge_states",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::habit_nudges::list_habit_nudge_states()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__knowledge__list_knowledge_background_runs_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -4502,6 +4669,27 @@ fn wire__crate__api__chat_runs__pause_chat_input_queue_impl(
         },
     )
 }
+fn wire__crate__api__habit_nudges__pending_habit_nudge_count_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "pending_habit_nudge_count",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::habit_nudges::pending_habit_nudge_count()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__todos__pop_due_reminders_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
@@ -5394,6 +5582,29 @@ fn wire__crate__api__web_search__save_doh_settings_impl(
                     (move || {
                         let output_ok =
                             crate::api::web_search::save_doh_settings(api_doh_uri, api_doh_mode)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__habit_nudges__save_habit_nudge_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    input: impl CstDecode<crate::api::habit_nudges::HabitNudgeInputDto>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "save_habit_nudge",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_input = input.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::habit_nudges::save_habit_nudge(api_input)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -6377,6 +6588,30 @@ fn wire__crate__api__chat_runs__shutdown_chat_runs_impl(
         },
     )
 }
+fn wire__crate__api__habit_nudges__snooze_habit_nudge_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    message_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "snooze_habit_nudge",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_message_id = message_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::habit_nudges::snooze_habit_nudge(api_message_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__todos__snooze_reminder_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     todo_id: impl CstDecode<String>,
@@ -6598,6 +6833,27 @@ fn wire__crate__api__web_search__test_proxy_connection_impl(
                     (move || {
                         let output_ok =
                             crate::api::web_search::test_proxy_connection(api_proxy_url)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__habit_nudges__tick_habit_nudges_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "tick_habit_nudges",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::habit_nudges::tick_habit_nudges()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -8200,6 +8456,141 @@ impl SseDecode for crate::api::analysis_schema::GuidanceRefDto {
     }
 }
 
+impl SseDecode for crate::api::habit_nudges::HabitNudgeAnswerDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_messageId = <String>::sse_decode(deserializer);
+        let mut var_eventCreated = <bool>::sse_decode(deserializer);
+        return crate::api::habit_nudges::HabitNudgeAnswerDto {
+            message_id: var_messageId,
+            event_created: var_eventCreated,
+        };
+    }
+}
+
+impl SseDecode for crate::api::habit_nudges::HabitNudgeDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_pageSlug = <String>::sse_decode(deserializer);
+        let mut var_question = <String>::sse_decode(deserializer);
+        let mut var_doneLabel = <String>::sse_decode(deserializer);
+        let mut var_doneText = <String>::sse_decode(deserializer);
+        let mut var_missedLabel = <String>::sse_decode(deserializer);
+        let mut var_missedText = <String>::sse_decode(deserializer);
+        let mut var_weekdays = <i32>::sse_decode(deserializer);
+        let mut var_localTime = <String>::sse_decode(deserializer);
+        let mut var_enabled = <bool>::sse_decode(deserializer);
+        let mut var_createdAt = <String>::sse_decode(deserializer);
+        let mut var_updatedAt = <String>::sse_decode(deserializer);
+        return crate::api::habit_nudges::HabitNudgeDto {
+            id: var_id,
+            page_slug: var_pageSlug,
+            question: var_question,
+            done_label: var_doneLabel,
+            done_text: var_doneText,
+            missed_label: var_missedLabel,
+            missed_text: var_missedText,
+            weekdays: var_weekdays,
+            local_time: var_localTime,
+            enabled: var_enabled,
+            created_at: var_createdAt,
+            updated_at: var_updatedAt,
+        };
+    }
+}
+
+impl SseDecode for crate::api::habit_nudges::HabitNudgeInputDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_pageSlug = <String>::sse_decode(deserializer);
+        let mut var_question = <String>::sse_decode(deserializer);
+        let mut var_doneLabel = <String>::sse_decode(deserializer);
+        let mut var_doneText = <String>::sse_decode(deserializer);
+        let mut var_missedLabel = <String>::sse_decode(deserializer);
+        let mut var_missedText = <String>::sse_decode(deserializer);
+        let mut var_weekdays = <i32>::sse_decode(deserializer);
+        let mut var_localTime = <String>::sse_decode(deserializer);
+        let mut var_enabled = <bool>::sse_decode(deserializer);
+        return crate::api::habit_nudges::HabitNudgeInputDto {
+            page_slug: var_pageSlug,
+            question: var_question,
+            done_label: var_doneLabel,
+            done_text: var_doneText,
+            missed_label: var_missedLabel,
+            missed_text: var_missedText,
+            weekdays: var_weekdays,
+            local_time: var_localTime,
+            enabled: var_enabled,
+        };
+    }
+}
+
+impl SseDecode for crate::api::habit_nudges::HabitNudgeStateDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_nudgeId = <String>::sse_decode(deserializer);
+        let mut var_localDate = <String>::sse_decode(deserializer);
+        let mut var_response = <Option<String>>::sse_decode(deserializer);
+        let mut var_snoozeUntil = <Option<String>>::sse_decode(deserializer);
+        let mut var_askCount = <i32>::sse_decode(deserializer);
+        let mut var_messageId = <Option<String>>::sse_decode(deserializer);
+        return crate::api::habit_nudges::HabitNudgeStateDto {
+            nudge_id: var_nudgeId,
+            local_date: var_localDate,
+            response: var_response,
+            snooze_until: var_snoozeUntil,
+            ask_count: var_askCount,
+            message_id: var_messageId,
+        };
+    }
+}
+
+impl SseDecode for crate::api::habit_nudges::HabitNudgeSuggestionDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_pageSlug = <String>::sse_decode(deserializer);
+        let mut var_pageTitle = <String>::sse_decode(deserializer);
+        let mut var_question = <String>::sse_decode(deserializer);
+        let mut var_weekdays = <i32>::sse_decode(deserializer);
+        let mut var_localTime = <String>::sse_decode(deserializer);
+        let mut var_doneLabel = <String>::sse_decode(deserializer);
+        let mut var_doneText = <String>::sse_decode(deserializer);
+        let mut var_missedLabel = <String>::sse_decode(deserializer);
+        let mut var_missedText = <String>::sse_decode(deserializer);
+        let mut var_basisExcerpt = <String>::sse_decode(deserializer);
+        let mut var_confidence = <f64>::sse_decode(deserializer);
+        let mut var_existing =
+            <Option<crate::api::habit_nudges::HabitNudgeDto>>::sse_decode(deserializer);
+        return crate::api::habit_nudges::HabitNudgeSuggestionDto {
+            page_slug: var_pageSlug,
+            page_title: var_pageTitle,
+            question: var_question,
+            weekdays: var_weekdays,
+            local_time: var_localTime,
+            done_label: var_doneLabel,
+            done_text: var_doneText,
+            missed_label: var_missedLabel,
+            missed_text: var_missedText,
+            basis_excerpt: var_basisExcerpt,
+            confidence: var_confidence,
+            existing: var_existing,
+        };
+    }
+}
+
+impl SseDecode for crate::api::habit_nudges::HabitNudgeTickDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_messageIds = <Vec<String>>::sse_decode(deserializer);
+        let mut var_pendingCount = <i32>::sse_decode(deserializer);
+        return crate::api::habit_nudges::HabitNudgeTickDto {
+            message_ids: var_messageIds,
+            pending_count: var_pendingCount,
+        };
+    }
+}
+
 impl SseDecode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -9162,6 +9553,20 @@ impl SseDecode for Vec<crate::api::analysis_schema::GuidanceRefDto> {
     }
 }
 
+impl SseDecode for Vec<crate::api::habit_nudges::HabitNudgeStateDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::habit_nudges::HabitNudgeStateDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::knowledge::KnowledgeBackgroundRunDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -9892,6 +10297,8 @@ impl SseDecode for crate::api::conversations::MessageDto {
         let mut var_content = <String>::sse_decode(deserializer);
         let mut var_createdAt = <String>::sse_decode(deserializer);
         let mut var_inputMessageId = <Option<String>>::sse_decode(deserializer);
+        let mut var_kind = <String>::sse_decode(deserializer);
+        let mut var_messageRef = <Option<String>>::sse_decode(deserializer);
         return crate::api::conversations::MessageDto {
             id: var_id,
             conversation_id: var_conversationId,
@@ -9900,6 +10307,8 @@ impl SseDecode for crate::api::conversations::MessageDto {
             content: var_content,
             created_at: var_createdAt,
             input_message_id: var_inputMessageId,
+            kind: var_kind,
+            message_ref: var_messageRef,
         };
     }
 }
@@ -10121,6 +10530,19 @@ impl SseDecode for Option<crate::api::analysis_schema::GuidanceDto> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::api::analysis_schema::GuidanceDto>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::habit_nudges::HabitNudgeDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::habit_nudges::HabitNudgeDto>::sse_decode(
                 deserializer,
             ));
         } else {
@@ -12431,6 +12853,163 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::analysis_schema::GuidanceRefD
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::habit_nudges::HabitNudgeAnswerDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.message_id.into_into_dart().into_dart(),
+            self.event_created.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::habit_nudges::HabitNudgeAnswerDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::habit_nudges::HabitNudgeAnswerDto>
+    for crate::api::habit_nudges::HabitNudgeAnswerDto
+{
+    fn into_into_dart(self) -> crate::api::habit_nudges::HabitNudgeAnswerDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::habit_nudges::HabitNudgeDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.page_slug.into_into_dart().into_dart(),
+            self.question.into_into_dart().into_dart(),
+            self.done_label.into_into_dart().into_dart(),
+            self.done_text.into_into_dart().into_dart(),
+            self.missed_label.into_into_dart().into_dart(),
+            self.missed_text.into_into_dart().into_dart(),
+            self.weekdays.into_into_dart().into_dart(),
+            self.local_time.into_into_dart().into_dart(),
+            self.enabled.into_into_dart().into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+            self.updated_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::habit_nudges::HabitNudgeDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::habit_nudges::HabitNudgeDto>
+    for crate::api::habit_nudges::HabitNudgeDto
+{
+    fn into_into_dart(self) -> crate::api::habit_nudges::HabitNudgeDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::habit_nudges::HabitNudgeInputDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.page_slug.into_into_dart().into_dart(),
+            self.question.into_into_dart().into_dart(),
+            self.done_label.into_into_dart().into_dart(),
+            self.done_text.into_into_dart().into_dart(),
+            self.missed_label.into_into_dart().into_dart(),
+            self.missed_text.into_into_dart().into_dart(),
+            self.weekdays.into_into_dart().into_dart(),
+            self.local_time.into_into_dart().into_dart(),
+            self.enabled.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::habit_nudges::HabitNudgeInputDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::habit_nudges::HabitNudgeInputDto>
+    for crate::api::habit_nudges::HabitNudgeInputDto
+{
+    fn into_into_dart(self) -> crate::api::habit_nudges::HabitNudgeInputDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::habit_nudges::HabitNudgeStateDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.nudge_id.into_into_dart().into_dart(),
+            self.local_date.into_into_dart().into_dart(),
+            self.response.into_into_dart().into_dart(),
+            self.snooze_until.into_into_dart().into_dart(),
+            self.ask_count.into_into_dart().into_dart(),
+            self.message_id.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::habit_nudges::HabitNudgeStateDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::habit_nudges::HabitNudgeStateDto>
+    for crate::api::habit_nudges::HabitNudgeStateDto
+{
+    fn into_into_dart(self) -> crate::api::habit_nudges::HabitNudgeStateDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::habit_nudges::HabitNudgeSuggestionDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.page_slug.into_into_dart().into_dart(),
+            self.page_title.into_into_dart().into_dart(),
+            self.question.into_into_dart().into_dart(),
+            self.weekdays.into_into_dart().into_dart(),
+            self.local_time.into_into_dart().into_dart(),
+            self.done_label.into_into_dart().into_dart(),
+            self.done_text.into_into_dart().into_dart(),
+            self.missed_label.into_into_dart().into_dart(),
+            self.missed_text.into_into_dart().into_dart(),
+            self.basis_excerpt.into_into_dart().into_dart(),
+            self.confidence.into_into_dart().into_dart(),
+            self.existing.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::habit_nudges::HabitNudgeSuggestionDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::habit_nudges::HabitNudgeSuggestionDto>
+    for crate::api::habit_nudges::HabitNudgeSuggestionDto
+{
+    fn into_into_dart(self) -> crate::api::habit_nudges::HabitNudgeSuggestionDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::habit_nudges::HabitNudgeTickDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.message_ids.into_into_dart().into_dart(),
+            self.pending_count.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::habit_nudges::HabitNudgeTickDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::habit_nudges::HabitNudgeTickDto>
+    for crate::api::habit_nudges::HabitNudgeTickDto
+{
+    fn into_into_dart(self) -> crate::api::habit_nudges::HabitNudgeTickDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::import::ImportUrlDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -13170,6 +13749,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::conversations::MessageDto {
             self.content.into_into_dart().into_dart(),
             self.created_at.into_into_dart().into_dart(),
             self.input_message_id.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
+            self.message_ref.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -15108,6 +15689,85 @@ impl SseEncode for crate::api::analysis_schema::GuidanceRefDto {
     }
 }
 
+impl SseEncode for crate::api::habit_nudges::HabitNudgeAnswerDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.message_id, serializer);
+        <bool>::sse_encode(self.event_created, serializer);
+    }
+}
+
+impl SseEncode for crate::api::habit_nudges::HabitNudgeDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.page_slug, serializer);
+        <String>::sse_encode(self.question, serializer);
+        <String>::sse_encode(self.done_label, serializer);
+        <String>::sse_encode(self.done_text, serializer);
+        <String>::sse_encode(self.missed_label, serializer);
+        <String>::sse_encode(self.missed_text, serializer);
+        <i32>::sse_encode(self.weekdays, serializer);
+        <String>::sse_encode(self.local_time, serializer);
+        <bool>::sse_encode(self.enabled, serializer);
+        <String>::sse_encode(self.created_at, serializer);
+        <String>::sse_encode(self.updated_at, serializer);
+    }
+}
+
+impl SseEncode for crate::api::habit_nudges::HabitNudgeInputDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.page_slug, serializer);
+        <String>::sse_encode(self.question, serializer);
+        <String>::sse_encode(self.done_label, serializer);
+        <String>::sse_encode(self.done_text, serializer);
+        <String>::sse_encode(self.missed_label, serializer);
+        <String>::sse_encode(self.missed_text, serializer);
+        <i32>::sse_encode(self.weekdays, serializer);
+        <String>::sse_encode(self.local_time, serializer);
+        <bool>::sse_encode(self.enabled, serializer);
+    }
+}
+
+impl SseEncode for crate::api::habit_nudges::HabitNudgeStateDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.nudge_id, serializer);
+        <String>::sse_encode(self.local_date, serializer);
+        <Option<String>>::sse_encode(self.response, serializer);
+        <Option<String>>::sse_encode(self.snooze_until, serializer);
+        <i32>::sse_encode(self.ask_count, serializer);
+        <Option<String>>::sse_encode(self.message_id, serializer);
+    }
+}
+
+impl SseEncode for crate::api::habit_nudges::HabitNudgeSuggestionDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.page_slug, serializer);
+        <String>::sse_encode(self.page_title, serializer);
+        <String>::sse_encode(self.question, serializer);
+        <i32>::sse_encode(self.weekdays, serializer);
+        <String>::sse_encode(self.local_time, serializer);
+        <String>::sse_encode(self.done_label, serializer);
+        <String>::sse_encode(self.done_text, serializer);
+        <String>::sse_encode(self.missed_label, serializer);
+        <String>::sse_encode(self.missed_text, serializer);
+        <String>::sse_encode(self.basis_excerpt, serializer);
+        <f64>::sse_encode(self.confidence, serializer);
+        <Option<crate::api::habit_nudges::HabitNudgeDto>>::sse_encode(self.existing, serializer);
+    }
+}
+
+impl SseEncode for crate::api::habit_nudges::HabitNudgeTickDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<String>>::sse_encode(self.message_ids, serializer);
+        <i32>::sse_encode(self.pending_count, serializer);
+    }
+}
+
 impl SseEncode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -15745,6 +16405,16 @@ impl SseEncode for Vec<crate::api::analysis_schema::GuidanceRefDto> {
     }
 }
 
+impl SseEncode for Vec<crate::api::habit_nudges::HabitNudgeStateDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::habit_nudges::HabitNudgeStateDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::knowledge::KnowledgeBackgroundRunDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -16282,6 +16952,8 @@ impl SseEncode for crate::api::conversations::MessageDto {
         <String>::sse_encode(self.content, serializer);
         <String>::sse_encode(self.created_at, serializer);
         <Option<String>>::sse_encode(self.input_message_id, serializer);
+        <String>::sse_encode(self.kind, serializer);
+        <Option<String>>::sse_encode(self.message_ref, serializer);
     }
 }
 
@@ -16443,6 +17115,16 @@ impl SseEncode for Option<crate::api::analysis_schema::GuidanceDto> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::analysis_schema::GuidanceDto>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::habit_nudges::HabitNudgeDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::habit_nudges::HabitNudgeDto>::sse_encode(value, serializer);
         }
     }
 }
@@ -17454,6 +18136,22 @@ mod io {
             CstDecode::<crate::api::analysis_schema::GuidanceDto>::cst_decode(*wrap).into()
         }
     }
+    impl CstDecode<crate::api::habit_nudges::HabitNudgeDto> for *mut wire_cst_habit_nudge_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::habit_nudges::HabitNudgeDto {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::habit_nudges::HabitNudgeDto>::cst_decode(*wrap).into()
+        }
+    }
+    impl CstDecode<crate::api::habit_nudges::HabitNudgeInputDto>
+        for *mut wire_cst_habit_nudge_input_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::habit_nudges::HabitNudgeInputDto {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::habit_nudges::HabitNudgeInputDto>::cst_decode(*wrap).into()
+        }
+    }
     impl CstDecode<i64> for *mut i64 {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> i64 {
@@ -18003,6 +18701,93 @@ mod io {
             crate::api::analysis_schema::GuidanceRefDto {
                 slug: self.slug.cst_decode(),
                 note: self.note.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::habit_nudges::HabitNudgeAnswerDto> for wire_cst_habit_nudge_answer_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::habit_nudges::HabitNudgeAnswerDto {
+            crate::api::habit_nudges::HabitNudgeAnswerDto {
+                message_id: self.message_id.cst_decode(),
+                event_created: self.event_created.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::habit_nudges::HabitNudgeDto> for wire_cst_habit_nudge_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::habit_nudges::HabitNudgeDto {
+            crate::api::habit_nudges::HabitNudgeDto {
+                id: self.id.cst_decode(),
+                page_slug: self.page_slug.cst_decode(),
+                question: self.question.cst_decode(),
+                done_label: self.done_label.cst_decode(),
+                done_text: self.done_text.cst_decode(),
+                missed_label: self.missed_label.cst_decode(),
+                missed_text: self.missed_text.cst_decode(),
+                weekdays: self.weekdays.cst_decode(),
+                local_time: self.local_time.cst_decode(),
+                enabled: self.enabled.cst_decode(),
+                created_at: self.created_at.cst_decode(),
+                updated_at: self.updated_at.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::habit_nudges::HabitNudgeInputDto> for wire_cst_habit_nudge_input_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::habit_nudges::HabitNudgeInputDto {
+            crate::api::habit_nudges::HabitNudgeInputDto {
+                page_slug: self.page_slug.cst_decode(),
+                question: self.question.cst_decode(),
+                done_label: self.done_label.cst_decode(),
+                done_text: self.done_text.cst_decode(),
+                missed_label: self.missed_label.cst_decode(),
+                missed_text: self.missed_text.cst_decode(),
+                weekdays: self.weekdays.cst_decode(),
+                local_time: self.local_time.cst_decode(),
+                enabled: self.enabled.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::habit_nudges::HabitNudgeStateDto> for wire_cst_habit_nudge_state_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::habit_nudges::HabitNudgeStateDto {
+            crate::api::habit_nudges::HabitNudgeStateDto {
+                nudge_id: self.nudge_id.cst_decode(),
+                local_date: self.local_date.cst_decode(),
+                response: self.response.cst_decode(),
+                snooze_until: self.snooze_until.cst_decode(),
+                ask_count: self.ask_count.cst_decode(),
+                message_id: self.message_id.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::habit_nudges::HabitNudgeSuggestionDto>
+        for wire_cst_habit_nudge_suggestion_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::habit_nudges::HabitNudgeSuggestionDto {
+            crate::api::habit_nudges::HabitNudgeSuggestionDto {
+                page_slug: self.page_slug.cst_decode(),
+                page_title: self.page_title.cst_decode(),
+                question: self.question.cst_decode(),
+                weekdays: self.weekdays.cst_decode(),
+                local_time: self.local_time.cst_decode(),
+                done_label: self.done_label.cst_decode(),
+                done_text: self.done_text.cst_decode(),
+                missed_label: self.missed_label.cst_decode(),
+                missed_text: self.missed_text.cst_decode(),
+                basis_excerpt: self.basis_excerpt.cst_decode(),
+                confidence: self.confidence.cst_decode(),
+                existing: self.existing.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::habit_nudges::HabitNudgeTickDto> for wire_cst_habit_nudge_tick_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::habit_nudges::HabitNudgeTickDto {
+            crate::api::habit_nudges::HabitNudgeTickDto {
+                message_ids: self.message_ids.cst_decode(),
+                pending_count: self.pending_count.cst_decode(),
             }
         }
     }
@@ -18682,6 +19467,18 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::habit_nudges::HabitNudgeStateDto>>
+        for *mut wire_cst_list_habit_nudge_state_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::habit_nudges::HabitNudgeStateDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::knowledge::KnowledgeBackgroundRunDto>>
         for *mut wire_cst_list_knowledge_background_run_dto
     {
@@ -19295,6 +20092,8 @@ mod io {
                 content: self.content.cst_decode(),
                 created_at: self.created_at.cst_decode(),
                 input_message_id: self.input_message_id.cst_decode(),
+                kind: self.kind.cst_decode(),
+                message_ref: self.message_ref.cst_decode(),
             }
         }
     }
@@ -20791,6 +21590,115 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_habit_nudge_answer_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                message_id: core::ptr::null_mut(),
+                event_created: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_habit_nudge_answer_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_habit_nudge_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                page_slug: core::ptr::null_mut(),
+                question: core::ptr::null_mut(),
+                done_label: core::ptr::null_mut(),
+                done_text: core::ptr::null_mut(),
+                missed_label: core::ptr::null_mut(),
+                missed_text: core::ptr::null_mut(),
+                weekdays: Default::default(),
+                local_time: core::ptr::null_mut(),
+                enabled: Default::default(),
+                created_at: core::ptr::null_mut(),
+                updated_at: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_habit_nudge_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_habit_nudge_input_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                page_slug: core::ptr::null_mut(),
+                question: core::ptr::null_mut(),
+                done_label: core::ptr::null_mut(),
+                done_text: core::ptr::null_mut(),
+                missed_label: core::ptr::null_mut(),
+                missed_text: core::ptr::null_mut(),
+                weekdays: Default::default(),
+                local_time: core::ptr::null_mut(),
+                enabled: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_habit_nudge_input_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_habit_nudge_state_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                nudge_id: core::ptr::null_mut(),
+                local_date: core::ptr::null_mut(),
+                response: core::ptr::null_mut(),
+                snooze_until: core::ptr::null_mut(),
+                ask_count: Default::default(),
+                message_id: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_habit_nudge_state_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_habit_nudge_suggestion_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                page_slug: core::ptr::null_mut(),
+                page_title: core::ptr::null_mut(),
+                question: core::ptr::null_mut(),
+                weekdays: Default::default(),
+                local_time: core::ptr::null_mut(),
+                done_label: core::ptr::null_mut(),
+                done_text: core::ptr::null_mut(),
+                missed_label: core::ptr::null_mut(),
+                missed_text: core::ptr::null_mut(),
+                basis_excerpt: core::ptr::null_mut(),
+                confidence: Default::default(),
+                existing: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_habit_nudge_suggestion_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_habit_nudge_tick_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                message_ids: core::ptr::null_mut(),
+                pending_count: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_habit_nudge_tick_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_import_url_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -21301,6 +22209,8 @@ mod io {
                 content: core::ptr::null_mut(),
                 created_at: core::ptr::null_mut(),
                 input_message_id: core::ptr::null_mut(),
+                kind: core::ptr::null_mut(),
+                message_ref: core::ptr::null_mut(),
             }
         }
     }
@@ -22326,6 +23236,15 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__habit_nudges__answer_habit_nudge(
+        port_: i64,
+        message_id: *mut wire_cst_list_prim_u_8_strict,
+        response: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__habit_nudges__answer_habit_nudge_impl(port_, message_id, response)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__wiki__append_wiki_page_content(
         port_: i64,
         slug: *mut wire_cst_list_prim_u_8_strict,
@@ -22736,6 +23655,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__habit_nudges__delete_habit_nudge(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__habit_nudges__delete_habit_nudge_impl(port_, id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__mcp__delete_mcp_server(
         port_: i64,
         id: *mut wire_cst_list_prim_u_8_strict,
@@ -22790,6 +23717,14 @@ mod io {
         index: i32,
     ) {
         wire__crate__api__review_report__store__dismiss_deviation_impl(port_, report_id, index)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__habit_nudges__dismiss_habit_nudge(
+        port_: i64,
+        message_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__habit_nudges__dismiss_habit_nudge_impl(port_, message_id)
     }
 
     #[unsafe(no_mangle)]
@@ -23058,6 +23993,30 @@ mod io {
         event_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__review_flow__get_event_analysis_detail_impl(port_, event_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__habit_nudges__get_habit_nudge(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__habit_nudges__get_habit_nudge_impl(port_, id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__habit_nudges__get_habit_nudge_for_page(
+        port_: i64,
+        page_slug: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__habit_nudges__get_habit_nudge_for_page_impl(port_, page_slug)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__habit_nudges__get_habit_nudge_suggestion(
+        port_: i64,
+        page_slug: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__habit_nudges__get_habit_nudge_suggestion_impl(port_, page_slug)
     }
 
     #[unsafe(no_mangle)]
@@ -23494,6 +24453,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__habit_nudges__list_habit_nudge_states(
+        port_: i64,
+    ) {
+        wire__crate__api__habit_nudges__list_habit_nudge_states_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__list_knowledge_background_runs(
         port_: i64,
     ) {
@@ -23831,6 +24797,13 @@ mod io {
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__chat_runs__pause_chat_input_queue_impl(port_, conversation_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__habit_nudges__pending_habit_nudge_count(
+        port_: i64,
+    ) {
+        wire__crate__api__habit_nudges__pending_habit_nudge_count_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -24176,6 +25149,14 @@ mod io {
         doh_mode: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__web_search__save_doh_settings_impl(port_, doh_uri, doh_mode)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__habit_nudges__save_habit_nudge(
+        port_: i64,
+        input: *mut wire_cst_habit_nudge_input_dto,
+    ) {
+        wire__crate__api__habit_nudges__save_habit_nudge_impl(port_, input)
     }
 
     #[unsafe(no_mangle)]
@@ -24566,6 +25547,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__habit_nudges__snooze_habit_nudge(
+        port_: i64,
+        message_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__habit_nudges__snooze_habit_nudge_impl(port_, message_id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__todos__snooze_reminder(
         port_: i64,
         todo_id: *mut wire_cst_list_prim_u_8_strict,
@@ -24654,6 +25643,13 @@ mod io {
         proxy_url: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__web_search__test_proxy_connection_impl(port_, proxy_url)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__habit_nudges__tick_habit_nudges(
+        port_: i64,
+    ) {
+        wire__crate__api__habit_nudges__tick_habit_nudges_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -24969,6 +25965,22 @@ mod io {
     -> *mut wire_cst_guidance_dto {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
             wire_cst_guidance_dto::new_with_null_ptr(),
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_habit_nudge_dto()
+    -> *mut wire_cst_habit_nudge_dto {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_habit_nudge_dto::new_with_null_ptr(),
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_habit_nudge_input_dto()
+    -> *mut wire_cst_habit_nudge_input_dto {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_habit_nudge_input_dto::new_with_null_ptr(),
         )
     }
 
@@ -25417,6 +26429,20 @@ mod io {
         let wrap = wire_cst_list_guidance_ref_dto {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
                 <wire_cst_guidance_ref_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_habit_nudge_state_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_habit_nudge_state_dto {
+        let wrap = wire_cst_list_habit_nudge_state_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_habit_nudge_state_dto>::new_with_null_ptr(),
                 len,
             ),
             len,
@@ -26539,6 +27565,73 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_habit_nudge_answer_dto {
+        message_id: *mut wire_cst_list_prim_u_8_strict,
+        event_created: bool,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_habit_nudge_dto {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        page_slug: *mut wire_cst_list_prim_u_8_strict,
+        question: *mut wire_cst_list_prim_u_8_strict,
+        done_label: *mut wire_cst_list_prim_u_8_strict,
+        done_text: *mut wire_cst_list_prim_u_8_strict,
+        missed_label: *mut wire_cst_list_prim_u_8_strict,
+        missed_text: *mut wire_cst_list_prim_u_8_strict,
+        weekdays: i32,
+        local_time: *mut wire_cst_list_prim_u_8_strict,
+        enabled: bool,
+        created_at: *mut wire_cst_list_prim_u_8_strict,
+        updated_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_habit_nudge_input_dto {
+        page_slug: *mut wire_cst_list_prim_u_8_strict,
+        question: *mut wire_cst_list_prim_u_8_strict,
+        done_label: *mut wire_cst_list_prim_u_8_strict,
+        done_text: *mut wire_cst_list_prim_u_8_strict,
+        missed_label: *mut wire_cst_list_prim_u_8_strict,
+        missed_text: *mut wire_cst_list_prim_u_8_strict,
+        weekdays: i32,
+        local_time: *mut wire_cst_list_prim_u_8_strict,
+        enabled: bool,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_habit_nudge_state_dto {
+        nudge_id: *mut wire_cst_list_prim_u_8_strict,
+        local_date: *mut wire_cst_list_prim_u_8_strict,
+        response: *mut wire_cst_list_prim_u_8_strict,
+        snooze_until: *mut wire_cst_list_prim_u_8_strict,
+        ask_count: i32,
+        message_id: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_habit_nudge_suggestion_dto {
+        page_slug: *mut wire_cst_list_prim_u_8_strict,
+        page_title: *mut wire_cst_list_prim_u_8_strict,
+        question: *mut wire_cst_list_prim_u_8_strict,
+        weekdays: i32,
+        local_time: *mut wire_cst_list_prim_u_8_strict,
+        done_label: *mut wire_cst_list_prim_u_8_strict,
+        done_text: *mut wire_cst_list_prim_u_8_strict,
+        missed_label: *mut wire_cst_list_prim_u_8_strict,
+        missed_text: *mut wire_cst_list_prim_u_8_strict,
+        basis_excerpt: *mut wire_cst_list_prim_u_8_strict,
+        confidence: f64,
+        existing: *mut wire_cst_habit_nudge_dto,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_habit_nudge_tick_dto {
+        message_ids: *mut wire_cst_list_String,
+        pending_count: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_import_url_dto {
         source_url: *mut wire_cst_list_prim_u_8_strict,
         source_kind: *mut wire_cst_list_prim_u_8_strict,
@@ -26993,6 +28086,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_habit_nudge_state_dto {
+        ptr: *mut wire_cst_habit_nudge_state_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_knowledge_background_run_dto {
         ptr: *mut wire_cst_knowledge_background_run_dto,
         len: i32,
@@ -27336,6 +28435,8 @@ mod io {
         content: *mut wire_cst_list_prim_u_8_strict,
         created_at: *mut wire_cst_list_prim_u_8_strict,
         input_message_id: *mut wire_cst_list_prim_u_8_strict,
+        kind: *mut wire_cst_list_prim_u_8_strict,
+        message_ref: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -28971,6 +30072,157 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::habit_nudges::HabitNudgeAnswerDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::habit_nudges::HabitNudgeAnswerDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                2,
+                "Expected 2 elements, got {}",
+                self_.length()
+            );
+            crate::api::habit_nudges::HabitNudgeAnswerDto {
+                message_id: self_.get(0).cst_decode(),
+                event_created: self_.get(1).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::habit_nudges::HabitNudgeDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::habit_nudges::HabitNudgeDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                12,
+                "Expected 12 elements, got {}",
+                self_.length()
+            );
+            crate::api::habit_nudges::HabitNudgeDto {
+                id: self_.get(0).cst_decode(),
+                page_slug: self_.get(1).cst_decode(),
+                question: self_.get(2).cst_decode(),
+                done_label: self_.get(3).cst_decode(),
+                done_text: self_.get(4).cst_decode(),
+                missed_label: self_.get(5).cst_decode(),
+                missed_text: self_.get(6).cst_decode(),
+                weekdays: self_.get(7).cst_decode(),
+                local_time: self_.get(8).cst_decode(),
+                enabled: self_.get(9).cst_decode(),
+                created_at: self_.get(10).cst_decode(),
+                updated_at: self_.get(11).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::habit_nudges::HabitNudgeInputDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::habit_nudges::HabitNudgeInputDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                9,
+                "Expected 9 elements, got {}",
+                self_.length()
+            );
+            crate::api::habit_nudges::HabitNudgeInputDto {
+                page_slug: self_.get(0).cst_decode(),
+                question: self_.get(1).cst_decode(),
+                done_label: self_.get(2).cst_decode(),
+                done_text: self_.get(3).cst_decode(),
+                missed_label: self_.get(4).cst_decode(),
+                missed_text: self_.get(5).cst_decode(),
+                weekdays: self_.get(6).cst_decode(),
+                local_time: self_.get(7).cst_decode(),
+                enabled: self_.get(8).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::habit_nudges::HabitNudgeStateDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::habit_nudges::HabitNudgeStateDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                6,
+                "Expected 6 elements, got {}",
+                self_.length()
+            );
+            crate::api::habit_nudges::HabitNudgeStateDto {
+                nudge_id: self_.get(0).cst_decode(),
+                local_date: self_.get(1).cst_decode(),
+                response: self_.get(2).cst_decode(),
+                snooze_until: self_.get(3).cst_decode(),
+                ask_count: self_.get(4).cst_decode(),
+                message_id: self_.get(5).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::habit_nudges::HabitNudgeSuggestionDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::habit_nudges::HabitNudgeSuggestionDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                12,
+                "Expected 12 elements, got {}",
+                self_.length()
+            );
+            crate::api::habit_nudges::HabitNudgeSuggestionDto {
+                page_slug: self_.get(0).cst_decode(),
+                page_title: self_.get(1).cst_decode(),
+                question: self_.get(2).cst_decode(),
+                weekdays: self_.get(3).cst_decode(),
+                local_time: self_.get(4).cst_decode(),
+                done_label: self_.get(5).cst_decode(),
+                done_text: self_.get(6).cst_decode(),
+                missed_label: self_.get(7).cst_decode(),
+                missed_text: self_.get(8).cst_decode(),
+                basis_excerpt: self_.get(9).cst_decode(),
+                confidence: self_.get(10).cst_decode(),
+                existing: self_.get(11).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::habit_nudges::HabitNudgeTickDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::habit_nudges::HabitNudgeTickDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                2,
+                "Expected 2 elements, got {}",
+                self_.length()
+            );
+            crate::api::habit_nudges::HabitNudgeTickDto {
+                message_ids: self_.get(0).cst_decode(),
+                pending_count: self_.get(1).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::import::ImportUrlDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -29875,6 +31127,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::habit_nudges::HabitNudgeStateDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::habit_nudges::HabitNudgeStateDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::knowledge::KnowledgeBackgroundRunDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -30540,8 +31804,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                7,
-                "Expected 7 elements, got {}",
+                9,
+                "Expected 9 elements, got {}",
                 self_.length()
             );
             crate::api::conversations::MessageDto {
@@ -30552,6 +31816,8 @@ mod web {
                 content: self_.get(4).cst_decode(),
                 created_at: self_.get(5).cst_decode(),
                 input_message_id: self_.get(6).cst_decode(),
+                kind: self_.get(7).cst_decode(),
+                message_ref: self_.get(8).cst_decode(),
             }
         }
     }
@@ -32017,6 +33283,15 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__habit_nudges__answer_habit_nudge(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        message_id: String,
+        response: String,
+    ) {
+        wire__crate__api__habit_nudges__answer_habit_nudge_impl(port_, message_id, response)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__wiki__append_wiki_page_content(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         slug: String,
@@ -32431,6 +33706,14 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__habit_nudges__delete_habit_nudge(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+    ) {
+        wire__crate__api__habit_nudges__delete_habit_nudge_impl(port_, id)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__mcp__delete_mcp_server(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         id: String,
@@ -32485,6 +33768,14 @@ mod web {
         index: i32,
     ) {
         wire__crate__api__review_report__store__dismiss_deviation_impl(port_, report_id, index)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__habit_nudges__dismiss_habit_nudge(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        message_id: String,
+    ) {
+        wire__crate__api__habit_nudges__dismiss_habit_nudge_impl(port_, message_id)
     }
 
     #[wasm_bindgen]
@@ -32753,6 +34044,30 @@ mod web {
         event_id: String,
     ) {
         wire__crate__api__review_flow__get_event_analysis_detail_impl(port_, event_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__habit_nudges__get_habit_nudge(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+    ) {
+        wire__crate__api__habit_nudges__get_habit_nudge_impl(port_, id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__habit_nudges__get_habit_nudge_for_page(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        page_slug: String,
+    ) {
+        wire__crate__api__habit_nudges__get_habit_nudge_for_page_impl(port_, page_slug)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__habit_nudges__get_habit_nudge_suggestion(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        page_slug: String,
+    ) {
+        wire__crate__api__habit_nudges__get_habit_nudge_suggestion_impl(port_, page_slug)
     }
 
     #[wasm_bindgen]
@@ -33199,6 +34514,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__habit_nudges__list_habit_nudge_states(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__habit_nudges__list_habit_nudge_states_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__knowledge__list_knowledge_background_runs(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
@@ -33547,6 +34869,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__habit_nudges__pending_habit_nudge_count(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__habit_nudges__pending_habit_nudge_count_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__todos__pop_due_reminders(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         device_id: String,
@@ -33889,6 +35218,14 @@ mod web {
         doh_mode: String,
     ) {
         wire__crate__api__web_search__save_doh_settings_impl(port_, doh_uri, doh_mode)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__habit_nudges__save_habit_nudge(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        input: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+    ) {
+        wire__crate__api__habit_nudges__save_habit_nudge_impl(port_, input)
     }
 
     #[wasm_bindgen]
@@ -34279,6 +35616,14 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__habit_nudges__snooze_habit_nudge(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        message_id: String,
+    ) {
+        wire__crate__api__habit_nudges__snooze_habit_nudge_impl(port_, message_id)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__todos__snooze_reminder(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         todo_id: String,
@@ -34367,6 +35712,13 @@ mod web {
         proxy_url: String,
     ) {
         wire__crate__api__web_search__test_proxy_connection_impl(port_, proxy_url)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__habit_nudges__tick_habit_nudges(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__habit_nudges__tick_habit_nudges_impl(port_)
     }
 
     #[wasm_bindgen]

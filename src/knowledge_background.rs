@@ -2,8 +2,8 @@
 mod integration;
 mod reconsolidation;
 mod refresh;
-pub(crate) use refresh::run_knowledge_refresh;
 pub(crate) use reconsolidation::run_knowledge_reconsolidation;
+pub(crate) use refresh::run_knowledge_refresh;
 mod sources;
 use crate::ai::{insight::parse_insights, memory::ContextMessage, provider::AiProvider};
 use crate::knowledge::{context_text, record_usage, select_knowledge};

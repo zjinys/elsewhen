@@ -1,7 +1,7 @@
 //! 自 wiki.rs 机械分段平移（行为零变化）。
 
 use crate::ai::memory::ContextMessage;
-use crate::ai::provider::{AiProvider};
+use crate::ai::provider::AiProvider;
 use crate::event::{AnnotationSet, EventSummary};
 use crate::storage::{EventRecord, Store, WikiPageDraft};
 use anyhow::{Context, Result};

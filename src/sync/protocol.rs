@@ -119,7 +119,7 @@ mod records;
 
 pub use mutation::SyncMutation;
 pub use records::{
-    AnalysisRecord, ConversationRecord, EventRecord, GoalRecord, InputRecord,
+    AnalysisRecord, ConversationRecord, EventRecord, GoalRecord, HabitNudgeRecord, InputRecord,
     KnowledgeReadingStateRecord, KnowledgeReviewRecord, MessageRecord, ProviderBundle,
     ProviderProfile, RuleRecord, TodoRecord, WikiPageRecord, WikiRevisionRecord, analysis_task_id,
 };

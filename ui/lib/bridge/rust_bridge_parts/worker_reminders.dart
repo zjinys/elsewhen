@@ -2,6 +2,30 @@ part of '../rust_bridge_repository.dart';
 
 //! RustBridgeRepository 便捷薄委托（worker_reminders 域）。
 extension RepoWorkerReminders on RustBridgeRepository {
+  void _pushAiActivity(AiActivity activity) {
+    _backgroundAiActivityStack.add(activity);
+    backgroundAiActivity.value = activity;
+  }
+
+  void _popAiActivity(AiActivity activity) {
+    final index = _backgroundAiActivityStack.lastIndexOf(activity);
+    if (index >= 0) _backgroundAiActivityStack.removeAt(index);
+    backgroundAiActivity.value = _backgroundAiActivityStack.isEmpty
+        ? null
+        : _backgroundAiActivityStack.last;
+  }
+
+  Future<T> _withAiActivity<T>(
+    AiActivity activity,
+    Future<T> Function() body,
+  ) async {
+    _pushAiActivity(activity);
+    try {
+      return await body();
+    } finally {
+      _popAiActivity(activity);
+    }
+  }
 
   void _wakeAnalysisWorker() {
     _idleWakes = 0;
@@ -19,22 +43,26 @@ extension RepoWorkerReminders on RustBridgeRepository {
       try {
         do {
           _analysisRerunRequested = false;
-          // 定时提醒 tick 挂在每拍最前（评审：最先弹出，且故障隔离——
-          // 提醒 tick 失败绝不影响后面的分析/消化/同步）。
-          if (!_disposed) await _tickDueReminders();
+          // 定时提醒/习惯问候由 5s 定时器单独驱动（含空闲退避期间），
+          // 这里不再重复 tick，避免同一拍做两次本地查询。
           // Keep draining bounded Rust batches while pending work is
           // immediately available. Retry jobs are revisited by the timer once
           // available_at expires.
-          while (!_disposed) {
-            final result = await triggerAnalysis();
-            // 结构化结果取代字符串契约（P2-9）：只有明确“已处理”才继续
-            // 排空下一批；NoProvider 停表，交给启动/周期 5s timer 重唤。
-            if (result is! api.AnalysisTriggerResult_Processed ||
-                result.count <= 0) {
-              break;
+          _pushAiActivity(AiActivity.analysis);
+          try {
+            while (!_disposed) {
+              final result = await triggerAnalysis();
+              // 结构化结果取代字符串契约（P2-9）：只有明确“已处理”才继续
+              // 排空下一批；NoProvider 停表，交给启动/周期 5s timer 重唤。
+              if (result is! api.AnalysisTriggerResult_Processed ||
+                  result.count <= 0) {
+                break;
+              }
+              final stats = await getAnalysisJobStats();
+              if (stats.pending == 0) break;
             }
-            final stats = await getAnalysisJobStats();
-            if (stats.pending == 0) break;
+          } finally {
+            _popAiActivity(AiActivity.analysis);
           }
         } while (_analysisRerunRequested && !_disposed);
         // 分析排空后再做知识消化：同一 worker 串行，避免与分析并发调用 provider；
@@ -44,7 +72,10 @@ extension RepoWorkerReminders on RustBridgeRepository {
         // 内部自带幂等/空窗跳过/检测退避，仅在有事发生时记日志
         //（该 tick 在空闲期每 ≈30s 一次，逐拍打印会刷屏）。
         try {
-          final reportTick = await api.tickPeriodicReports();
+          final reportTick = await _withAiActivity(
+            AiActivity.periodReport,
+            () => api.tickPeriodicReports(),
+          );
           final String? eventful = switch (reportTick) {
             api.PeriodReportTickResult_Idle() ||
             api.PeriodReportTickResult_NoProvider() => null,
@@ -65,8 +96,10 @@ extension RepoWorkerReminders on RustBridgeRepository {
           // 以便将来按到达内容做定向刷新。
         }
         if (!_disposed && !_analysisRerunRequested) {
-          knowledgeDigestBusy.value = true;
-          final changed = await api.tickKnowledgeInsights();
+          final changed = await _withAiActivity(
+            AiActivity.insights,
+            () => api.tickKnowledgeInsights(),
+          );
           if (!_disposed && changed > 0) knowledgeRevision.value++;
         }
       } catch (e) {
@@ -78,17 +111,17 @@ extension RepoWorkerReminders on RustBridgeRepository {
         // 这里只记不抛，让问题在日志里留下痕迹。
         debugPrint('analysis worker failed: $e');
       } finally {
-        knowledgeDigestBusy.value = false;
         _analysisWorkerRunning = false;
         if (_analysisRerunRequested) _wakeAnalysisWorker();
       }
     });
   }
 
-
   Future<void> _tickDueReminders() async {
     try {
-      final due = await api.popDueReminders(deviceId: RustBridgeRepository._reminderDeviceId);
+      final due = await api.popDueReminders(
+        deviceId: RustBridgeRepository._reminderDeviceId,
+      );
       if (due.isNotEmpty) dueReminders.value = due;
     } catch (e) {
       // 故障隔离：提醒 tick 失败只记日志，绝不带崩后续分析/消化/同步。
@@ -97,13 +130,19 @@ extension RepoWorkerReminders on RustBridgeRepository {
   }
 
   Future<void> confirmReminder(String todoId) async {
-    await api.confirmReminder(todoId: todoId, deviceId: RustBridgeRepository._reminderDeviceId);
+    await api.confirmReminder(
+      todoId: todoId,
+      deviceId: RustBridgeRepository._reminderDeviceId,
+    );
     _clearDueReminder(todoId);
   }
 
   Future<void> snoozeReminder(String todoId, {int minutes = 10}) async {
     await api.snoozeReminder(
-        todoId: todoId, minutes: minutes, deviceId: RustBridgeRepository._reminderDeviceId);
+      todoId: todoId,
+      minutes: minutes,
+      deviceId: RustBridgeRepository._reminderDeviceId,
+    );
     _clearDueReminder(todoId);
   }
 
@@ -118,6 +157,77 @@ extension RepoWorkerReminders on RustBridgeRepository {
 
   Future<void> setTodoReminder(String id, bool reminder) =>
       api.setTodoReminder(id: id, reminder: reminder);
+
+  // ── 习惯主动问候 ────────────────────────────────────────────────
+
+  Future<void> _tickHabitNudges() async {
+    try {
+      final result = await api.tickHabitNudges();
+      if (_disposed) return;
+      pendingHabitNudges.value = result.pendingCount;
+      if (result.messageIds.isNotEmpty) {
+        habitNudgeRevision.value++;
+      }
+    } catch (e) {
+      // 故障隔离：问候 tick 失败不能影响提醒/分析/同步。
+      debugPrint('habit nudge tick failed: $e');
+    }
+  }
+
+  Future<api.HabitNudgeSuggestionDto> getHabitNudgeSuggestion(
+    String pageSlug,
+  ) => api.getHabitNudgeSuggestion(pageSlug: pageSlug);
+
+  Future<api.HabitNudgeDto?> getHabitNudgeForPage(String pageSlug) =>
+      api.getHabitNudgeForPage(pageSlug: pageSlug);
+
+  Future<api.HabitNudgeDto?> getHabitNudge(String id) =>
+      api.getHabitNudge(id: id);
+
+  Future<api.HabitNudgeDto> saveHabitNudge(api.HabitNudgeInputDto input) async {
+    final dto = await api.saveHabitNudge(input: input);
+    habitNudgeRevision.value++;
+    return dto;
+  }
+
+  Future<bool> deleteHabitNudge(String id) async {
+    final deleted = await api.deleteHabitNudge(id: id);
+    if (deleted) habitNudgeRevision.value++;
+    return deleted;
+  }
+
+  Future<List<api.HabitNudgeStateDto>> listHabitNudgeStates() =>
+      api.listHabitNudgeStates();
+
+  Future<int> pendingHabitNudgeCount() async {
+    final count = await api.pendingHabitNudgeCount();
+    pendingHabitNudges.value = count;
+    return count;
+  }
+
+  Future<api.HabitNudgeAnswerDto> answerHabitNudge(
+    String messageId,
+    bool done,
+  ) async {
+    final result = await api.answerHabitNudge(
+      messageId: messageId,
+      response: done ? 'done' : 'missed',
+    );
+    habitNudgeRevision.value++;
+    pendingHabitNudges.value = await api.pendingHabitNudgeCount();
+    return result;
+  }
+
+  Future<void> snoozeHabitNudge(String messageId) async {
+    await api.snoozeHabitNudge(messageId: messageId);
+    habitNudgeRevision.value++;
+  }
+
+  Future<void> dismissHabitNudge(String messageId) async {
+    await api.dismissHabitNudge(messageId: messageId);
+    habitNudgeRevision.value++;
+    pendingHabitNudges.value = await api.pendingHabitNudgeCount();
+  }
 
   Future<String?> parseReminderTime(String text) =>
       api.parseReminderTime(text: text);
@@ -148,16 +258,18 @@ extension RepoWorkerReminders on RustBridgeRepository {
   /// 逐批排空到期的知识消化任务（没有手动触发入口，只由 worker 调用）。
   /// 有新输入时让位给分析队列（finally 会重新唤醒 worker）。
   Future<void> _drainKnowledgeDigest() async {
-    while (!_disposed && !_analysisRerunRequested) {
-      knowledgeDigestBusy.value = true;
-      final result = await api.triggerKnowledgeDigest();
-      knowledgeDigestBusy.value = false;
-      // Idle / NoProvider / Failed 都停：失败已退避回队，由 timer 在到期后重试。
-      if (result is! api.KnowledgeDigestTickResult_Processed) break;
-      if (!_disposed) knowledgeRevision.value++;
+    _pushAiActivity(AiActivity.digest);
+    try {
+      while (!_disposed && !_analysisRerunRequested) {
+        final result = await api.triggerKnowledgeDigest();
+        // Idle / NoProvider / Failed 都停：失败已退避回队，由 timer 在到期后重试。
+        if (result is! api.KnowledgeDigestTickResult_Processed) break;
+        if (!_disposed) knowledgeRevision.value++;
+      }
+    } finally {
+      _popAiActivity(AiActivity.digest);
     }
   }
-
 
   Future<List<Conversation>> listConversations() async {
     final dtos = await api.listConversations();
@@ -298,7 +410,6 @@ extension RepoWorkerReminders on RustBridgeRepository {
     return _fromConversationDto(dto);
   }
 
-
   Future<List<api.PendingActionDto>> listPendingActions(
     String conversationId,
   ) => api.listPendingActions(conversationId: conversationId);
@@ -376,6 +487,8 @@ extension RepoWorkerReminders on RustBridgeRepository {
             role: MessageRole.fromString(dto.role),
             content: dto.content,
             createdAt: DateTime.parse(dto.createdAt).toLocal(),
+            kind: dto.kind,
+            messageRef: dto.messageRef,
           ),
         )
         .toList();
@@ -392,11 +505,12 @@ extension RepoWorkerReminders on RustBridgeRepository {
             role: MessageRole.fromString(dto.role),
             content: dto.content,
             createdAt: DateTime.parse(dto.createdAt).toLocal(),
+            kind: dto.kind,
+            messageRef: dto.messageRef,
           ),
         )
         .toList();
   }
-
 
   Future<Message> submitWikiChatInput(
     String conversationId,
@@ -417,13 +531,13 @@ extension RepoWorkerReminders on RustBridgeRepository {
       role: MessageRole.fromString(dto.role),
       content: dto.content,
       createdAt: DateTime.parse(dto.createdAt).toLocal(),
+      kind: dto.kind,
+      messageRef: dto.messageRef,
     );
   }
 
-
   /// Legacy in-memory test repositories can keep their synchronous reply path.
   /// A successfully initialized real bridge always uses durable generation.
-
 
   void _watchChatQueue(String conversationId) {
     if (_initialized && !_disposed && runChatQueueWorker) {

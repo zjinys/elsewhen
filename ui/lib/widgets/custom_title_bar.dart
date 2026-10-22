@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../bridge/ai_activity.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../providers/conversation_provider.dart';
 import '../theme/app_theme.dart';
@@ -46,109 +47,131 @@ class CustomTitleBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 对话生成中，或后台正在把事件消化进知识库
-    final aiBusy =
-        ref.watch(aiGeneratingProvider).isNotEmpty ||
-        ref.watch(knowledgeDigestBusyProvider);
+    // 前台对话优先显示；否则显示后台当前调用方（分析/消化/检测/整理）。
+    final chatBusy = ref.watch(aiGeneratingProvider).isNotEmpty;
+    final backgroundActivity = ref.watch(backgroundAiActivityProvider);
+    final activity = chatBusy ? AiActivity.chat : backgroundActivity;
     final windowService = WindowService();
     // 玻璃顶栏：模糊 + 半透明 + 底部细分割线统一由 GlassBar 按令牌渲染；
     // 减少动效 / 移动端自动降级（见 design_tokens.dart）。
     return GlassBar(
       topInset: topInset,
       child: Row(
-            children: [
-              ?leading,
-              // 标题/空白区整块可拖拽（桌面端无边框窗口）：Expanded 必须包在
-              // GestureDetector 外层——之前改成普通 Spacer 后空白区不吃手势，
-              // 只剩标题文字那一小块能拖，看起来就像「无法拖动」。
-              Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onPanStart: _isDesktop
-                      ? (details) => windowService.startDragging()
-                      : null,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: leading != null ? 4 : 16,
-                    ),
-                    child: Row(
-                      children: [
-                        // 移动端（有 middleActions）不显示 logo/标题：app 风格
-                        // 顶栏左侧是菜单键，logo 是桌面窗口 chrome 的元素。
-                        if (middleActions == null) ...[
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(5),
-                            child: SvgPicture.asset(
-                              'assets/brand/elsewhen-icon-v2.svg',
-                              width: 24,
-                              height: 24,
-                              semanticsLabel: 'Elsewhen',
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            title,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
-                              letterSpacing: 0,
-                            ),
-                          ),
-                          // 桌面端：标题后空白区推开右侧 actions/窗口按钮，
-                          // 整块在 GestureDetector 内，处处可拖。
-                          const Spacer(),
-                        ] else ...[
-                          // 移动端：标题让位给「今天」行，占满中间可横滑。
-                          const Spacer(),
-                          Flexible(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: middleActions!,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
+        children: [
+          ?leading,
+          // 标题/空白区整块可拖拽（桌面端无边框窗口）：Expanded 必须包在
+          // GestureDetector 外层——之前改成普通 Spacer 后空白区不吃手势，
+          // 只剩标题文字那一小块能拖，看起来就像「无法拖动」。
+          Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onPanStart: _isDesktop
+                  ? (details) => windowService.startDragging()
+                  : null,
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: leading != null ? 4 : 16,
+                ),
+                child: Row(
+                  children: [
+                    // 桌面端：logo 是窗口 chrome 的元素，logo+标题 + 可拖拽空白。
+                    // 移动端永远不显示 logo：主页传 middleActions 时只显示动作
+                    // 行；设置等二级页显示纯文字标题（紧挨 leading 返回键）。
+                    if (_isDesktop) ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(5),
+                        child: SvgPicture.asset(
+                          'assets/brand/elsewhen-icon-v2.svg',
+                          width: 24,
+                          height: 24,
+                          semanticsLabel: 'Elsewhen',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                      // 桌面端：标题后空白区推开右侧 actions/窗口按钮，
+                      // 整块在 GestureDetector 内，处处可拖。
+                      const Spacer(),
+                    ] else if (middleActions == null) ...[
+                      // 移动端二级页（设置等）：纯文字标题，紧挨 leading 返回键。
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                      const Spacer(),
+                    ] else ...[
+                      // 移动端主页：左侧仅菜单，右侧动作行。吸右：动作钉死右缘，
+                      // AI 状态胶囊宽自适应，出现/变长只向左空白伸长，按钮不
+                      // 挪位；窄屏极端情况 FittedBox 整体缩小防溢出。
+                      const Spacer(),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // AI 状态胶囊（回复中/消化中/…）排在操作按钮左侧。
+                            if (activity != null)
+                              _AiActivityIndicator(activity: activity),
+                            ...middleActions!,
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              if (aiBusy) const _AiActivityIndicator(),
-              ...?actions,
-              if (_isDesktop) ...[
-                const SizedBox(width: 8),
-                _WindowButton(
-                  icon: Icons.minimize,
-                  onPressed: () => windowService.minimize(),
-                ),
-                _WindowButton(
-                  icon: Icons.crop_square,
-                  onPressed: () => windowService.toggleMaximize(),
-                ),
-                _WindowButton(
-                  icon: Icons.close,
-                  // 关闭走统一入口：按设置「关闭时」决定隐藏到托盘还是退出，
-                  // 与 WM 原生关闭按钮行为一致（原生关闭见 onWindowClose）。
-                  onPressed: () => windowService.requestClose(),
-                  isClose: true,
-                ),
-              ],
-            ],
+            ),
+          ),
+          if (activity != null && middleActions == null)
+            _AiActivityIndicator(activity: activity),
+          ...?actions,
+          if (_isDesktop) ...[
+            const SizedBox(width: 8),
+            _WindowButton(
+              icon: Icons.minimize,
+              onPressed: () => windowService.minimize(),
+            ),
+            _WindowButton(
+              icon: Icons.crop_square,
+              onPressed: () => windowService.toggleMaximize(),
+            ),
+            _WindowButton(
+              icon: Icons.close,
+              // 关闭走统一入口：按设置「关闭时」决定隐藏到托盘还是退出，
+              // 与 WM 原生关闭按钮行为一致（原生关闭见 onWindowClose）。
+              onPressed: () => windowService.requestClose(),
+              isClose: true,
+            ),
+          ],
+        ],
       ),
     );
   }
 }
 
 class _AiActivityIndicator extends StatelessWidget {
-  const _AiActivityIndicator();
+  final AiActivity activity;
+
+  const _AiActivityIndicator({required this.activity});
 
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: 'AI 正在工作',
+      message: activity.tooltip,
       child: Center(
         child: Container(
           height: 26,
@@ -175,7 +198,7 @@ class _AiActivityIndicator extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                '思考中',
+                activity.label,
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
@@ -214,9 +237,7 @@ class _WindowButtonState extends State<_WindowButton> {
     final hoverBg = widget.isClose
         ? const Color(0xFFE81123)
         : AppTheme.surface3.withValues(alpha: 0.65);
-    final hoverIconColor = widget.isClose
-        ? Colors.white
-        : AppTheme.textPrimary;
+    final hoverIconColor = widget.isClose ? Colors.white : AppTheme.textPrimary;
     final normalIconColor = AppTheme.textSecondary;
 
     return MouseRegion(
@@ -237,9 +258,7 @@ class _WindowButtonState extends State<_WindowButton> {
           width: 46,
           height: 48,
           color: _isHovered
-              ? (_isPressed && !widget.isClose
-                  ? AppTheme.surface3
-                  : hoverBg)
+              ? (_isPressed && !widget.isClose ? AppTheme.surface3 : hoverBg)
               : Colors.transparent,
           child: Center(
             child: AnimatedScale(

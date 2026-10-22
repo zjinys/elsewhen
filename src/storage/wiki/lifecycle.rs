@@ -14,6 +14,7 @@ impl Store {
         };
         let tx = self.begin_write_transaction()?;
         self.sync_record_wiki_page(&page_id, true)?;
+        self.move_habit_nudges_page(slug, None)?;
         self.connection
             .execute("DELETE FROM wiki_pages WHERE id=?1", params![page_id])?;
         if let Some(tx) = tx {

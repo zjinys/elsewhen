@@ -183,4 +183,6 @@ pub(super) fn stub(revise: bool) -> Stub {
 
 mod artifact_atomicity;
 
+mod revision_intent;
+
 mod revision_chunks;

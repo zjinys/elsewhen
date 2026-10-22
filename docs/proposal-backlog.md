@@ -10,9 +10,9 @@
 > 5. 已完成的提案不留在「待实现」表里，移到「已完成（归档）」或直接删除行；状态以各 note 头部 `Status` 为准。
 
 - 建立日期：2026-10-04
-- 最后更新：2026-10-19（登记主对话流摘要管道永久失败事故；新增「摘录孵化闭环」「知识页持续更新与关系网」两项提案；「记事本页」「定时提醒」落地移交收尾）
+- 最后更新：2026-10-22（登记「习惯主动问候」提案；2026-10-19 登记主对话流摘要管道永久失败事故；新增「摘录孵化闭环」「知识页持续更新与关系网」两项提案；「记事本页」「定时提醒」落地移交收尾）
 
-## 待实现（14 项）
+## 待实现（15 项）
 
 | Proposal | 缺失内容 | 优先级 |
 |---|---|---|
@@ -32,6 +32,7 @@
 | [非 GPT 模型 token 估算校准](notes/proposed/architecture/2026-10-19-token-estimation-calibration.md) | 方案已定：L0 族分词器 + L1 校准字节比率（JSON 3.5/中文 1.2-1.5）+ L2 保守兑底 + provider 级 ratio 覆盖逃生门；保守方向不破 | 高 |
 | [摘录孵化闭环（讨论 → 纳入知识 / 丢弃为负知识）](notes/proposed/product/2026-10-19-clip-incubation-and-negative-knowledge.md) | 方案已定待实施：孵化闸门（`opinion IS NULL`=孵化中，仅对 source/note 收紧缺省语义，不参与编译/召回）+ AI 只在派生稿上改 + 纳入前须先采用一版派生稿 + 丢弃写 `knowledge_sources.reject_reason` 并 archived 留痕（不做撤销否定、素材库独立分组）；需统一参与谓词、回填存量、把 `knowledge_sources` 移入快照 carried | 中 |
 | [知识页持续更新与关系网](notes/proposed/architecture/2026-10-19-knowledge-page-reconsolidation-and-relations.md) | 方案待评审：消化选页改「相关性优先」+ 提示词/slug 纪律 + 页级再汇总 job + `knowledge_relations` 语义关系网（关系只扩上下文 / 排队复核，不自动改写邻居） | 中 |
+| [习惯主动问候](notes/proposed/product/2026-10-22-proactive-habit-checkins.md) | 方案已定待实施：habit 页推断时间/问法/按钮（走步「走了/没走」、阅读「读了/没读」）并确认 + `habit_nudges` 同步计划 + 本地 fire 去重 + 主对话 `habit_nudge` 问候消息与 `habit_checkin` 回答 + 侧边栏未读点；**不做系统通知**，打开应用看到；v1 触发不调 LLM，完成按钮落完整句事件 | 中 |
 | [Today 每日回顾工作台](notes/proposed/product/2026-09-20-today-daily-review-workbench.md) | 暂缓（后置） | 后置 |
 
 ## 进行中（0 项）

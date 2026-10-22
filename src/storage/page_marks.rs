@@ -4,9 +4,9 @@
 //! 装配层据 active mark 跳过边界前原文；撤销只改开关不回滚任何事实
 //! （原文在消息表、知识页在 wiki，均不受影响）。
 
-use super::{chat_summaries::SummaryBody, MessageSummary, Store};
-use anyhow::{bail, Context, Result};
-use rusqlite::{params, OptionalExtension};
+use super::{MessageSummary, Store, chat_summaries::SummaryBody};
+use anyhow::{Context, Result, bail};
+use rusqlite::{OptionalExtension, params};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PageMark {
@@ -108,10 +108,7 @@ impl Store {
         }
         // 边界后必须留有原文。
         let messages = self.list_messages(conversation_id)?;
-        let Some(position) = messages
-            .iter()
-            .position(|m| m.id == boundary_message_id)
-        else {
+        let Some(position) = messages.iter().position(|m| m.id == boundary_message_id) else {
             bail!("边界消息不在当前会话中（可能已被删除）");
         };
         ensure_page_boundary(&messages, position)?;
@@ -152,8 +149,8 @@ impl Store {
 
     /// 预览编辑：覆盖摘要条目（SummaryBody JSON，仍过正文校验）。
     pub(crate) fn save_page_mark_override(&self, id: &str, body_json: &str) -> Result<()> {
-        let body: SummaryBody = serde_json::from_str(body_json)
-            .context("编辑后的摘要不是合法的结构化 JSON")?;
+        let body: SummaryBody =
+            serde_json::from_str(body_json).context("编辑后的摘要不是合法的结构化 JSON")?;
         body.validate().context("编辑后的摘要未通过校验")?;
         let updated = self.connection.execute(
             "UPDATE conversation_page_marks SET override_json=?2, updated_at=?3 WHERE id=?1",
@@ -178,12 +175,16 @@ impl Store {
     }
 
     /// FFI 列表：带渲染好的摘要预览（override 优先）。
-    pub(crate) fn list_page_marks_with_preview(&self, conversation_id: &str) -> Result<Vec<PageMarkRow>> {
+    pub(crate) fn list_page_marks_with_preview(
+        &self,
+        conversation_id: &str,
+    ) -> Result<Vec<PageMarkRow>> {
         let marks = self.list_page_marks(conversation_id)?;
         marks
             .iter()
             .map(|mark| {
-                let (summary_preview, body_json) = crate::ai::summary::render_mark_text(self, mark)?;
+                let (summary_preview, body_json) =
+                    crate::ai::summary::render_mark_text(self, mark)?;
                 Ok(PageMarkRow {
                     id: mark.id.clone(),
                     conversation_id: mark.conversation_id.clone(),
@@ -207,9 +208,7 @@ pub(crate) fn ensure_page_boundary(
 ) -> Result<()> {
     let tail = messages.len() - boundary_position - 1;
     if tail < MIN_TAIL_MESSAGES {
-        bail!(
-            "翻篇点之后必须保留至少 {MIN_TAIL_MESSAGES} 条消息；不吞最新一轮是硬约束"
-        );
+        bail!("翻篇点之后必须保留至少 {MIN_TAIL_MESSAGES} 条消息；不吞最新一轮是硬约束");
     }
     Ok(())
 }

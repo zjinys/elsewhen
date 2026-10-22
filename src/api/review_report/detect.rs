@@ -170,7 +170,7 @@ pub fn tick_periodic_reports() -> Result<PeriodReportTickResult> {
         return Ok(PeriodReportTickResult::NoProvider);
     };
     let run_id = start_run(&store, "period-report-detect", &report_id)?;
-    match detect_deviation(&store, &report_id, &provider) {
+    match detect_deviation(&store, &report_id, provider.as_ref()) {
         Ok(count) => {
             finish_run(&store, &run_id, "succeeded", None, Some(count as i64))?;
             detect_backoff().reset();

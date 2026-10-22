@@ -47,6 +47,13 @@ pub enum SyncMutation {
         base_revision: Option<String>,
         deleted: bool,
     },
+    /// 习惯问候计划整行复制（migration 57）。触发/回答状态是本机的，
+    /// 不随本操作同步。
+    HabitNudgeChanged {
+        nudge: HabitNudgeRecord,
+        base_revision: Option<String>,
+        deleted: bool,
+    },
     GoalChanged {
         goal: GoalRecord,
         base_revision: Option<String>,
@@ -256,6 +263,10 @@ impl SyncMutation {
                     validate_id(event_id)?;
                 }
                 let _ = (base_revision, deleted);
+            }
+            Self::HabitNudgeChanged { nudge, deleted, .. } => {
+                nudge.validate()?;
+                let _ = deleted;
             }
             Self::GoalChanged { goal, deleted, .. } => {
                 validate_id(&goal.id)?;

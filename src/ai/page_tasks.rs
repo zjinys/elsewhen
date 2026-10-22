@@ -15,6 +15,101 @@ use serde_json::json;
 const CHUNK: usize = 3000;
 const MAX_PARTS: usize = 32;
 
+/// 页面修订意图的显式触发词。宁可漏判不惊扰：误判的代价只是多出一份
+/// 可拒绝的修订草稿，漏判的代价才是「说了修改却被拒」的挫败。
+const PAGE_REVISION_TRIGGERS: &[&str] = &[
+    "修改",
+    "改正",
+    "更正",
+    "改动",
+    "改成",
+    "改写",
+    "改一下",
+    "改改",
+    "改回",
+    "修订",
+    "订正",
+    "更新",
+    "补上",
+    "补充",
+    "加进去",
+    "写进",
+    "替换",
+    "删掉",
+    "删去",
+    "去掉",
+    "改掉",
+    "编辑",
+    "edit this",
+    "update this",
+    "revise this",
+];
+
+/// 判断页内对话输入是否明确要求修改当前知识页（自动升级编辑任务用）。
+/// 命中触发词但紧邻否定/探询（不用、别、是否、要不要、吗……）不算。
+/// 这是保守启发式：判定结果仍然只产生待审草稿，不跳过审阅。
+pub(crate) fn explicit_page_revision_intent(query: &str) -> bool {
+    let chars: Vec<char> = query.trim().to_lowercase().chars().collect();
+    for trigger in PAGE_REVISION_TRIGGERS {
+        let t: Vec<char> = trigger.chars().collect();
+        let mut from = 0;
+        while let Some(pos) = find_sub(&chars, &t, from) {
+            let before: String = chars[pos.saturating_sub(6)..pos].iter().collect();
+            let after: String = chars[(pos + t.len())..(pos + t.len() + 4).min(chars.len())]
+                .iter()
+                .collect();
+            let negated = before.chars().any(|c| "不别没".contains(c))
+                || before.contains("是否")
+                || before.contains("要不要")
+                || before.contains("怎么")
+                || after.contains('吗')
+                || after.contains('？')
+                || after.contains('?')
+                || after.contains("记录");
+            if !negated {
+                return true;
+            }
+            from = pos + 1;
+        }
+    }
+    false
+}
+
+fn find_sub(haystack: &[char], needle: &[char], from: usize) -> Option<usize> {
+    if needle.is_empty() || haystack.len() < needle.len() {
+        return None;
+    }
+    (from..=haystack.len() - needle.len()).find(|&i| haystack[i..i + needle.len()] == *needle)
+}
+
+/// 用户明确提出修改时把非编辑任务升级为编辑任务：问答任务已带选区的
+/// 转局部编辑（沿用选区），否则转全页修订。材料版本保持原任务的 basis
+/// 不变， revise_full/工具侧仍按同一 baseline 校验，接受前必过审阅。
+/// 返回 None 表示不升级：已是编辑任务、无页面材料、或多页对照任务
+///（对照第一页自动修订会改错对象，仍走工具侧的明确指引）。
+pub(crate) fn escalate_page_task(task: &PageTask) -> Option<PageTask> {
+    if task.pages.is_empty()
+        || matches!(task.kind.as_str(), "full_revision" | "local_edit")
+        || !matches!(task.kind.as_str(), "local_question" | "full_summary")
+    {
+        return None;
+    }
+    if task.kind == "local_question" && task.start_char.is_some() && task.end_char.is_some() {
+        return Some(PageTask {
+            kind: "local_edit".to_string(),
+            pages: task.pages.clone(),
+            start_char: task.start_char,
+            end_char: task.end_char,
+        });
+    }
+    Some(PageTask {
+        kind: "full_revision".to_string(),
+        pages: task.pages.clone(),
+        start_char: None,
+        end_char: None,
+    })
+}
+
 pub(crate) fn task_for_run(store: &Store, conversation: &str) -> Result<Option<PageTask>> {
     if let Some(task) = store.current_page_task(conversation)? {
         return Ok(Some(task));

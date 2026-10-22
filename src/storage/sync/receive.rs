@@ -399,6 +399,11 @@ impl Store {
                 base_revision,
                 deleted,
             } => self.apply_sync_todo(op, todo, base_revision, *deleted),
+            SyncMutation::HabitNudgeChanged {
+                nudge,
+                base_revision,
+                deleted,
+            } => self.apply_sync_habit_nudge(op, nudge, base_revision, *deleted),
             SyncMutation::GoalChanged {
                 goal,
                 base_revision,
@@ -462,7 +467,7 @@ impl Store {
             ensure!(existing == *message, "sync_message_content_conflict");
             return Ok(());
         }
-        self.connection.execute("INSERT INTO messages(id,conversation_id,parent_message_id,role,content,created_at) VALUES(?1,?2,?3,?4,?5,?6)",params![message.id,message.conversation_id,message.parent_message_id,message.role,message.content,message.created_at])?;
+        self.connection.execute("INSERT INTO messages(id,conversation_id,parent_message_id,role,content,created_at,kind,ref) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",params![message.id,message.conversation_id,message.parent_message_id,message.role,message.content,message.created_at,message.kind,message.message_ref])?;
         if let Some(input) = &message.input_message_id {
             self.connection.execute(
                 "INSERT INTO message_response_links(message_id,input_message_id) VALUES(?1,?2)",
@@ -517,7 +522,7 @@ impl Store {
     }
 
     pub(crate) fn sync_message_record(&self, id: &str) -> Result<Option<MessageRecord>> {
-        Ok(self.connection.query_row("SELECT m.id,m.conversation_id,m.parent_message_id,m.role,m.content,m.created_at,l.input_message_id FROM messages m LEFT JOIN message_response_links l ON l.message_id=m.id WHERE m.id=?1",[id],|r|Ok(MessageRecord{id:r.get(0)?,conversation_id:r.get(1)?,parent_message_id:r.get(2)?,role:r.get(3)?,content:r.get(4)?,created_at:r.get(5)?,input_message_id:r.get(6)?})).optional()?)
+        Ok(self.connection.query_row("SELECT m.id,m.conversation_id,m.parent_message_id,m.role,m.content,m.created_at,l.input_message_id,m.kind,m.ref FROM messages m LEFT JOIN message_response_links l ON l.message_id=m.id WHERE m.id=?1",[id],|r|Ok(MessageRecord{id:r.get(0)?,conversation_id:r.get(1)?,parent_message_id:r.get(2)?,role:r.get(3)?,content:r.get(4)?,created_at:r.get(5)?,input_message_id:r.get(6)?,kind:r.get(7)?,message_ref:r.get(8)?})).optional()?)
     }
 
     pub(crate) fn sync_conversation_record(&self, id: &str) -> Result<Option<ConversationRecord>> {

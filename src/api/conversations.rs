@@ -27,6 +27,10 @@ pub struct MessageDto {
     pub created_at: String,
     /// 展示配对：assistant 回复对应的输入消息 id（仅展示用）。
     pub input_message_id: Option<String>,
+    /// 消息类型：chat / habit_nudge / habit_checkin。
+    pub kind: String,
+    /// 习惯问候去重锚：`<nudge_id>:<YYYY-MM-DD>`。
+    pub message_ref: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -303,6 +307,8 @@ pub fn send_message(
         content: message.content,
         created_at: message.created_at,
         input_message_id: message.input_message_id,
+        kind: message.kind,
+        message_ref: message.message_ref,
     })
 }
 
@@ -323,6 +329,8 @@ pub fn list_messages(conversation_id: String) -> Result<Vec<MessageDto>> {
             content: m.content,
             created_at: m.created_at,
             input_message_id: m.input_message_id,
+            kind: m.kind,
+            message_ref: m.message_ref,
         })
         .collect())
 }
@@ -344,6 +352,8 @@ pub fn get_child_messages(parent_id: String) -> Result<Vec<MessageDto>> {
             content: m.content,
             created_at: m.created_at,
             input_message_id: m.input_message_id,
+            kind: m.kind,
+            message_ref: m.message_ref,
         })
         .collect())
 }
@@ -365,6 +375,8 @@ pub fn get_message_chain(message_id: String) -> Result<Vec<MessageDto>> {
             content: m.content,
             created_at: m.created_at,
             input_message_id: m.input_message_id,
+            kind: m.kind,
+            message_ref: m.message_ref,
         })
         .collect())
 }

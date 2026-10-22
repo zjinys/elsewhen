@@ -27,6 +27,10 @@ pub struct MessageSummary {
     /// 仅展示用：本条 assistant 回复对应的输入消息（message_response_links）。
     /// AI 链路的因果序仍走 list_messages，不带此字段。
     pub input_message_id: Option<String>,
+    /// 消息类型：chat（普通消息）/ habit_nudge（习惯问候）/ habit_checkin（问候回答）。
+    pub kind: String,
+    /// 习惯问候的去重锚：`<nudge_id>:<YYYY-MM-DD>`；普通消息为 None。
+    pub message_ref: Option<String>,
 }
 
 /// 用首条用户消息自动生成对话标题：取第一行 → 折叠连续空白 → 截断到 24 字（超出加省略号）。
@@ -140,6 +144,38 @@ pub struct Todo {
     pub note: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+}
+
+/// 一条已确认的习惯主动问候计划（同步行）。
+#[derive(Debug, Clone)]
+pub struct HabitNudge {
+    pub id: String,
+    pub page_slug: String,
+    pub question: String,
+    pub done_label: String,
+    pub done_text: String,
+    pub missed_label: String,
+    pub missed_text: String,
+    /// 周几位掩码：周一=1、周二=2 … 周日=64；127 = 每天。
+    pub weekdays: i32,
+    /// 本地墙钟 `HH:MM`。
+    pub local_time: String,
+    pub enabled: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// 习惯问候的本机触发/回答状态（不随快照同步）。
+#[derive(Debug, Clone)]
+pub struct HabitNudgeFire {
+    pub nudge_id: String,
+    pub local_date: String,
+    pub fired_at: String,
+    pub ask_count: i32,
+    pub snooze_until: Option<String>,
+    pub response: Option<String>,
+    pub device_id: String,
+    pub message_id: Option<String>,
 }
 
 /// 一条最近的历史用户消息（跨对话，供 AI 回忆近期事件）

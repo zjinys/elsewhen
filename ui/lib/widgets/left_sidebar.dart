@@ -19,6 +19,7 @@ import '../bridge/rust_bridge_repository.dart';
 part 'left_sidebar_parts/sidebar_rail.dart';
 part 'left_sidebar_parts/sidebar_wiki_tab.dart';
 part 'left_sidebar_parts/sidebar_misc.dart';
+
 // ── 左侧栏按 rail/最近页面/杂项拆分（纯类段平移，零行为变化）──
 
 /// 「最近使用」最多显示的页面数。
@@ -84,26 +85,31 @@ class LeftSidebar extends ConsumerWidget {
 
     return Container(
       width: 280,
+      // 底色交给 Material：ListTile 的 selectedTileColor / ink 画在最近的
+      // Material 上，若底色留在外层 DecoratedBox 里会被盖住（debug 下报
+      // "ListTile background color or ink splashes may be invisible"）。
       decoration: BoxDecoration(
-        color: AppTheme.surface1,
         border: Border(right: BorderSide(color: AppTheme.surface3, width: 1)),
       ),
-      child: Column(
-        children: [
-          Expanded(
-            child: switch (tab) {
-              SidebarTab.conversation => _buildConversationTab(context, ref),
-              SidebarTab.wiki => const _WikiTab(),
-              // 回顾页左栏：近 7 天入口，点击切换日期与日粒度
-              SidebarTab.review => const _ReviewNavSummary(),
-              // 同步左栏：健康度仪表（成员/心跳），操作在右侧工作区
-              SidebarTab.sync => SyncNavSummary(
+      child: Material(
+        color: AppTheme.surface1,
+        child: Column(
+          children: [
+            Expanded(
+              child: switch (tab) {
+                SidebarTab.conversation => _buildConversationTab(context, ref),
+                SidebarTab.wiki => const _WikiTab(),
+                // 回顾页左栏：近 7 天入口，点击切换日期与日粒度
+                SidebarTab.review => const _ReviewNavSummary(),
+                // 同步左栏：健康度仪表（成员/心跳），操作在右侧工作区
+                SidebarTab.sync => SyncNavSummary(
                   repository: ref.watch(storageRepositoryProvider),
                 ),
-            },
-          ),
-          _buildFooter(context, ref),
-        ],
+              },
+            ),
+            _buildFooter(context, ref),
+          ],
+        ),
       ),
     );
   }
@@ -234,14 +240,29 @@ List<_FooterAction> _footerActions(
   SidebarTab activeTab, {
   bool iconOnly = false,
 }) {
+  final hasUnreadHabit = ref.watch(pendingHabitNudgesProvider) > 0;
+  final selectedConversation = ref.watch(selectedConversationIdProvider);
+  final mainConversation = ref.watch(mainConversationProvider).value;
+  // 只有「正停在主对话流」时不算未读；停在别的会话/别的页都提示。
+  final viewingMain =
+      activeTab == SidebarTab.conversation &&
+      mainConversation != null &&
+      selectedConversation == mainConversation.id;
   return [
     _FooterAction(
       icon: Icons.chat_bubble_outline,
       label: '对话',
       isActive: activeTab == SidebarTab.conversation,
       iconOnly: iconOnly,
-      onTap: () {
+      showDot: hasUnreadHabit && !viewingMain,
+      onTap: () async {
         ref.read(sidebarTabProvider.notifier).set(SidebarTab.conversation);
+        if (hasUnreadHabit) {
+          final main = ref.read(mainConversationProvider).value;
+          if (main != null) {
+            ref.read(selectedConversationIdProvider.notifier).set(main.id);
+          }
+        }
       },
     ),
     _FooterAction(

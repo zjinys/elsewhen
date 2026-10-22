@@ -12,8 +12,7 @@ import 'chat_proposal_review.dart';
 import 'chat_run_status.dart';
 import 'chat_input_queue.dart';
 import '../providers/chat_run_provider.dart';
-import '../bridge/api.dart' as api;
-import '../bridge/api.dart' show ChatInputMode;
+import '../bridge/api.dart' show ChatInputMode, HabitNudgeStateDto;
 
 import 'dart:convert';
 import 'dart:math';
@@ -46,9 +45,11 @@ import 'reminder_banner.dart';
 part 'message_area_parts/pending_banner.dart';
 part 'message_area_parts/now_status.dart';
 part 'message_area_parts/message_bubble.dart';
+part 'message_area_parts/habit_nudge_bubble.dart';
 part 'message_area_parts/input.dart';
 part 'message_area_parts/input_panels.dart';
 part 'message_area_parts/scroll_search.dart';
+
 const int _windowSize = 20;
 const int _pageSize = 20;
 
@@ -385,7 +386,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
           onOpenPageMarks: null,
           onOpenTodos: () => openTodoDialog(context),
           onOpenGoals: () => openGoalDialog(context),
-          onCreateTopic: () => openCreateTopicTab(ref),
+          onCreateTopic: () => openCreateTopicDialog(context),
           onToggleSearch: () => ref
               .read(messageSearchVisibleProvider(selectedId).notifier)
               .set(!showSearch),
@@ -530,6 +531,9 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                                 !latestUserHasReply) ||
                             (failedReplyId != null &&
                                 message.id == failedReplyId));
+                    if (message.isHabitNudge) {
+                      return HabitNudgeBubble(message: message);
+                    }
                     return _MessageBubble(
                       message: message,
                       showRetry: needsReply,

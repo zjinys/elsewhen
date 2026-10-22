@@ -11,10 +11,11 @@ mod digest;
 mod entities;
 mod events;
 mod goals;
+mod habit_nudges;
 pub(crate) mod knowledge;
 mod mcp_servers;
-pub mod page_marks;
 mod new_migrations;
+pub mod page_marks;
 mod provider;
 mod provider_keys;
 pub use mcp_servers::McpServerConfig;
@@ -83,7 +84,9 @@ pub use digest::{
     DigestBatch, DigestBatchOutcome, DigestJobRow, DigestJobStats, DigestRunRow,
 };
 pub use goals::{Goal, GoalPhase, GoalStatus, MAX_ACTIVE_GOALS};
-pub use knowledge::{KnowledgeIssue, KnowledgeMetadata, KnowledgeProposal, RejectedSourceRow, SourceSnapshot};
+pub use knowledge::{
+    KnowledgeIssue, KnowledgeMetadata, KnowledgeProposal, RejectedSourceRow, SourceSnapshot,
+};
 pub use reminders::DueReminder;
 pub use web_search::{DohMode, NetworkSettings, WebSearchConfig};
 

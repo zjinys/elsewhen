@@ -77,7 +77,10 @@ impl Tool for SaveWikiRevisionTool {
             anyhow::ensure!(
                 save_as == "derivative"
                     || matches!(task.kind.as_str(), "local_edit" | "full_revision"),
-                "问答、总结和对照任务只能草拟派生产物；修改本页请明确选择编辑任务"
+                "问答、总结和对照任务只能草拟派生产物，不能直接修订本页。要修改正文：\
+                 在对话上方『材料范围』中切换到『局部编辑』并框选要改的文字，\
+                 或选择『全页修订』后重新发送；也可以直接明确要求修改这一页，\
+                 系统会自动切换到编辑任务生成待审草稿"
             );
             if task.kind == "local_edit" {
                 let chars: Vec<_> = current.content_md.chars().collect();

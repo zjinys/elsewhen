@@ -70,8 +70,15 @@ class Message {
   final String content;
   final DateTime createdAt;
   final Map<String, dynamic>? metadata;
+
   /// 展示配对：assistant 回复对应的输入消息 id（仅展示排序用）。
   final String? inputMessageId;
+
+  /// `chat` / `habit_nudge` / `habit_checkin`。
+  final String kind;
+
+  /// 习惯问候去重锚：`<nudge_id>:<YYYY-MM-DD>`。
+  final String? messageRef;
 
   const Message({
     required this.id,
@@ -82,6 +89,8 @@ class Message {
     required this.createdAt,
     this.metadata,
     this.inputMessageId,
+    this.kind = 'chat',
+    this.messageRef,
   });
 
   factory Message.fromRust(Map<String, dynamic> dto) {
@@ -94,19 +103,21 @@ class Message {
       createdAt: DateTime.parse(dto['created_at'] as String).toLocal(),
       metadata: dto['metadata'] as Map<String, dynamic>?,
       inputMessageId: dto['input_message_id'] as String?,
+      kind: (dto['kind'] as String?) ?? 'chat',
+      messageRef: dto['message_ref'] as String?,
     );
   }
 
   bool get isUser => role == MessageRole.user;
   bool get isAssistant => role == MessageRole.assistant;
+  bool get isHabitNudge => kind == 'habit_nudge';
+  bool get isHabitCheckin => kind == 'habit_checkin';
 
   /// 展示序比较器：assistant 回复锚定到其输入消息（inputMessageId），
   /// 队列连发场景保证一问一答交错；锚条缺失时退回自身时间。
   /// 同锚点 user 恒在 assistant 前；多条回复按自身时间稳定排序。
   static int displayOrder(List<Message> messages, Message a, Message b) {
-    final byId = {
-      for (final m in messages) m.id: m,
-    };
+    final byId = {for (final m in messages) m.id: m};
     DateTime anchor(Message m) {
       final input = m.inputMessageId == null ? null : byId[m.inputMessageId!];
       return input?.createdAt ?? m.createdAt;

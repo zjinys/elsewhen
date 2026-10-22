@@ -22,6 +22,7 @@ export 'generated.dart/api/entities.dart';
 export 'generated.dart/api/event_stats.dart';
 export 'generated.dart/api/fonts.dart';
 export 'generated.dart/api/goals.dart';
+export 'generated.dart/api/habit_nudges.dart';
 export 'generated.dart/api/import.dart';
 export 'generated.dart/api/knowledge.dart';
 export 'generated.dart/api/knowledge_digest.dart';

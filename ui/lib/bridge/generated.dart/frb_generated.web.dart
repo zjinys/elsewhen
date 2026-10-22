@@ -16,6 +16,7 @@ import 'api/entities.dart';
 import 'api/event_stats.dart';
 import 'api/fonts.dart';
 import 'api/goals.dart';
+import 'api/habit_nudges.dart';
 import 'api/import.dart';
 import 'api/knowledge.dart';
 import 'api/knowledge_digest.dart';
@@ -136,6 +137,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GuidanceDto dco_decode_box_autoadd_guidance_dto(dynamic raw);
+
+  @protected
+  HabitNudgeDto dco_decode_box_autoadd_habit_nudge_dto(dynamic raw);
+
+  @protected
+  HabitNudgeInputDto dco_decode_box_autoadd_habit_nudge_input_dto(dynamic raw);
 
   @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
@@ -282,6 +289,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GuidanceRefDto dco_decode_guidance_ref_dto(dynamic raw);
+
+  @protected
+  HabitNudgeAnswerDto dco_decode_habit_nudge_answer_dto(dynamic raw);
+
+  @protected
+  HabitNudgeDto dco_decode_habit_nudge_dto(dynamic raw);
+
+  @protected
+  HabitNudgeInputDto dco_decode_habit_nudge_input_dto(dynamic raw);
+
+  @protected
+  HabitNudgeStateDto dco_decode_habit_nudge_state_dto(dynamic raw);
+
+  @protected
+  HabitNudgeSuggestionDto dco_decode_habit_nudge_suggestion_dto(dynamic raw);
+
+  @protected
+  HabitNudgeTickDto dco_decode_habit_nudge_tick_dto(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
@@ -441,6 +466,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GuidanceRefDto> dco_decode_list_guidance_ref_dto(dynamic raw);
+
+  @protected
+  List<HabitNudgeStateDto> dco_decode_list_habit_nudge_state_dto(dynamic raw);
 
   @protected
   List<KnowledgeBackgroundRunDto> dco_decode_list_knowledge_background_run_dto(
@@ -678,6 +706,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GuidanceDto? dco_decode_opt_box_autoadd_guidance_dto(dynamic raw);
+
+  @protected
+  HabitNudgeDto? dco_decode_opt_box_autoadd_habit_nudge_dto(dynamic raw);
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
@@ -957,6 +988,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GuidanceDto sse_decode_box_autoadd_guidance_dto(SseDeserializer deserializer);
 
   @protected
+  HabitNudgeDto sse_decode_box_autoadd_habit_nudge_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HabitNudgeInputDto sse_decode_box_autoadd_habit_nudge_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
@@ -1135,6 +1176,34 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GuidanceRefDto sse_decode_guidance_ref_dto(SseDeserializer deserializer);
+
+  @protected
+  HabitNudgeAnswerDto sse_decode_habit_nudge_answer_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HabitNudgeDto sse_decode_habit_nudge_dto(SseDeserializer deserializer);
+
+  @protected
+  HabitNudgeInputDto sse_decode_habit_nudge_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HabitNudgeStateDto sse_decode_habit_nudge_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HabitNudgeSuggestionDto sse_decode_habit_nudge_suggestion_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HabitNudgeTickDto sse_decode_habit_nudge_tick_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
@@ -1356,6 +1425,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GuidanceRefDto> sse_decode_list_guidance_ref_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<HabitNudgeStateDto> sse_decode_list_habit_nudge_state_dto(
     SseDeserializer deserializer,
   );
 
@@ -1657,6 +1731,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GuidanceDto? sse_decode_opt_box_autoadd_guidance_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HabitNudgeDto? sse_decode_opt_box_autoadd_habit_nudge_dto(
     SseDeserializer deserializer,
   );
 
@@ -2088,6 +2167,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_box_autoadd_guidance_dto(GuidanceDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_guidance_dto(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_habit_nudge_dto(HabitNudgeDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_habit_nudge_dto(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_habit_nudge_input_dto(HabitNudgeInputDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_habit_nudge_input_dto(raw);
   }
 
   @protected
@@ -2620,6 +2711,91 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_habit_nudge_answer_dto(HabitNudgeAnswerDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.messageId),
+      cst_encode_bool(raw.eventCreated),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_habit_nudge_dto(HabitNudgeDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.pageSlug),
+      cst_encode_String(raw.question),
+      cst_encode_String(raw.doneLabel),
+      cst_encode_String(raw.doneText),
+      cst_encode_String(raw.missedLabel),
+      cst_encode_String(raw.missedText),
+      cst_encode_i_32(raw.weekdays),
+      cst_encode_String(raw.localTime),
+      cst_encode_bool(raw.enabled),
+      cst_encode_String(raw.createdAt),
+      cst_encode_String(raw.updatedAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_habit_nudge_input_dto(HabitNudgeInputDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.pageSlug),
+      cst_encode_String(raw.question),
+      cst_encode_String(raw.doneLabel),
+      cst_encode_String(raw.doneText),
+      cst_encode_String(raw.missedLabel),
+      cst_encode_String(raw.missedText),
+      cst_encode_i_32(raw.weekdays),
+      cst_encode_String(raw.localTime),
+      cst_encode_bool(raw.enabled),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_habit_nudge_state_dto(HabitNudgeStateDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.nudgeId),
+      cst_encode_String(raw.localDate),
+      cst_encode_opt_String(raw.response),
+      cst_encode_opt_String(raw.snoozeUntil),
+      cst_encode_i_32(raw.askCount),
+      cst_encode_opt_String(raw.messageId),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_habit_nudge_suggestion_dto(HabitNudgeSuggestionDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.pageSlug),
+      cst_encode_String(raw.pageTitle),
+      cst_encode_String(raw.question),
+      cst_encode_i_32(raw.weekdays),
+      cst_encode_String(raw.localTime),
+      cst_encode_String(raw.doneLabel),
+      cst_encode_String(raw.doneText),
+      cst_encode_String(raw.missedLabel),
+      cst_encode_String(raw.missedText),
+      cst_encode_String(raw.basisExcerpt),
+      cst_encode_f_64(raw.confidence),
+      cst_encode_opt_box_autoadd_habit_nudge_dto(raw.existing),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_habit_nudge_tick_dto(HabitNudgeTickDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_list_String(raw.messageIds),
+      cst_encode_i_32(raw.pendingCount),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_i_64(PlatformInt64 raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return castNativeBigInt(raw);
@@ -3147,6 +3323,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_habit_nudge_state_dto(List<HabitNudgeStateDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_habit_nudge_state_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_knowledge_background_run_dto(
     List<KnowledgeBackgroundRunDto> raw,
   ) {
@@ -3526,6 +3708,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.content),
       cst_encode_String(raw.createdAt),
       cst_encode_opt_String(raw.inputMessageId),
+      cst_encode_String(raw.kind),
+      cst_encode_opt_String(raw.messageRef),
     ].jsify()!;
   }
 
@@ -3662,6 +3846,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny? cst_encode_opt_box_autoadd_guidance_dto(GuidanceDto? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_guidance_dto(raw);
+  }
+
+  @protected
+  JSAny? cst_encode_opt_box_autoadd_habit_nudge_dto(HabitNudgeDto? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? null : cst_encode_box_autoadd_habit_nudge_dto(raw);
   }
 
   @protected
@@ -4556,6 +4746,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_habit_nudge_dto(
+    HabitNudgeDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_habit_nudge_input_dto(
+    HabitNudgeInputDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
     SseSerializer serializer,
@@ -4798,6 +5000,39 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_guidance_ref_dto(
     GuidanceRefDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_habit_nudge_answer_dto(
+    HabitNudgeAnswerDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_habit_nudge_dto(HabitNudgeDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_habit_nudge_input_dto(
+    HabitNudgeInputDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_habit_nudge_state_dto(
+    HabitNudgeStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_habit_nudge_suggestion_dto(
+    HabitNudgeSuggestionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_habit_nudge_tick_dto(
+    HabitNudgeTickDto self,
     SseSerializer serializer,
   );
 
@@ -5080,6 +5315,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_guidance_ref_dto(
     List<GuidanceRefDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_habit_nudge_state_dto(
+    List<HabitNudgeStateDto> self,
     SseSerializer serializer,
   );
 
@@ -5455,6 +5696,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_guidance_dto(
     GuidanceDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_habit_nudge_dto(
+    HabitNudgeDto? self,
     SseSerializer serializer,
   );
 
@@ -5868,6 +6115,16 @@ class RustLibWire implements BaseWire {
     invitation_id,
   );
 
+  void wire__crate__api__habit_nudges__answer_habit_nudge(
+    NativePortType port_,
+    String message_id,
+    String response,
+  ) => wasmModule.wire__crate__api__habit_nudges__answer_habit_nudge(
+    port_,
+    message_id,
+    response,
+  );
+
   void wire__crate__api__wiki__append_wiki_page_content(
     NativePortType port_,
     String slug,
@@ -6248,6 +6505,11 @@ class RustLibWire implements BaseWire {
     feeling,
   );
 
+  void wire__crate__api__habit_nudges__delete_habit_nudge(
+    NativePortType port_,
+    String id,
+  ) => wasmModule.wire__crate__api__habit_nudges__delete_habit_nudge(port_, id);
+
   void wire__crate__api__mcp__delete_mcp_server(
     NativePortType port_,
     String id,
@@ -6287,6 +6549,14 @@ class RustLibWire implements BaseWire {
     port_,
     report_id,
     index,
+  );
+
+  void wire__crate__api__habit_nudges__dismiss_habit_nudge(
+    NativePortType port_,
+    String message_id,
+  ) => wasmModule.wire__crate__api__habit_nudges__dismiss_habit_nudge(
+    port_,
+    message_id,
   );
 
   void wire__crate__api__knowledge__dismiss_knowledge_issue(
@@ -6526,6 +6796,27 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__review_flow__get_event_analysis_detail(
     port_,
     event_id,
+  );
+
+  void wire__crate__api__habit_nudges__get_habit_nudge(
+    NativePortType port_,
+    String id,
+  ) => wasmModule.wire__crate__api__habit_nudges__get_habit_nudge(port_, id);
+
+  void wire__crate__api__habit_nudges__get_habit_nudge_for_page(
+    NativePortType port_,
+    String page_slug,
+  ) => wasmModule.wire__crate__api__habit_nudges__get_habit_nudge_for_page(
+    port_,
+    page_slug,
+  );
+
+  void wire__crate__api__habit_nudges__get_habit_nudge_suggestion(
+    NativePortType port_,
+    String page_slug,
+  ) => wasmModule.wire__crate__api__habit_nudges__get_habit_nudge_suggestion(
+    port_,
+    page_slug,
   );
 
   void wire__crate__api__knowledge__get_knowledge_citations(
@@ -6903,6 +7194,11 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__review_flow__list_events(NativePortType port_) =>
       wasmModule.wire__crate__api__review_flow__list_events(port_);
 
+  void wire__crate__api__habit_nudges__list_habit_nudge_states(
+    NativePortType port_,
+  ) =>
+      wasmModule.wire__crate__api__habit_nudges__list_habit_nudge_states(port_);
+
   void wire__crate__api__knowledge__list_knowledge_background_runs(
     NativePortType port_,
   ) => wasmModule.wire__crate__api__knowledge__list_knowledge_background_runs(
@@ -7186,6 +7482,12 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__chat_runs__pause_chat_input_queue(
     port_,
     conversation_id,
+  );
+
+  void wire__crate__api__habit_nudges__pending_habit_nudge_count(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__habit_nudges__pending_habit_nudge_count(
+    port_,
   );
 
   void wire__crate__api__todos__pop_due_reminders(
@@ -7508,6 +7810,12 @@ class RustLibWire implements BaseWire {
     doh_uri,
     doh_mode,
   );
+
+  void wire__crate__api__habit_nudges__save_habit_nudge(
+    NativePortType port_,
+    JSAny input,
+  ) =>
+      wasmModule.wire__crate__api__habit_nudges__save_habit_nudge(port_, input);
 
   void wire__crate__api__import__save_imported_page(
     NativePortType port_,
@@ -7872,6 +8180,14 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__chat_runs__shutdown_chat_runs(NativePortType port_) =>
       wasmModule.wire__crate__api__chat_runs__shutdown_chat_runs(port_);
 
+  void wire__crate__api__habit_nudges__snooze_habit_nudge(
+    NativePortType port_,
+    String message_id,
+  ) => wasmModule.wire__crate__api__habit_nudges__snooze_habit_nudge(
+    port_,
+    message_id,
+  );
+
   void wire__crate__api__todos__snooze_reminder(
     NativePortType port_,
     String todo_id,
@@ -7954,6 +8270,10 @@ class RustLibWire implements BaseWire {
     port_,
     proxy_url,
   );
+
+  void wire__crate__api__habit_nudges__tick_habit_nudges(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__habit_nudges__tick_habit_nudges(port_);
 
   void wire__crate__api__knowledge__tick_knowledge_insights(
     NativePortType port_,
@@ -8225,6 +8545,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String invitation_id,
   );
 
+  external void wire__crate__api__habit_nudges__answer_habit_nudge(
+    NativePortType port_,
+    String message_id,
+    String response,
+  );
+
   external void wire__crate__api__wiki__append_wiki_page_content(
     NativePortType port_,
     String slug,
@@ -8462,6 +8788,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String feeling,
   );
 
+  external void wire__crate__api__habit_nudges__delete_habit_nudge(
+    NativePortType port_,
+    String id,
+  );
+
   external void wire__crate__api__mcp__delete_mcp_server(
     NativePortType port_,
     String id,
@@ -8496,6 +8827,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String report_id,
     int index,
+  );
+
+  external void wire__crate__api__habit_nudges__dismiss_habit_nudge(
+    NativePortType port_,
+    String message_id,
   );
 
   external void wire__crate__api__knowledge__dismiss_knowledge_issue(
@@ -8654,6 +8990,21 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__review_flow__get_event_analysis_detail(
     NativePortType port_,
     String event_id,
+  );
+
+  external void wire__crate__api__habit_nudges__get_habit_nudge(
+    NativePortType port_,
+    String id,
+  );
+
+  external void wire__crate__api__habit_nudges__get_habit_nudge_for_page(
+    NativePortType port_,
+    String page_slug,
+  );
+
+  external void wire__crate__api__habit_nudges__get_habit_nudge_suggestion(
+    NativePortType port_,
+    String page_slug,
   );
 
   external void wire__crate__api__knowledge__get_knowledge_citations(
@@ -8916,6 +9267,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
   );
 
+  external void wire__crate__api__habit_nudges__list_habit_nudge_states(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__knowledge__list_knowledge_background_runs(
     NativePortType port_,
   );
@@ -9125,6 +9480,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String conversation_id,
   );
 
+  external void wire__crate__api__habit_nudges__pending_habit_nudge_count(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__todos__pop_due_reminders(
     NativePortType port_,
     String device_id,
@@ -9323,6 +9682,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String doh_uri,
     String doh_mode,
+  );
+
+  external void wire__crate__api__habit_nudges__save_habit_nudge(
+    NativePortType port_,
+    JSAny input,
   );
 
   external void wire__crate__api__import__save_imported_page(
@@ -9548,6 +9912,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
   );
 
+  external void wire__crate__api__habit_nudges__snooze_habit_nudge(
+    NativePortType port_,
+    String message_id,
+  );
+
   external void wire__crate__api__todos__snooze_reminder(
     NativePortType port_,
     String todo_id,
@@ -9597,6 +9966,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__web_search__test_proxy_connection(
     NativePortType port_,
     String proxy_url,
+  );
+
+  external void wire__crate__api__habit_nudges__tick_habit_nudges(
+    NativePortType port_,
   );
 
   external void wire__crate__api__knowledge__tick_knowledge_insights(
