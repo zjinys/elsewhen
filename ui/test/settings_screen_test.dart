@@ -116,6 +116,17 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('每日 Token 使用'), findsOneWidget);
     expect(find.text('数据库维护'), findsOneWidget);
+
+    // 「习惯」tab：集中维护所有习惯页的定期问候
+    await tester.tap(find.text('习惯'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('习惯提醒'), findsOneWidget);
+    expect(
+      find.textContaining('主设备到点后把问候写进主对话'),
+      findsOneWidget,
+      reason: '集中页要说明多设备写入责任',
+    );
   });
 
   testWidgets('外观 tab：正文字号滑块存在并驱动设置状态', (tester) async {

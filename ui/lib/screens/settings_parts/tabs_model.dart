@@ -32,9 +32,15 @@ extension _TabsModel on _SettingsScreenState {
                   const SizedBox(height: AppTheme.space1),
                   _buildSettingsTabItem(6, '知识', Icons.auto_stories_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(7, '数据', Icons.dataset_outlined),
+                  _buildSettingsTabItem(
+                    7,
+                    '习惯',
+                    Icons.notifications_active_outlined,
+                  ),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(8, '规则', Icons.rule_outlined),
+                  _buildSettingsTabItem(8, '数据', Icons.dataset_outlined),
+                  const SizedBox(height: AppTheme.space1),
+                  _buildSettingsTabItem(9, '规则', Icons.rule_outlined),
                 ],
               ),
             ),
@@ -100,6 +106,10 @@ extension _TabsModel on _SettingsScreenState {
               Tab(
                 text: '知识',
                 icon: Icon(Icons.auto_stories_outlined, size: 17),
+              ),
+              Tab(
+                text: '习惯',
+                icon: Icon(Icons.notifications_active_outlined, size: 17),
               ),
               Tab(text: '数据', icon: Icon(Icons.dataset_outlined, size: 17)),
               Tab(text: '规则', icon: Icon(Icons.rule_outlined, size: 17)),

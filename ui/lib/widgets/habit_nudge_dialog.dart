@@ -9,7 +9,7 @@ import '../theme/app_theme.dart';
 /// 打开「定期问我」设置。习惯页头部入口与空状态共用。
 Future<bool?> showHabitNudgeDialog(
   BuildContext context, {
-  required WikiPage page,
+  required WikiPageRef page,
 }) {
   return showDialog<bool>(
     context: context,
@@ -18,7 +18,7 @@ Future<bool?> showHabitNudgeDialog(
 }
 
 class HabitNudgeDialog extends ConsumerStatefulWidget {
-  final WikiPage page;
+  final WikiPageRef page;
 
   const HabitNudgeDialog({super.key, required this.page});
 

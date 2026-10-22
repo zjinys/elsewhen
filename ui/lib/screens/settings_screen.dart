@@ -16,6 +16,7 @@ import '../bridge/api.dart' as api;
 import '../widgets/chat_proposal_review.dart';
 import '../widgets/custom_title_bar.dart';
 import '../widgets/font_picker_dialog.dart';
+import '../widgets/habit_nudge_settings.dart';
 import '../widgets/provider_endpoint_notice.dart';
 import '../widgets/knowledge_digest_dialog.dart';
 import '../widgets/web_search_settings.dart';
@@ -32,6 +33,7 @@ part 'settings_parts/rules_prefs.dart';
 part 'settings_parts/tabs_model.dart';
 part 'settings_parts/integrations.dart';
 part 'settings_parts/skills.dart';
+part 'settings_parts/habits.dart';
 part 'settings_parts/providers.dart';
 part 'settings_parts/usage_fonts.dart';
 part 'settings_parts/provider_editor_dialog.dart';
@@ -133,7 +135,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 9, vsync: this);
+    _tabController = TabController(length: 10, vsync: this);
     _loadVersion();
     final settings = ref.read(settingsProvider);
     // 桌面窗口偏好：WindowService 为单例，桌面入口已注册实现；移动端读 stub 默认值。
@@ -250,6 +252,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                           _buildSkillsTab(),
                           _buildMcpTab(),
                           _buildKnowledgeTab(),
+                          _buildHabitsTab(),
                           _buildDataTab(),
                           _buildRulesTab(),
                         ],
