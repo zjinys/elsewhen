@@ -205,6 +205,56 @@ fn synonym_create_is_redirected_to_existing_page_update() {
 }
 
 #[test]
+fn missing_kind_prefix_is_normalized_to_existing_page() {
+    let t = TempStore::new();
+    t.store
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                slug: "habit/after-lunch-walk".into(),
+                kind: "habit".into(),
+                title: "饭后散步习惯".into(),
+                summary: "坚持午饭后散步".into(),
+                content_md: "- 每天午饭后散步三十分钟".into(),
+                tags: vec!["运动".into(), "散步".into(), "习惯".into()],
+                source_event_ids: vec![],
+                status: "active".into(),
+                reason: "test".into(),
+                source_url: None,
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap();
+    record(&t.store, "今天午饭后散步了四十分钟");
+    make_ready(&t.store);
+    // 模型漏写 kind 前缀，且标题与既有页不完全相同；仅靠标题同义检查抓不到。
+    let provider = ScriptedProvider(|_| {
+        Ok(r#"[{"op":"create","kind":"habit","slug":"after-lunch-walk","title":"午饭后散步","summary":"坚持午饭后散步","content":"- 每天午饭后散步四十分钟","tags":["散步"],"source_event_ids":["1"],"reason":"新事件"}]"#.into())
+    });
+    let tick = process_digest_queue(&t.store, &provider, None).unwrap();
+    let DigestTick::Processed { outcome, .. } = tick else {
+        panic!("预期消化成功：{tick:?}");
+    };
+    assert!(
+        outcome.created.is_empty()
+            && outcome
+                .updated
+                .contains(&"habit/after-lunch-walk".to_string()),
+        "缺 kind 前缀的新建必须归一为既有页更新：{outcome:?}"
+    );
+    assert!(
+        t.store.get_wiki_page("after-lunch-walk").unwrap().is_none(),
+        "不得留下无前缀的重复 habit 页"
+    );
+    let page = t
+        .store
+        .get_wiki_page("habit/after-lunch-walk")
+        .unwrap()
+        .unwrap();
+    assert_eq!(page.evidence_count, 1, "证据并入既有页");
+    assert!(page.content_md.contains("四十分钟"), "正文被更新");
+}
+
+#[test]
 fn same_title_different_entity_is_not_redirected() {
     let t = TempStore::new();
     t.store

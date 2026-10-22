@@ -338,13 +338,39 @@ fn digest_batch_drafts(
         ])
         .context("调用模型失败")?
         .content;
-    let proposals = parse_proposals(&reply)?;
+    let mut proposals = parse_proposals(&reply)?;
+    // 先补全模型漏写的 kind 前缀，再做同义新建重定向。缺前缀的 slug 是
+    // 「同一习惯被当成新页」的直接来源：例如 habit 提案给 after-lunch-walk，
+    // 归一成 habit/after-lunch-walk 后会命中既有页并走 update。
+    normalize_proposal_slugs(store, &mut proposals)?;
     // 提案 B：同义新建改写为对既有页的 update（kind+归一化标题+tag 重合）。
     let proposals = redirect_synonym_creates(store, proposals)?;
     proposals
         .iter()
         .map(|p| proposal_to_draft(p, events))
         .collect()
+}
+
+/// 补全 digest 提议里漏写的 kind 前缀（如 `after-lunch-walk` →
+/// `habit/after-lunch-walk`）。模型偶尔无视提示词里的 slug 格式；不补前缀
+/// 会让同一主题被当成新页，产生重复习惯页。
+///
+/// 只补「缺失且库中不存在同名无前缀页」的情况：历史 source/note 页有自己的
+/// 命名约定，已经存在的无前缀页也不能被改写成带前缀的新页。
+fn normalize_proposal_slugs(store: &Store, proposals: &mut [DigestProposal]) -> Result<()> {
+    for p in proposals.iter_mut() {
+        if !validate_digest_kind(&p.kind)
+            || p.slug.contains('/')
+            || matches!(p.kind.as_str(), "source" | "note")
+        {
+            continue;
+        }
+        if store.get_wiki_page(&p.slug)?.is_some() {
+            continue;
+        }
+        p.slug = format!("{}/{}", p.kind.replace('_', "-"), p.slug);
+    }
+    Ok(())
 }
 
 /// 单条提议 → 页面草案。来源编号必须全部落在本批且非空，禁止零来源页。
