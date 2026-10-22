@@ -1,4 +1,6 @@
 use super::*;
+use crate::sync::membership::RosterAnchor;
+use crate::sync::pairing::PairingDevice;
 use chrono::{Duration, Local, TimeZone};
 
 fn habit_store() -> (std::path::PathBuf, Store) {
@@ -6,6 +8,48 @@ fn habit_store() -> (std::path::PathBuf, Store) {
     let store = Store::open(&path).unwrap();
     entity_page(&store, "habit/walk", "habit", "午饭后散步");
     (path, store)
+}
+
+/// 直接装一份最小同步权威：本机身份 + owner 锚点，足够判定「主设备」。
+fn configure_sync_owner(store: &Store, local_device: &str, owner_device: &str) {
+    let local = PairingDevice {
+        device_id: local_device.to_string(),
+        stream_id: format!("stream-{local_device}"),
+        name: "Local".to_string(),
+        platform: "linux".to_string(),
+        signing_key: [1; 32],
+    };
+    let owner = PairingDevice {
+        device_id: owner_device.to_string(),
+        stream_id: format!("stream-{owner_device}"),
+        name: "Owner".to_string(),
+        platform: "linux".to_string(),
+        signing_key: [2; 32],
+    };
+    let anchor = RosterAnchor {
+        dataset_id: "dataset-1".to_string(),
+        owner,
+        revision: 1,
+        digest: "0".repeat(64),
+    };
+    store
+        .connection
+        .execute(
+            "INSERT INTO sync_replica(singleton,dataset_id,device_id,stream_id,processor_device_id)
+             VALUES (1,'dataset-1',?1,?2,?3)",
+            rusqlite::params![local.device_id, local.stream_id, local_device,],
+        )
+        .unwrap();
+    store
+        .connection
+        .execute(
+            "INSERT INTO sync_authority(singleton,anchor,local_device) VALUES (1,?1,?2)",
+            rusqlite::params![
+                serde_json::to_string(&anchor).unwrap(),
+                serde_json::to_string(&local).unwrap(),
+            ],
+        )
+        .unwrap();
 }
 
 fn at(hour: u32, minute: u32) -> chrono::DateTime<Local> {
@@ -30,6 +74,43 @@ fn save_walk_nudge(store: &Store) {
             true,
         )
         .unwrap();
+}
+
+#[test]
+fn only_sync_owner_device_inserts_nudge() {
+    let (path, store) = habit_store();
+    store.create_conversation(Some("主对话流"), None).unwrap();
+    save_walk_nudge(&store);
+
+    // 加入设备：能看到计划与同步来的消息，但不能自己写入问候。
+    configure_sync_owner(&store, "device-joiner", "device-owner");
+    assert!(!store.is_sync_owner_device().unwrap());
+    assert!(
+        store.tick_habit_nudges_at(at(12, 45)).unwrap().is_empty(),
+        "非主设备不能插入问候"
+    );
+    let count: i64 = store
+        .connection
+        .query_row(
+            "SELECT COUNT(*) FROM messages WHERE kind='habit_nudge'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(count, 0);
+
+    // 本机切到 owner 后，同一到期计划由主设备插入一次。
+    store
+        .connection
+        .execute(
+            "UPDATE sync_replica
+             SET device_id='device-owner',stream_id='stream-device-owner',processor_device_id='device-owner'",
+            [],
+        )
+        .unwrap();
+    assert!(store.is_sync_owner_device().unwrap());
+    assert_eq!(store.tick_habit_nudges_at(at(12, 46)).unwrap().len(), 1);
+    let _ = std::fs::remove_file(path);
 }
 
 #[test]

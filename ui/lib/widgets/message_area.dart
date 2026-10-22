@@ -143,6 +143,21 @@ String aiFailureNotice(Object e) {
   return 'AI 回复失败：$detail';
 }
 
+/// 习惯问候 ref 的前两段：`<nudge_id>:<date>`；补问会多一段 `:2`。
+String? _habitNudgeBaseRef(String? ref) {
+  if (ref == null) return null;
+  final parts = ref.split(':');
+  if (parts.length < 2) return null;
+  return '${parts[0]}:${parts[1]}';
+}
+
+/// 同一天同一计划的第几次问候；没有后缀视为第一次。
+int _habitNudgeAsk(String ref) {
+  final parts = ref.split(':');
+  if (parts.length < 3) return 1;
+  return int.tryParse(parts[2]) ?? 1;
+}
+
 bool get _isMobilePlatform => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
 /// 移动端用 bottom sheet 呈现面板（Material 惯例：大屏对话框在小屏上
@@ -505,6 +520,24 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                 rows.add(message);
               }
 
+              // 回答消息会随对话同步；非主设备本地没有 fire 行，必须从
+              // 已同步的 checkin 反推「已回答」，否则会重复显示回答按钮。
+              final habitCheckins = <String, Message>{};
+              final latestHabitAsk = <String, int>{};
+              for (final message in messages) {
+                if (message.isHabitCheckin && message.messageRef != null) {
+                  habitCheckins[message.messageRef!] = message;
+                }
+                if (message.isHabitNudge && message.messageRef != null) {
+                  final base = _habitNudgeBaseRef(message.messageRef);
+                  if (base == null) continue;
+                  final ask = _habitNudgeAsk(message.messageRef!);
+                  if (ask > (latestHabitAsk[base] ?? 0)) {
+                    latestHabitAsk[base] = ask;
+                  }
+                }
+              }
+
               return ListView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.all(AppTheme.space4),
@@ -532,7 +565,17 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                             (failedReplyId != null &&
                                 message.id == failedReplyId));
                     if (message.isHabitNudge) {
-                      return HabitNudgeBubble(message: message);
+                      final base = _habitNudgeBaseRef(message.messageRef);
+                      final latestAsk = base == null
+                          ? 1
+                          : (latestHabitAsk[base] ?? 1);
+                      return HabitNudgeBubble(
+                        message: message,
+                        checkin: habitCheckins[message.messageRef],
+                        supersededByNewer:
+                            message.messageRef != null &&
+                            latestAsk > _habitNudgeAsk(message.messageRef!),
+                      );
                     }
                     return _MessageBubble(
                       message: message,

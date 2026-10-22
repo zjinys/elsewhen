@@ -10,9 +10,9 @@
 > 5. 已完成的提案不留在「待实现」表里，移到「已完成（归档）」或直接删除行；状态以各 note 头部 `Status` 为准。
 
 - 建立日期：2026-10-04
-- 最后更新：2026-10-22（登记「习惯主动问候」提案；2026-10-19 登记主对话流摘要管道永久失败事故；新增「摘录孵化闭环」「知识页持续更新与关系网」两项提案；「记事本页」「定时提醒」落地移交收尾）
+- 最后更新：2026-10-22（「习惯主动问候」落地并移入收尾；多设备改为仅主设备触发）
 
-## 待实现（15 项）
+## 待实现（14 项）
 
 | Proposal | 缺失内容 | 优先级 |
 |---|---|---|
@@ -32,7 +32,6 @@
 | [非 GPT 模型 token 估算校准](notes/proposed/architecture/2026-10-19-token-estimation-calibration.md) | 方案已定：L0 族分词器 + L1 校准字节比率（JSON 3.5/中文 1.2-1.5）+ L2 保守兑底 + provider 级 ratio 覆盖逃生门；保守方向不破 | 高 |
 | [摘录孵化闭环（讨论 → 纳入知识 / 丢弃为负知识）](notes/proposed/product/2026-10-19-clip-incubation-and-negative-knowledge.md) | 方案已定待实施：孵化闸门（`opinion IS NULL`=孵化中，仅对 source/note 收紧缺省语义，不参与编译/召回）+ AI 只在派生稿上改 + 纳入前须先采用一版派生稿 + 丢弃写 `knowledge_sources.reject_reason` 并 archived 留痕（不做撤销否定、素材库独立分组）；需统一参与谓词、回填存量、把 `knowledge_sources` 移入快照 carried | 中 |
 | [知识页持续更新与关系网](notes/proposed/architecture/2026-10-19-knowledge-page-reconsolidation-and-relations.md) | 方案待评审：消化选页改「相关性优先」+ 提示词/slug 纪律 + 页级再汇总 job + `knowledge_relations` 语义关系网（关系只扩上下文 / 排队复核，不自动改写邻居） | 中 |
-| [习惯主动问候](notes/proposed/product/2026-10-22-proactive-habit-checkins.md) | 方案已定待实施：habit 页推断时间/问法/按钮（走步「走了/没走」、阅读「读了/没读」）并确认 + `habit_nudges` 同步计划 + 本地 fire 去重 + 主对话 `habit_nudge` 问候消息与 `habit_checkin` 回答 + 侧边栏未读点；**不做系统通知**，打开应用看到；v1 触发不调 LLM，完成按钮落完整句事件 | 中 |
 | [Today 每日回顾工作台](notes/proposed/product/2026-09-20-today-daily-review-workbench.md) | 暂缓（后置） | 后置 |
 
 ## 进行中（0 项）
@@ -41,12 +40,13 @@
 |---|---|
 | [多设备同步](notes/proposed/architecture/2026-09-30-multi-device-sync.md) | **开发关闭（2026-10-14，`e9254d1`）**：S00–S05 全部交付；基线 `f7f6e74`（迁移 34、快照 v3，Rust 711 / Flutter 372 / analyze 0 error）。唯一阻塞项为 S06 真人双设备门禁——按[人工测试路线 M0–M7](roadmap/2026-10-14-sync-manual-test-roadmap.md) 执行后回填 [S06 清单](roadmap/2026-10-14-s06-human-gate-checklist.md)。历史证据见 [Handoff §1–§31b](roadmap/2026-10-07-multi-device-sync-handoff.md) |
 
-## 收尾（4 项）
+## 收尾（5 项）
 
 | Proposal | 现状 |
 |---|---|
 | [记事本页（随手记，不经 AI）](notes/proposed/product/2026-10-19-notepad-memo-pages.md) | 已实现（2026-10-19，`0665af1`）：`memo` kind + 三层白名单隔离（AI 可写排除 / digest 上下文排除 / 人类专属）+ `create_wiki_page` / 单事务 `append_wiki_page_content`；Flutter 记事本入口 + 快记框。基线 Rust **849** / Flutter **403** / analyze 0 error。剩余：真人 GUI 验收；系统通知通道与 Capture 落点为后续增量 |
 | [定时提醒（"20 分钟后提醒我"）](notes/proposed/architecture/2026-10-19-timed-reminders.md) | 已实现（2026-10-19，`0665af1`）：migration 51 加 `todos.reminder` + 设备本地 `todo_reminder_fires`；pop 挂 5s tick 最前（故障隔离）；snooze = due_at 推后 + fire 删除（单事务）；本地解析（7 单测）+ `create_reminder` AI 工具（确认闸）。基线 Rust **849** / Flutter **403** / analyze 0 error。剩余：真人 GUI 验收；`flutter_local_notifications` 系统通知为后续增量 |
+| [习惯主动问候](notes/proposed/product/2026-10-22-proactive-habit-checkins.md) | 已实现（2026-10-22，`36a88fc` + A 方案）：migration 57 + 计划 CRUD/确定性推断 + 5s tick + 主对话 `habit_nudge`/`habit_checkin` + 定制按钮/未读点 + 后台 failover；**多设备只有 owner 主设备触发**，其他设备用同步 checkin 判断已回答、不显示无本机 fire 的「晚点再问」。验证：Rust **913** / Flutter **428** / analyze 0 error（既有 133 条 info/warning 不计）。剩余：真人 GUI 多设备验收；聊聊、依据展示、全局限流等后续 |
 | [多设备同步](notes/proposed/architecture/2026-09-30-multi-device-sync.md) | 开发关闭（2026-10-14，`e9254d1`）：S00–S05 交付，基线 `f7f6e74`（迁移 34、快照 v3，Rust **711** / Flutter **372** / analyze 0 error）。唯一阻塞项为 S06 真人门禁——按[人工测试路线 M0–M7](roadmap/2026-10-14-sync-manual-test-roadmap.md) 执行后回填 [S06 清单](roadmap/2026-10-14-s06-human-gate-checklist.md)；证据见 [Handoff §1–§31b](roadmap/2026-10-07-multi-device-sync-handoff.md) |
 | [AI 对话体验](notes/proposed/architecture/2026-09-30-ai-chat-experience.md) | C00–C09 工程 + 合成场景完成；真人 GUI 签收移交[人工验收 roadmap](roadmap/2026-10-04-ai-chat-manual-acceptance-roadmap.md)（S1–S6） |
 

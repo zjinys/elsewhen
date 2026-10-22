@@ -10,6 +10,23 @@ impl Store {
                 r.get(0)
             })?)
     }
+
+    /// 本机是否为同步名册的 owner（设置页里的「主设备」）。
+    ///
+    /// 尚未建立同步权威的单机安装没有 owner 概念，本机就是唯一设备；一旦
+    /// 有了权威，只允许 owner 执行那些必须由单一设备负责的本地副作用。
+    /// 已建同步副本但权威尚未落地的中间态（加入/恢复中）失败关闭。
+    pub(crate) fn is_sync_owner_device(&self) -> Result<bool> {
+        let identity = self.sync_identity()?;
+        if !self.has_sync_authority()? {
+            return Ok(identity.is_none());
+        }
+        let Some(identity) = identity else {
+            return Ok(false);
+        };
+        Ok(identity.device_id == self.sync_pinned_authority()?.owner.device_id)
+    }
+
     pub(crate) fn sync_pinned_authority(&self) -> Result<RosterAnchor> {
         let json: String = self.connection.query_row(
             "SELECT anchor FROM sync_authority WHERE singleton=1",

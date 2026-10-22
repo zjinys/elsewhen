@@ -247,6 +247,16 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                           height: 1.5,
                         ),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '多设备同步时只有主设备会在到点后写入问候；'
+                        '其他设备同步显示，不会重复发问。',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textTertiary,
+                          height: 1.5,
+                        ),
+                      ),
                       const SizedBox(height: 16),
                       _label('问法'),
                       TextField(

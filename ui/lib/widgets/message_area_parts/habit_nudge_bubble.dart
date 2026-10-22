@@ -5,11 +5,20 @@ part of '../message_area.dart';
 /// 数据三条线：
 /// - 消息本身带 `kind='habit_nudge'` 与 `ref='<nudge_id>:<date>'`；
 /// - 计划来自 `habitNudgePlanProvider`（按钮文案/记录句）；
-/// - 本机状态来自 `habitNudgeStatesProvider`（已回答/已推迟/已补问）。
+/// - 本机状态来自 `habitNudgeStatesProvider`（已回答/已推迟/已补问）；
+/// - 已同步的回答来自同一 ref 的 `habit_checkin` 消息（主设备回答后，
+///   其他设备本地没有 fire 行，只能靠这条消息判断已回答）。
 class HabitNudgeBubble extends ConsumerStatefulWidget {
   final Message message;
+  final Message? checkin;
+  final bool supersededByNewer;
 
-  const HabitNudgeBubble({super.key, required this.message});
+  const HabitNudgeBubble({
+    super.key,
+    required this.message,
+    this.checkin,
+    this.supersededByNewer = false,
+  });
 
   @override
   ConsumerState<HabitNudgeBubble> createState() => _HabitNudgeBubbleState();
@@ -44,15 +53,24 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
       }
     }
     final response = state?.response;
-    final answered = response == 'done' || response == 'missed';
-    final dismissed = response == 'dismissed';
-    final snoozed = !answered && !dismissed && state?.snoozeUntil != null;
+    // 主设备回答后，回答消息会同步到其他设备；那些设备没有本机 fire 行，
+    // 因此 checkin 消息是跨设备判断「已回答」的权威来源。
+    final checkinText = widget.checkin?.content;
+    final answered =
+        checkinText != null || response == 'done' || response == 'missed';
+    final dismissed = checkinText == null && response == 'dismissed';
+    final snoozed =
+        checkinText == null &&
+        !answered &&
+        !dismissed &&
+        state?.snoozeUntil != null;
     final superseded =
+        checkinText == null &&
         !answered &&
         !dismissed &&
         !snoozed &&
-        state?.messageId != null &&
-        state!.messageId != message.id;
+        (widget.supersededByNewer ||
+            (state?.messageId != null && state!.messageId != message.id));
     // 昨天的问候只作为历史记录，不能今天补点（补点会写错日期的事件）。
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
     final stale = referenceDate != null && referenceDate != today;
@@ -165,14 +183,17 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                             ),
                             child: Text(missedLabel),
                           ),
-                          TextButton(
-                            onPressed: _busy ? null : _snooze,
-                            style: TextButton.styleFrom(
-                              foregroundColor: AppTheme.textTertiary,
-                              visualDensity: VisualDensity.compact,
+                          // 只有写过本机 fire 行（主设备）才能推迟；加入设备
+                          // 只同步到问候消息，没有本机 fire，点击会失败。
+                          if (state != null)
+                            TextButton(
+                              onPressed: _busy ? null : _snooze,
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppTheme.textTertiary,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              child: const Text('晚点再问'),
                             ),
-                            child: const Text('晚点再问'),
-                          ),
                           TextButton(
                             onPressed: _busy ? null : _dismiss,
                             style: TextButton.styleFrom(
@@ -193,15 +214,17 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                       ],
                     ] else
                       Text(
-                        _statusText(
-                          response: response,
-                          snoozed: snoozed,
-                          superseded: superseded,
-                          stale: stale,
-                          planMissing: planMissing,
-                          doneText: doneText,
-                          missedText: missedText,
-                        ),
+                        checkinText != null
+                            ? '已记录：$checkinText'
+                            : _statusText(
+                                response: response,
+                                snoozed: snoozed,
+                                superseded: superseded,
+                                stale: stale,
+                                planMissing: planMissing,
+                                doneText: doneText,
+                                missedText: missedText,
+                              ),
                         style: TextStyle(
                           fontSize: 12,
                           color: answered

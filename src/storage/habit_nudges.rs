@@ -384,6 +384,12 @@ impl Store {
     }
 
     pub(crate) fn tick_habit_nudges_at(&self, now: DateTime<Local>) -> Result<Vec<String>> {
+        // 多设备同步（A 方案）：只有 owner（UI 的「主设备」）负责写入问候；
+        // 其他设备只同步展示 owner 写下的消息，避免同一天各自插入一条。
+        // 单机没有同步权威时本机就是唯一设备，照常触发。
+        if !self.is_sync_owner_device()? {
+            return Ok(Vec::new());
+        }
         let Some(conversation_id) = self.main_conversation_id()? else {
             return Ok(Vec::new());
         };
