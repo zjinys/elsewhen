@@ -326,6 +326,17 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
           ref.read(saveTopicDraftProvider(selectedId).notifier).set(null);
         }
       });
+      // 习惯问候「聊聊」预填：同上，填一次即清空，绝不自动发送。
+      ref.listen(habitChatDraftProvider(selectedId), (prev, next) {
+        if (next != null) {
+          _controller.text = next;
+          _controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: next.length),
+          );
+          _focusNode.requestFocus();
+          ref.read(habitChatDraftProvider(selectedId).notifier).set(null);
+        }
+      });
     }
     final durableBusy =
         selectedId != null &&

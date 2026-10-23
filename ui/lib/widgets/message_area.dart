@@ -6,13 +6,15 @@ import 'app_pressable.dart';
 import 'glass.dart';
 import 'suggestion_feedback.dart';
 import 'save_topic_dialog.dart';
+import 'habit_nudge_dialog.dart';
 // ignore: unused_import — 翻篇入口暂隐藏，放量时恢复
 import 'page_mark_review.dart';
 import 'chat_proposal_review.dart';
 import 'chat_run_status.dart';
 import 'chat_input_queue.dart';
 import '../providers/chat_run_provider.dart';
-import '../bridge/api.dart' show ChatInputMode, HabitNudgeStateDto;
+import '../bridge/api.dart'
+    show ChatInputMode, HabitNudgeInputDto, HabitNudgeStateDto;
 
 import 'dart:convert';
 import 'dart:math';
@@ -64,6 +66,13 @@ final messageSearchVisibleProvider = NotifierProvider.autoDispose
 /// _MessageInput 监听后填进输入框（不直接发送，用户可改可发）。
 /// 比让按钮直接调工具更透明：用户看到将要发什么，草稿仍走确认门。
 final saveTopicDraftProvider = NotifierProvider.autoDispose
+    .family<StateHolder<String?>, String?, String>(
+      (conversationId) => StateHolder<String?>(null),
+    );
+
+/// 习惯问候卡「聊聊」预填指令：问候卡写入这里，_MessageInput 监听后填入
+/// 输入框并聚焦，不直接发送（用户可改可发），机制与 saveTopicDraftProvider 相同。
+final habitChatDraftProvider = NotifierProvider.autoDispose
     .family<StateHolder<String?>, String?, String>(
       (conversationId) => StateHolder<String?>(null),
     );
@@ -482,7 +491,8 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
               // 筛选把尾部挡掉，位置条件都会失效，失败就再也点不到（P9）。
               String? latestUserMessageId;
               for (final candidate in messages.reversed) {
-                if (candidate.isUser) {
+                // 习惯打卡回答附着在问候卡片上，不作为 AI 回复目标。
+                if (candidate.isUser && !candidate.isHabitCheckin) {
                   latestUserMessageId = candidate.id;
                   break;
                 }
@@ -508,16 +518,32 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                 failedReplyMessageIdProvider.select((map) => map[selectedId]),
               );
               final tailCount = notices.length + (legacyTyping ? 1 : 0);
+              // 习惯打卡回答（habit_checkin）附着在问候卡片上显示
+              // （「已记录：…」）。对应的问候卡片就在当前窗口时不重复渲染
+              // 消息本体，否则会出现一条重复的「用户发的」气泡。问候卡被
+              // 滚动裁掉时回退为普通消息，保证回答永远可见。
+              final windowNudgeRefs = <String>{
+                for (var i = shownSince; i < total; i++)
+                  if (matching[i].isHabitNudge &&
+                      matching[i].messageRef != null)
+                    matching[i].messageRef!,
+              };
               final rows = <Object>[];
               String? previousDay;
               for (var i = shownSince; i < total; i++) {
                 final message = matching[i];
-                final day = DateFormat('yyyy年MM月dd日').format(message.createdAt);
-                if (day != previousDay) {
-                  rows.add(day);
-                  previousDay = day;
+                final hideAsCheckin =
+                    message.isHabitCheckin &&
+                    windowNudgeRefs.contains(message.messageRef);
+                if (!hideAsCheckin) {
+                  final day = DateFormat('yyyy年MM月dd日')
+                      .format(message.createdAt);
+                  if (day != previousDay) {
+                    rows.add(day);
+                    previousDay = day;
+                  }
+                  rows.add(message);
                 }
-                rows.add(message);
               }
 
               // 回答消息会随对话同步；非主设备本地没有 fire 行，必须从
@@ -564,7 +590,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                                 !latestUserHasReply) ||
                             (failedReplyId != null &&
                                 message.id == failedReplyId));
-                    if (message.isHabitNudge) {
+                    if (message.isHabitNudge || message.isHabitNudgeSuggest) {
                       final base = _habitNudgeBaseRef(message.messageRef);
                       final latestAsk = base == null
                           ? 1

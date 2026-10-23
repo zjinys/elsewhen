@@ -40,6 +40,7 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
   bool _saving = false;
   String? _error;
   String? _existingId;
+  String _basisExcerpt = '';
 
   @override
   void initState() {
@@ -68,6 +69,7 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
       final suggestion = await repo.getHabitNudgeSuggestion(widget.page.slug);
       final existing = suggestion.existing;
       _existingId = existing?.id;
+      _basisExcerpt = existing == null ? suggestion.basisExcerpt : '';
       _question.text = existing?.question ?? suggestion.question;
       _time.text = existing?.localTime ?? suggestion.localTime;
       _doneLabel.text = existing?.doneLabel ?? suggestion.doneLabel;
@@ -257,6 +259,44 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                           height: 1.5,
                         ),
                       ),
+                      if (_basisExcerpt.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surface1,
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusSmall,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '推断依据',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _basisExcerpt,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.textTertiary,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       _label('问法'),
                       TextField(

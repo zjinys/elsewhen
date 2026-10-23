@@ -74,7 +74,7 @@ class Message {
   /// 展示配对：assistant 回复对应的输入消息 id（仅展示排序用）。
   final String? inputMessageId;
 
-  /// `chat` / `habit_nudge` / `habit_checkin`。
+  /// `chat` / `habit_nudge` / `habit_nudge_suggest` / `habit_checkin`。
   final String kind;
 
   /// 习惯问候去重锚：`<nudge_id>:<YYYY-MM-DD>`。
@@ -111,6 +111,7 @@ class Message {
   bool get isUser => role == MessageRole.user;
   bool get isAssistant => role == MessageRole.assistant;
   bool get isHabitNudge => kind == 'habit_nudge';
+  bool get isHabitNudgeSuggest => kind == 'habit_nudge_suggest';
   bool get isHabitCheckin => kind == 'habit_checkin';
 
   /// 展示序比较器：assistant 回复锚定到其输入消息（inputMessageId），
