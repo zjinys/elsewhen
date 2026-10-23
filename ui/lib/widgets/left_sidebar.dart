@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -75,12 +78,19 @@ class LeftSidebar extends ConsumerWidget {
       }
     });
 
-    // 平板 / 小桌面窗口（600–1024）：主区被挤，侧栏收成 64px 图标轨；
+    // 窄窗口（700–1024）：主区被挤，侧栏收成 64px 图标轨；
     // 图标按钮与抽屉 footer 用同一套 _FooterAction（iconOnly），
     // 三个域的切换语义完全一致，只是换了密度。
+    // 图标轨只给桌面平台：窄窗是暂态，「拖宽即可见完整侧栏」成立。
+    // 平板横屏逻辑宽也常落在 700–1024 且无法拖宽，恒定图标轨会把
+    // 「最近页面 / 回顾摘要 / 同步仪表」永远藏起来，触屏也不适合
+    // 小图标——所以触屏设备一律给完整宽侧栏。
     // 注：抽屉形态（compact，<700）总是用宽侧栏，由 Drawer 约束决定。
     final width = MediaQuery.maybeSizeOf(context)?.width ?? 1024;
-    final rail = width >= 700 && width < 1024;
+    final isDesktop =
+        !kIsWeb &&
+        (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
+    final rail = isDesktop && width >= 700 && width < 1024;
     if (rail) return const _SidebarRail();
 
     return Container(
