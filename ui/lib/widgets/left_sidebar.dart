@@ -312,7 +312,10 @@ List<_FooterAction> _footerActions(
         }
         await Navigator.of(context)
             .push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
-        // 从设置页返回后刷新首次运行探测（横幅是否该消失）
+        // 从设置页返回后刷新首次运行探测（横幅是否该消失）。
+        // 等待期间侧栏可能已随布局切换卸载（手机↔双栏），此时用 ref
+        // 会抛 "unmounted is unsafe"——守卫后静默跳过，下次挂载自会重取。
+        if (!context.mounted) return;
         ref.invalidate(aiProviderConfiguredProvider);
       },
     ),

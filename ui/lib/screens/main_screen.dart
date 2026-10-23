@@ -31,7 +31,13 @@ class MainScreen extends ConsumerWidget {
     // 平台判定：移动端（Android/iOS）一律走 app 风格布局；桌面端按宽度。
     // 用平台而不是宽度断点决定，避免手机横屏/小窗误判回桌面布局。
     final isMobilePlatform = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
-    final compact = isMobilePlatform || MediaQuery.sizeOf(context).width < 700;
+    // 平板解锁双栏：此前按平台一刀切（Android/iOS 永远抽屉），pad 侧栏
+    // 无从展现。以最短边 ≥600 判定平板（含横竖屏），pad 走桌面式双栏，
+    // 分屏窄栏（<700）自动退回抽屉；手机（最短边小，含横屏/分屏/小窗）
+    // 仍按平台走抽屉，保留原有的防误判语义。
+    final size = MediaQuery.sizeOf(context);
+    final isTablet = size.shortestSide >= 600;
+    final compact = size.width < 700 || (isMobilePlatform && !isTablet);
     // 移动端：状态栏被隐藏时（main.dart 只留 bottom overlay）不需要再补
     // 安全区；仍显示时（如系统强制显示）把 padding 加进标题栏，
     // 否则内容会被状态栏裁掉。
