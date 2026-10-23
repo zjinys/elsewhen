@@ -183,6 +183,69 @@ fn gc_trims_only_fully_confirmed_local_history_and_keeps_domain_data() {
 }
 
 #[test]
+fn revoked_member_and_fragment_rows_do_not_block_gc() {
+    let a = Db::new("a");
+    let b = Db::new("b");
+    pair(&a, &b);
+    a.capture_n("cap", 80);
+    // Model the on-disk state a revocation leaves behind: b is inactive but
+    // still owns unacknowledged per-recipient rows for early local ops.
+    let b_id = b.device();
+    a.store
+        .connection
+        .execute(
+            "UPDATE sync_members SET active=0 WHERE device_id=?1",
+            [&b_id],
+        )
+        .unwrap();
+    // A large local op also leaves a fragment send-row that references the op.
+    let first_op: String = a
+        .store
+        .connection
+        .query_row(
+            "SELECT op_id FROM sync_operations WHERE local=1 ORDER BY origin_sequence LIMIT 1",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    a.store
+        .connection
+        .execute(
+            "INSERT INTO sync_wire_outbox(recipient_device_id,message_id,payload_hash,key_version,encrypted_envelope) VALUES(?1,'op-part-test','hash',1,x'')",
+            [&b_id],
+        )
+        .unwrap();
+    a.store
+        .connection
+        .execute(
+            "INSERT INTO sync_operation_fragment_outbox(recipient_device_id,message_id,op_id) VALUES(?1,'op-part-test',?2)",
+            rusqlite::params![&b_id, &first_op],
+        )
+        .unwrap();
+
+    let report = a
+        .store
+        .run_sync_gc()
+        .expect("revoked-member rows must not abort GC with a foreign-key error");
+    assert!(
+        report.operations_pruned > 0,
+        "early history is pruned once only active members can hold it back: {report:?}"
+    );
+    // The fragment send-row went with its operation; no dangling reference.
+    assert_eq!(a.count("sync_operation_fragment_outbox"), 0);
+    let dangling: i64 = a
+        .store
+        .connection
+        .query_row(
+            "SELECT count(*) FROM sync_outbox q WHERE NOT EXISTS(SELECT 1 FROM sync_operations o WHERE o.op_id=q.op_id)",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(dangling, 0, "no orphaned sync_outbox rows");
+}
+
+#[test]
 fn unconfirmed_member_holds_back_gc_completely() {
     let a = Db::new("a");
     let b = Db::new("b");

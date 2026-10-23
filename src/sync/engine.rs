@@ -253,7 +253,15 @@ pub(crate) fn push_due(
     credential: &[u8; 32],
     now_ms: i64,
 ) -> Result<PushReport> {
-    let pending = store.due_sync_wire_envelopes(recipient, now_ms, 3)?;
+    // 日常增量每拍 ≤3 封（30s 一拍足够）。初始交接/重快照的数百封快照线
+    // 若沿用 3 封/拍要拖半小时：检测到快照导出线在途时放宽到 16 封/拍，
+    // 配合 Dart 侧传输期的即时唤醒，把初始同步压到分钟级。
+    let limit = if store.has_pending_snapshot_export_wires(recipient)? {
+        16
+    } else {
+        3
+    };
+    let pending = store.due_sync_wire_envelopes(recipient, now_ms, limit)?;
     let mut report = PushReport::default();
     for entry in pending {
         let expiry = now_ms
@@ -323,6 +331,13 @@ pub(crate) fn push_due(
                 report.failed += 1;
             }
         }
+    }
+    if report.failed > 0 {
+        // 推送失败在桌面端只进本地日志（tee 到 agent-debug.log），不中断 tick。
+        eprintln!(
+            "[sync-wire] push failed: recipient={} uploaded={} failed={}",
+            recipient, report.uploaded, report.failed
+        );
     }
     Ok(report)
 }

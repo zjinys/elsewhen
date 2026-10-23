@@ -105,6 +105,10 @@ fn stage_snapshot_inner(
     // （存量页导入早于资产表），先收齐再钉住导出视图，否则接收端拿空。
     // 收不齐不阻断导出：接收端缺图时显示占位符原文，重拍快照可再补。
     let _ = store.ingest_wiki_page_assets();
+    // 导出前用域表事实自愈头表：live head 指向已不存在的域行会让接收端
+    // 的 (deleted ⇔ 行存在) 一致性闸门必炸（快照整块作废）。只修不改
+    // 其它状态，幂等。
+    store.heal_snapshot_heads()?;
     if !store.begin_snapshot_export(id, recipient, key_version)? {
         return Ok(());
     }

@@ -9,6 +9,33 @@ use crate::sync::crypto::{ContentKey, DeviceIdentity, EnvelopeHeader};
 use crate::sync::protocol::validate_id;
 
 impl Store {
+    /// 导出前用域表事实自愈头表：live head 指向已不存在的域行会让接收端
+    /// 的 (deleted ⇔ 行存在) 一致性闸门必炸（快照整块作废，见
+    /// snapshot/apply.rs 的 Record::Head 校验）。只修状态位，不删记录，
+    /// 幂等；历史 FK 中断等原因造成的陈旧头由此复原。
+    pub(crate) fn heal_snapshot_heads(&self) -> Result<usize> {
+        let mut touched = 0;
+        for kind in [
+            "conversation",
+            "wiki_page",
+            "todo",
+            "habit_nudge",
+            "goal",
+            "rule",
+        ] {
+            let table = crate::storage::sync::snapshot::decode::domain_table(kind)?;
+            touched += self.connection.execute(
+                &format!(
+                    "UPDATE sync_object_heads SET deleted=1
+                     WHERE object_kind=?1 AND deleted=0
+                       AND NOT EXISTS(SELECT 1 FROM {table} WHERE id=object_id)"
+                ),
+                [kind],
+            )?;
+        }
+        Ok(touched)
+    }
+
     /// False means this exact transfer is already ready (or acknowledged). An
     /// interrupted export needs a new request, not a different view under old IDs.
     pub(crate) fn begin_snapshot_export(

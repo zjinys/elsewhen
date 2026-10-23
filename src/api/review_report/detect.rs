@@ -66,6 +66,22 @@ pub(crate) fn finish_run(
     Ok(())
 }
 
+/// 中断恢复：上次进程退出时未收尾的 period-report-* 记录会永远停在
+/// running，挡住同步配对/移交前的静默检查（与知识整理任务同款自愈：
+/// 启动超过 10 分钟仍 running 视为中断，改记 failed 等待后续重试）。
+pub(crate) fn recover_interrupted_runs(store: &Store) -> Result<usize> {
+    let now = Utc::now();
+    let updated = store.connection.execute(
+        "UPDATE knowledge_background_runs SET status='failed',finished_at=?1,error='上次检测中断，稍后自动重试'
+         WHERE task LIKE 'period-report-%' AND status='running' AND started_at<?2",
+        rusqlite::params![
+            now.to_rfc3339(),
+            (now - chrono::Duration::minutes(10)).to_rfc3339()
+        ],
+    )?;
+    Ok(updated)
+}
+
 // ── FRB 门面（tick；Dart worker 在知识消化之后调用）──────────────────
 
 /// 一次后台 tick 的结果（Dart worker 只记日志/刷新，不做业务分支）。
@@ -135,6 +151,7 @@ pub fn tick_periodic_reports() -> Result<PeriodReportTickResult> {
     if !store.background_processing_allowed()? {
         return Ok(PeriodReportTickResult::Idle);
     }
+    recover_interrupted_runs(&store)?;
 
     // 1) 生成：每个 tick 最多补一份（最新完整周期，幂等）。
     for (period_type, period) in due_reports(Local::now()) {

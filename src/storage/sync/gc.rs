@@ -26,7 +26,8 @@
 //!
 //! GC never deletes domain data (events / conversations / messages / …); it
 //! only prunes the *sync operation history* rows for already-confirmed local
-//! ops, plus the per-recipient `sync_outbox` rows of fully-acked operations.
+//! ops, plus the per-recipient `sync_outbox` / fragment-send rows of those ops
+//! and `sync_outbox` rows for revoked members (which can never acknowledge).
 //! Remote ops are never pruned — the receiver is not the authority for another
 //! device's history.
 
@@ -190,19 +191,52 @@ impl Store {
         )?;
         let new_floor = min_member.min(retained_floor).max(current_floor);
 
-        // Prune outbox rows for local ops that are at/below the new floor and
-        // fully acked by every active member FIRST (they reference
-        // sync_operations), then prune the operation history rows themselves.
+        // Prune per-recipient rows that reference the operations about to be
+        // deleted FIRST (sync_outbox.op_id is a foreign key):
+        //   * acknowledged rows are done;
+        //   * unacknowledged rows of revoked/inactive members (or a member row
+        //     that no longer exists) can never be acknowledged, so they must
+        //     not pin history forever (they used to abort the whole tick with
+        //     SQLITE_CONSTRAINT_FOREIGNKEY once GC tried to delete the parent
+        //     local op).
+        // An active member's unacked row still holds its operation back.
         let pruned_outbox = self.connection.execute(
             "DELETE FROM sync_outbox
-             WHERE acknowledged = 1
-               AND op_id IN (
+             WHERE op_id IN (
                     SELECT op_id FROM sync_operations
                     WHERE local = 1 AND state = 'applied'
                       AND origin_stream_id = ?1 AND origin_sequence <= ?2
+               )
+               AND (
+                    acknowledged = 1
+                    OR NOT EXISTS (
+                        SELECT 1 FROM sync_members m
+                        WHERE m.device_id = sync_outbox.recipient_device_id
+                          AND m.active = 1
+                    )
                )",
             params![identity.stream_id, new_floor],
         )?;
+        // Large local operations also leave fragment send-rows behind. They
+        // reference sync_operations(op_id) and are retired only on the receipt
+        // path (wire state), so GC must drop them with their operation.
+        let _pruned_fragments = self.connection.execute(
+            "DELETE FROM sync_operation_fragment_outbox
+             WHERE op_id IN (
+                    SELECT op_id FROM sync_operations
+                    WHERE local = 1 AND state = 'applied'
+                      AND origin_stream_id = ?1 AND origin_sequence <= ?2
+                      AND NOT EXISTS (
+                           SELECT 1 FROM sync_outbox q
+                           WHERE q.op_id = sync_operations.op_id
+                             AND q.acknowledged = 0
+                      )
+               )",
+            params![identity.stream_id, new_floor],
+        )?;
+        // Only delete an operation once NO outbox row (active or inactive)
+        // references it. The active-member predicate above is what decides
+        // whether it is safe to prune; this guard is the FK-safe backstop.
         let pruned_ops = self.connection.execute(
             "DELETE FROM sync_operations
              WHERE local = 1
@@ -211,9 +245,7 @@ impl Store {
                AND origin_sequence <= ?2
                AND NOT EXISTS (
                     SELECT 1 FROM sync_outbox q
-                    JOIN sync_members m ON m.device_id = q.recipient_device_id
                     WHERE q.op_id = sync_operations.op_id
-                      AND m.active = 1
                       AND q.acknowledged = 0
                )",
             params![identity.stream_id, new_floor],

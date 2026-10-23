@@ -167,7 +167,7 @@ impl Store {
         now_ms: i64,
         limit: usize,
     ) -> Result<Vec<PendingWireEnvelope>> {
-        ensure!((1..=10).contains(&limit), "sync_wire_batch_limit_invalid");
+        ensure!((1..=16).contains(&limit), "sync_wire_batch_limit_invalid");
         self.require_local_sync_membership()?;
         let mut query=self.connection.prepare("SELECT message_id,encrypted_envelope FROM sync_wire_outbox w WHERE recipient_device_id=?1 AND state='pending' AND available_at_ms<=?2 AND EXISTS(SELECT 1 FROM sync_members WHERE device_id=?1 AND active=1) AND NOT EXISTS(SELECT 1 FROM sync_snapshot_export_wires x JOIN sync_snapshot_exports s ON s.id=x.snapshot_id WHERE x.recipient_device_id=w.recipient_device_id AND x.message_id=w.message_id AND s.state!='ready') ORDER BY available_at_ms,rowid LIMIT ?3")?;
         let rows = query.query_map(params![peer, now_ms, limit as i64], |r| {
@@ -191,6 +191,17 @@ impl Store {
             result.push(row);
         }
         Ok(result)
+    }
+
+    /// 该对端是否还有待发的快照导出线（初次交接/重快照在途）。此时放宽每拍
+    /// 发送预算，让初始同步在一分钟内完成，而不是拖上半小时（见 engine.rs）。
+    pub(crate) fn has_pending_snapshot_export_wires(&self, peer: &str) -> Result<bool> {
+        self.require_local_sync_membership()?;
+        Ok(self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sync_snapshot_export_wires x JOIN sync_wire_outbox w ON w.recipient_device_id=x.recipient_device_id AND w.message_id=x.message_id WHERE x.recipient_device_id=?1 AND w.state='pending')",
+            [peer],
+            |r| r.get(0),
+        )?)
     }
 
     /// Enrollment explicitly selects only its control messages and, after the

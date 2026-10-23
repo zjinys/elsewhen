@@ -24,7 +24,7 @@ pub(crate) use super::hash;
 
 mod apply;
 mod apply_rest;
-mod decode;
+pub(crate) mod decode;
 mod exporter;
 mod import;
 mod records;

@@ -200,6 +200,12 @@ pub(crate) fn background_guard(
         return Ok(None);
     }
     let sessions = sessions().lock().unwrap_or_else(|p| p.into_inner());
+    // A pending pairing mutation has reserved the workspace: defer any new
+    // background caller so the user-facing native write can proceed right
+    // after the in-flight worker finishes (pairing::mutate_with_wait).
+    if pairing::background_pause_active(&config.data_dir) {
+        return Ok(None);
+    }
     let mut busy = busy().lock().unwrap_or_else(|p| p.into_inner());
     if busy.contains(&config.data_dir) {
         return Ok(None);

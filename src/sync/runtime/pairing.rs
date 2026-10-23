@@ -10,11 +10,59 @@ pub(crate) struct PairingKeyCommit {
     pub key: KeyCommit,
 }
 
-pub(super) fn mutate(
+/// While a pairing mutation waits for the workspace, new background callers
+/// are deferred so the mutation can run the moment the in-flight worker
+/// finishes. Counted per workspace: a dropping reservation must not disarm a
+/// concurrent pairing mutation's reservation.
+static PAIRING_WAITING: OnceLock<Mutex<HashMap<PathBuf, u32>>> = OnceLock::new();
+fn waiting() -> &'static Mutex<HashMap<PathBuf, u32>> {
+    PAIRING_WAITING.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+struct BackgroundPause {
+    root: PathBuf,
+}
+impl BackgroundPause {
+    /// Must be called while holding the sessions mutex: a background caller
+    /// cannot record itself busy (or start work) without that mutex first.
+    fn acquire(root: &Path) -> Self {
+        let mut map = waiting()
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        *map.entry(root.to_path_buf()).or_insert(0) += 1;
+        Self { root: root.to_path_buf() }
+    }
+}
+impl Drop for BackgroundPause {
+    fn drop(&mut self) {
+        let mut map = waiting()
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        if let Some(count) = map.get_mut(&self.root) {
+            *count = count.saturating_sub(1);
+            if *count == 0 {
+                map.remove(&self.root);
+            }
+        }
+    }
+}
+
+pub(super) fn background_pause_active(root: &Path) -> bool {
+    waiting()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .contains_key(root)
+}
+
+/// How long a user-initiated pairing mutation may wait for an in-flight
+/// background worker (LLM digest/analysis can span minutes) to finish.
+pub(crate) const PAIRING_MUTATE_WAIT_MS: i64 = 120_000;
+
+fn mutate_locked(
     config: &AppConfig,
+    sessions: &mut std::collections::HashMap<PathBuf, Session>,
     operation: impl FnOnce(&Store, &mut Session) -> Result<PairingCommit>,
 ) -> Result<PairingKeyCommit> {
-    let mut sessions = sessions().lock().unwrap_or_else(|p| p.into_inner());
     let session = sessions
         .get_mut(&config.data_dir)
         .context("sync_runtime_request_missing")?;
@@ -58,11 +106,62 @@ pub(super) fn mutate(
     })
 }
 
-pub(crate) fn approve_pairing(
+pub(super) fn mutate(
     config: &AppConfig,
-    approval: PendingApproval,
+    operation: impl FnOnce(&Store, &mut Session) -> Result<PairingCommit>,
 ) -> Result<PairingKeyCommit> {
-    mutate(config, |store, session| {
+    mutate_with_wait(config, PAIRING_MUTATE_WAIT_MS, operation)
+}
+
+/// Wait-bound mutating entry point. With `wait_budget_ms <= 0` the historical
+/// fail-fast semantics apply (`sync_runtime_in_use` while a background caller
+/// holds the workspace). With a positive budget the mutation reserves the
+/// workspace against *new* background callers and waits for the in-flight one
+/// to finish; the busy check is always re-evaluated under the sessions mutex,
+/// which background callers cannot bypass.
+pub(super) fn mutate_with_wait(
+    config: &AppConfig,
+    wait_budget_ms: i64,
+    operation: impl FnOnce(&Store, &mut Session) -> Result<PairingCommit>,
+) -> Result<PairingKeyCommit> {
+    let mut operation = Some(operation);
+    let budget_end = now().saturating_add(wait_budget_ms.max(0));
+    let mut _pause: Option<BackgroundPause> = None;
+    loop {
+        {
+            let mut sessions = sessions().lock().unwrap_or_else(|p| p.into_inner());
+            if !busy()
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .contains(&config.data_dir)
+            {
+                let result =
+                    mutate_locked(config, &mut sessions, operation.take().expect("operation"));
+                drop(sessions);
+                return result;
+            }
+        }
+        if wait_budget_ms <= 0 {
+            anyhow::bail!("sync_runtime_in_use");
+        }
+        if _pause.is_none() {
+            // Reserve under the sessions mutex so no background caller can
+            // start behind our back while we sleep.
+            let sessions = sessions().lock().unwrap_or_else(|p| p.into_inner());
+            _pause = Some(BackgroundPause::acquire(&config.data_dir));
+            drop(sessions);
+        }
+        if now() >= budget_end {
+            anyhow::bail!("sync_runtime_in_use");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(150));
+    }
+}
+
+fn approve_operation(
+    approval: PendingApproval,
+) -> impl FnOnce(&Store, &mut Session) -> Result<PairingCommit> {
+    move |store, session| {
         store.approve_sync_pairing(
             &session.installation,
             session.master.as_ref().unwrap(),
@@ -70,7 +169,22 @@ pub(crate) fn approve_pairing(
             approval,
             now(),
         )
-    })
+    }
+}
+
+pub(crate) fn approve_pairing(
+    config: &AppConfig,
+    approval: PendingApproval,
+) -> Result<PairingKeyCommit> {
+    mutate_with_wait(config, PAIRING_MUTATE_WAIT_MS, approve_operation(approval))
+}
+
+/// Test-facing fail-fast approval: same critical section, no waiting.
+pub(crate) fn approve_pairing_now(
+    config: &AppConfig,
+    approval: PendingApproval,
+) -> Result<PairingKeyCommit> {
+    mutate_with_wait(config, 0, approve_operation(approval))
 }
 
 pub(crate) fn confirm_pairing_installation(
@@ -316,7 +430,10 @@ mod tests {
         confirm_key(&f.config, &initial.token, 1).unwrap();
         let (request, _, _target, _) = approval(&f, &key, &initial.installation_id);
         let guard = background_guard(&f.config, &f.store).unwrap().unwrap();
-        assert!(approve_pairing(&f.config, request).is_err());
+        // Holding the background lease must fail the mutation closed without
+        // waiting (still not write anything): production approve waits for the
+        // worker to finish, this fail-fast path is what the guard enforces.
+        assert!(approve_pairing_now(&f.config, request).is_err());
         assert!(unlocked(&f.config, 1));
         drop(guard);
         f.store
@@ -324,9 +441,54 @@ mod tests {
             .unwrap();
         let job = f.store.claim_analysis_job().unwrap().unwrap();
         let (request, _, _target, _) = approval(&f, &key, &initial.installation_id);
-        assert!(approve_pairing(&f.config, request).is_err());
+        assert!(approve_pairing_now(&f.config, request).is_err());
         assert!(unlocked(&f.config, 1));
         assert_eq!(f.store.analysis_job_stats().unwrap().running, 1);
         f.store.fail_analysis(&job, "synthetic failure").unwrap();
+    }
+
+    #[test]
+    fn approve_waits_for_in_flight_background_worker_then_proceeds() {
+        use std::sync::mpsc;
+        use std::time::Instant;
+
+        let f = Fixture::new();
+        let (key, initial) = f.initialize();
+        confirm_key(&f.config, &initial.token, 1).unwrap();
+        let (request, _, _target, _) = approval(&f, &key, &initial.installation_id);
+
+        // Simulate a long in-flight background caller on another "worker thread".
+        let config = f.config.clone();
+        let (held_tx, held_rx) = mpsc::channel::<()>();
+        let (dropped_tx, dropped_rx) = mpsc::channel::<()>();
+        let holder = std::thread::spawn(move || {
+            let store = crate::storage::Store::open(&config.database_path).unwrap();
+            let guard = super::super::background_guard(&config, &store)
+                .unwrap()
+                .unwrap();
+            held_tx.send(()).unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            drop(guard);
+            dropped_tx.send(()).unwrap();
+        });
+        held_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+
+        // Production approve waits for the worker, then completes once the
+        // lease is released instead of failing `sync_runtime_in_use`.
+        let started = Instant::now();
+        let committed = approve_pairing(&f.config, request).unwrap();
+        assert!(
+            started.elapsed() >= std::time::Duration::from_millis(250),
+            "approve must wait for the in-flight background caller"
+        );
+        dropped_rx.recv_timeout(std::time::Duration::from_secs(5)).ok();
+        holder.join().unwrap();
+        assert_eq!(committed.key.revision, 2);
+        // The reservation is gone once the mutation finished, so background
+        // callers are no longer deferred.
+        assert!(!super::background_pause_active(&f.config.data_dir));
+        assert!(background_guard(&f.config, &f.store).unwrap().is_none());
     }
 }

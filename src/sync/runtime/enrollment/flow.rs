@@ -1,6 +1,15 @@
 //! 报名主流程：EnrollmentLoan 租约、begin、证明交换、快照/传输、advance 与 confirm。
 
 use super::*;
+use std::collections::HashSet;
+use std::sync::OnceLock;
+
+/// 本进程内已对 joiner「响过一次」的重推邮件（mailbox, 邮件 id）。
+/// 只为把第一处不可应用邮件错误浮出水面；重启后再次响一次。
+fn transfer_drop_registry() -> &'static Mutex<HashSet<(String, String)>> {
+    static REGISTRY: OnceLock<Mutex<HashSet<(String, String)>>> = OnceLock::new();
+    REGISTRY.get_or_init(|| Mutex::new(HashSet::new()))
+}
 
 pub(super) struct EnrollmentLoan {
     pub(super) _lease: Arc<WorkspaceLease>,
@@ -309,6 +318,7 @@ pub(super) fn pull_transfer(
     let cursor = store.relay_scan_cursor(mailbox)?;
     loan.check()?;
     let page = client.fetch_page(mailbox, &loan.owner_credential, &cursor, 3)?;
+    let mut first_error: Option<anyhow::Error> = None;
     for mail in &page.envelopes {
         loan.check()?;
         let accepted = if loan.role == EnrollmentRole::Owner
@@ -348,7 +358,21 @@ pub(super) fn pull_transfer(
                 Err(error) if error.is::<rusqlite::Error>() || error.is::<std::io::Error>() => {
                     return Err(error);
                 }
-                Err(_) => false,
+                Err(error) => {
+                    // 发送端重推下「复现错误」的邮件不能永久阻塞整个交接：
+                    // 第一次冒泡给 tick（joiner 日志/UI 可见），同一进程对同一
+                    // 邮件只响一次，之后跳过并推进扫描光标——扫描会包绕回来
+                    // 重访它，发送端的新导出/重置也不会被它饿死。
+                    let key = (mailbox.clone(), mail.id.clone());
+                    let loud = transfer_drop_registry()
+                        .lock()
+                        .unwrap_or_else(|p| p.into_inner())
+                        .insert(key);
+                    if loud && first_error.is_none() {
+                        first_error = Some(error);
+                    }
+                    false
+                }
             }
         } else {
             false
@@ -364,6 +388,9 @@ pub(super) fn pull_transfer(
         }
     }
     loan.check()?;
+    if let Some(error) = first_error {
+        return Err(error);
+    }
     store.save_relay_scan_cursor(
         mailbox,
         if page.has_more {
