@@ -10,9 +10,11 @@ import 'theme/content_font.dart';
 import 'theme/design_tokens.dart';
 import 'models/app_config.dart';
 import 'models/settings.dart';
+import 'screens/lock_screen.dart';
 import 'screens/main_screen.dart';
 import 'providers/app_provider.dart';
 import 'providers/settings_provider.dart';
+import 'utils/app_lock.dart';
 import 'utils/editor_localization.dart';
 import 'utils/error_report.dart';
 import 'utils/system_fonts.dart';
@@ -69,9 +71,22 @@ class ElsewhenApp extends ConsumerStatefulWidget {
 }
 
 class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
+  /// 打开密码：null=查询中（先展示启动页），true/false=是否已设置。
+  /// 设置后启动先停锁屏，验证通过置 _appUnlocked 放行。
+  bool? _appLockEnabled;
+  bool _appUnlocked = false;
+  final AppLockService _appLockService = AppLockService();
+
   @override
   void initState() {
     super.initState();
+    // 查询是否设置了打开密码：与桥接初始化并行，失败按未设置放行，
+    // 避免安全存储异常时把用户挡在门外。
+    _appLockService.isEnabled().then((enabled) {
+      if (mounted) setState(() => _appLockEnabled = enabled);
+    }).catchError((_) {
+      if (mounted) setState(() => _appLockEnabled = false);
+    });
     // Trigger initialization
     Future.microtask(() async {
       try {
@@ -181,6 +196,13 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
                 if (!initialized) {
                   return const Scaffold(
                     body: Center(child: Text('Initialization failed')),
+                  );
+                }
+
+                // 已设置打开密码且尚未解锁：停在锁屏，验证通过前不进主界面。
+                if (_appLockEnabled == true && !_appUnlocked) {
+                  return LockScreen(
+                    onUnlocked: () => setState(() => _appUnlocked = true),
                   );
                 }
 

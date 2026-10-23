@@ -1,5 +1,6 @@
 import 'dart:io' show Platform, Process;
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +23,7 @@ import '../widgets/knowledge_digest_dialog.dart';
 import '../widgets/web_search_settings.dart';
 import '../widgets/doh_settings.dart';
 import '../widgets/proxy_settings.dart';
+import '../utils/app_lock.dart';
 import '../utils/error_report.dart';
 import '../utils/system_fonts.dart';
 import '../utils/window_service.dart';
@@ -37,6 +39,7 @@ part 'settings_parts/habits.dart';
 part 'settings_parts/providers.dart';
 part 'settings_parts/usage_fonts.dart';
 part 'settings_parts/provider_editor_dialog.dart';
+part 'settings_parts/security.dart';
 // ── 分区标题常量（原 static const 平移为 library 级，供全部 part 使用）──
 const _secProviders = 'AI Provider 配置';
 const _secTokenUsage = '每日 Token 用量';
@@ -74,6 +77,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   String? _mcpError;
   bool _installingSkill = false;
   bool _vacuuming = false;
+  // 打开密码（安全 tab）：服务 + 状态。哈希记录存系统安全存储，不落库。
+  final AppLockService _appLockService = AppLockService();
+  bool _appLockEnabled = false;
+  bool _appLockLoading = true;
+  // 指纹/面容解锁（仅移动端）：设备能力 + 用户开关。
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
   // 个人经验规则库
   List<Rule> _rules = [];
   bool _rulesLoading = true;
@@ -135,7 +145,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 10, vsync: this);
+    _tabController = TabController(length: 11, vsync: this);
     _loadVersion();
     final settings = ref.read(settingsProvider);
     // 桌面窗口偏好：WindowService 为单例，桌面入口已注册实现；移动端读 stub 默认值。
@@ -157,6 +167,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       _loadDbStats();
       _loadUserSkills();
       _loadMcpServers();
+      _loadAppLockState();
     });
   }
   Future<void> _loadVersion() async {
@@ -255,6 +266,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                           _buildHabitsTab(),
                           _buildDataTab(),
                           _buildRulesTab(),
+                          _buildSecurityTab(),
                         ],
                       );
                       if (compact) {

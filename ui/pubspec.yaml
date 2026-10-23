@@ -40,6 +40,12 @@ dependencies:
   # Device-local sync master keys; never replicated with Provider configuration.
   flutter_secure_storage: ^11.2.0
 
+  # 打开密码的加盐哈希（SHA-256 多轮派生）。此前为传递依赖，应用锁直接引用需显式声明。
+  crypto: ^3.0.0
+
+  # 可选的指纹/面容解锁：系统级生物验证，仅移动端生效。
+  local_auth: ^2.3.0
+
   # UI utilities
   intl: ^0.20.1
   # wiki md⇄JSON codec 行内语法（[[wikilink]] 等，vendored 编辑器同款协议）

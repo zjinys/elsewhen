@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSFaceIDUsageDescription</key>
+	<string>仅用于在您开启指纹/面容解锁后，以系统生物验证快速解锁本应用；验证结果不离开设备。</string>
 	<key>NSCameraUsageDescription</key>
 	<string>仅用于扫描已有设备出示的同步邀请二维码；画面不存储、不上传。</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
