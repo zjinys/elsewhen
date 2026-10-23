@@ -155,6 +155,50 @@ void main() {
     expect(find.textContaining('请完全退出并重新打开应用'), findsOneWidget);
   });
 
+  /// 删除暂存项（joiner discard）后无需重进设置页：卡片监听 joiner
+  /// 控制器的 notifyListeners，目录一变立即重查，已删条目当场消失。
+  testWidgets(
+    'discarded staging entries disappear without reopening the page',
+    (tester) async {
+      final storage = TestSyncSecureStorage();
+      final controller = SyncSetupController(
+        keyStore: SyncKeyStore(storage: storage),
+        bridge: TestSyncSetupApi(storage),
+        previewEnabled: true,
+      );
+      addTearDown(controller.dispose);
+      await controller.refresh();
+      final datasetApi = FakeDatasetSwitchApi([
+        datasetEntry(id: 'entry-1', ready: false),
+        datasetEntry(id: 'entry-2', ready: false),
+      ]);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: LocalSyncSettings(
+                controller: controller,
+                datasetApi: datasetApi,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('进入数据集'), findsNWidgets(2));
+
+      // 本机目录已被删除（discard 只删 staging + 本机密钥），控制器随后
+      // notifyListeners；卡片必须当场重查而不是等用户重进页面。
+      datasetApi.entries = [datasetEntry(id: 'entry-2', ready: false)];
+      controller.joiner.notifyListeners();
+      await tester.pumpAndSettle();
+
+      expect(find.text('进入数据集'), findsOneWidget);
+      expect(find.textContaining('查询数据集失败'), findsNothing);
+    },
+  );
+
   testWidgets('no pending dataset entry renders no switch card', (
     tester,
   ) async {

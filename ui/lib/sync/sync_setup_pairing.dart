@@ -51,10 +51,12 @@ extension OwnerSyncPairing on SyncSetupController {
       return;
     }
     await _pairingAction(() async {
-      final commit = await _pairing.approve(
-        preview.invitationId,
-        preview.token,
-        consent,
+      // 后台网络同步 tick 短暂占用工作区时会以 sync_runtime_in_use 拒绝
+      // 任何改动 vault 修订的配对写入（这是防止并发写坏密钥修订的硬约束）。
+      // 该错误发生在任何写入之前，安全做法是稍等后重试同一次审批，而不是
+      // 把用户刚核对完的设备指纹丢掉。
+      final commit = await _retryWhileRuntimeBusy(
+        () => _pairing.approve(preview.invitationId, preview.token, consent),
       );
       pendingPairingId = preview.invitationId;
       invitation = null;
@@ -144,6 +146,27 @@ extension OwnerSyncPairing on SyncSetupController {
     if (_disposed || _closed) throw StateError('closed');
   }
 
+  /// `sync_runtime_in_use` now means the native side already waited out its
+  /// bounded budget (in-flight background worker) and still could not run.
+  /// A single spaced retry covers a stale runtime snapshot only; do not stack
+  /// long waits on top of the native wait.
+  Future<T> _retryWhileRuntimeBusy<T>(Future<T> Function() action) async {
+    const attempts = 2;
+    for (var attempt = 1; ; attempt++) {
+      try {
+        return await action();
+      } catch (failure) {
+        if (!failure.toString().contains('sync_runtime_in_use') ||
+            attempt >= attempts) {
+          rethrow;
+        }
+        _requirePairingOpen();
+        await Future<void>.delayed(const Duration(seconds: 1));
+        _requirePairingOpen();
+      }
+    }
+  }
+
   Future<void> _pairingAction(Future<void> Function() action) async {
     if (busy || _disposed || _closed) return;
     if (!previewEnabled ||
@@ -176,6 +199,8 @@ extension OwnerSyncPairing on SyncSetupController {
         debugPrint(
           '[sync-pairing] owner: approval delivery unconfirmed (auto-retry armed): $failure',
         );
+      } else if (text.contains('sync_runtime_in_use')) {
+        error = '后台同步正在占用本机同步运行时，本次配对写入未执行；请稍候再点一次。没有自动授权新设备。';
       } else {
         error = '配对步骤未完成，请检查本机解锁状态和中继地址；没有自动授权新设备。';
       }

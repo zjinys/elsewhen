@@ -25,6 +25,7 @@ import 'sync_object_conflicts_settings.dart';
 import 'sync_wiki_conflicts_settings.dart';
 
 part 'local_sync_parts/local_sync_device_card.dart';
+
 // ── 本机同步设置拆出设备信息卡（纯类段平移，零行为变化）──
 
 class LocalSyncSettings extends StatefulWidget {
@@ -256,6 +257,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
             ),
             DatasetSwitchCard(
               api: widget.datasetApi ?? const FrbSyncDatasetSwitchApi(),
+              catalogChanges: controller.joiner,
             ),
             const SizedBox(height: 12),
             if (tab == _SyncTab.bind)

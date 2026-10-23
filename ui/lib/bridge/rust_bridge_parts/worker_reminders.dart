@@ -242,7 +242,7 @@ extension RepoWorkerReminders on RustBridgeRepository {
       lastSyncTick.value = result;
       lastSyncTickError.value = null;
       if (result.ran && (result.pulledAccepted > 0 || result.uploaded > 0)) {
-        // 有新事件到达：唤醒分析队列并让知识视图在消化后刷新。会话/消息
+        // 有新事件/新上行：唤醒分析队列并让知识视图在消化后刷新。会话/消息
         // 视图只订阅 syncArrivalRevision（拉到东西就即时上台，不等消化）。
         knowledgeRevision.value++;
         if (result.pulledAccepted > 0) syncArrivalRevision.value++;

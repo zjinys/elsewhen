@@ -34,6 +34,7 @@ class PairingApi implements SyncPairingApi {
   int issued = 0;
   int approved = 0;
   int sent = 0;
+  int busyApprovals = 0;
   bool failSend = false;
   bool failCancel = false;
   String? approvedToken;
@@ -72,6 +73,10 @@ class PairingApi implements SyncPairingApi {
     bool consent,
   ) async {
     if (!consent) throw StateError('consent required');
+    if (busyApprovals > 0) {
+      busyApprovals--;
+      throw StateError('AnyhowException(sync_runtime_in_use)');
+    }
     approved++;
     approvedToken = previewToken;
     setup.current = testSyncState('locked');
@@ -163,6 +168,25 @@ void main() {
       );
       expect(f.controller.pairingNotice, contains('不表示设备已加入'));
       expect(f.controller.invitation, isNull);
+      await f.close();
+    },
+  );
+
+  test(
+    'approval retries when a background sync tick briefly owns the runtime',
+    () async {
+      final f = Fixture();
+      await f.initialize();
+      await f.invite();
+      f.pairing.busyApprovals = 1;
+      await f.controller.approveInvitation(
+        f.controller.pairingPreview!,
+        consent: true,
+      );
+      expect(f.pairing.approved, 1);
+      expect(f.pairing.sent, 1);
+      expect(f.setup.pairingConfirmed, isTrue);
+      expect(f.controller.error, isNull);
       await f.close();
     },
   );

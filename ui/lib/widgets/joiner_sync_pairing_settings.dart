@@ -116,7 +116,10 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
             ],
           ],
           if (phase == 'complete') ...[
-            DatasetSwitchCard(api: widget.datasetApi),
+            DatasetSwitchCard(
+              api: widget.datasetApi,
+              catalogChanges: controller,
+            ),
           ],
           if (!controller.active) ...[
             const SizedBox(height: 12),

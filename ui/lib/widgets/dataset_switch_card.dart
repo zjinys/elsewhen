@@ -15,10 +15,16 @@ class DatasetSwitchCard extends StatefulWidget {
     super.key,
     this.api = const FrbSyncDatasetSwitchApi(),
     this.onSwitched,
+    this.catalogChanges,
   });
 
   final SyncDatasetSwitchApi api;
   final void Function(String datasetName)? onSwitched;
+
+  /// 目录可能被同屏的其它动作改写（加入控制器删除暂存项、完成加入等），
+  /// 它们会 notifyListeners；监听后本卡立即重查，删除的暂存项不用重进
+  /// 设置页才消失。
+  final Listenable? catalogChanges;
 
   @override
   State<DatasetSwitchCard> createState() => _DatasetSwitchCardState();
@@ -34,8 +40,26 @@ class _DatasetSwitchCardState extends State<DatasetSwitchCard> {
   @override
   void initState() {
     super.initState();
+    widget.catalogChanges?.addListener(_onCatalogChanged);
     _check();
   }
+
+  @override
+  void didUpdateWidget(covariant DatasetSwitchCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.catalogChanges != oldWidget.catalogChanges) {
+      oldWidget.catalogChanges?.removeListener(_onCatalogChanged);
+      widget.catalogChanges?.addListener(_onCatalogChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.catalogChanges?.removeListener(_onCatalogChanged);
+    super.dispose();
+  }
+
+  void _onCatalogChanged() => _check();
 
   /// ready 条目暂缺（快照应用与 catalog 发布有先后）不钉住失败结果：
   /// 配对流程的 2s 轮询/状态头刷新会带着本卡重建重查。
