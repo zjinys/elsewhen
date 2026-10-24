@@ -164,11 +164,18 @@ class SyncSetupController extends ChangeNotifier {
   }
 
   void _resumeEnrollment() {
-    if (!_closed &&
-        !_disposed &&
-        _ownedOperation != null &&
-        state?.state == 'local_ready') {
-      unawaited(enrollment.arm(operationId: _ownedOperation));
+    // joiner 有自己的驱动器（joiner.active 自会 arm），这里只负责 owner
+    // 侧的收尾协调；否则两端会同时空转抢同一个原生工作区。
+    if (!_closed && !_disposed && !joiner.active) {
+      // 只有本机已就绪（解锁/恢复后 local_ready）才允许驱动。
+      if (state?.state == 'local_ready') {
+        // 注意不能要求 _ownedOperation 非空：app 重启/恢复只会恢复
+        // 原生会话，不会重置这个 Dart 持有标记。若强制要求它，批准后
+        // 的收尾协调（取 proof → 授名册 → 发快照）就永远没人驱动，
+        // 新设备会卡在「等待成员授权与初始同步」致中继反复重投。
+        // arm(operationId: null) 会由控制器从库存采用原生会话的操作号。
+        unawaited(enrollment.arm(operationId: _ownedOperation));
+      }
     }
   }
 
@@ -189,7 +196,13 @@ class SyncSetupController extends ChangeNotifier {
 
   Future<void> restoreIfConfigured() async {
     await refresh();
-    if (!_disposed && !_closed && state?.state == 'locked') await unlock();
+    if (!_disposed && !_closed && state?.state == 'locked') {
+      await unlock();
+    }
+    // 启动/重启自愈：若重启时配对协调还在收尾（批准已投递但名册未落），
+    // 恢复会话后必须把 enrollment 驱动器重新装上去，否则新设备会无限
+    // 等待「成员授权与初始同步」。
+    if (!_disposed && !_closed) _resumeEnrollment();
   }
 
   /// owner 改设备显示名。成功返回 null 并刷新状态；失败返回可读原因。
