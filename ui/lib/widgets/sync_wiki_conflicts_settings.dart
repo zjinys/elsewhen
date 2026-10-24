@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../bridge/api.dart' as api;
 import '../sync/sync_wiki_conflicts_controller.dart';
+import 'sync_conflict_section.dart';
 
 /// Wiki 页同步冲突的只读审阅列表 + 显式裁决入口（与 Provider 冲突同款）。
 ///
@@ -30,60 +31,28 @@ class _SyncWikiConflictsSettingsState extends State<SyncWikiConflictsSettings> {
         widget.controller.refresh();
       });
     }
-    final theme = Theme.of(context);
     return ListenableBuilder(
       listenable: widget.controller,
       builder: (context, _) {
         final controller = widget.controller;
         final conflicts = controller.conflicts;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 16),
-            Text('知识库同步冲突', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
-            Text(
+        return SyncConflictSection(
+          icon: Icons.menu_book_outlined,
+          title: '知识库同步冲突',
+          explainer:
               '来自其他设备的知识页改动与本端互相冲突。选择「保留本端」或「采纳对端」，不做字段拼接。',
-              style: theme.textTheme.bodySmall,
+          loaded: conflicts != null,
+          busy: controller.busy,
+          error: controller.error,
+          emptyText: '没有待审阅的知识库同步冲突。',
+          cards: [
+            for (final conflict in conflicts ?? const []) _WikiConflictCard(
+              key: ValueKey(conflict.opId),
+              conflict: conflict,
+              busy: controller.busy,
+              onResolve: (acceptRemote) =>
+                  controller.resolve(conflict, acceptRemote: acceptRemote),
             ),
-            if (controller.error != null) ...[
-              const SizedBox(height: 8),
-              Semantics(
-                liveRegion: true,
-                child: Text(
-                  controller.error!,
-                  style: TextStyle(color: theme.colorScheme.error),
-                ),
-              ),
-            ],
-            const SizedBox(height: 8),
-            if (controller.busy && conflicts == null)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    SizedBox(width: 8),
-                    Text('正在读取冲突…'),
-                  ],
-                ),
-              )
-            else if (conflicts != null && conflicts.isEmpty)
-              Text('没有待审阅的知识库同步冲突。', style: theme.textTheme.bodySmall)
-            else if (conflicts != null)
-              ...conflicts.map(
-                (conflict) => _WikiConflictCard(
-                  key: ValueKey(conflict.opId),
-                  conflict: conflict,
-                  busy: controller.busy,
-                  onResolve: (acceptRemote) =>
-                      controller.resolve(conflict, acceptRemote: acceptRemote),
-                ),
-              ),
           ],
         );
       },
@@ -133,27 +102,30 @@ class _WikiConflictCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            _SideView(
-              title: conflict.localHeadDeleted ? '本端（已删除 State）' : '本端当前',
-              slug: conflict.local?.slug,
-              title_: conflict.local?.title,
-              summary: null,
-              contentMdLen: conflict.local?.contentMdLen,
-              updatedAt: conflict.local?.updatedAt,
-              deleted: conflict.localHeadDeleted,
-            ),
-            const Divider(height: 24),
-            _SideView(
-              title: '对端送来的版本',
-              slug: conflict.incomingSlug,
-              title_: conflict.incomingTitle,
-              summary: conflict.incomingSummary.isEmpty
-                  ? null
-                  : conflict.incomingSummary,
-              contentMdLen: conflict.incomingContentMdLen,
-              updatedAt: conflict.incomingUpdatedAt,
-              deleted: conflict.incomingDeleted,
-              renamedFrom: conflict.incomingRenamedFrom,
+            SyncConflictSides(
+              children: [
+                _SideView(
+                  title: conflict.localHeadDeleted ? '本端（已删除 State）' : '本端当前',
+                  slug: conflict.local?.slug,
+                  title_: conflict.local?.title,
+                  summary: null,
+                  contentMdLen: conflict.local?.contentMdLen,
+                  updatedAt: conflict.local?.updatedAt,
+                  deleted: conflict.localHeadDeleted,
+                ),
+                _SideView(
+                  title: '对端送来的版本',
+                  slug: conflict.incomingSlug,
+                  title_: conflict.incomingTitle,
+                  summary: conflict.incomingSummary.isEmpty
+                      ? null
+                      : conflict.incomingSummary,
+                  contentMdLen: conflict.incomingContentMdLen,
+                  updatedAt: conflict.incomingUpdatedAt,
+                  deleted: conflict.incomingDeleted,
+                  renamedFrom: conflict.incomingRenamedFrom,
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             Wrap(

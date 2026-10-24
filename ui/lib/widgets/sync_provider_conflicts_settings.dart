@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../bridge/api.dart' as api;
 import '../sync/sync_provider_conflicts_controller.dart';
+import 'sync_conflict_section.dart';
 
 /// Provider 同步冲突的只读审阅列表 + 显式裁决入口。
 ///
@@ -31,60 +32,28 @@ class _SyncProviderConflictsSettingsState
         widget.controller.refresh();
       });
     }
-    final theme = Theme.of(context);
     return ListenableBuilder(
       listenable: widget.controller,
       builder: (context, _) {
         final controller = widget.controller;
         final conflicts = controller.conflicts;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 16),
-            Text('Provider 同步冲突', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
-            Text(
+        return SyncConflictSection(
+          icon: Icons.settings_suggest_outlined,
+          title: 'Provider 同步冲突',
+          explainer:
               '密钥已掩码。选择「保留本地」或「接受远端」整包应用，不做字段拼接；地址提示仅为静态分析，不代表实际可达。',
-              style: theme.textTheme.bodySmall,
+          loaded: conflicts != null,
+          busy: controller.busy,
+          error: controller.error,
+          emptyText: '没有待审阅的 Provider 同步冲突。',
+          cards: [
+            for (final conflict in conflicts ?? const []) _ConflictCard(
+              key: ValueKey(conflict.revisionId),
+              conflict: conflict,
+              busy: controller.busy,
+              onResolve: (acceptRemote) =>
+                  controller.resolve(conflict, acceptRemote: acceptRemote),
             ),
-            if (controller.error != null) ...[
-              const SizedBox(height: 8),
-              Semantics(
-                liveRegion: true,
-                child: Text(
-                  controller.error!,
-                  style: TextStyle(color: theme.colorScheme.error),
-                ),
-              ),
-            ],
-            const SizedBox(height: 8),
-            if (controller.busy && conflicts == null)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    SizedBox(width: 8),
-                    Text('正在读取冲突…'),
-                  ],
-                ),
-              )
-            else if (conflicts != null && conflicts.isEmpty)
-              Text('没有待审阅的 Provider 同步冲突。', style: theme.textTheme.bodySmall)
-            else if (conflicts != null)
-              ...conflicts.map(
-                (conflict) => _ConflictCard(
-                  key: ValueKey(conflict.revisionId),
-                  conflict: conflict,
-                  busy: controller.busy,
-                  onResolve: (acceptRemote) =>
-                      controller.resolve(conflict, acceptRemote: acceptRemote),
-                ),
-              ),
           ],
         );
       },
@@ -119,16 +88,19 @@ class _ConflictCard extends StatelessWidget {
               style: theme.textTheme.titleSmall,
             ),
             const SizedBox(height: 8),
-            _SideView(
-              title: '本机当前配置',
-              profiles: conflict.localProfiles,
-              activeId: conflict.localActiveId,
-            ),
-            const Divider(height: 24),
-            _SideView(
-              title: '远端配置',
-              profiles: conflict.remoteProfiles,
-              activeId: conflict.remoteActiveId,
+            SyncConflictSides(
+              children: [
+                _SideView(
+                  title: '本机当前配置',
+                  profiles: conflict.localProfiles,
+                  activeId: conflict.localActiveId,
+                ),
+                _SideView(
+                  title: '远端配置',
+                  profiles: conflict.remoteProfiles,
+                  activeId: conflict.remoteActiveId,
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             Wrap(
