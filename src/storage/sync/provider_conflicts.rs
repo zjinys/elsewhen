@@ -217,7 +217,31 @@ impl Store {
         let local_revision = self.sync_provider_head_revision()?;
         let mut reviews = Vec::with_capacity(rows.len());
         for row in rows {
-            let material = self.provider_conflict_key_material(&row.sender_device_id)?;
+            // 发送者已不在活跃成员里（撤销/退出/换了设备身份）：它的信封
+            // 永远无法可信解开，也没有可协商的对端。这样的陈旧冲突行若
+            // 留在列表里，会让 list_sync_provider_conflicts 整体失败
+            // （provider_conflict_sender_unknown），有效冲突反而审不了。
+            // 发送者既然不可达，接受它的远端本就非法——语义等同用户
+            // 「保留本地」，直接落成 dismissed 终态。
+            let material = match self.provider_conflict_key_material(&row.sender_device_id) {
+                Ok(material) => material,
+                Err(error) if error.to_string() == "provider_conflict_sender_unknown" => {
+                    let tx = self.begin_write_transaction().map_err(|error| {
+                        anyhow::anyhow!("provider_conflict_stale_dismiss_locked: {error}")
+                    })?;
+                    self.connection.execute(
+                        "UPDATE sync_provider_versions SET state='dismissed'
+                         WHERE revision_id=?1 AND state='conflict'",
+                        [row.revision_id.as_str()],
+                    )?;
+                    if let Some(tx) = tx {
+                        tx.commit()?;
+                    }
+                    self.sync_mark_provider_dirty()?;
+                    continue;
+                }
+                Err(error) => return Err(error),
+            };
             let remote = self.open_provider_conflict_with(
                 &row,
                 &material.dataset_id,
