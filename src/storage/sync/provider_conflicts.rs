@@ -234,10 +234,11 @@ impl Store {
                          WHERE revision_id=?1 AND state='conflict'",
                         [row.revision_id.as_str()],
                     )?;
+                    // 与 resolve(KeepLocal) 同构：脏位重播必须在域事务内完成。
+                    self.sync_mark_provider_dirty()?;
                     if let Some(tx) = tx {
                         tx.commit()?;
                     }
-                    self.sync_mark_provider_dirty()?;
                     continue;
                 }
                 Err(error) => return Err(error),
