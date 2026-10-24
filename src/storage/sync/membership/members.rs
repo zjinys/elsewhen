@@ -100,7 +100,19 @@ impl Store {
         self.apply_signed_roster(&signed.encode()?)?;
         // S02 清理缺口：撤销成员时清除发往该设备的在途信封（pending），
         // 否则 outbox 会对一个永远无法回执的收件人反复重试（悬空流量）。
-        // 已回执（acknowledged）的历史记录保留。
+        // 注意两张挂 (recipient_device_id,message_id) 外键的子表
+        // （快照导出 wire、分片上传 wire）没有级联删除：若不先清子行，
+        // 删除 pending 信封会以 FOREIGN KEY constraint failed 失败
+        // （实测撤销新配对手机时命中 176 条快照导出 wire）。
+        // 已回执（acknowledged）的 outbox 历史记录保留。
+        self.connection.execute(
+            "DELETE FROM sync_snapshot_export_wires WHERE recipient_device_id=?1",
+            [device],
+        )?;
+        self.connection.execute(
+            "DELETE FROM sync_operation_fragment_outbox WHERE recipient_device_id=?1",
+            [device],
+        )?;
         self.connection.execute(
             "DELETE FROM sync_wire_outbox WHERE recipient_device_id=?1 AND state='pending'",
             [device],
