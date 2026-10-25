@@ -27,6 +27,10 @@ class HabitNudgeBubble extends ConsumerStatefulWidget {
 class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
   bool _busy = false;
 
+  /// 建议卡被处理后的提示（「改时间」已保存 / 「暂停问候」已落库）。
+  /// 本地状态即可：建议卡每天只出一张，处理后当天不会再触发。
+  String? _acted;
+
   @override
   Widget build(BuildContext context) {
     final message = widget.message;
@@ -86,6 +90,8 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
     final missedLabel = plan?.missedLabel ?? '还没';
     final doneText = plan?.doneText ?? '今天完成了';
     final missedText = plan?.missedText ?? '今天还没完成';
+    // 连续忽略后的确定性建议卡（kind 由后端写入，文案不含回答按钮）。
+    final isSuggestion = message.kind == 'habit_nudge_suggest';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTheme.space4),
@@ -155,7 +161,46 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    if (active) ...[
+                    if (isSuggestion) ...[
+                      // 建议卡：用户确认才落库，不自动改计划。暂停后 plan.enabled
+                      // 变 false（revision 触发重读），卡片直接展示已暂停。
+                      if (_acted == null &&
+                          !stale &&
+                          (plan == null || plan.enabled))
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            FilledButton(
+                              onPressed: _busy ? null : _editTime,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppTheme.accentPrimary,
+                                foregroundColor: AppTheme.surface0,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              child: const Text('改时间'),
+                            ),
+                            OutlinedButton(
+                              onPressed: _busy ? null : _pause,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppTheme.textSecondary,
+                                side: BorderSide(color: AppTheme.surface3),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              child: const Text('暂停问候'),
+                            ),
+                          ],
+                        )
+                      else
+                        Text(
+                          _acted ?? '已暂停，可在设置页恢复',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textTertiary,
+                          ),
+                        ),
+                    ] else if (active) ...[
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
@@ -194,6 +239,17 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                               ),
                               child: const Text('晚点再问'),
                             ),
+                          // 聊聊：预填主对话输入框，不自动发送。
+                          TextButton(
+                            onPressed: _busy
+                                ? null
+                                : () => _chatAbout('$missedText，因为'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppTheme.textTertiary,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            child: const Text('聊聊'),
+                          ),
                           TextButton(
                             onPressed: _busy ? null : _dismiss,
                             style: TextButton.styleFrom(
@@ -213,6 +269,30 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                         ),
                       ],
                     ] else
+                    // 记了「没做」之后，提供「聊聊原因」入口（同样是预填不发送）。
+                    if (response == 'missed' && !stale)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '已记录：${checkinText ?? missedText}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textTertiary,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => _chatAbout('$missedText，因为'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppTheme.accentPrimary,
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                            ),
+                            child: const Text('聊聊原因'),
+                          ),
+                        ],
+                      )
+                    else
                       Text(
                         checkinText != null
                             ? '已记录：$checkinText'
@@ -240,6 +320,82 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
         ],
       ),
     );
+  }
+
+  /// 「聊聊」：把记录句预填进主对话输入框（追加「，因为」留待用户补全），
+  /// 由 _MessageInput 监听填入，不自动发送。
+  void _chatAbout(String seed) {
+    ref
+        .read(habitChatDraftProvider(widget.message.conversationId).notifier)
+        .set(seed);
+  }
+
+  /// 建议卡「改时间」：按 slug 找到习惯页，复用「定期问我」设置对话框；
+  /// 用户在对话框里确认保存后才落库（对话框自身负责写库与广播）。
+  Future<void> _editTime() async {
+    if (_busy) return;
+    final nudgeId = widget.message.messageRef?.split(':').first ?? '';
+    if (nudgeId.isEmpty) return;
+    setState(() => _busy = true);
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final plan = await repo.getHabitNudge(nudgeId);
+      if (!mounted || plan == null) return;
+      final page = await ref.read(wikiPageProvider(plan.pageSlug).future);
+      if (!mounted || page == null) return;
+      final changed = await showHabitNudgeDialog(context, page: page);
+      if (!mounted) return;
+      if (changed == true) {
+        setState(() => _acted = '已按新的时间继续提醒');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('定期问候已更新'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// 建议卡「暂停问候」：保留全部配置只把 enabled 置 false，用户可随时
+  /// 在设置页恢复；这是确定性操作，不经 AI。
+  Future<void> _pause() async {
+    if (_busy) return;
+    final nudgeId = widget.message.messageRef?.split(':').first ?? '';
+    if (nudgeId.isEmpty) return;
+    setState(() => _busy = true);
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      final plan = await repo.getHabitNudge(nudgeId);
+      if (!mounted || plan == null) return;
+      await repo.saveHabitNudge(
+        HabitNudgeInputDto(
+          pageSlug: plan.pageSlug,
+          question: plan.question,
+          doneLabel: plan.doneLabel,
+          doneText: plan.doneText,
+          missedLabel: plan.missedLabel,
+          missedText: plan.missedText,
+          weekdays: plan.weekdays,
+          localTime: plan.localTime,
+          enabled: false,
+        ),
+      );
+      if (!mounted) return;
+      setState(() => _acted = '已暂停，可在设置页恢复');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('操作失败：${e.toString().replaceFirst('Exception: ', '')}'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   String _statusText({

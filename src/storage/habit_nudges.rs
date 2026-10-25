@@ -355,7 +355,7 @@ impl Store {
     fn existing_nudge_message(&self, reference: &str) -> Result<Option<String>> {
         self.connection
             .query_row(
-                "SELECT id FROM messages WHERE kind='habit_nudge' AND ref=?1 ORDER BY created_at,id LIMIT 1",
+                "SELECT id FROM messages WHERE kind IN ('habit_nudge','habit_nudge_suggest') AND ref=?1 ORDER BY created_at,id LIMIT 1",
                 [reference],
                 |row| row.get(0),
             )
@@ -399,6 +399,12 @@ impl Store {
         };
 
         let date = local_date(now);
+        // 产品原则：全局每天最多触发 2 条。统计当天首次问候与建议卡（ref 恰好是 nudge_id 加冒号加 date 的消息），补问与已关闭的不占额度。
+        if fire.is_none() && self.habit_nudge_messages_on(&date)? >= 2 {
+            return Ok(Vec::new());
+        }
+        // 连续忽略：同一习惯连续 3 天被「今天不问」后，改发确定性建议卡，不替用户改计划。
+        let suggestion = fire.is_none() && self.consecutive_dismissed_days(&nudge.id, &date)? >= 3;
         let base_ref = format!("{}:{date}", nudge.id);
         let (reference, parent_message_id, ask_count) = match &fire {
             None => (base_ref.clone(), None, 1),
@@ -422,20 +428,81 @@ impl Store {
         }
 
         let transaction = self.begin_write_transaction()?;
+        let (content, kind, response) = if suggestion {
+            (
+                format!(
+                    "这条问候已经连续几天被忽略了。要不要把「{}」调个时间，或者先暂停几天？",
+                    nudge.question
+                ),
+                "habit_nudge_suggest",
+                Some("suggested"),
+            )
+        } else {
+            (nudge.question.clone(), "habit_nudge", None)
+        };
         let message_id = self.insert_message_with_kind(
             &conversation_id,
             "assistant",
-            &nudge.question,
+            &content,
             parent_message_id.as_deref(),
             None,
-            "habit_nudge",
+            kind,
             Some(&reference),
         )?;
-        self.upsert_fire(&nudge.id, &date, ask_count, None, None, &message_id, now)?;
+        self.upsert_fire(
+            &nudge.id,
+            &date,
+            ask_count,
+            None,
+            response,
+            &message_id,
+            now,
+        )?;
         if let Some(transaction) = transaction {
             transaction.commit()?;
         }
         Ok(vec![message_id])
+    }
+
+    /// 当天已触发的首次问候与建议卡条数（全局限流用）。只数 ref 恰好是 nudge_id:date 的消息；补问（:2 后缀）与其他日期都不算。
+    fn habit_nudge_messages_on(&self, date: &str) -> Result<i64> {
+        self.connection
+            .query_row(
+                "SELECT COUNT(*) FROM messages WHERE kind IN (?1,?2) AND length(ref)=instr(ref,char(58))+10 AND substr(ref,instr(ref,char(58))+1)=?3",
+                params!["habit_nudge", "habit_nudge_suggest", date],
+                |row| row.get(0),
+            )
+            .map_err(Into::into)
+    }
+
+    /// date 之前最近 7 天里，该习惯的问候连续被「今天不问」的天数。遇到没触发过的日子或任何其它回答（done/missed/suggested）即中断。
+    fn consecutive_dismissed_days(&self, nudge_id: &str, date: &str) -> Result<i64> {
+        let Ok(base) = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d") else {
+            return Ok(0);
+        };
+        let start = (base - Duration::days(7)).format("%Y-%m-%d").to_string();
+        let mut statement = self.connection.prepare(
+            "SELECT local_date,response FROM habit_nudge_fires WHERE nudge_id=?1 AND local_date<?2 AND local_date>=?3",
+        )?;
+        let rows = statement.query_map(params![nudge_id, date, start], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
+        })?;
+        let mut responses = std::collections::HashMap::new();
+        for row in rows {
+            let (day, response) = row?;
+            responses.insert(day, response);
+        }
+        let mut count = 0i64;
+        for offset in 1..=7i64 {
+            let day = (base - Duration::days(offset))
+                .format("%Y-%m-%d")
+                .to_string();
+            match responses.get(&day).and_then(|r| r.as_deref()) {
+                Some("dismissed") => count += 1,
+                _ => break,
+            }
+        }
+        Ok(count)
     }
 
     fn upsert_fire(

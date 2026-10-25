@@ -285,3 +285,100 @@ fn yesterday_unanswered_nudge_does_not_stay_unread() {
     );
     let _ = std::fs::remove_file(path);
 }
+
+fn at_day(days_ago: i64, hour: u32, minute: u32) -> chrono::DateTime<Local> {
+    let date = (Local::now() - Duration::days(days_ago)).date_naive();
+    Local
+        .from_local_datetime(&date.and_hms_opt(hour, minute, 0).unwrap())
+        .single()
+        .unwrap()
+}
+
+#[test]
+fn global_daily_limit_allows_only_two_first_nudges() {
+    let (path, store) = habit_store();
+    store.create_conversation(Some("主对话流"), None).unwrap();
+    entity_page(&store, "habit/run", "habit", "跑步");
+    entity_page(&store, "habit/read", "habit", "阅读");
+    save_walk_nudge(&store);
+    store
+        .save_habit_nudge(
+            "habit/run",
+            "今天跑步了吗？",
+            "跑了",
+            "今天跑步了",
+            "没跑",
+            "今天还没跑",
+            127,
+            "12:30",
+            true,
+        )
+        .unwrap();
+    store
+        .save_habit_nudge(
+            "habit/read",
+            "今天阅读了吗？",
+            "读了",
+            "今天阅读了",
+            "没读",
+            "今天还没读",
+            127,
+            "12:30",
+            true,
+        )
+        .unwrap();
+
+    assert_eq!(store.tick_habit_nudges_at(at(12, 45)).unwrap().len(), 1);
+    assert_eq!(store.tick_habit_nudges_at(at(12, 46)).unwrap().len(), 1);
+    assert!(
+        store.tick_habit_nudges_at(at(12, 47)).unwrap().is_empty(),
+        "当天第三条首次问候应被全局限流拦下"
+    );
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn three_consecutive_dismissed_days_yield_suggestion_card() {
+    let (path, store) = habit_store();
+    store.create_conversation(Some("主对话流"), None).unwrap();
+    save_walk_nudge(&store);
+    for days_ago in [3i64, 2, 1] {
+        let fired = store
+            .tick_habit_nudges_at(at_day(days_ago, 12, 45))
+            .unwrap();
+        assert_eq!(fired.len(), 1, "第 {days_ago} 天前应正常触发问候");
+        store.dismiss_habit_nudge(&fired[0]).unwrap();
+    }
+
+    let today = store.tick_habit_nudges_at(at(12, 45)).unwrap();
+    assert_eq!(today.len(), 1);
+    let (kind, content): (String, String) = store
+        .connection
+        .query_row(
+            "SELECT kind,content FROM messages WHERE id=?1",
+            rusqlite::params![&today[0]],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(kind, "habit_nudge_suggest");
+    assert!(
+        content.contains("调个时间"),
+        "建议卡应是确定性文案：{content}"
+    );
+
+    let nudge = store
+        .get_habit_nudge_for_page("habit/walk")
+        .unwrap()
+        .unwrap();
+    let date = Local::now().format("%Y-%m-%d").to_string();
+    let fire = store
+        .get_habit_nudge_fire(&nudge.id, &date)
+        .unwrap()
+        .unwrap();
+    assert_eq!(fire.response.as_deref(), Some("suggested"));
+    assert!(
+        store.tick_habit_nudges_at(at(13, 0)).unwrap().is_empty(),
+        "建议卡当天不应再重复触发"
+    );
+    let _ = std::fs::remove_file(path);
+}
