@@ -2,12 +2,13 @@
  * standalone 中继端到端冒烟：协议语义与 CF 版一致。
  * 覆盖：health、create→status→register→send→fetch→ack 生命周期、
  *       nonce 重放拒绝、坏签名拒绝、撤销后 send 拒绝、
- *       owner 授权 CAS 幂等回执、release 分发端点。
+ *       owner 授权 CAS 幂等回执。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { createHash, createHmac, randomBytes } from 'node:crypto';
@@ -30,9 +31,8 @@ function auth(credential, domain, parts) {
 
 async function startServer(extraEnv = {}) {
   const dataDir = mkdtempSync(join(tmpdir(), 'relay-data-'));
-  const releasesDir = mkdtempSync(join(tmpdir(), 'relay-rel-'));
   const proc = spawn(process.execPath, [join(here, 'server.mjs')], {
-    env: { ...process.env, PORT: '0', DATA_DIR: dataDir, RELEASES_DIR: releasesDir, ...extraEnv },
+    env: { ...process.env, PORT: '0', DATA_DIR: dataDir, ...extraEnv },
     stdio: ['ignore', 'pipe', 'inherit'],
   });
   const port = await new Promise((resolve, reject) => {
@@ -42,7 +42,7 @@ async function startServer(extraEnv = {}) {
     });
     proc.on('exit', (code) => reject(new Error(`relay exited early: ${code}`)));
   });
-  return { proc, port, releasesDir };
+  return { proc, port, dataDir };
 }
 
 async function post(port, path, body) {
@@ -51,7 +51,7 @@ async function post(port, path, body) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
-  return { status: res.status, body: await res.json() };
+  return { status: res.status, body: await res.json(), headers: res.headers };
 }
 async function get(port, path) {
   const res = await fetch(`http://127.0.0.1:${port}${path}`);
@@ -131,6 +131,33 @@ test('mailbox lifecycle: create, status, register, send, fetch, ack', async () =
   } finally { s.proc.kill(); }
 });
 
+test('same (sender_mb, seq_hint) collapses to one mail; seq_hint=0 keeps both', async () => {
+  const s = await startServer();
+  try {
+    const { owner, mb, senderCred, senderMb } = await seedMailbox(s.port, { grantSender: true });
+    const expiry = Date.now() + 60_000;
+    const first = Buffer.from('first delivery').toString('base64');
+    const second = Buffer.from('second delivery').toString('base64');
+    // 同一逻辑投递重发两次（丢响应 / 租约恢复的真实形态）：seq_hint 是客户端
+    // 签名过的稳定序号，relay 必须把它当幂等键，不能累加副本。
+    assert.equal((await sendEnvelope(s.port, { mb, senderMb, senderCred, expiry, seq: 7, content: first })).status, 200);
+    assert.equal((await sendEnvelope(s.port, { mb, senderMb, senderCred, expiry, seq: 7, content: second })).status, 200);
+    const status = await get(s.port, `/status?version=2&mailbox_key=${mb}&${authQuery(owner, 'status', [mb])}`);
+    assert.equal(status.body.count, 1);
+    assert.equal(status.body.bytes, Buffer.from(second, 'base64').length);
+    // 生效的是最后一次：旧副本被替换而不是被遮蔽
+    const fetched = await get(s.port, `/fetch?version=2&mailbox_key=${mb}&after=0&limit=20&${authQuery(owner, 'fetch', [mb, '0', '20'])}`);
+    assert.equal(fetched.body.envelopes.length, 1);
+    assert.equal(fetched.body.envelopes[0].ciphertext, second);
+    // seq_hint=0 表示「本轮没有稳定序号」（配对帧等）：必须允许重复
+    const zero = Buffer.from('no sequence').toString('base64');
+    assert.equal((await sendEnvelope(s.port, { mb, senderMb, senderCred, expiry, seq: 0, content: zero })).status, 200);
+    assert.equal((await sendEnvelope(s.port, { mb, senderMb, senderCred, expiry, seq: 0, content: zero })).status, 200);
+    const after = await get(s.port, `/status?version=2&mailbox_key=${mb}&${authQuery(owner, 'status', [mb])}`);
+    assert.equal(after.body.count, 3);
+  } finally { s.proc.kill(); }
+});
+
 test('replayed nonce is rejected with 409', async () => {
   const s = await startServer();
   try {
@@ -202,25 +229,73 @@ test('wrong owner credential binding rejected on create', async () => {
   } finally { s.proc.kill(); }
 });
 
-test('release endpoints: 404 before publish, manifest and apk after', async () => {
+
+test('drop: owner-signed abandonment deletes only the listed mails, distinct from ack', async () => {
   const s = await startServer();
   try {
-    assert.equal((await get(s.port, '/release/latest')).status, 404);
-    mkdirSync(join(s.releasesDir, 'release'), { recursive: true });
-    mkdirSync(join(s.releasesDir, 'apk'), { recursive: true });
-    const manifest = { version: '1.2.3', hash: 'abcdef123', notes: 'test' };
-    writeFileSync(join(s.releasesDir, 'release', 'manifest.json'), JSON.stringify(manifest));
-    const latest = await get(s.port, '/release/latest');
-    assert.equal(latest.status, 200);
-    assert.deepEqual(latest.body, manifest);
-    assert.match(latest.headers.get('content-type'), /application\/json/);
-    // APK：hash 非法 400；合法但缺失 404；存在则流式返回
-    assert.equal((await get(s.port, '/release/apk?h=**')).status, 400);
-    assert.equal((await get(s.port, '/release/apk?h=abcdef123')).status, 404);
-    writeFileSync(join(s.releasesDir, 'apk', 'abcdef123.apk'), Buffer.from('APKBYTES'));
-    const apk = await get(s.port, '/release/apk?h=abcdef123');
-    assert.equal(apk.status, 200);
-    assert.equal(apk.body, 'APKBYTES');
-    assert.equal(apk.headers.get('content-type'), 'application/vnd.android.package-archive');
+    const { owner, mb, senderCred, senderMb } = await seedMailbox(s.port, { grantSender: true });
+    const expiry = Date.now() + 60_000;
+    const ids = [];
+    for (const seq of [1, 2, 3]) {
+      const sent = await sendEnvelope(s.port, { mb, senderMb, senderCred, expiry, seq });
+      assert.equal(sent.status, 200);
+      ids.push(sent.body.id);
+    }
+    const drop = (body) => post(s.port, '/drop', body);
+    // 只删列举的那封，其余原样留着（drop 不是「清空信箱」）。
+    const first = await drop({ version: 2, mailbox_key: mb, ids: [ids[1]], ...auth(owner, 'drop', [mb, ids[1]]) });
+    assert.equal(first.status, 200);
+    assert.equal(first.body.deleted, 1);
+    // 幂等：同一封再 drop 一次得 0，不是错误。
+    const again = await drop({ version: 2, mailbox_key: mb, ids: [ids[1]], ...auth(owner, 'drop', [mb, ids[1]]) });
+    assert.equal(again.status, 200);
+    assert.equal(again.body.deleted, 0);
+    const status = await get(s.port, `/status?version=2&mailbox_key=${mb}&${authQuery(owner, 'status', [mb])}`);
+    assert.equal(status.body.count, 2);
+    assert.deepEqual(status.body.capabilities, ['blob', 'drop']);
+    // 签名域分离：拿 ack 域的签名去 drop 必须被拒（跨操作重放防线）。
+    const crossed = await drop({ version: 2, mailbox_key: mb, ids: [ids[0]], ...auth(owner, 'ack', [mb, ids[0]]) });
+    assert.equal(crossed.status, 403);
+    // 非 owner 凭据（sender）不能替 owner 放弃。
+    const impostor = await drop({ version: 2, mailbox_key: mb, ids: [ids[0]], ...auth(senderCred, 'drop', [mb, ids[0]]) });
+    assert.equal(impostor.status, 403);
+    // 参数校验与 ack 同形：空、重复、非数字都 400。
+    assert.equal((await drop({ version: 2, mailbox_key: mb, ids: [], ...auth(owner, 'drop', [mb, '']) })).status, 400);
+    assert.equal((await drop({ version: 2, mailbox_key: mb, ids: [ids[0], ids[0]], ...auth(owner, 'drop', [mb, `${ids[0]},${ids[0]}`]) })).status, 400);
+    assert.equal((await drop({ version: 2, mailbox_key: mb, ids: ['not-a-mail'], ...auth(owner, 'drop', [mb, 'not-a-mail']) })).status, 400);
+    // 剩下的两封照旧能被 fetch 到 —— drop 没有副作用到扫描游标。
+    const fetched = await get(s.port, `/fetch?version=2&mailbox_key=${mb}&after=0&limit=20&${authQuery(owner, 'fetch', [mb, '0', '20'])}`);
+    assert.deepEqual(fetched.body.envelopes.map((e) => e.id), [ids[0], ids[2]]);
   } finally { s.proc.kill(); }
+});
+
+test('写锁被占住时返回 503 relay_busy + Retry-After，而不是 500', async () => {
+  // busy_timeout 调到 50 ms：这条路径要能被确定性地触发，不能真等 5 s。
+  const s = await startServer({ SQLITE_BUSY_TIMEOUT_MS: '50' });
+  let holder;
+  try {
+    const { owner, mb, senderCred, senderMb } = await seedMailbox(s.port, { grantSender: true });
+    const expiry = Date.now() + 60_000;
+    // 另开一个连接抢住写锁（sweeper 的 VACUUM / 另一个请求就是这种形态）。
+    holder = new DatabaseSync(join(s.dataDir, 'mailboxes', `${mb}.db`));
+    holder.exec('PRAGMA busy_timeout = 50');
+    holder.exec('BEGIN IMMEDIATE');
+    assert.equal(holder.prepare('SELECT COUNT(*) AS n FROM relay_v2_mail').get().n, 0);
+
+    const blocked = await sendEnvelope(s.port, { mb, senderMb, senderCred, expiry });
+    assert.equal(blocked.status, 503, '争用是「等一下再来」，不是「服务器出错」');
+    assert.equal(blocked.body.error, 'relay_busy');
+    assert.equal(blocked.headers.get('retry-after'), '1');
+
+    // 锁一放就恢复：证明 503 没有副作用，重试就能成功。
+    holder.exec('ROLLBACK');
+    const sent = await sendEnvelope(s.port, { mb, senderMb, senderCred, expiry });
+    assert.equal(sent.status, 200);
+    const status = await get(s.port, `/status?version=2&mailbox_key=${mb}&${authQuery(owner, 'status', [mb])}`);
+    assert.equal(status.body.count, 1);
+  } finally {
+    try { holder?.exec('ROLLBACK'); } catch { /* 已回滚 */ }
+    try { holder?.close(); } catch { /* 已关闭 */ }
+    s.proc.kill();
+  }
 });

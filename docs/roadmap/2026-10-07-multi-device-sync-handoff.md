@@ -168,7 +168,7 @@
 | 加密投递与快照/大记录 | [engine.rs](../../src/sync/engine.rs)、[engine/snapshot.rs](../../src/sync/engine/snapshot.rs)、[storage/sync/snapshot.rs](../../src/storage/sync/snapshot.rs)、[storage/sync/delivery.rs](../../src/storage/sync/delivery.rs)、[fragments.rs](../../src/sync/fragments.rs) |
 | 成员授权、后台归属 | [membership.rs](../../src/sync/membership.rs)、[storage/sync/membership.rs](../../src/storage/sync/membership.rs)、[storage/sync/processing.rs](../../src/storage/sync/processing.rs) |
 | Provider bundle、静态加密、编辑基底 | [storage/sync/providers.rs](../../src/storage/sync/providers.rs)、[provider_keys.rs](../../src/storage/provider_keys.rs)、[provider.rs](../../src/storage/provider.rs)、[api/provider_config.rs](../../src/api/provider_config.rs) |
-| 实际 relay 与跨实现测试 | [transport_relay.rs](../../src/sync/transport_relay.rs)、[worker.ts](../../relay/src/worker.ts)、[rust-client.test.mjs](../../relay/test/rust-client.test.mjs)、[membership.rs 互通用例](../../src/sync/transport_relay_smoke_tests/membership.rs) |
+| 实际 relay 与跨实现测试 | [transport_relay.rs](../../src/sync/transport_relay.rs)、[server.mjs](../../relay/standalone/server.mjs)、[rust-client.test.mjs](../../relay/test/rust-client.test.mjs)、[membership.rs 互通用例](../../src/sync/transport_relay_smoke_tests/membership.rs) |
 
 当前业务库迁移截至 **v24**，由 [new_migrations.rs](../../src/storage/new_migrations.rs) 从目录发现：v16 复制核心、v17 快照投递、v18 增量分块、v19 本机 vault、v20 加工防线、v21 回复输入关联、v22 成员授权、v23 Provider 静态保护、v24 Provider 编辑基底。后续按实际最新序号追加，不修改历史迁移；本机 `sync-workspace.db` 目录册是独立 schema，不参与内容同步。
 

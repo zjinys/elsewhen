@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../bridge/api.dart' as api;
 import 'sync_key_store.dart';
+import 'sync_keep_alive.dart';
 import 'sync_pairing_api.dart';
 import 'sync_join_api.dart';
 import 'sync_join_controller.dart';
@@ -266,6 +267,8 @@ class SyncSetupController extends ChangeNotifier {
     final done = Completer<void>();
     _activationDone = done;
     SyncMasterKey? key;
+    // 准备/解锁会写密钥库与 vault 修订；被冻结在中间会留下未确认的会话。
+    SyncKeepAlive.hold('sync-setup', text: '正在准备本机同步身份');
     try {
       await enrollment.pause();
       if (_disposed || _closed) throw StateError('closed');
@@ -325,6 +328,7 @@ class SyncSetupController extends ChangeNotifier {
       done.complete();
       if (identical(_activationDone, done)) _activationDone = null;
       _changed();
+      SyncKeepAlive.release('sync-setup');
       _resumeEnrollment();
     }
   }
@@ -363,6 +367,7 @@ class SyncSetupController extends ChangeNotifier {
     await enrollment.close();
     await joiner.close();
     await _activationDone?.future;
+    SyncKeepAlive.releaseAll();
     final token = _ownedOperation;
     _ownedOperation = null;
     if (token != null) {

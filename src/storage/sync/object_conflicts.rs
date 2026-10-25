@@ -77,6 +77,17 @@ fn mutation_incoming(mutation: &SyncMutation) -> Result<ObjectConflictIncoming> 
             base_revision: base_revision.clone(),
             updated_at: nudge.updated_at.clone(),
         },
+        SyncMutation::HabitPageLinkChanged {
+            link,
+            base_revision,
+            deleted,
+        } => ObjectConflictIncoming {
+            summary: link.page_slug.clone(),
+            status: link.status.clone(),
+            deleted: *deleted,
+            base_revision: base_revision.clone(),
+            updated_at: link.updated_at.clone(),
+        },
         SyncMutation::GoalChanged {
             goal,
             base_revision,
@@ -337,6 +348,31 @@ impl Store {
                     )?;
                 }
                 self.sync_set_head("habit_nudge", &nudge.id, &op.op_id, *deleted)?;
+                self.connection
+                    .execute("DELETE FROM sync_conflicts WHERE op_id=?1", [op_id])?;
+            }
+            (SyncMutation::HabitPageLinkChanged { link, deleted, .. }, true) => {
+                if *deleted {
+                    self.connection
+                        .execute("DELETE FROM habit_page_links WHERE id=?1", [&link.id])?;
+                } else {
+                    self.connection.execute(
+                        "INSERT INTO habit_page_links(id,page_slug,nudge_id,status,source,created_at,updated_at) \
+                         VALUES(?1,?2,?3,?4,?5,?6,?7) \
+                         ON CONFLICT(id) DO UPDATE SET page_slug=excluded.page_slug,nudge_id=excluded.nudge_id, \
+                         status=excluded.status,source=excluded.source,updated_at=excluded.updated_at",
+                        params![
+                            link.id,
+                            link.page_slug,
+                            link.nudge_id,
+                            link.status,
+                            link.source,
+                            link.created_at,
+                            link.updated_at
+                        ],
+                    )?;
+                }
+                self.sync_set_head("habit_page_link", &link.id, &op.op_id, *deleted)?;
                 self.connection
                     .execute("DELETE FROM sync_conflicts WHERE op_id=?1", [op_id])?;
             }

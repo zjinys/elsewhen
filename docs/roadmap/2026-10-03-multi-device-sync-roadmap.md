@@ -89,7 +89,7 @@
 - [ ] 修复取件的排他游标与 mailbox 前缀、有界收件/JSON/解压/页大小/配额；用实际运行时验证并发、崩溃恢复和计账，不假设 DO 所有异步路径天然事务化。
 - [ ] 首版不依赖 presence/peers；后续启用前修复跨邮箱路由，不能以“空列表正常”证明设备发现可用。
 
-**主要位置：** `src/sync/transport_relay.rs`、`relay/src/worker.ts`、`relay/test/`，拟新增配对/加密模块与本机密钥存储适配。
+**主要位置：** `src/sync/transport_relay.rs`、`relay/standalone/server.mjs`、`relay/test/`，拟新增配对/加密模块与本机密钥存储适配。
 
 **验收：** 固定加密向量；未经授权注册、sender 读删、跨邮箱访问、篡改/重放、撤销/续期、错误目标、截断载荷、限额/分页；直接运行实际 Worker 的多邮箱路径。现有 `crypto.test.mjs` 的镜像逻辑测试不能代替生产路由测试，Rust 自发自收 smoke 不能代替两个设备。
 

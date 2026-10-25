@@ -104,6 +104,12 @@ fn migrations_are_discovered_from_the_directory() {
             "55-provider-runtime-active",
             "56-rule-essence",
             "57-habit-nudges",
+            "58-habit-page-links",
+            "59-sync-wire-seq-hint",
+            "60-snapshot-transport",
+            "61-wire-rejections",
+            "62-wire-last-error",
+            "63-relay-v3-review-f5",
         ],
         "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
     );
@@ -135,7 +141,7 @@ fn migration_applies_goals_table() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 57, "五十七条迁移跑完，user_version 应为 57");
+    assert_eq!(version, 63, "六十三条迁移跑完，user_version 应为 63");
     assert_eq!(
         latest_version().unwrap(),
         version,
@@ -544,4 +550,86 @@ fn superseded_count(connection: &Connection) -> i64 {
             |row| row.get(0),
         )
         .unwrap()
+}
+
+/// 迁移 63 在老库上的行为：重建两张表必须**一行不丢**。
+///
+/// 这两张表的重建都属于「主键/约束改变只能重建」的情形，而重建 = CREATE + COPY +
+/// DROP + RENAME：顺序错一步（先 DROP 后 COPY）、外键没延后校验、或者忘记把审计列
+/// 抄过去，都只会表现为「升级后数据静默变少」，没有任何报错。所以这里在 v62 上
+/// 真造出在途分片与死信审计行，再跑到最新版逐行比对。
+#[test]
+fn v63_table_rebuilds_keep_blob_snapshots_and_rejection_audit() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    migrations()
+        .unwrap()
+        .to_version(&mut connection, 62)
+        .unwrap();
+    connection
+        .execute_batch(
+            "INSERT INTO sync_snapshots(id,source_device_id,key_version,manifest,state,transport,blob_id)
+               VALUES('snap-inflight','dev-peer',3,NULL,'staging','blob','blob-0123456789abcdef');
+             INSERT INTO sync_snapshot_target(singleton,snapshot_id) VALUES(1,'snap-inflight');
+             INSERT INTO sync_snapshot_chunks(snapshot_id,chunk_index,encrypted_chunk,plaintext_hash)
+               VALUES('snap-inflight',0,x'00ff','hash-0'),('snap-inflight',1,x'01ff','hash-1');
+             INSERT INTO sync_wire_rejections(mail_id,mailbox_id,sender_mailbox_id,message_id,attempts,last_error,first_seen_at,last_seen_at,dropped_at)
+               VALUES('42','mb-owner','mb-sender','snapshot-start:abc',3,'sync_relay_payload_invalid',1000,2000,3000);",
+        )
+        .unwrap();
+    initialize(&mut connection).unwrap();
+
+    let snapshot: (String, String, String, i64) = connection
+        .query_row(
+            "SELECT s.state,s.transport,s.blob_id,(SELECT COUNT(*) FROM sync_snapshot_chunks c WHERE c.snapshot_id=s.id)
+               FROM sync_snapshots s WHERE s.id='snap-inflight'",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )
+        .unwrap();
+    assert_eq!(
+        snapshot,
+        (
+            "staging".to_string(),
+            "blob".to_string(),
+            "blob-0123456789abcdef".to_string(),
+            2
+        ),
+        "在途分片与外键关系不能在重建中丢失"
+    );
+    let closed: Option<i64> = connection
+        .query_row(
+            "SELECT blob_closed_at FROM sync_snapshots WHERE id='snap-inflight'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(closed, None, "老行没有回收记录：等下一拍补关一次");
+
+    // m10-a：接收侧的 transport 现在与导出侧一样只认两个值。
+    let bad = connection.execute(
+        "INSERT INTO sync_snapshots(id,source_device_id,key_version,manifest,state,transport,blob_id)
+           VALUES('snap-bogus','dev-peer',3,NULL,'staging','carrier-pigeon',NULL)",
+        [],
+    );
+    assert!(bad.is_err(), "非法 transport 必须被 CHECK 拒绝");
+
+    // m5：同一 mail_id 属于两个信箱时是两行，互不继承计数。
+    connection
+        .execute_batch(
+            "INSERT INTO sync_wire_rejections(mail_id,mailbox_id,sender_mailbox_id,message_id,attempts,last_error,first_seen_at,last_seen_at)
+               VALUES('42','mb-repaired','mb-sender','',1,'sync_relay_payload_invalid',4000,4000);",
+        )
+        .unwrap();
+    let rows: String = connection
+        .query_row(
+            "SELECT group_concat(mailbox_id||':'||attempts||':'||COALESCE(dropped_at,-1),'|')
+               FROM (SELECT mailbox_id,attempts,dropped_at FROM sync_wire_rejections ORDER BY mailbox_id)",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        rows, "mb-owner:3:3000|mb-repaired:1:-1",
+        "重新配对后新信箱的第一封信不能继承旧信箱的拒绝次数与表态"
+    );
 }

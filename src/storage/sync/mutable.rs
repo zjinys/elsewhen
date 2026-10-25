@@ -12,8 +12,8 @@ use rusqlite::{OptionalExtension, params};
 
 use super::{Apply, Store};
 use crate::sync::protocol::{
-    GoalRecord, HabitNudgeRecord, KnowledgeReadingStateRecord, KnowledgeReviewRecord, RuleRecord,
-    SyncMutation, SyncOperation, TodoRecord,
+    GoalRecord, HabitNudgeRecord, HabitPageLinkRecord, KnowledgeReadingStateRecord,
+    KnowledgeReviewRecord, RuleRecord, SyncMutation, SyncOperation, TodoRecord,
 };
 
 fn todo_record_from_row(
@@ -69,6 +69,26 @@ fn habit_nudge_record_from_row(
         weekdays,
         local_time,
         enabled: enabled != 0,
+        created_at,
+        updated_at,
+    }
+}
+
+fn habit_page_link_record_from_row(
+    id: String,
+    page_slug: String,
+    nudge_id: String,
+    status: String,
+    source: String,
+    created_at: String,
+    updated_at: String,
+) -> HabitPageLinkRecord {
+    HabitPageLinkRecord {
+        id,
+        page_slug,
+        nudge_id,
+        status,
+        source,
         created_at,
         updated_at,
     }
@@ -193,6 +213,28 @@ impl Store {
             .context("sync_habit_nudge_record")
     }
 
+    fn sync_habit_page_link_record(&self, id: &str) -> Result<Option<HabitPageLinkRecord>> {
+        self.connection
+            .query_row(
+                "SELECT id,page_slug,nudge_id,status,source,created_at,updated_at \
+                 FROM habit_page_links WHERE id=?1",
+                [id],
+                |r| {
+                    Ok(habit_page_link_record_from_row(
+                        r.get(0)?,
+                        r.get(1)?,
+                        r.get(2)?,
+                        r.get(3)?,
+                        r.get(4)?,
+                        r.get(5)?,
+                        r.get(6)?,
+                    ))
+                },
+            )
+            .optional()
+            .context("sync_habit_page_link_record")
+    }
+
     /// 习惯问候计划捕获点。删除必须先捕获再删行。
     pub(crate) fn sync_record_habit_nudge(&self, id: &str, deleted: bool) -> Result<()> {
         if self.sync_identity()?.is_none() {
@@ -208,6 +250,25 @@ impl Store {
             deleted,
         })? {
             self.sync_set_head("habit_nudge", id, &op_id, deleted)?;
+        }
+        Ok(())
+    }
+
+    /// 习惯页关联捕获点。删除必须先捕获再删行。
+    pub(crate) fn sync_record_habit_page_link(&self, id: &str, deleted: bool) -> Result<()> {
+        if self.sync_identity()?.is_none() {
+            return Ok(());
+        }
+        let link = self
+            .sync_habit_page_link_record(id)?
+            .context("sync_habit_page_link_missing")?;
+        let base_revision = self.sync_object_head("habit_page_link", id)?.map(|h| h.0);
+        if let Some(op_id) = self.append_sync_mutation(SyncMutation::HabitPageLinkChanged {
+            link,
+            base_revision,
+            deleted,
+        })? {
+            self.sync_set_head("habit_page_link", id, &op_id, deleted)?;
         }
         Ok(())
     }
@@ -404,6 +465,49 @@ impl Store {
         )?;
         ensure!(changed == 1, "sync_habit_nudge_apply_failed");
         self.sync_set_head("habit_nudge", &nudge.id, &op.op_id, false)?;
+        Ok(Apply::Applied)
+    }
+
+    pub(super) fn apply_sync_habit_page_link(
+        &self,
+        op: &SyncOperation,
+        link: &HabitPageLinkRecord,
+        base_revision: &Option<String>,
+        deleted: bool,
+    ) -> Result<Apply> {
+        if let Some(result) = self.mutable_cas_guard(
+            "habit_page_link",
+            "habit_page_links",
+            &link.id,
+            base_revision,
+            &op.op_id,
+            deleted,
+        )? {
+            return Ok(result);
+        }
+        if deleted {
+            self.connection
+                .execute("DELETE FROM habit_page_links WHERE id=?1", [&link.id])?;
+            self.sync_set_head("habit_page_link", &link.id, &op.op_id, true)?;
+            return Ok(Apply::Applied);
+        }
+        let changed = self.connection.execute(
+            "INSERT INTO habit_page_links(id,page_slug,nudge_id,status,source,created_at,updated_at) \
+             VALUES(?1,?2,?3,?4,?5,?6,?7) \
+             ON CONFLICT(id) DO UPDATE SET page_slug=excluded.page_slug,nudge_id=excluded.nudge_id, \
+             status=excluded.status,source=excluded.source,updated_at=excluded.updated_at",
+            params![
+                link.id,
+                link.page_slug,
+                link.nudge_id,
+                link.status,
+                link.source,
+                link.created_at,
+                link.updated_at
+            ],
+        )?;
+        ensure!(changed == 1, "sync_habit_page_link_apply_failed");
+        self.sync_set_head("habit_page_link", &link.id, &op.op_id, false)?;
         Ok(Apply::Applied)
     }
 

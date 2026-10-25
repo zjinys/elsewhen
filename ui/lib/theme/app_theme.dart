@@ -275,6 +275,52 @@ class AppTheme {
   static ThemeData get darkTheme =>
       buildTheme(AppThemePreset.amber, Brightness.dark);
 
+  /// 表单文本框的统一样式（应用内的「唯一一把尺子」）。
+  ///
+  /// 出处是「创建主题 → 保存到知识库」弹窗的标题/标签字段：填充 surface2、
+  /// 12 圆角、常态 1px surface3 描边、聚焦换主题强调色 1.5px 描边，
+  /// isDense + 10/12 内边距（比全局 inputDecorationTheme 的 16 更紧凑）。
+  /// 新增表单字段请走这里，不要再逐个手写 InputDecoration——手写很容易漂成
+  /// OutlineInputBorder() 的粗黑框或全局默认的浮动 label，同一屏幕里两种样子。
+  ///
+  /// 需要常驻语义时用 [labelText]（浮动标签）；字段始终有值时用 [hintText]
+  /// + [prefixIcon]（图标给语境），与参考弹窗的单行式一致。
+  static InputDecoration fieldDecoration({
+    String? hintText,
+    String? labelText,
+    Widget? prefixIcon,
+  }) {
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(radiusMedium),
+      borderSide: BorderSide(color: surface3),
+    );
+    return InputDecoration(
+      hintText: hintText,
+      hintStyle: TextStyle(fontSize: 13, color: textTertiary),
+      labelText: labelText,
+      labelStyle: TextStyle(fontSize: 13, color: textSecondary),
+      prefixIcon: prefixIcon,
+      prefixIconConstraints: prefixIcon == null
+          ? null
+          : const BoxConstraints(minWidth: 36, minHeight: 36),
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      filled: true,
+      fillColor: surface2,
+      border: border,
+      enabledBorder: border,
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(radiusMedium),
+        borderSide: BorderSide(color: accentPrimary, width: 1.5),
+      ),
+    );
+  }
+
+  /// 与 [fieldDecoration] 配套的输入文字样式（13.5 / 主文字色）。
+  /// TextField 默认取 bodyLarge（16sp），比参考字段大一圈。
+  static TextStyle get fieldTextStyle =>
+      TextStyle(fontSize: 13.5, color: textPrimary);
+
   /// 界面固定字体：[AppFonts.uiFont] 打头；回退链 = 平台西文回退（Linux 的
   /// Ubuntu/Cantarell 等）+ [AppFonts.cjkFallback]。显式列出中文字体，避免
   /// 各平台引擎自选回退（如 Windows 上汉字落到日文字形）。

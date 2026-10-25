@@ -3,7 +3,7 @@
 //! fail-closed rules. Fixture mirrors `gc/tests.rs`.
 
 use crate::storage::Store;
-use crate::storage::sync::ReplicaIdentity;
+use crate::storage::sync::{BeginExport, ReplicaIdentity, SnapshotTransport};
 use rusqlite::OptionalExtension;
 use uuid::Uuid;
 
@@ -184,11 +184,12 @@ fn in_flight_export_blocks_new_claims_until_finished() {
     let claim = a.store.claim_sync_resnapshot("b").unwrap().unwrap();
 
     // A building export keeps the claim: no rotation, no second delivery.
-    assert!(
+    assert!(matches!(
         a.store
-            .begin_snapshot_export(&claim.snapshot_id, "b", 1)
-            .unwrap()
-    );
+            .begin_snapshot_export(&claim.snapshot_id, "b", 1, SnapshotTransport::Mail)
+            .unwrap(),
+        BeginExport::Begun(SnapshotTransport::Mail)
+    ));
     assert!(a.store.claim_sync_resnapshot("b").unwrap().is_none());
     assert_eq!(a.export_watermark(&claim.snapshot_id), 5);
 
@@ -212,17 +213,18 @@ fn begin_export_rejects_ids_that_do_not_match_the_current_request() {
     // can never satisfy the current request.
     let err = a
         .store
-        .begin_snapshot_export("resnap-b-99", "b", 1)
+        .begin_snapshot_export("resnap-b-99", "b", 1, SnapshotTransport::Mail)
         .unwrap_err();
     assert!(
         err.to_string().contains("resnapshot_request_mismatch"),
         "unexpected: {err}"
     );
-    assert!(
+    assert!(matches!(
         a.store
-            .begin_snapshot_export(&claim.snapshot_id, "b", 1)
-            .unwrap()
-    );
+            .begin_snapshot_export(&claim.snapshot_id, "b", 1, SnapshotTransport::Mail)
+            .unwrap(),
+        BeginExport::Begun(SnapshotTransport::Mail)
+    ));
 }
 
 #[test]
@@ -233,11 +235,12 @@ fn finish_completes_only_the_current_acknowledged_request_and_reseeds_watermark(
     a.capture_n("pre", 7);
     a.flag("b");
     let claim = a.store.claim_sync_resnapshot("b").unwrap().unwrap();
-    assert!(
+    assert!(matches!(
         a.store
-            .begin_snapshot_export(&claim.snapshot_id, "b", 1)
-            .unwrap()
-    );
+            .begin_snapshot_export(&claim.snapshot_id, "b", 1, SnapshotTransport::Mail)
+            .unwrap(),
+        BeginExport::Begun(SnapshotTransport::Mail)
+    ));
     assert_eq!(a.export_watermark(&claim.snapshot_id), 7);
     a.capture_n("post", 3); // live frontier now 10, above the build watermark
 
@@ -252,6 +255,7 @@ fn finish_completes_only_the_current_acknowledged_request_and_reseeds_watermark(
         .acknowledge_snapshot_export(
             "b",
             &claim.snapshot_id,
+            &format!("snapshot-end:{}", claim.snapshot_id),
             &a.end_wire_hash(&claim.snapshot_id),
         )
         .unwrap();
@@ -274,17 +278,19 @@ fn reflag_rotates_request_so_an_old_ack_cannot_satisfy_the_new_one() {
     a.capture_n("cap", 3);
     a.flag("b");
     let first = a.store.claim_sync_resnapshot("b").unwrap().unwrap();
-    assert!(
+    assert!(matches!(
         a.store
-            .begin_snapshot_export(&first.snapshot_id, "b", 1)
-            .unwrap()
-    );
+            .begin_snapshot_export(&first.snapshot_id, "b", 1, SnapshotTransport::Mail)
+            .unwrap(),
+        BeginExport::Begun(SnapshotTransport::Mail)
+    ));
     // Old export completes with its build-time watermark (3)...
     a.mark_export_ready(&first.snapshot_id);
     a.store
         .acknowledge_snapshot_export(
             "b",
             &first.snapshot_id,
+            &format!("snapshot-end:{}", first.snapshot_id),
             &a.end_wire_hash(&first.snapshot_id),
         )
         .unwrap();
@@ -312,7 +318,7 @@ fn resnapshot_states_report_pending_flagged_members_read_only() {
     a.flag("b");
     let claim = a.store.claim_sync_resnapshot("b").unwrap().unwrap();
     a.store
-        .begin_snapshot_export(&claim.snapshot_id, "b", 1)
+        .begin_snapshot_export(&claim.snapshot_id, "b", 1, SnapshotTransport::Mail)
         .unwrap();
     let states = a.store.sync_resnapshot_states().unwrap();
     assert_eq!(states.len(), 2);

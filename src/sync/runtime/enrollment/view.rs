@@ -16,6 +16,9 @@ pub(crate) struct EnrollmentView {
     pub local_applied: bool,
     pub remote_applied: bool,
     pub notification_pending: bool,
+    /// relay 信箱配额打满（发送侧收到 507）。UI 据此说清"不是卡在传输，
+    /// 是在等对端腾空间"，而不是让用户以为链路坏了。
+    pub storage_blocked: bool,
 }
 
 pub(super) fn scope(config: &AppConfig, session: &Session) -> Result<(Store, EnrollmentRole)> {
@@ -69,6 +72,7 @@ pub(super) fn view(
         local_applied: false,
         remote_applied: false,
         notification_pending: false,
+        storage_blocked: false,
     };
     let record = match vault.enrollment(invitation) {
         Ok(record) => record,
@@ -125,9 +129,14 @@ pub(super) fn view(
                     "envelope-receipt-{}",
                     crate::storage::sync::hash(completion_id(invitation, &snapshot.id).as_bytes())
                 );
-                result.notification_pending = !store
-                    .enrollment_wire_state(&record.peer.device_id, &receipt)?
-                    .is_some_and(|(s, _)| s == "acknowledged");
+                // joiner 的回执不会被任何人 ack：它是这条链路的终点，没有人会再回执
+                // 它，所以 outbox 行投递成功后永远停在 pending。因此「通知是否完成」
+                // 只能看 relay 有没有分配 relay_id（enrollment_wire_state 第二列），
+                // 用 state=='acknowledged' 会永远判成未完成。
+                result.notification_pending = {
+                    let state = store.enrollment_wire_state(&record.peer.device_id, &receipt)?;
+                    !state.is_some_and(|(_, delivered)| delivered)
+                };
             }
         } else {
             result.remote_applied =
@@ -203,6 +212,14 @@ pub(super) fn view(
     {
         result.phase = "expired".into();
     }
+    // 配额阻塞是发送侧在 507 时落的标记（见 `block_sync_wire`）：
+    // 它只描述"现在发不出去"，与阶段、与是否有确认令牌都无关，所以单独成字段，
+    // 让面板能加一行说明而不必自己解释卡住的阶段。
+    result.storage_blocked = store.connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sync_wire_outbox WHERE recipient_device_id=?1 AND state='pending' AND blocked_reason='relay_quota')",
+        rusqlite::params![record.peer.device_id],
+        |r| r.get(0),
+    )?;
     Ok(result)
 }
 
@@ -269,11 +286,19 @@ pub(crate) fn list(config: &AppConfig) -> Result<Vec<EnrollmentView>> {
                 crate::storage::sync::hash(subject.as_bytes())
             )
         };
-        if !ids.contains(&record.invitation_id)
-            && !store
-                .enrollment_wire_state(&record.peer.device_id, &wire)?
-                .is_some_and(|(state, _)| state == "acknowledged")
-        {
+        // 两个角色的「已收尾」判据不同：owner 的 completion 信令会被对端回执，
+        // 所以能等 acknowledged；joiner 的回执行是链路终点、永远不会被 ack，
+        // 只能以 relay 分配了 relay_id（已送达）作为完成。
+        let settled = store
+            .enrollment_wire_state(&record.peer.device_id, &wire)?
+            .is_some_and(|(state, delivered)| {
+                if role == EnrollmentRole::Owner {
+                    state == "acknowledged"
+                } else {
+                    delivered
+                }
+            });
+        if !ids.contains(&record.invitation_id) && !settled {
             ids.push(record.invitation_id.clone());
         }
     }

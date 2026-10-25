@@ -3,6 +3,9 @@
 # 与 build-apk.sh + build-android-rust.sh 等价；两者在 .sh 里本来就是
 # 前者调后者，这里合成一个 PowerShell 脚本。
 #
+# 注意：本脚本不跑 regen.ps1。第 0 步会比对两侧桥接 hash，改了 Rust 公开 API
+# 却漏跑 regen 时直接报错，避免 APK 装上去在 RustLib.init() 才炸。
+#
 # 用法：
 #   powershell -File scripts\build-apk.ps1              # release APK
 #   powershell -File scripts\build-apk.ps1 --debug      # debug APK
@@ -22,8 +25,40 @@ $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Push-Location $root
 
 try {
-    # ---------- [1/2] 编译 Rust 核心（android arm64）----------
-    Write-Host "==> [1/2] 编译 Rust 核心 (android arm64)"
+    # ---------- [0/3] 桥接代码 hash 预检 ----------
+    # 改了 Rust 公开 API 却只跑本脚本时，Dart 侧桥接代码还是旧的：编译能过，
+    # 装到手机上要到 RustLib.init() 才报 hash mismatch（且报错现象与根因相距
+    # 很远）。这里提前拦下，指向 regen.ps1。
+    $dartFrb = Join-Path $root "ui\lib\bridge\generated.dart\frb_generated.dart"
+    $rustFrb = Join-Path $root "src\frb_generated.rs"
+
+    $dartHash = $null
+    $rustHash = $null
+    try {
+        $m = Select-String -Path $dartFrb -Pattern 'rustContentHash\s*=>\s*(\d+)' |
+            Select-Object -First 1
+        if ($m) { $dartHash = $m.Matches[0].Groups[1].Value }
+        $m = Select-String -Path $rustFrb -Pattern 'FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH:\s*i32\s*=\s*(\d+)' |
+            Select-Object -First 1
+        if ($m) { $rustHash = $m.Matches[0].Groups[1].Value }
+    } catch {
+        $dartHash = $null
+        $rustHash = $null
+    }
+
+    if (-not $dartHash -or -not $rustHash) {
+        throw ("读不到桥接 hash（Dart='$dartHash' Rust='$rustHash'）。" +
+            "先跑 scripts\regen.ps1 重新生成两侧桥接代码。")
+    }
+    if ($dartHash -ne $rustHash) {
+        throw ("桥接代码与 Rust 不一致（Dart rustContentHash=$dartHash，Rust=$rustHash）。" +
+            "改了 Rust 公开 API 后必须先跑 scripts\regen.ps1 重生成两侧桥接，再重跑本脚本；" +
+            "否则 APK 装上去会在 RustLib.init() 报 hash mismatch。")
+    }
+    Write-Host "==> [0/3] 桥接 hash 一致（$rustHash）"
+
+    # ---------- [1/3] 编译 Rust 核心（android arm64）----------
+    Write-Host "==> [1/3] 编译 Rust 核心 (android arm64)"
 
     $sdkRoot = if ($env:ANDROID_HOME) { $env:ANDROID_HOME }
                elseif ($env:ANDROID_SDK_ROOT) { $env:ANDROID_SDK_ROOT }
@@ -74,8 +109,8 @@ try {
     & (Join-Path $toolchainBin "llvm-strip.exe") (Join-Path $rustLibDir "libelsewhen.so")
     if ($LASTEXITCODE -ne 0) { throw "llvm-strip 失败" }
 
-    # ---------- [2/2] flutter build apk ----------
-    Write-Host "==> [2/2] flutter build apk (仅 android-arm64)"
+    # ---------- [2/3] flutter build apk ----------
+    Write-Host "==> [2/3] flutter build apk (仅 android-arm64)"
 
     $flutter = if (Test-Path "ui\.fvm\flutter_sdk\bin\flutter.bat") {
         "ui\.fvm\flutter_sdk\bin\flutter.bat"

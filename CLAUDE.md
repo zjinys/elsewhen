@@ -145,6 +145,13 @@ powershell -File scripts/package-msi.ps1   # Windows → dist/Elsewhen-*-x64.msi
 | 打 Android APK | `./scripts/build-apk.sh` | `powershell -File scripts\build-apk.ps1` |
 | 旧库版本标记修复 | `./scripts/stamp-legacy-db.sh` | `powershell -File scripts\stamp-legacy-db.ps1` |
 
+**打 APK 不会自动 regen**：`build-apk.{sh,ps1}` 只做「编 Rust arm64 → `flutter build apk`」
+（PowerShell 版把两者合成了一个脚本）。两边脚本开头都有一步 **桥接 hash 预检**，比对
+`ui/lib/bridge/generated.dart/frb_generated.dart` 的 `rustContentHash` 与
+`src/frb_generated.rs` 的 `FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH`：改了 Rust 公开 API
+却漏跑 regen 时直接报错退出，而不是等 APK 装上手机才在 `RustLib.init()` 报 hash mismatch。
+看到那个报错就补跑 `./scripts/regen.sh` / `scripts\regen.ps1` 再重打。
+
 `regen.ps1` 比 `regen.sh` 多一步前置检查和一步静态校验：
 
 - **前置检查 `libclang.dll`**（第 0 步）。ffigen 靠 libclang 解析 C 头，缺了
@@ -203,6 +210,25 @@ Default follows platform conventions via `directories` crate:
 - Windows: `%LOCALAPPDATA%\elsewhen\`
 
 Override with `ELSEWHEN_DATA_DIR=/custom/path` for testing or portable installs.
+
+### Android 前台服务保活（配对/初始快照传输）
+
+OPPO / 一加（`OplusHansManager`）等国内 ROM 会冻结「没有前台服务」的后台进程，
+冻结后 Dart 定时器、socket 和快照分片传输全部停摆——表现是配对停在「等待成员
+授权与初始同步」、初始快照传到一半再也不动，而前台看界面毫无异常。
+
+- `ui/android/.../SyncKeepAliveService.kt`：`dataSync` 类型前台服务 + 低优先级常驻
+  通知 + 传输期 `PARTIAL_WAKE_LOCK`；`MainActivity` 暴露
+  `MethodChannel('dev.elsewhen/sync_keepalive')` 的 `start`/`stop`。
+- `ui/lib/sync/sync_keep_alive.dart`：**按持有者计数**的 `hold`/`release`（配对请求、
+  交接轮询、准备本机各自持有，最后一个释放才关灯）。方法刻意是同步 void，避免在
+  配对状态机里多让一次微任务改变「关闭先于下一步」这类既有顺序。
+- 只有 Android 上有动作；桌面与单测全部是空操作，不需要 mock。
+- 拉起时机：`SyncEnrollmentController` 只要还有未完成交接记录、`_action` /
+  `_pairingAction` / `_activate` 的忙碌窗口。收尾在 `pause()` 与
+  `SyncSetupController.close()`（`releaseAll`）。
+- 不要把它做成常驻保活：常驻通知是明确的产品代价，只在传输窗口内挂着。
+  Android 12+ 从后台启动 FGS 会被系统拒绝，Kotlin 侧吞掉异常并记日志。
 
 ## Important Constraints
 

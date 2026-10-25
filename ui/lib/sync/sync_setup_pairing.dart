@@ -181,6 +181,9 @@ extension OwnerSyncPairing on SyncSetupController {
     final done = Completer<void>();
     _activationDone = done;
     _changed();
+    // 发起/批准/重投审批都是中继往返，批准还要写密钥库：中途被冻结会让
+    // 新设备那边一直停在「等待主设备批准」。
+    SyncKeepAlive.hold('sync-pairing-owner', text: '正在与加入设备配对');
     try {
       await enrollment.pause();
       _requirePairingOpen();
@@ -216,6 +219,7 @@ extension OwnerSyncPairing on SyncSetupController {
       done.complete();
       if (identical(_activationDone, done)) _activationDone = null;
       _changed();
+      SyncKeepAlive.release('sync-pairing-owner');
       _resumeEnrollment();
     }
   }

@@ -128,10 +128,30 @@ impl RelayClient {
 
     /// Only call after authenticated payloads and application receipts are durable.
     pub fn ack(&self, mailbox: &str, owner_cred: &[u8; 32], ids: &[String]) -> Result<usize> {
+        self.delete_mails("ack", mailbox, owner_cred, ids)
+    }
+
+    /// 放弃：这封信永远不会被消费（身份不符、邀请已结束、包已被取代）。
+    ///
+    /// 和 `ack` 在 relay 上是同一个删除动作，但**签名域不同**（`drop` 而非 `ack`）：
+    /// 域分离让「拿 ack 的签名去 drop」在 relay 侧结构性失败，也让客户端不可能
+    /// 把「已消费」和「已丢弃」混成一个调用。
+    pub fn drop(&self, mailbox: &str, owner_cred: &[u8; 32], ids: &[String]) -> Result<usize> {
+        self.delete_mails("drop", mailbox, owner_cred, ids)
+    }
+
+    /// `ack` 与 `drop` 共用的删除通道：唯一的差别是签名域，参数校验完全一致。
+    fn delete_mails(
+        &self,
+        operation: &str,
+        mailbox: &str,
+        owner_cred: &[u8; 32],
+        ids: &[String],
+    ) -> Result<usize> {
         validate_mailbox(mailbox)?;
         ensure!(
             !ids.is_empty() && ids.len() <= 100,
-            "ack ids must be 1..=100"
+            "{operation} ids must be 1..=100"
         );
         let mut seen = std::collections::HashSet::new();
         for id in ids {
@@ -142,9 +162,9 @@ impl RelayClient {
             );
         }
         let (ts, nonce) = request_stamp();
-        let sig = sign(owner_cred, "ack", &[mailbox, &ids.join(",")], ts, &nonce);
+        let sig = sign(owner_cred, operation, &[mailbox, &ids.join(",")], ts, &nonce);
         let result: serde_json::Value = self.post(
-            "ack",
+            operation,
             &serde_json::json!({
                 "version": VERSION, "mailbox_key": mailbox, "ids": ids,
                 "ts": ts, "nonce": nonce, "sig": sig,

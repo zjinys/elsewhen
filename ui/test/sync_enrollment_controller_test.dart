@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/sync/sync_enrollment_api.dart';
 import 'package:elsewhen_ui/sync/sync_enrollment_controller.dart';
+import 'package:elsewhen_ui/sync/sync_keep_alive.dart';
 import 'package:elsewhen_ui/sync/sync_key_store.dart';
 import 'package:elsewhen_ui/sync/sync_setup_controller.dart';
 
@@ -21,6 +22,7 @@ api.SyncEnrollmentStateDto enrollmentState({
   bool localApplied = false,
   bool remoteApplied = false,
   bool notificationPending = false,
+  bool storageBlocked = false,
 }) => api.SyncEnrollmentStateDto(
   role: role,
   operationId: operation,
@@ -35,6 +37,7 @@ api.SyncEnrollmentStateDto enrollmentState({
   localApplied: localApplied,
   remoteApplied: remoteApplied,
   notificationPending: notificationPending,
+  storageBlocked: storageBlocked,
 );
 
 class EnrollmentBridge implements SyncEnrollmentApi {
@@ -96,6 +99,7 @@ class EnrollmentBridge implements SyncEnrollmentApi {
       localApplied: state.localApplied,
       remoteApplied: state.remoteApplied,
       notificationPending: state.notificationPending,
+      storageBlocked: false,
     );
   }
 
@@ -107,19 +111,25 @@ class EnrollmentBridge implements SyncEnrollmentApi {
 }
 
 class EnrollmentFixture {
-  final storage = TestSyncSecureStorage();
-  late final bridge = EnrollmentBridge(storage);
-  late final keys = SyncKeyStore(storage: storage);
-  late final controller = SyncEnrollmentController(
-    keyStore: keys,
-    bridge: bridge,
-  );
-
-  EnrollmentFixture() {
+  EnrollmentFixture({
+    Duration interval = const Duration(seconds: 2),
+    Duration stalledTick = const Duration(seconds: 45),
+  }) {
     storage.values['elsewhen.sync.master.v1.test-install'] =
         'v1:${base64Encode(List.filled(32, 7))}';
     storage.values['elsewhen.sync.revision.v1.test-install'] = 'v1:1';
+    controller = SyncEnrollmentController(
+      keyStore: keys,
+      bridge: bridge,
+      interval: interval,
+      stalledTick: stalledTick,
+    );
   }
+
+  final storage = TestSyncSecureStorage();
+  late final bridge = EnrollmentBridge(storage);
+  late final keys = SyncKeyStore(storage: storage);
+  late final SyncEnrollmentController controller;
 
   Future<void> close() async {
     await controller.close();
@@ -250,6 +260,57 @@ void main() {
       await f.close();
     },
   );
+
+  test(
+    'a stalled native call is requeued instead of stopping the polling chain',
+    () async {
+      final f = EnrollmentFixture(
+        // 间隔大于看门狗：失联判定之后、下一轮开始之前留出断言窗口。
+        interval: const Duration(milliseconds: 100),
+        stalledTick: const Duration(milliseconds: 40),
+      );
+      // 永远不返回的原生推进：模拟中继半开连接 / 原生侧卡在锁上。
+      final hang = Completer<void>();
+      f.bridge.advanceGate = hang.future;
+      unawaited(f.controller.arm(operationId: 'request-1'));
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      expect(f.bridge.advances, hasLength(1));
+      expect(f.controller.busy, isTrue);
+
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      // 看门狗把这一轮判定失联：给出可读原因，并重新排下一轮。
+      expect(f.controller.error, contains('没有响应'));
+      // 后面的轮次不再卡住（hang 只影响已挂上的那次调用）。
+      f.bridge.advanceGate = null;
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      expect(f.bridge.advances.length, greaterThan(1));
+      expect(f.bridge.confirmations, isNotEmpty);
+      await f.close();
+    },
+  );
+
+  test('pause stops the keep-alive even when the in-flight tick never returns', () async {
+    final calls = <String>[];
+    SyncKeepAlive.debugSupportedOverride = true;
+    SyncKeepAlive.debugInvoke = (method, _) => calls.add(method);
+    addTearDown(() {
+      SyncKeepAlive.debugSupportedOverride = null;
+      SyncKeepAlive.debugInvoke = null;
+      SyncKeepAlive.releaseAll();
+    });
+    final f = EnrollmentFixture(
+      interval: const Duration(milliseconds: 10),
+      stalledTick: const Duration(milliseconds: 40),
+    );
+    f.bridge.advanceGate = Completer<void>().future;
+    unawaited(f.controller.arm(operationId: 'request-1'));
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    expect(calls, ['start']);
+    // 没等满 stalledTick 也要能收尾：否则通知栏会永久残留。
+    await f.controller.pause().timeout(const Duration(seconds: 2));
+    expect(calls.last, 'stop');
+    expect(SyncKeepAlive.active, isFalse);
+  });
 
   testWidgets(
     'changed relay authorization stops automatic retries without replacing permissions',

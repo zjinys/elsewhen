@@ -131,24 +131,32 @@ class MainScreen extends ConsumerWidget {
                           SidebarTab.review => const ReviewView(),
                           // 同步工作区（一级入口）：LocalSyncSettings 整包，
                           // 非桌面后端（repository 非 RustBridge）维持占位空态。
-                          SidebarTab.sync => Builder(
-                            builder: (context) {
-                              final repository = ref.watch(
-                                storageRepositoryProvider,
-                              );
-                              if (repository is! RustBridgeRepository) {
-                                return Center(
-                                  child: Text(
-                                    '同步在此平台暂不可用',
-                                    style: TextStyle(
-                                      color: AppTheme.textTertiary,
-                                      fontSize: 13,
-                                    ),
-                                  ),
+                          // 同步工作区没有主区级滚动容器（内容短），Row 的
+                          // 交叉轴默认居中会让卡片浮在竖直中间；用 Align
+                          // 撑满后靠上，卡片从内容区顶部开始。
+                          SidebarTab.sync => Align(
+                            alignment: Alignment.topCenter,
+                            child: Builder(
+                              builder: (context) {
+                                final repository = ref.watch(
+                                  storageRepositoryProvider,
                                 );
-                              }
-                              return SyncWorkspace(repository: repository);
-                            },
+                                if (repository is! RustBridgeRepository) {
+                                  return Center(
+                                    child: Text(
+                                      '同步在此平台暂不可用',
+                                      style: TextStyle(
+                                        color: AppTheme.textTertiary,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return SyncWorkspace(
+                                  repository: repository,
+                                );
+                              },
+                            ),
                           ),
                         },
                       ),

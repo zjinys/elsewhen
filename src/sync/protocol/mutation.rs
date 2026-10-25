@@ -54,6 +54,14 @@ pub enum SyncMutation {
         base_revision: Option<String>,
         deleted: bool,
     },
+    /// 习惯页 → 习惯问候计划关联整行复制（migration 58）。page_slug 唯一
+    /// 约束由收端触发器强制；删除为物理删行，最后一条 active 关联解除时
+    /// 由应用层在同一事务置 habit_nudges.enabled=0。
+    HabitPageLinkChanged {
+        link: HabitPageLinkRecord,
+        base_revision: Option<String>,
+        deleted: bool,
+    },
     GoalChanged {
         goal: GoalRecord,
         base_revision: Option<String>,
@@ -266,6 +274,10 @@ impl SyncMutation {
             }
             Self::HabitNudgeChanged { nudge, deleted, .. } => {
                 nudge.validate()?;
+                let _ = deleted;
+            }
+            Self::HabitPageLinkChanged { link, deleted, .. } => {
+                link.validate()?;
                 let _ = deleted;
             }
             Self::GoalChanged { goal, deleted, .. } => {

@@ -295,9 +295,7 @@ pub(crate) enum ClaimVerdict {
     Unproven(Vec<String>),
 }
 
-pub(crate) use continuity::{
-    FINAL_ANSWER_NUDGE, failure_notice, progress_fallback, unhelpful_failure_reply,
-};
+pub(crate) use continuity::failure_notice;
 mod agent;
 mod claim_detection;
 mod content_chat;
@@ -330,10 +328,10 @@ pub(crate) use tool_protocol::{
 };
 
 // 仅供测试链路使用的转发（release 构建不产生 unused 警告）
-pub(crate) use agent::{assistant_continuation, note_web_search_intent, run_agent_loop_inner};
+#[cfg(test)]
+pub(crate) use agent::note_web_search_intent;
 #[cfg(test)]
 pub(crate) use claim_detection::broad_write_claim;
-pub(crate) use continuity::FollowUp;
 #[cfg(test)]
 pub(crate) use parse_tools::{
     extract_one_tool_call, parse_dsml_tool_calls, parse_xml_tool_calls, strip_dsml_artifacts,

@@ -273,6 +273,7 @@ pub(super) fn application_roundtrip(
         1,
         &content_ab,
         &signer_a,
+        None,
     )
     .unwrap();
     target
@@ -309,6 +310,7 @@ pub(super) fn application_roundtrip(
     let now = chrono::Utc::now().timestamp_millis();
     let mut rejects = 0;
     let mut accepted = 0;
+    let mut dropped = 0;
     for tick in 0..40 {
         let pushed = engine::push_due(
             &source,
@@ -331,6 +333,7 @@ pub(super) fn application_roundtrip(
         .unwrap();
         rejects += pulled.rejected;
         accepted += pulled.accepted;
+        dropped += pulled.dropped;
         assert!(!pulled.acknowledgement_failed);
         if !target.snapshot_import_pending().unwrap() {
             break;
@@ -338,6 +341,30 @@ pub(super) fn application_roundtrip(
     }
     assert!(rejects >= 4);
     assert!(accepted > 4);
+    // 「必表态」（R5-2）：开头那 4 封毒信连信封都不是，是**不可恢复**的拒绝。
+    // 超过阈值后必须被 drop（relay 立即删）+ 本地留审计，否则它们会一直绕圈到
+    // 7 天 TTL —— 事故里 9996 封死信就是这么堆到 MAX_MAILS 的。
+    // 每拍只扫 3 封（一页），所以要多扫几圈才能把开头那 4 封都数到 3 次。
+    for _ in 0..12 {
+        if dropped >= 4 {
+            break;
+        }
+        let pulled = engine::pull_page(
+            &target,
+            &client,
+            &target_mailbox,
+            &target_owner,
+            &source_peer,
+        )
+        .unwrap();
+        dropped += pulled.dropped;
+    }
+    assert_eq!(dropped, 4, "每封毒信只能被放弃一次");
+    assert_eq!(
+        client.status(&target_mailbox, &target_owner).unwrap().count,
+        0,
+        "放弃之后 relay 上不该再剩死信"
+    );
     assert!(
         !target.snapshot_import_pending().unwrap(),
         "snapshot must complete despite poison mail at the start"

@@ -21,6 +21,7 @@ import 'sync_members_settings.dart';
 import 'sync_processor_handoff_settings.dart';
 import 'sync_provider_conflicts_settings.dart';
 import '../sync/sync_object_conflicts_controller.dart';
+import '../theme/app_theme.dart';
 import 'sync_object_conflicts_settings.dart';
 import 'sync_wiki_conflicts_settings.dart';
 
@@ -70,7 +71,6 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
   _SyncTab _tab = _SyncTab.bind;
   bool _tabTouched = false;
   final _name = TextEditingController(text: '这台设备');
-  bool _consent = false;
   late final SyncProviderConflictsController _conflicts;
   late final bool _ownsConflicts;
   late final SyncWikiConflictsController _wikiConflicts;
@@ -162,6 +162,12 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 绑定前的第一步：先给本机起名，再点按钮走明确确认（用户要求：
+            // 名称放在状态卡之前，按钮紧跟输入框，确认改成弹窗）。
+            if (!configured && state != null && controller.previewEnabled) ...[
+              _buildPrepareRow(controller),
+              const SizedBox(height: 12),
+            ],
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
@@ -230,9 +236,19 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
             if (widget.repository != null && configured)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: SyncTickStatusLine(
-                  ticks: widget.repository!.lastSyncTick,
-                  errors: widget.repository!.lastSyncTickError,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SyncTickStatusLine(
+                      ticks: widget.repository!.lastSyncTick,
+                      errors: widget.repository!.lastSyncTickError,
+                    ),
+                    // 投递状态紧跟 tick 行：一个是「这一拍做了什么」，
+                    // 一个是「现在卡在哪一步」，两者分开看就无法对齐。
+                    SyncDeliverStatusLine(
+                      statuses: widget.repository!.syncDeliveryStatus,
+                    ),
+                  ],
                 ),
               ),
             const SizedBox(height: 12),
@@ -276,6 +292,73 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
     );
   }
 
+  /// 设备名称 + 准备本机（同一行）：命名是绑定前的必要决定，放在状态卡
+  /// 之前，用户不用先在长页面里找。文本框走 [AppTheme.fieldDecoration]
+  /// （全应用表单唯一尺子：填充 + 12 圆角 + surface3 细描边 + 聚焦强调色），
+  /// 字段始终有值，所以用前缀图标给语境，不用浮动 label——与「保存到
+  /// 知识库」弹窗的标题/标签字段同一副长相。
+  Widget _buildPrepareRow(SyncSetupController controller) => Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      Expanded(
+        child: TextField(
+          controller: _name,
+          enabled: !controller.busy,
+          maxLength: 64,
+          style: AppTheme.fieldTextStyle,
+          cursorColor: AppTheme.accentPrimary,
+          // 计数器会把按钮基线拖歪，且与全应用其他表单不一致。
+          decoration: AppTheme.fieldDecoration(
+            hintText: '设备名称',
+            prefixIcon: Icon(
+              Icons.badge_outlined,
+              size: 16,
+              color: AppTheme.textTertiary,
+            ),
+          ).copyWith(counterText: ''),
+        ),
+      ),
+      const SizedBox(width: 8),
+      FilledButton.icon(
+        icon: const Icon(Icons.key_outlined),
+        label: const Text('准备本机'),
+        onPressed: controller.busy
+            ? null
+            : () => _confirmPrepareOwner(controller),
+      ),
+    ],
+  );
+
+  /// 准备本机前的明确确认：“共享 Provider 配置和 API Key”不适合用一个
+  /// 常驻勾选框带过——改成点击后弹窗，用户读过再选。
+  Future<void> _confirmPrepareOwner(SyncSetupController controller) async {
+    final agreed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('准备本机加入同步？'),
+        content: const Text(
+          '我理解：后续授权设备加入时，会共享所有 Provider 配置和 API Key。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('我理解并准备'),
+          ),
+        ],
+      ),
+    );
+    if (agreed != true || !mounted) return;
+    await controller.createOwner(
+      _name.text,
+      Platform.operatingSystem,
+      consent: true,
+    );
+  }
+
   /// 绑定 tab——一次性流程：准备本机、邀请新设备、本机加入既有数据集。
   /// 与「管理」是两个独立关切（用户反馈：挤在一列里找不到绑定流程的重点）。
   Widget _buildBindContent(
@@ -288,40 +371,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (!configured && state != null && controller.previewEnabled) ...[
-          const SizedBox(height: 16),
-          TextField(
-            controller: _name,
-            enabled: !controller.busy,
-            maxLength: 64,
-            decoration: const InputDecoration(
-              labelText: '设备名称',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          CheckboxListTile(
-            value: _consent,
-            enabled: !controller.busy,
-            contentPadding: EdgeInsets.zero,
-            controlAffinity: ListTileControlAffinity.leading,
-            title: const Text('我理解：后续授权设备加入时，会共享所有 Provider 配置和 API Key。'),
-            onChanged: controller.busy
-                ? null
-                : (value) => setState(() => _consent = value ?? false),
-          ),
-          const SizedBox(height: 8),
-          FilledButton.icon(
-            icon: const Icon(Icons.key_outlined),
-            label: const Text('准备本机'),
-            onPressed: controller.busy || !_consent
-                ? null
-                : () => controller.createOwner(
-                    _name.text,
-                    Platform.operatingSystem,
-                    consent: _consent,
-                  ),
-          ),
-        ] else if (!configured && state != null) ...[
+        if (!configured && state != null && !controller.previewEnabled) ...[
           const SizedBox(height: 12),
           Text(
             '设备同步已在当前构建中关闭（编译开关 ELSEWHEN_SYNC_PREVIEW）。',
@@ -330,9 +380,15 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
         ],
         const SizedBox(height: 16),
         if (ready && state?.isOwner == true && controller.previewEnabled)
-          OwnerSyncPairingSettings(controller: controller),
+          OwnerSyncPairingSettings(
+            controller: controller,
+            deliveryStatuses: widget.repository?.syncDeliveryStatus,
+          ),
         if (controller.previewEnabled)
-          JoinerSyncPairingSettings(controller: controller.joiner),
+          JoinerSyncPairingSettings(
+            controller: controller.joiner,
+            deliveryStatuses: widget.repository?.syncDeliveryStatus,
+          ),
       ],
     );
   }

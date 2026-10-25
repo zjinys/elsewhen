@@ -113,7 +113,14 @@ impl Store {
         // authority, not the hash — the recipient cannot know the sender's
         // build-time watermark, so no cross-checkable payload hash exists.
         if let Some(id) = receipt.op_id.strip_prefix("resnapshot-ack:") {
-            self.acknowledge_snapshot_export(authenticated_device, id, &receipt.payload_hash)?;
+            // 重撮快照的 ack 是合成回执：绑定靠导出 id + 接收方 + 状态，
+            // 收端无从得知发送方的构建时 watermark，故 hash 只能对 manifest 验证。
+            self.acknowledge_snapshot_export(
+                authenticated_device,
+                id,
+                &format!("snapshot-end:{id}"),
+                &receipt.payload_hash,
+            )?;
         } else {
             self.acknowledge_sync_operation(
                 authenticated_device,

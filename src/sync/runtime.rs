@@ -21,9 +21,77 @@ use std::{
     sync::{Arc, Mutex, OnceLock},
 };
 
+/// 为一份快照导出准备 blob 上传上下文：接收方信箱 + 本机在该信箱里的 sender 凭据。
+///
+/// 只在 `SYNC_SNAPSHOT_TRANSPORT=blob` 时才去读路由/派生凭据（mail 传输不该多
+/// 一次凭据派生）；拿不到任何东西就返回 `None`，让导出退回信件路径。
+pub(crate) fn snapshot_upload(
+    vault: &crate::sync::vault::LocalVault,
+    dataset_id: &str,
+    peer: &str,
+) -> Result<Option<crate::sync::engine::snapshot::BlobUpload>> {
+    use crate::storage::sync::SnapshotTransport;
+    use crate::sync::transport_relay::RelayClient;
+    if SnapshotTransport::from_env() != SnapshotTransport::Blob {
+        return Ok(None);
+    }
+    let (send_key, _, key_version) = vault.peer_keys(dataset_id, peer)?;
+    let route = vault.peer_route(dataset_id, peer)?.clone();
+    let credential = RelayClient::derive_sender_credential(
+        &send_key.to_bytes(),
+        &route.local_mailbox,
+        &route.peer_mailbox,
+    )?;
+    let client = RelayClient::new(&route.relay_url)?;
+    // 能力协商（review 2026-10-25 M2）：环境变量只说「我们想要数据面」，
+    // 没说「这台 relay 有」。没有 `/blob/*` 路由的旧 relay 上强行上传，就是每拍
+    // 两次 404、还要退避；在配对面板看来叫「快照同步永远不完成」。
+    //
+    // 探测问的是**本机信箱**的 `/status`：同一台 relay 实例，能力等价，而发送方
+    // 凭据本来无权读对端 `/status`。
+    if !relay_supports_blob(&client, &route.local_mailbox, vault.mailbox_owner()) {
+        return Ok(None);
+    }
+    Ok(Some(crate::sync::engine::snapshot::BlobUpload {
+        client,
+        mailbox: route.peer_mailbox.clone(),
+        sender_mb: route.local_mailbox.clone(),
+        credential,
+        recipient: peer.to_string(),
+        key_version,
+        // 一拍最多为一个窗口等一等；等不到就本拍收手，下一拍续传。
+        window_wait_ms: crate::sync::engine::snapshot::WINDOW_WAIT_MS,
+    }))
+}
+
+/// 这台 relay 支不支持 blob 数据面（问一次 `/status`，结果按 `base_url` 缓存）。
+///
+/// 探测失败**不**缓存：一次网络抖动不该让本进程永久退回信件面。但「问到了
+/// 且没有 `blob`」要缓存 —— 那是对这台 relay 的结论，不是一次事故。
+fn relay_supports_blob(
+    client: &crate::sync::transport_relay::RelayClient,
+    local_mailbox: &str,
+    owner_credential: &[u8; 32],
+) -> bool {
+    let url = client.base_url();
+    if let Some(known) = crate::sync::transport_relay::blob_capability(url) {
+        return known;
+    }
+    match client.status(local_mailbox, owner_credential) {
+        Ok(status) => {
+            let supported = status.capabilities.iter().any(|item| item == "blob");
+            crate::sync::transport_relay::set_blob_capability(url, supported);
+            supported
+        }
+        // 保守：信件路径永远能跑，数据面探测不到就先不用它。
+        Err(_) => false,
+    }
+}
+
 struct WorkspaceLease {
     _file: File,
 }
+
 struct Session {
     lease: Arc<WorkspaceLease>,
     database: PathBuf,
@@ -489,5 +557,7 @@ fn confirm_key_inner(
     Ok(())
 }
 
+#[cfg(test)]
+mod capability_tests;
 #[cfg(test)]
 mod tests;

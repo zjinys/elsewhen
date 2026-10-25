@@ -30,6 +30,7 @@ api.SyncEnrollmentStateDto enrollmentState({
   localApplied: false,
   remoteApplied: false,
   notificationPending: false,
+      storageBlocked: false,
 );
 
 void main() {

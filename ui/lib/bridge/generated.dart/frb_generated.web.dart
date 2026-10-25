@@ -34,7 +34,6 @@ import 'api/review_report/store.dart';
 import 'api/rules.dart';
 import 'api/sync/conflicts.dart';
 import 'api/sync/datasets.dart';
-import 'api/sync/handoff.dart';
 import 'api/sync/invite.dart';
 import 'api/sync/join.dart';
 import 'api/theme.dart';
@@ -86,9 +85,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnalysisTriggerResult dco_decode_analysis_trigger_result(dynamic raw);
-
-  @protected
-  AppUpdateDto dco_decode_app_update_dto(dynamic raw);
 
   @protected
   ArtifactVersion dco_decode_artifact_version(dynamic raw);
@@ -601,6 +597,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SyncDatasetEntryDto> dco_decode_list_sync_dataset_entry_dto(dynamic raw);
 
   @protected
+  List<SyncDeliveryStatusDto> dco_decode_list_sync_delivery_status_dto(
+    dynamic raw,
+  );
+
+  @protected
   List<SyncEnrollmentStateDto> dco_decode_list_sync_enrollment_state_dto(
     dynamic raw,
   );
@@ -816,6 +817,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SyncDatasetEntryDto dco_decode_sync_dataset_entry_dto(dynamic raw);
 
   @protected
+  SyncDeliveryStatusDto dco_decode_sync_delivery_status_dto(dynamic raw);
+
+  @protected
   SyncEnrollmentStateDto dco_decode_sync_enrollment_state_dto(dynamic raw);
 
   @protected
@@ -925,9 +929,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnalysisTriggerResult sse_decode_analysis_trigger_result(
     SseDeserializer deserializer,
   );
-
-  @protected
-  AppUpdateDto sse_decode_app_update_dto(SseDeserializer deserializer);
 
   @protected
   ArtifactVersion sse_decode_artifact_version(SseDeserializer deserializer);
@@ -1600,6 +1601,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<SyncDeliveryStatusDto> sse_decode_list_sync_delivery_status_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SyncEnrollmentStateDto> sse_decode_list_sync_enrollment_state_dto(
     SseDeserializer deserializer,
   );
@@ -1877,6 +1883,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SyncDeliveryStatusDto sse_decode_sync_delivery_status_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SyncEnrollmentStateDto sse_decode_sync_enrollment_state_dto(
     SseDeserializer deserializer,
   );
@@ -2054,22 +2065,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     }
 
     throw Exception('unreachable');
-  }
-
-  @protected
-  JSAny cst_encode_app_update_dto(AppUpdateDto raw) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    return [
-      cst_encode_bool(raw.hasUpdate),
-      cst_encode_String(raw.latestHash),
-      cst_encode_i_64(raw.latestSeq),
-      cst_encode_String(raw.localHash),
-      cst_encode_i_64(raw.localSeq),
-      cst_encode_String(raw.version),
-      cst_encode_String(raw.changelog),
-      cst_encode_i_64(raw.apkSize),
-      cst_encode_String(raw.apkSha256),
-    ].jsify()!;
   }
 
   @protected
@@ -3567,6 +3562,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_sync_delivery_status_dto(
+    List<SyncDeliveryStatusDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_sync_delivery_status_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_sync_enrollment_state_dto(
     List<SyncEnrollmentStateDto> raw,
   ) {
@@ -4261,6 +4264,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_sync_delivery_status_dto(SyncDeliveryStatusDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.peerDeviceId),
+      cst_encode_String(raw.state),
+      cst_encode_String(raw.reason),
+      cst_encode_i_64(raw.untilMs),
+      cst_encode_i_64(raw.pending),
+      cst_encode_i_64(raw.awaitingReceipt),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_sync_enrollment_state_dto(SyncEnrollmentStateDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -4277,6 +4293,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_bool(raw.localApplied),
       cst_encode_bool(raw.remoteApplied),
       cst_encode_bool(raw.notificationPending),
+      cst_encode_bool(raw.storageBlocked),
     ].jsify()!;
   }
 
@@ -4666,9 +4683,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     AnalysisTriggerResult self,
     SseSerializer serializer,
   );
-
-  @protected
-  void sse_encode_app_update_dto(AppUpdateDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_artifact_version(
@@ -5541,6 +5555,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_sync_delivery_status_dto(
+    List<SyncDeliveryStatusDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_sync_enrollment_state_dto(
     List<SyncEnrollmentStateDto> self,
     SseSerializer serializer,
@@ -5883,6 +5903,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_sync_delivery_status_dto(
+    SyncDeliveryStatusDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_sync_enrollment_state_dto(
     SyncEnrollmentStateDto self,
     SseSerializer serializer,
@@ -6207,9 +6233,6 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__review_flow__build_hash(NativePortType port_) =>
       wasmModule.wire__crate__api__review_flow__build_hash(port_);
 
-  void wire__crate__api__sync__handoff__build_seq(NativePortType port_) =>
-      wasmModule.wire__crate__api__sync__handoff__build_seq(port_);
-
   void wire__crate__api__chat_runs__cancel_chat_run(
     NativePortType port_,
     String conversation_id,
@@ -6226,14 +6249,6 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__sync__invite__cancel_owner_sync_invitation(
     port_,
     invitation_id,
-  );
-
-  void wire__crate__api__sync__handoff__check_app_update(
-    NativePortType port_,
-    String relay_url,
-  ) => wasmModule.wire__crate__api__sync__handoff__check_app_update(
-    port_,
-    relay_url,
   );
 
   void wire__crate__api__companion_flow__check_companion_revisit(
@@ -6573,22 +6588,6 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__chat_runs__dispatch_chat_input_queue(
     port_,
     conversation_id,
-  );
-
-  void wire__crate__api__sync__handoff__download_update_apk(
-    NativePortType port_,
-    String relay_url,
-    String build_hash,
-    String apk_sha256,
-    JSAny apk_size,
-    String dest_dir,
-  ) => wasmModule.wire__crate__api__sync__handoff__download_update_apk(
-    port_,
-    relay_url,
-    build_hash,
-    apk_sha256,
-    apk_size,
-    dest_dir,
   );
 
   void wire__crate__api__provider_config__duplicate_ai_provider_config(
@@ -8250,6 +8249,10 @@ class RustLibWire implements BaseWire {
     task_json,
   );
 
+  void wire__crate__api__sync__join__sync_delivery_status(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__sync__join__sync_delivery_status(port_);
+
   void wire__crate__api__web_search__test_doh_connection(
     NativePortType port_,
     String doh_uri,
@@ -8603,10 +8606,6 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__review_flow__build_hash(NativePortType port_);
 
-  external void wire__crate__api__sync__handoff__build_seq(
-    NativePortType port_,
-  );
-
   external void wire__crate__api__chat_runs__cancel_chat_run(
     NativePortType port_,
     String conversation_id,
@@ -8616,11 +8615,6 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__sync__invite__cancel_owner_sync_invitation(
     NativePortType port_,
     String invitation_id,
-  );
-
-  external void wire__crate__api__sync__handoff__check_app_update(
-    NativePortType port_,
-    String relay_url,
   );
 
   external void wire__crate__api__companion_flow__check_companion_revisit(
@@ -8842,15 +8836,6 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__chat_runs__dispatch_chat_input_queue(
     NativePortType port_,
     String conversation_id,
-  );
-
-  external void wire__crate__api__sync__handoff__download_update_apk(
-    NativePortType port_,
-    String relay_url,
-    String build_hash,
-    String apk_sha256,
-    JSAny apk_size,
-    String dest_dir,
   );
 
   external void wire__crate__api__provider_config__duplicate_ai_provider_config(
@@ -9951,6 +9936,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String content,
     String idempotency_key,
     String task_json,
+  );
+
+  external void wire__crate__api__sync__join__sync_delivery_status(
+    NativePortType port_,
   );
 
   external void wire__crate__api__web_search__test_doh_connection(

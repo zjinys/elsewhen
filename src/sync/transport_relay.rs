@@ -5,41 +5,14 @@
 //! receive the end-to-end encryption key. Each device needs a distinct owner key.
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
-use ring::digest::SHA256;
 use ring::hmac;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::fs;
-use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::io::Read;
 
 const VERSION: u8 = 2;
 const MAX_RESPONSE_BYTES: u64 = 17 * 1024 * 1024;
 const MAX_ENVELOPE_BYTES: usize = 8 * 1024 * 1024;
 const MAX_SAFE_INTEGER: i64 = 9_007_199_254_740_991;
-/// 升级 APK 体积上限（当前产物 ~60MB；为后续增长留余量）。
-const RELEASE_APK_MAX_BYTES: u64 = 128 * 1024 * 1024;
-
-/// 应用升级发布清单（发布方写入 R2 的 release/manifest.json）。清单由
-/// 发布脚本（Node 侧）生成，字段是 JS 惯例 camelCase。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ReleaseManifest {
-    pub version: String,
-    pub build_hash: String,
-    pub build_seq: i64,
-    pub changelog: String,
-    pub apk_sha256: String,
-    pub apk_size: i64,
-    pub published_at: i64,
-}
-
-/// 7-64 位小写十六进制（git 短 hash…全 hash 都合法）。
-fn is_short_hash(value: &str) -> bool {
-    (7..=64).contains(&value.len())
-        && value
-            .chars()
-            .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RelayEnvelope {
@@ -57,6 +30,19 @@ pub struct MailboxStatus {
     pub count: i64,
     pub quota: i64,
     pub earliest_expiry: Option<i64>,
+    /// blob 数据面已落盘字节（relay 自己算的真实占盘）。
+    /// 老 relay 不返回这两个字段，缺失按 0 处理（`/status` 的旧字段语义不变）。
+    #[serde(default)]
+    pub blob_bytes: i64,
+    #[serde(default)]
+    pub blobs: i64,
+    /// relay 自报的能力清单（当前是 `['blob','drop']`）。
+    ///
+    /// 老 relay 缺这个字段 → 空 vec → 被当成「没有 blob 数据面」：这是**故意**
+    /// 的保守默认（review 2026-10-25 M2），因为默认「有」会让发送端对着一个
+    /// 没有 `/blob/*` 路由的 relay 上传，每拍都 404。
+    #[serde(default)]
+    pub capabilities: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -81,21 +67,23 @@ pub struct PeerPresence {
     pub updated_at: i64,
 }
 
+#[derive(Clone)]
 pub struct RelayClient {
     base_url: String,
     http: reqwest::blocking::Client,
 }
 
 mod account;
+mod blob;
 mod crypto;
 #[cfg(test)]
 mod tests;
 mod transfer;
 
-#[cfg(test)]
+pub(crate) use blob::{BlobState, WINDOW_CHUNKS, blob_capability, set_blob_capability};
 pub(crate) use crypto::random_hex;
 pub(crate) use crypto::{
-    RelayHttpError, apk_sha256_hex, bytes_to_hex, derive_key, hmac_sign_hex, integer_field,
+    RelayBlobUnavailable, RelayHttpError, RelayQuotaExceeded, bytes_to_hex, derive_key, hmac_sign_hex, integer_field,
     request_stamp, response_json, sha256_hex, sign, validate_cursor, validate_integer,
     validate_mailbox,
 };

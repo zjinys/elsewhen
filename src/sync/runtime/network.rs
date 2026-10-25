@@ -20,6 +20,10 @@ pub(crate) struct NetworkTickReport {
     pub pulled_waiting: usize,
     /// 拒绝里因协议版本不匹配（对端需要升级）的数量。
     pub pulled_version_mismatch: usize,
+    /// 本轮因「必表态」在 relay 上放弃的死信数量（>3 次仍拒绝的不可恢复信）。
+    pub pulled_dropped: usize,
+    /// 该放弃却放弃不掉的（relay 无 `/drop` 或网络失败），要上 UI 收口。
+    pub pulled_blocked: usize,
     /// 本轮为该成员补发了当前名册修订（owner 收敛）。
     pub roster_converged: bool,
     pub pulled_rejected: usize,
@@ -30,6 +34,8 @@ pub(crate) struct NetworkTickReport {
     pub resnapshot_completed: usize,
     /// Members still flagged `needs_resnapshot` after this tick.
     pub resnapshot_pending: Vec<String>,
+    /// 本轮从 blob 拉齐并发布了一份快照。
+    pub snapshot_imported: bool,
 }
 
 impl NetworkTickReport {
@@ -39,9 +45,12 @@ impl NetworkTickReport {
         self.pulled_accepted += other.pulled_accepted;
         self.pulled_waiting += other.pulled_waiting;
         self.pulled_version_mismatch += other.pulled_version_mismatch;
+        self.pulled_dropped += other.pulled_dropped;
+        self.pulled_blocked += other.pulled_blocked;
         self.roster_converged |= other.roster_converged;
         self.pulled_rejected += other.pulled_rejected;
         self.acknowledgement_failed |= other.acknowledgement_failed;
+        self.snapshot_imported |= other.snapshot_imported;
     }
 }
 
@@ -49,6 +58,9 @@ impl NetworkTickReport {
 /// instead of one call blocking the caller.
 const MAX_PEERS_PER_TICK: usize = 8;
 const MAX_PAGES_PER_TICK: u32 = 4;
+/// 每拍最多拉几窗 blob 分片（一窗 = 32 片 = 8 MB）。取 2 是为了单拍内存峰值
+/// 有界（2×8 MB）且与发送端窗口匹配；122 MB 的初始快照约 8 拍拉完。
+const MAX_BLOB_WINDOWS_PER_TICK: usize = 2;
 
 /// Runs one bounded push/pull cycle for every active, non-revoked, routed peer
 /// of the pinned database. Returns `Ok(None)` when a tick must not run now:
@@ -116,6 +128,8 @@ pub(crate) fn tick(config: &AppConfig) -> Result<Option<NetworkTickReport>> {
         .map(|m| (m.device.device_id.clone(), m.device.signing_key))
         .collect();
     let mut report = NetworkTickReport::default();
+    // 每拍只补关一次 blob（信箱是本地那一个，与对端无关）。
+    let mut recycle_swept = false;
     for (peer_id, peer_signing) in &peers {
         // A roster member without usable local key material cannot be
         // contacted; this is a repair signal, not a skippable peer.
@@ -202,10 +216,49 @@ pub(crate) fn tick(config: &AppConfig) -> Result<Option<NetworkTickReport>> {
             peer_report.pulled_waiting += pulled.waiting;
             peer_report.pulled_rejected += pulled.rejected;
             peer_report.pulled_version_mismatch += pulled.rejected_version_mismatch;
+            peer_report.pulled_dropped += pulled.dropped;
+            peer_report.pulled_blocked += pulled.blocked;
             peer_report.acknowledgement_failed |= pulled.acknowledgement_failed;
             if pulled.accepted + pulled.waiting + pulled.rejected < 3 {
                 break;
             }
+        }
+        // blob 数据面：在途快照的分片不在信箱里，要主动去 blob 上拉。每拍最多
+        // 拉 `MAX_BLOB_WINDOWS_PER_TICK` 窗（每窗 8 MB），每窗确认后立即释放
+        // relay 空间；拉齐就发布并整块回收。
+        if store.snapshot_import_pending()? {
+            let download = crate::sync::engine::snapshot::BlobDownload {
+                client: &client,
+                mailbox: &route.local_mailbox,
+                owner_credential: vault.mailbox_owner(),
+                source: &peer_id,
+                key_version,
+                key: &receive_key,
+                public: &peer_signing,
+            };
+            if crate::sync::engine::snapshot::import_blob_snapshots(
+                &store,
+                &download,
+                MAX_BLOB_WINDOWS_PER_TICK,
+            )? {
+                peer_report.snapshot_imported = true;
+            }
+        }
+        // 补关以前失败过的 blob（review m4）。它的门控条件与「还有没有在途导入」
+        // 不同：回收处理的是已经发布完的行，`snapshot_import_pending()` 对它们是
+        // false —— 塞在导入流程里，最后一块 blob 就再也等不到下一拍。
+        if !recycle_swept && store.blob_recycle_pending()? {
+            let download = crate::sync::engine::snapshot::BlobDownload {
+                client: &client,
+                mailbox: &route.local_mailbox,
+                owner_credential: vault.mailbox_owner(),
+                source: &peer_id,
+                key_version,
+                key: &receive_key,
+                public: &peer_signing,
+            };
+            crate::sync::engine::snapshot::recycle_published_blobs(&store, &download)?;
+            recycle_swept = true;
         }
         report.merge(&peer_report);
     }
@@ -226,6 +279,9 @@ pub(crate) fn tick(config: &AppConfig) -> Result<Option<NetworkTickReport>> {
             continue;
         };
         let (send_key, _, key_version) = vault.peer_keys(&identity.dataset_id, member)?;
+        // 数据面（blob）传输需要一条到该成员信箱的上传通道；开关关着就是 None，
+        // 导出退回逐片信件。
+        let upload = crate::sync::runtime::snapshot_upload(&vault, &identity.dataset_id, member)?;
         crate::sync::engine::snapshot::stage_enrollment_snapshot(
             &store,
             member,
@@ -233,6 +289,7 @@ pub(crate) fn tick(config: &AppConfig) -> Result<Option<NetworkTickReport>> {
             key_version,
             &send_key,
             vault.identity(),
+            upload.as_ref(),
         )?;
         report.resnapshot_staged += 1;
     }

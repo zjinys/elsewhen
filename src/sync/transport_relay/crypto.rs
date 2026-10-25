@@ -2,6 +2,38 @@
 
 use super::*;
 
+/// relay 明确表示「信箱配额打满」（HTTP 507）。这不是"这次没送到"，而是
+/// "在腾出空间之前再发也没用"：把它当普通失败每拍重试，正是把配额越撞越死、
+/// 让 outbox 反复洗掉 relay_id 的放大器。单独成型，让发送侧能停止本拍发送、
+/// 退避并让配对面板说明原因。
+#[derive(Debug)]
+pub(crate) struct RelayQuotaExceeded;
+
+impl std::fmt::Display for RelayQuotaExceeded {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "relay mailbox quota exceeded")
+    }
+}
+impl std::error::Error for RelayQuotaExceeded {}
+
+/// relay 说「这份 blob 我不存在」（HTTP 404）：要么分片被配额/TTL 收掉了，
+/// 要么这台 relay 根本没有 blob 数据面（`/blob/open` 是路由级 404）。
+///
+/// 为什么必须从 `RelayHttpError` 里单列（review 2026-10-25 N1）：404 与 5xx
+/// 的正确反应完全不同 —— 5xx 是「等一等再发同一片」，404 是「从第 0 片重新
+/// 开一份」。混在 `Transport` 里意味着本该重传的错要等十分钟退避，而重传
+/// 本来就只是花点带宽。注：`/blob/state` 不会 404（回 `200 + present:[]`），
+/// 所以只有 `open` / `put` 的 404 落到这里。
+#[derive(Debug)]
+pub(crate) struct RelayBlobUnavailable;
+
+impl std::fmt::Display for RelayBlobUnavailable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "relay blob is gone or unsupported")
+    }
+}
+impl std::error::Error for RelayBlobUnavailable {}
+
 #[derive(Debug)]
 pub(crate) struct RelayHttpError(pub(crate) reqwest::StatusCode);
 impl std::fmt::Display for RelayHttpError {
@@ -11,26 +43,14 @@ impl std::fmt::Display for RelayHttpError {
 }
 impl std::error::Error for RelayHttpError {}
 
-/// 流式计算文件 sha256（60MB 量级，不整读进内存）。
-pub(crate) fn apk_sha256_hex(path: &Path) -> Result<String> {
-    let mut file = fs::File::open(path).context("open apk for hashing")?;
-    let mut ctx = ring::digest::Context::new(&SHA256);
-    let mut buf = [0u8; 256 * 1024];
-    loop {
-        let n = file.read(&mut buf)?;
-        if n == 0 {
-            break;
-        }
-        ctx.update(&buf[..n]);
-    }
-    Ok(bytes_to_hex(ctx.finish().as_ref()))
-}
-
 pub(crate) fn response_json<T: DeserializeOwned>(
     response: reqwest::blocking::Response,
 ) -> Result<T> {
     // A compromised relay may return secrets in an error body. Never echo it.
     if !response.status().is_success() {
+        if response.status() == reqwest::StatusCode::INSUFFICIENT_STORAGE {
+            return Err(RelayQuotaExceeded.into());
+        }
         return Err(RelayHttpError(response.status()).into());
     }
     if let Some(length) = response.content_length() {

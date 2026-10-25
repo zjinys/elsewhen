@@ -28,7 +28,6 @@ import '../utils/error_report.dart';
 import '../utils/system_fonts.dart';
 import '../utils/window_service.dart';
 import '../theme/app_theme.dart';
-import '../app_update.dart';
 // ── 大类方法按功能域拆分为 part extension（行为零变化，见 settings_parts/）──
 part 'settings_parts/data_rules_loads.dart';
 part 'settings_parts/rules_prefs.dart';
@@ -58,8 +57,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   late final TabController _tabController;
   /// 应用版本（pubspec version），宽屏在左 tab 栏底部、窄屏在 tab 条下方。
   String _version = '';
-  /// 「检查更新」在途标记。runFromSettings 自身弹窗闭环，本页只防重入。
-  bool _checkingUpdate = false;
   late TextEditingController _maxMessagesController;
   late TextEditingController _maxTokensController;
   List<DailyTokenUsage> _dailyUsage = [];
@@ -279,33 +276,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                             if (_version.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 2),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        _version,
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: AppTheme.textTertiary,
-                                        ),
-                                      ),
-                                    ),
-                                    GestureDetector(
-                                      onTap: _checkingUpdate
-                                          ? null
-                                          : () => AppUpdate.runFromSettings(
-                                              context,
-                                            ),
-                                      child: Text(
-                                        _checkingUpdate ? '检查中…' : '检查更新',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: AppTheme.accentPrimary,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                  ],
+                                child: Text(
+                                  _version,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: AppTheme.textTertiary,
+                                  ),
                                 ),
                               ),
                           ],

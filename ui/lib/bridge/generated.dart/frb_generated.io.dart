@@ -31,7 +31,6 @@ import 'api/review_report/store.dart';
 import 'api/rules.dart';
 import 'api/sync/conflicts.dart';
 import 'api/sync/datasets.dart';
-import 'api/sync/handoff.dart';
 import 'api/sync/invite.dart';
 import 'api/sync/join.dart';
 import 'api/theme.dart';
@@ -84,9 +83,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnalysisTriggerResult dco_decode_analysis_trigger_result(dynamic raw);
-
-  @protected
-  AppUpdateDto dco_decode_app_update_dto(dynamic raw);
 
   @protected
   ArtifactVersion dco_decode_artifact_version(dynamic raw);
@@ -599,6 +595,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SyncDatasetEntryDto> dco_decode_list_sync_dataset_entry_dto(dynamic raw);
 
   @protected
+  List<SyncDeliveryStatusDto> dco_decode_list_sync_delivery_status_dto(
+    dynamic raw,
+  );
+
+  @protected
   List<SyncEnrollmentStateDto> dco_decode_list_sync_enrollment_state_dto(
     dynamic raw,
   );
@@ -814,6 +815,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SyncDatasetEntryDto dco_decode_sync_dataset_entry_dto(dynamic raw);
 
   @protected
+  SyncDeliveryStatusDto dco_decode_sync_delivery_status_dto(dynamic raw);
+
+  @protected
   SyncEnrollmentStateDto dco_decode_sync_enrollment_state_dto(dynamic raw);
 
   @protected
@@ -923,9 +927,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnalysisTriggerResult sse_decode_analysis_trigger_result(
     SseDeserializer deserializer,
   );
-
-  @protected
-  AppUpdateDto sse_decode_app_update_dto(SseDeserializer deserializer);
 
   @protected
   ArtifactVersion sse_decode_artifact_version(SseDeserializer deserializer);
@@ -1598,6 +1599,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<SyncDeliveryStatusDto> sse_decode_list_sync_delivery_status_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SyncEnrollmentStateDto> sse_decode_list_sync_enrollment_state_dto(
     SseDeserializer deserializer,
   );
@@ -1871,6 +1877,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SyncDatasetEntryDto sse_decode_sync_dataset_entry_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SyncDeliveryStatusDto sse_decode_sync_delivery_status_dto(
     SseDeserializer deserializer,
   );
 
@@ -2963,6 +2974,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_sync_delivery_status_dto>
+  cst_encode_list_sync_delivery_status_dto(List<SyncDeliveryStatusDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_sync_delivery_status_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_sync_delivery_status_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_sync_enrollment_state_dto>
   cst_encode_list_sync_enrollment_state_dto(List<SyncEnrollmentStateDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
@@ -3339,22 +3361,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       wireObj.kind.Processed.count = pre_count;
       return;
     }
-  }
-
-  @protected
-  void cst_api_fill_to_wire_app_update_dto(
-    AppUpdateDto apiObj,
-    wire_cst_app_update_dto wireObj,
-  ) {
-    wireObj.has_update = cst_encode_bool(apiObj.hasUpdate);
-    wireObj.latest_hash = cst_encode_String(apiObj.latestHash);
-    wireObj.latest_seq = cst_encode_i_64(apiObj.latestSeq);
-    wireObj.local_hash = cst_encode_String(apiObj.localHash);
-    wireObj.local_seq = cst_encode_i_64(apiObj.localSeq);
-    wireObj.version = cst_encode_String(apiObj.version);
-    wireObj.changelog = cst_encode_String(apiObj.changelog);
-    wireObj.apk_size = cst_encode_i_64(apiObj.apkSize);
-    wireObj.apk_sha256 = cst_encode_String(apiObj.apkSha256);
   }
 
   @protected
@@ -4984,6 +4990,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_sync_delivery_status_dto(
+    SyncDeliveryStatusDto apiObj,
+    wire_cst_sync_delivery_status_dto wireObj,
+  ) {
+    wireObj.peer_device_id = cst_encode_String(apiObj.peerDeviceId);
+    wireObj.state = cst_encode_String(apiObj.state);
+    wireObj.reason = cst_encode_String(apiObj.reason);
+    wireObj.until_ms = cst_encode_i_64(apiObj.untilMs);
+    wireObj.pending = cst_encode_i_64(apiObj.pending);
+    wireObj.awaiting_receipt = cst_encode_i_64(apiObj.awaitingReceipt);
+  }
+
+  @protected
   void cst_api_fill_to_wire_sync_enrollment_state_dto(
     SyncEnrollmentStateDto apiObj,
     wire_cst_sync_enrollment_state_dto wireObj,
@@ -5003,6 +5022,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.local_applied = cst_encode_bool(apiObj.localApplied);
     wireObj.remote_applied = cst_encode_bool(apiObj.remoteApplied);
     wireObj.notification_pending = cst_encode_bool(apiObj.notificationPending);
+    wireObj.storage_blocked = cst_encode_bool(apiObj.storageBlocked);
   }
 
   @protected
@@ -5401,9 +5421,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     AnalysisTriggerResult self,
     SseSerializer serializer,
   );
-
-  @protected
-  void sse_encode_app_update_dto(AppUpdateDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_artifact_version(
@@ -6276,6 +6293,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_sync_delivery_status_dto(
+    List<SyncDeliveryStatusDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_sync_enrollment_state_dto(
     List<SyncEnrollmentStateDto> self,
     SseSerializer serializer,
@@ -6614,6 +6637,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_sync_dataset_entry_dto(
     SyncDatasetEntryDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sync_delivery_status_dto(
+    SyncDeliveryStatusDto self,
     SseSerializer serializer,
   );
 
@@ -8150,6 +8179,25 @@ class RustLibWire implements BaseWire {
       _cst_new_list_sync_dataset_entry_dtoPtr
           .asFunction<
             ffi.Pointer<wire_cst_list_sync_dataset_entry_dto> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_sync_delivery_status_dto>
+  cst_new_list_sync_delivery_status_dto(int len) {
+    return _cst_new_list_sync_delivery_status_dto(len);
+  }
+
+  late final _cst_new_list_sync_delivery_status_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_sync_delivery_status_dto> Function(
+            ffi.Int32,
+          )
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_sync_delivery_status_dto');
+  late final _cst_new_list_sync_delivery_status_dto =
+      _cst_new_list_sync_delivery_status_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_sync_delivery_status_dto> Function(int)
           >();
 
   ffi.Pointer<wire_cst_list_sync_enrollment_state_dto>
@@ -13640,86 +13688,6 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__sync__handoff__build_seq(int port_) {
-    return _wire__crate__api__sync__handoff__build_seq(port_);
-  }
-
-  late final _wire__crate__api__sync__handoff__build_seqPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_elsewhen_ui_wire__crate__api__sync__handoff__build_seq',
-      );
-  late final _wire__crate__api__sync__handoff__build_seq =
-      _wire__crate__api__sync__handoff__build_seqPtr
-          .asFunction<void Function(int)>();
-
-  void wire__crate__api__sync__handoff__check_app_update(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> relay_url,
-  ) {
-    return _wire__crate__api__sync__handoff__check_app_update(port_, relay_url);
-  }
-
-  late final _wire__crate__api__sync__handoff__check_app_updatePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_elsewhen_ui_wire__crate__api__sync__handoff__check_app_update');
-  late final _wire__crate__api__sync__handoff__check_app_update =
-      _wire__crate__api__sync__handoff__check_app_updatePtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void wire__crate__api__sync__handoff__download_update_apk(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> relay_url,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> build_hash,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> apk_sha256,
-    int apk_size,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> dest_dir,
-  ) {
-    return _wire__crate__api__sync__handoff__download_update_apk(
-      port_,
-      relay_url,
-      build_hash,
-      apk_sha256,
-      apk_size,
-      dest_dir,
-    );
-  }
-
-  late final _wire__crate__api__sync__handoff__download_update_apkPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_elsewhen_ui_wire__crate__api__sync__handoff__download_update_apk',
-      );
-  late final _wire__crate__api__sync__handoff__download_update_apk =
-      _wire__crate__api__sync__handoff__download_update_apkPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
-          >();
-
   void wire__crate__api__sync__invite__approve_owner_sync_invitation(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> invitation_id,
@@ -14449,6 +14417,18 @@ class RustLibWire implements BaseWire {
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
+
+  void wire__crate__api__sync__join__sync_delivery_status(int port_) {
+    return _wire__crate__api__sync__join__sync_delivery_status(port_);
+  }
+
+  late final _wire__crate__api__sync__join__sync_delivery_statusPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__join__sync_delivery_status',
+      );
+  late final _wire__crate__api__sync__join__sync_delivery_status =
+      _wire__crate__api__sync__join__sync_delivery_statusPtr
+          .asFunction<void Function(int)>();
 
   void wire__crate__api__sync__join__trigger_network_sync(int port_) {
     return _wire__crate__api__sync__join__trigger_network_sync(port_);
@@ -16310,52 +16290,6 @@ final class wire_cst_analysis_trigger_result extends ffi.Struct {
   external int tag;
 
   external AnalysisTriggerResultKind kind;
-}
-
-final class wire_cst_app_update_dto extends ffi.Struct {
-  @ffi.Bool()
-  external bool has_update;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> latest_hash;
-
-  @ffi.Int64()
-  external int latest_seq;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> local_hash;
-
-  @ffi.Int64()
-  external int local_seq;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> version;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> changelog;
-
-  @ffi.Int64()
-  external int apk_size;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> apk_sha256;
-
-  static ffi.Pointer<wire_cst_app_update_dto> $allocate(
-    ffi.Allocator $allocator, {
-    required bool has_update,
-    required ffi.Pointer<wire_cst_list_prim_u_8_strict> latest_hash,
-    required int latest_seq,
-    required ffi.Pointer<wire_cst_list_prim_u_8_strict> local_hash,
-    required int local_seq,
-    required ffi.Pointer<wire_cst_list_prim_u_8_strict> version,
-    required ffi.Pointer<wire_cst_list_prim_u_8_strict> changelog,
-    required int apk_size,
-    required ffi.Pointer<wire_cst_list_prim_u_8_strict> apk_sha256,
-  }) => $allocator<wire_cst_app_update_dto>()
-    ..ref.has_update = has_update
-    ..ref.latest_hash = latest_hash
-    ..ref.latest_seq = latest_seq
-    ..ref.local_hash = local_hash
-    ..ref.local_seq = local_seq
-    ..ref.version = version
-    ..ref.changelog = changelog
-    ..ref.apk_size = apk_size
-    ..ref.apk_sha256 = apk_sha256;
 }
 
 final class wire_cst_artifact_version extends ffi.Struct {
@@ -19588,6 +19522,21 @@ final class wire_cst_list_sync_dataset_entry_dto extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_sync_delivery_status_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_sync_delivery_status_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_sync_delivery_status_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_sync_delivery_status_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_sync_delivery_status_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_sync_enrollment_state_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_sync_enrollment_state_dto> ptr;
 
@@ -20840,6 +20789,39 @@ final class wire_cst_sync_dataset_entry_dto extends ffi.Struct {
     ..ref.selected = selected;
 }
 
+final class wire_cst_sync_delivery_status_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> peer_device_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> state;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+
+  @ffi.Int64()
+  external int until_ms;
+
+  @ffi.Int64()
+  external int pending;
+
+  @ffi.Int64()
+  external int awaiting_receipt;
+
+  static ffi.Pointer<wire_cst_sync_delivery_status_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> peer_device_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> state,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> reason,
+    required int until_ms,
+    required int pending,
+    required int awaiting_receipt,
+  }) => $allocator<wire_cst_sync_delivery_status_dto>()
+    ..ref.peer_device_id = peer_device_id
+    ..ref.state = state
+    ..ref.reason = reason
+    ..ref.until_ms = until_ms
+    ..ref.pending = pending
+    ..ref.awaiting_receipt = awaiting_receipt;
+}
+
 final class wire_cst_sync_enrollment_state_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> role;
 
@@ -20873,6 +20855,9 @@ final class wire_cst_sync_enrollment_state_dto extends ffi.Struct {
   @ffi.Bool()
   external bool notification_pending;
 
+  @ffi.Bool()
+  external bool storage_blocked;
+
   static ffi.Pointer<wire_cst_sync_enrollment_state_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> role,
@@ -20888,6 +20873,7 @@ final class wire_cst_sync_enrollment_state_dto extends ffi.Struct {
     required bool local_applied,
     required bool remote_applied,
     required bool notification_pending,
+    required bool storage_blocked,
   }) => $allocator<wire_cst_sync_enrollment_state_dto>()
     ..ref.role = role
     ..ref.operation_id = operation_id
@@ -20901,7 +20887,8 @@ final class wire_cst_sync_enrollment_state_dto extends ffi.Struct {
     ..ref.total_chunks = total_chunks
     ..ref.local_applied = local_applied
     ..ref.remote_applied = remote_applied
-    ..ref.notification_pending = notification_pending;
+    ..ref.notification_pending = notification_pending
+    ..ref.storage_blocked = storage_blocked;
 }
 
 final class wire_cst_sync_invitation_offer_dto extends ffi.Struct {

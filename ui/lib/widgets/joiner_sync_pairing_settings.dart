@@ -1,14 +1,17 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../bridge/api.dart' as api;
 import '../sync/sync_dataset_switch_api.dart';
 import '../sync/sync_join_controller.dart';
 import '../utils/device_name.dart';
+import '../theme/app_theme.dart';
 import 'joiner_qr_scan_page.dart';
 import 'dataset_switch_card.dart';
 import 'sync_pairing_steps.dart';
+import 'sync_tick_status.dart';
 
 class JoinerSyncPairingSettings extends StatefulWidget {
   const JoinerSyncPairingSettings({
@@ -16,8 +19,12 @@ class JoinerSyncPairingSettings extends StatefulWidget {
     required this.controller,
     this.scannerBuilder,
     this.datasetApi = const FrbSyncDatasetSwitchApi(),
+    this.deliveryStatuses,
   });
   final SyncJoinController controller;
+
+  /// 每对端的投递状态（R6-2）。为 null 时不显示（见 owner 面板同名字段）。
+  final ValueListenable<List<api.SyncDeliveryStatusDto>>? deliveryStatuses;
 
   /// 扫码页取景器注入缝（测试替换相机）；见 JoinerQrScanPage。
   final Widget Function(BuildContext context, void Function(String code))?
@@ -69,6 +76,45 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
     if (mounted && widget.controller.active) _code.clear();
   }
 
+  /// 粘贴邀请码：常驻的大文本框占屏且不常用，改成按钮 + 弹窗。
+  /// 弹窗里的确认就是原来的「预览邀请（不联网）」：在本地解析邀请码、
+  /// 展示主机名/中继/指纹供核对，不联网、不写库；真正的加入还需要在
+  /// 卡片里额外勾选同意并点「在独立暂存库发起加入」。
+  Future<void> _pasteCode() async {
+    final code = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('通过邀请码加入'),
+        content: TextField(
+          controller: _code,
+          autofocus: true,
+          autocorrect: false,
+          enableSuggestions: false,
+          maxLength: 4200,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: '来自可信设备的邀请码',
+            counterText: '',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(_code.text),
+            child: const Text('预览邀请（不联网）'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || code == null) return;
+    setState(() => _consent = false);
+    await widget.controller.preview(code);
+    if (mounted && widget.controller.active) _code.clear();
+  }
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: Listenable.merge([widget.controller]),
@@ -88,10 +134,12 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Divider(height: 32),
-          Text('加入现有数据集', style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: 8),
-          const Text(
-            '使用独立暂存库，原记录和 Provider 不会覆盖。明确批准并安装后，自动协调正式通道、成员名册及初始快照；当前数据集不会切换。',
+          // 这一段只是背景说明，日常操作时不需要读；折叠起来，让输入框和
+          // 进度直接暴露，需要时再点开。
+          const _SyncExplanation(
+            title: '加入现有数据集',
+            body: '使用独立暂存库，原记录和 Provider 不会覆盖。明确批准并安装后，'
+                '自动协调正式通道、成员名册及初始快照；当前数据集不会切换。',
           ),
           if (phase != null) ...[
             const SizedBox(height: 8),
@@ -114,6 +162,17 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
               ),
               const SizedBox(height: 8),
             ],
+            if (enrollment?.states.any((s) => s.storageBlocked) == true) ...[
+              const SizedBox(height: 8),
+              Text(
+                '中继信箱已满：对方正在取件腾出空间，稍候会自动继续，无需操作。',
+                style: TextStyle(fontSize: 12, color: AppTheme.warning),
+              ),
+            ],
+            if (widget.deliveryStatuses != null) ...[
+              const SizedBox(height: 8),
+              SyncDeliverStatusLine(statuses: widget.deliveryStatuses!),
+            ],
           ],
           if (phase == 'complete') ...[
             DatasetSwitchCard(
@@ -123,31 +182,15 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
           ],
           if (!controller.active) ...[
             const SizedBox(height: 12),
-            TextField(
-              controller: _code,
-              enabled: !controller.busy,
-              autocorrect: false,
-              enableSuggestions: false,
-              maxLength: 4200,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: '来自可信设备的邀请码',
-                border: OutlineInputBorder(),
-              ),
-            ),
+            // 邀请码不再常驻一个 3 行文本框：两个入口，码走弹窗。
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                OutlinedButton(
-                  onPressed: controller.busy
-                      ? null
-                      : () async {
-                          setState(() => _consent = false);
-                          await controller.preview(_code.text);
-                          if (mounted && controller.active) _code.clear();
-                        },
-                  child: const Text('预览邀请（不联网）'),
+                FilledButton.icon(
+                  onPressed: controller.busy ? null : _pasteCode,
+                  icon: const Icon(Icons.key_outlined),
+                  label: const Text('通过 Key'),
                 ),
                 OutlinedButton.icon(
                   onPressed: controller.busy ? null : () => _scanCode(),
@@ -159,27 +202,47 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
           ],
           if (state != null && controller.active) ...[
             const SizedBox(height: 12),
-            Text('邀请设备：${state.ownerName.isEmpty ? '解锁后核验' : state.ownerName}'),
-            Text('数据集：${state.datasetId}'),
-            if (state.relayUrl.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              const Text('将连接的中继'),
-              SelectableText(state.relayUrl),
-            ],
-            if (state.ownerFingerprint.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              const Text('邀请设备公钥指纹'),
-              SelectableText(state.ownerFingerprint),
-            ],
-            if (state.localFingerprint != null) ...[
-              const SizedBox(height: 8),
-              const Text('本机公钥指纹（请在已有设备核对）'),
-              SelectableText(state.localFingerprint!),
-            ],
-            if (state.expiresAtMs > 0)
-              Text(
-                '邀请到期：${DateTime.fromMillisecondsSinceEpoch(state.expiresAtMs).toLocal()}',
+            // 邀请细节（数据集 ID、中继地址、两串公钥指纹、到期时间）很长但
+            // 不常看：折叠起来，只在需要逐项核对指纹的「预览」阶段默认展开。
+            ExpansionTile(
+              key: ValueKey('joiner-invite-details-${phase == 'preview'}'),
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: 8),
+              initiallyExpanded: phase == 'preview',
+              title: Text(
+                '邀请设备：${state.ownerName.isEmpty ? '解锁后核验' : state.ownerName}',
               ),
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('数据集：${state.datasetId}'),
+                      if (state.relayUrl.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        const Text('将连接的中继'),
+                        SelectableText(state.relayUrl),
+                      ],
+                      if (state.ownerFingerprint.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        const Text('邀请设备公钥指纹'),
+                        SelectableText(state.ownerFingerprint),
+                      ],
+                      if (state.localFingerprint != null) ...[
+                        const SizedBox(height: 8),
+                        const Text('本机公钥指纹（请在已有设备核对）'),
+                        SelectableText(state.localFingerprint!),
+                      ],
+                      if (state.expiresAtMs > 0)
+                        Text(
+                          '邀请到期：${DateTime.fromMillisecondsSinceEpoch(state.expiresAtMs).toLocal()}',
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             Text(switch (phase) {
               'preview' => '请核对邀请后明确选择加入。',
@@ -200,10 +263,11 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
                 controller: _name,
                 enabled: !controller.busy,
                 maxLength: 64,
-                decoration: const InputDecoration(
+                style: AppTheme.fieldTextStyle,
+                cursorColor: AppTheme.accentPrimary,
+                decoration: AppTheme.fieldDecoration(
                   labelText: '新设备名称',
-                  border: OutlineInputBorder(),
-                ),
+                ).copyWith(counterText: ''),
               ),
               CheckboxListTile(
                 value: _consent,
@@ -310,6 +374,31 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
       );
     },
   );
+}
+
+/// 折叠式说明块：标题常显，正文默认收起（用户反馈这些说明文案
+/// 平时不需要读，占位又长）。
+class _SyncExplanation extends StatelessWidget {
+  const _SyncExplanation({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: const EdgeInsets.only(bottom: 8),
+      title: Text(title, style: theme.textTheme.titleSmall),
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(body, style: theme.textTheme.bodySmall),
+        ),
+      ],
+    );
+  }
 }
 
 /// 删除前确认：不可恢复（暂存数据 + 本机密钥一并抹除）。

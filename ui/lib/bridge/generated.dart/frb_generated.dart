@@ -31,7 +31,6 @@ import 'api/review_report/store.dart';
 import 'api/rules.dart';
 import 'api/sync/conflicts.dart';
 import 'api/sync/datasets.dart';
-import 'api/sync/handoff.dart';
 import 'api/sync/invite.dart';
 import 'api/sync/join.dart';
 import 'api/theme.dart';
@@ -113,7 +112,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 1538488772;
+  int get rustContentHash => -854730017;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -211,8 +210,6 @@ abstract class RustLibApi extends BaseApi {
 
   Future<String> crateApiReviewFlowBuildHash();
 
-  Future<PlatformInt64> crateApiSyncHandoffBuildSeq();
-
   Future<ChatRunDto?> crateApiChatRunsCancelChatRun({
     required String conversationId,
     required String runId,
@@ -220,10 +217,6 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiSyncInviteCancelOwnerSyncInvitation({
     required String invitationId,
-  });
-
-  Future<AppUpdateDto> crateApiSyncHandoffCheckAppUpdate({
-    required String relayUrl,
   });
 
   Future<CompanionRevisitDto?> crateApiCompanionFlowCheckCompanionRevisit();
@@ -391,14 +384,6 @@ abstract class RustLibApi extends BaseApi {
 
   Future<ChatRunDto?> crateApiChatRunsDispatchChatInputQueue({
     required String conversationId,
-  });
-
-  Future<String> crateApiSyncHandoffDownloadUpdateApk({
-    required String relayUrl,
-    required String buildHash,
-    required String apkSha256,
-    required PlatformInt64 apkSize,
-    required String destDir,
   });
 
   Future<String> crateApiProviderConfigDuplicateAiProviderConfig({
@@ -1225,6 +1210,8 @@ abstract class RustLibApi extends BaseApi {
     required String taskJson,
   });
 
+  Future<List<SyncDeliveryStatusDto>> crateApiSyncJoinSyncDeliveryStatus();
+
   Future<String> crateApiWebSearchTestDohConnection({required String dohUri});
 
   Future<List<McpToolDto>> crateApiMcpTestMcpServer({
@@ -1923,27 +1910,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "build_hash", argNames: []);
 
   @override
-  Future<PlatformInt64> crateApiSyncHandoffBuildSeq() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire.wire__crate__api__sync__handoff__build_seq(port_);
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_i_64,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiSyncHandoffBuildSeqConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSyncHandoffBuildSeqConstMeta =>
-      const TaskConstMeta(debugName: "build_seq", argNames: []);
-
-  @override
   Future<ChatRunDto?> crateApiChatRunsCancelChatRun({
     required String conversationId,
     required String runId,
@@ -2005,36 +1971,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "cancel_owner_sync_invitation",
         argNames: ["invitationId"],
-      );
-
-  @override
-  Future<AppUpdateDto> crateApiSyncHandoffCheckAppUpdate({
-    required String relayUrl,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(relayUrl);
-          return wire.wire__crate__api__sync__handoff__check_app_update(
-            port_,
-            arg0,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_app_update_dto,
-          decodeErrorData: dco_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiSyncHandoffCheckAppUpdateConstMeta,
-        argValues: [relayUrl],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSyncHandoffCheckAppUpdateConstMeta =>
-      const TaskConstMeta(
-        debugName: "check_app_update",
-        argNames: ["relayUrl"],
       );
 
   @override
@@ -3211,48 +3147,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "dispatch_chat_input_queue",
         argNames: ["conversationId"],
-      );
-
-  @override
-  Future<String> crateApiSyncHandoffDownloadUpdateApk({
-    required String relayUrl,
-    required String buildHash,
-    required String apkSha256,
-    required PlatformInt64 apkSize,
-    required String destDir,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(relayUrl);
-          var arg1 = cst_encode_String(buildHash);
-          var arg2 = cst_encode_String(apkSha256);
-          var arg3 = cst_encode_i_64(apkSize);
-          var arg4 = cst_encode_String(destDir);
-          return wire.wire__crate__api__sync__handoff__download_update_apk(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-            arg3,
-            arg4,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_String,
-          decodeErrorData: dco_decode_AnyhowException,
-        ),
-        constMeta: kCrateApiSyncHandoffDownloadUpdateApkConstMeta,
-        argValues: [relayUrl, buildHash, apkSha256, apkSize, destDir],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSyncHandoffDownloadUpdateApkConstMeta =>
-      const TaskConstMeta(
-        debugName: "download_update_apk",
-        argNames: ["relayUrl", "buildHash", "apkSha256", "apkSize", "destDir"],
       );
 
   @override
@@ -9341,6 +9235,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<SyncDeliveryStatusDto>> crateApiSyncJoinSyncDeliveryStatus() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__join__sync_delivery_status(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_sync_delivery_status_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncJoinSyncDeliveryStatusConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncJoinSyncDeliveryStatusConstMeta =>
+      const TaskConstMeta(debugName: "sync_delivery_status", argNames: []);
+
+  @override
   Future<String> crateApiWebSearchTestDohConnection({required String dohUri}) {
     return handler.executeNormal(
       NormalTask(
@@ -10290,25 +10205,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       default:
         throw Exception("unreachable");
     }
-  }
-
-  @protected
-  AppUpdateDto dco_decode_app_update_dto(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = dcoDecodeList(raw);
-    if (arr.length != 9)
-      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
-    return AppUpdateDto(
-      hasUpdate: dco_decode_bool(arr[0]),
-      latestHash: dco_decode_String(arr[1]),
-      latestSeq: dco_decode_i_64(arr[2]),
-      localHash: dco_decode_String(arr[3]),
-      localSeq: dco_decode_i_64(arr[4]),
-      version: dco_decode_String(arr[5]),
-      changelog: dco_decode_String(arr[6]),
-      apkSize: dco_decode_i_64(arr[7]),
-      apkSha256: dco_decode_String(arr[8]),
-    );
   }
 
   @protected
@@ -12037,6 +11933,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SyncDeliveryStatusDto> dco_decode_list_sync_delivery_status_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_sync_delivery_status_dto).toList();
+  }
+
+  @protected
   List<SyncEnrollmentStateDto> dco_decode_list_sync_enrollment_state_dto(
     dynamic raw,
   ) {
@@ -12830,11 +12734,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SyncDeliveryStatusDto dco_decode_sync_delivery_status_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return SyncDeliveryStatusDto(
+      peerDeviceId: dco_decode_String(arr[0]),
+      state: dco_decode_String(arr[1]),
+      reason: dco_decode_String(arr[2]),
+      untilMs: dco_decode_i_64(arr[3]),
+      pending: dco_decode_i_64(arr[4]),
+      awaitingReceipt: dco_decode_i_64(arr[5]),
+    );
+  }
+
+  @protected
   SyncEnrollmentStateDto dco_decode_sync_enrollment_state_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 13)
-      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
     return SyncEnrollmentStateDto(
       role: dco_decode_String(arr[0]),
       operationId: dco_decode_String(arr[1]),
@@ -12849,6 +12769,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       localApplied: dco_decode_bool(arr[10]),
       remoteApplied: dco_decode_bool(arr[11]),
       notificationPending: dco_decode_bool(arr[12]),
+      storageBlocked: dco_decode_bool(arr[13]),
     );
   }
 
@@ -13378,31 +13299,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       default:
         throw UnimplementedError('');
     }
-  }
-
-  @protected
-  AppUpdateDto sse_decode_app_update_dto(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_hasUpdate = sse_decode_bool(deserializer);
-    var var_latestHash = sse_decode_String(deserializer);
-    var var_latestSeq = sse_decode_i_64(deserializer);
-    var var_localHash = sse_decode_String(deserializer);
-    var var_localSeq = sse_decode_i_64(deserializer);
-    var var_version = sse_decode_String(deserializer);
-    var var_changelog = sse_decode_String(deserializer);
-    var var_apkSize = sse_decode_i_64(deserializer);
-    var var_apkSha256 = sse_decode_String(deserializer);
-    return AppUpdateDto(
-      hasUpdate: var_hasUpdate,
-      latestHash: var_latestHash,
-      latestSeq: var_latestSeq,
-      localHash: var_localHash,
-      localSeq: var_localSeq,
-      version: var_version,
-      changelog: var_changelog,
-      apkSize: var_apkSize,
-      apkSha256: var_apkSha256,
-    );
   }
 
   @protected
@@ -15929,6 +15825,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SyncDeliveryStatusDto> sse_decode_list_sync_delivery_status_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SyncDeliveryStatusDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_sync_delivery_status_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<SyncEnrollmentStateDto> sse_decode_list_sync_enrollment_state_dto(
     SseDeserializer deserializer,
   ) {
@@ -17055,6 +16965,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SyncDeliveryStatusDto sse_decode_sync_delivery_status_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_peerDeviceId = sse_decode_String(deserializer);
+    var var_state = sse_decode_String(deserializer);
+    var var_reason = sse_decode_String(deserializer);
+    var var_untilMs = sse_decode_i_64(deserializer);
+    var var_pending = sse_decode_i_64(deserializer);
+    var var_awaitingReceipt = sse_decode_i_64(deserializer);
+    return SyncDeliveryStatusDto(
+      peerDeviceId: var_peerDeviceId,
+      state: var_state,
+      reason: var_reason,
+      untilMs: var_untilMs,
+      pending: var_pending,
+      awaitingReceipt: var_awaitingReceipt,
+    );
+  }
+
+  @protected
   SyncEnrollmentStateDto sse_decode_sync_enrollment_state_dto(
     SseDeserializer deserializer,
   ) {
@@ -17072,6 +17003,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_localApplied = sse_decode_bool(deserializer);
     var var_remoteApplied = sse_decode_bool(deserializer);
     var var_notificationPending = sse_decode_bool(deserializer);
+    var var_storageBlocked = sse_decode_bool(deserializer);
     return SyncEnrollmentStateDto(
       role: var_role,
       operationId: var_operationId,
@@ -17086,6 +17018,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       localApplied: var_localApplied,
       remoteApplied: var_remoteApplied,
       notificationPending: var_notificationPending,
+      storageBlocked: var_storageBlocked,
     );
   }
 
@@ -17741,20 +17674,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(1, serializer);
         sse_encode_i_64(count, serializer);
     }
-  }
-
-  @protected
-  void sse_encode_app_update_dto(AppUpdateDto self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_bool(self.hasUpdate, serializer);
-    sse_encode_String(self.latestHash, serializer);
-    sse_encode_i_64(self.latestSeq, serializer);
-    sse_encode_String(self.localHash, serializer);
-    sse_encode_i_64(self.localSeq, serializer);
-    sse_encode_String(self.version, serializer);
-    sse_encode_String(self.changelog, serializer);
-    sse_encode_i_64(self.apkSize, serializer);
-    sse_encode_String(self.apkSha256, serializer);
   }
 
   @protected
@@ -19726,6 +19645,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_sync_delivery_status_dto(
+    List<SyncDeliveryStatusDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_sync_delivery_status_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_sync_enrollment_state_dto(
     List<SyncEnrollmentStateDto> self,
     SseSerializer serializer,
@@ -20598,6 +20529,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_sync_delivery_status_dto(
+    SyncDeliveryStatusDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.peerDeviceId, serializer);
+    sse_encode_String(self.state, serializer);
+    sse_encode_String(self.reason, serializer);
+    sse_encode_i_64(self.untilMs, serializer);
+    sse_encode_i_64(self.pending, serializer);
+    sse_encode_i_64(self.awaitingReceipt, serializer);
+  }
+
+  @protected
   void sse_encode_sync_enrollment_state_dto(
     SyncEnrollmentStateDto self,
     SseSerializer serializer,
@@ -20616,6 +20561,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.localApplied, serializer);
     sse_encode_bool(self.remoteApplied, serializer);
     sse_encode_bool(self.notificationPending, serializer);
+    sse_encode_bool(self.storageBlocked, serializer);
   }
 
   @protected

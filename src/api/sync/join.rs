@@ -173,6 +173,8 @@ pub struct SyncEnrollmentStateDto {
     pub local_applied: bool,
     pub remote_applied: bool,
     pub notification_pending: bool,
+    /// relay 信箱配额打满（507）：面板据此说明"在等对端取件腾空间"。
+    pub storage_blocked: bool,
 }
 
 fn enrollment_dto(state: runtime::enrollment::EnrollmentView) -> SyncEnrollmentStateDto {
@@ -190,6 +192,7 @@ fn enrollment_dto(state: runtime::enrollment::EnrollmentView) -> SyncEnrollmentS
         local_applied: state.local_applied,
         remote_applied: state.remote_applied,
         notification_pending: state.notification_pending,
+        storage_blocked: state.storage_blocked,
     }
 }
 
@@ -252,6 +255,52 @@ pub struct SyncTickResultDto {
     /// Devices waiting for a re-snapshot (fell too far behind); GC stays
     /// frozen for them until the transfer completes.
     pub resnapshot_pending: Vec<String>,
+}
+
+/// 每个对端的投递状态（R6-1/R6-2）。只读推导：状态由 outbox 现有列算出，
+/// 这里不落库、不触发任何同步。`reason` 是分类码（`relay_quota` / `protocol` /
+/// `integrity` / `transport`），UI 负责翻成人话；不透出任何载荷或远端响应体。
+#[derive(Clone, Debug)]
+pub struct SyncDeliveryStatusDto {
+    pub peer_device_id: String,
+    /// idle / uploading / awaiting_receipt / backoff / blocked
+    pub state: String,
+    /// 分类码；无原因时为空串。
+    pub reason: String,
+    /// backoff 的到期时刻（毫秒），非 backoff 时为 0。
+    pub until_ms: i64,
+    pub pending: i64,
+    pub awaiting_receipt: i64,
+}
+
+/// 每对端一行。没有 pending 信封的对端不出现在列表里（= idle）。
+pub fn sync_delivery_status() -> Result<Vec<SyncDeliveryStatusDto>> {
+    let config = AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let now_ms = chrono::Utc::now().timestamp_millis();
+    Ok(store
+        .deliver_statuses(now_ms)?
+        .into_iter()
+        .map(|status| {
+            let (reason, until_ms) = match &status.state {
+                crate::sync::engine::deliver::DeliverState::Backoff { reason, until_ms } => {
+                    (reason.clone(), *until_ms)
+                }
+                crate::sync::engine::deliver::DeliverState::Blocked { reason, until_ms } => {
+                    (reason.clone(), *until_ms)
+                }
+                _ => (String::new(), 0),
+            };
+            SyncDeliveryStatusDto {
+                peer_device_id: status.peer_device_id,
+                state: status.state.code().to_string(),
+                reason,
+                until_ms,
+                pending: status.pending as i64,
+                awaiting_receipt: status.awaiting_receipt as i64,
+            }
+        })
+        .collect())
 }
 
 /// Runs one bounded push/pull cycle against every active peer. Callers are the

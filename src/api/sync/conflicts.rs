@@ -140,17 +140,3 @@ pub fn resolve_object_conflict(
     store.resolve_object_conflict(&op_id, expected_local_updated_at.as_deref(), accept_remote)
 }
 
-/// 应用升级检查结果。has_update 只在远端提交序号**严格大于**本地时为
-/// 真——hash 相同/不同都不足以分辨方向，`git rev-list --count` 才单调。
-#[derive(Clone, Debug)]
-pub struct AppUpdateDto {
-    pub has_update: bool,
-    pub latest_hash: String,
-    pub latest_seq: i64,
-    pub local_hash: String,
-    pub local_seq: i64,
-    pub version: String,
-    pub changelog: String,
-    pub apk_size: i64,
-    pub apk_sha256: String,
-}

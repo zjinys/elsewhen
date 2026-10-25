@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1538488772;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -854730017;
 
 // Section: executor
 
@@ -532,25 +532,6 @@ fn wire__crate__api__review_flow__build_hash_impl(
         },
     )
 }
-fn wire__crate__api__sync__handoff__build_seq_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "build_seq",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            move |context| {
-                transform_result_dco::<_, _, ()>((move || {
-                    let output_ok = Ok::<_, ()>(crate::api::sync::handoff::build_seq())?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
 fn wire__crate__api__chat_runs__cancel_chat_run_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     conversation_id: impl CstDecode<String>,
@@ -597,29 +578,6 @@ fn wire__crate__api__sync__invite__cancel_owner_sync_invitation_impl(
                         let output_ok = crate::api::sync::invite::cancel_owner_sync_invitation(
                             api_invitation_id,
                         )?;
-                        std::result::Result::Ok(output_ok)
-                    })(),
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__sync__handoff__check_app_update_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    relay_url: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "check_app_update",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_relay_url = relay_url.cst_decode();
-            move |context| {
-                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
-                    (move || {
-                        let output_ok = crate::api::sync::handoff::check_app_update(api_relay_url)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -1614,43 +1572,6 @@ fn wire__crate__api__chat_runs__dispatch_chat_input_queue_impl(
                     (move || {
                         let output_ok =
                             crate::api::chat_runs::dispatch_chat_input_queue(api_conversation_id)?;
-                        std::result::Result::Ok(output_ok)
-                    })(),
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__sync__handoff__download_update_apk_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    relay_url: impl CstDecode<String>,
-    build_hash: impl CstDecode<String>,
-    apk_sha256: impl CstDecode<String>,
-    apk_size: impl CstDecode<i64>,
-    dest_dir: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "download_update_apk",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_relay_url = relay_url.cst_decode();
-            let api_build_hash = build_hash.cst_decode();
-            let api_apk_sha256 = apk_sha256.cst_decode();
-            let api_apk_size = apk_size.cst_decode();
-            let api_dest_dir = dest_dir.cst_decode();
-            move |context| {
-                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
-                    (move || {
-                        let output_ok = crate::api::sync::handoff::download_update_apk(
-                            api_relay_url,
-                            api_build_hash,
-                            api_apk_sha256,
-                            api_apk_size,
-                            api_dest_dir,
-                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -6770,6 +6691,27 @@ fn wire__crate__api__wiki_chat__submit_wiki_chat_input_impl(
         },
     )
 }
+fn wire__crate__api__sync__join__sync_delivery_status_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "sync_delivery_status",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::join::sync_delivery_status()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__web_search__test_doh_connection_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     doh_uri: impl CstDecode<String>,
@@ -7633,32 +7575,6 @@ impl SseDecode for crate::api::records::AnalysisTriggerResult {
                 unimplemented!("");
             }
         }
-    }
-}
-
-impl SseDecode for crate::api::sync::conflicts::AppUpdateDto {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_hasUpdate = <bool>::sse_decode(deserializer);
-        let mut var_latestHash = <String>::sse_decode(deserializer);
-        let mut var_latestSeq = <i64>::sse_decode(deserializer);
-        let mut var_localHash = <String>::sse_decode(deserializer);
-        let mut var_localSeq = <i64>::sse_decode(deserializer);
-        let mut var_version = <String>::sse_decode(deserializer);
-        let mut var_changelog = <String>::sse_decode(deserializer);
-        let mut var_apkSize = <i64>::sse_decode(deserializer);
-        let mut var_apkSha256 = <String>::sse_decode(deserializer);
-        return crate::api::sync::conflicts::AppUpdateDto {
-            has_update: var_hasUpdate,
-            latest_hash: var_latestHash,
-            latest_seq: var_latestSeq,
-            local_hash: var_localHash,
-            local_seq: var_localSeq,
-            version: var_version,
-            changelog: var_changelog,
-            apk_size: var_apkSize,
-            apk_sha256: var_apkSha256,
-        };
     }
 }
 
@@ -10049,6 +9965,20 @@ impl SseDecode for Vec<crate::api::sync::join::SyncDatasetEntryDto> {
     }
 }
 
+impl SseDecode for Vec<crate::api::sync::join::SyncDeliveryStatusDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::sync::join::SyncDeliveryStatusDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::sync::join::SyncEnrollmentStateDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -11178,6 +11108,26 @@ impl SseDecode for crate::api::sync::join::SyncDatasetEntryDto {
     }
 }
 
+impl SseDecode for crate::api::sync::join::SyncDeliveryStatusDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_peerDeviceId = <String>::sse_decode(deserializer);
+        let mut var_state = <String>::sse_decode(deserializer);
+        let mut var_reason = <String>::sse_decode(deserializer);
+        let mut var_untilMs = <i64>::sse_decode(deserializer);
+        let mut var_pending = <i64>::sse_decode(deserializer);
+        let mut var_awaitingReceipt = <i64>::sse_decode(deserializer);
+        return crate::api::sync::join::SyncDeliveryStatusDto {
+            peer_device_id: var_peerDeviceId,
+            state: var_state,
+            reason: var_reason,
+            until_ms: var_untilMs,
+            pending: var_pending,
+            awaiting_receipt: var_awaitingReceipt,
+        };
+    }
+}
+
 impl SseDecode for crate::api::sync::join::SyncEnrollmentStateDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -11194,6 +11144,7 @@ impl SseDecode for crate::api::sync::join::SyncEnrollmentStateDto {
         let mut var_localApplied = <bool>::sse_decode(deserializer);
         let mut var_remoteApplied = <bool>::sse_decode(deserializer);
         let mut var_notificationPending = <bool>::sse_decode(deserializer);
+        let mut var_storageBlocked = <bool>::sse_decode(deserializer);
         return crate::api::sync::join::SyncEnrollmentStateDto {
             role: var_role,
             operation_id: var_operationId,
@@ -11208,6 +11159,7 @@ impl SseDecode for crate::api::sync::join::SyncEnrollmentStateDto {
             local_applied: var_localApplied,
             remote_applied: var_remoteApplied,
             notification_pending: var_notificationPending,
+            storage_blocked: var_storageBlocked,
         };
     }
 }
@@ -11890,34 +11842,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::records::AnalysisTriggerResul
     for crate::api::records::AnalysisTriggerResult
 {
     fn into_into_dart(self) -> crate::api::records::AnalysisTriggerResult {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sync::conflicts::AppUpdateDto {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.has_update.into_into_dart().into_dart(),
-            self.latest_hash.into_into_dart().into_dart(),
-            self.latest_seq.into_into_dart().into_dart(),
-            self.local_hash.into_into_dart().into_dart(),
-            self.local_seq.into_into_dart().into_dart(),
-            self.version.into_into_dart().into_dart(),
-            self.changelog.into_into_dart().into_dart(),
-            self.apk_size.into_into_dart().into_dart(),
-            self.apk_sha256.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sync::conflicts::AppUpdateDto
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::conflicts::AppUpdateDto>
-    for crate::api::sync::conflicts::AppUpdateDto
-{
-    fn into_into_dart(self) -> crate::api::sync::conflicts::AppUpdateDto {
         self
     }
 }
@@ -14460,6 +14384,31 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::join::SyncDatasetEntryD
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sync::join::SyncDeliveryStatusDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.peer_device_id.into_into_dart().into_dart(),
+            self.state.into_into_dart().into_dart(),
+            self.reason.into_into_dart().into_dart(),
+            self.until_ms.into_into_dart().into_dart(),
+            self.pending.into_into_dart().into_dart(),
+            self.awaiting_receipt.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sync::join::SyncDeliveryStatusDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::join::SyncDeliveryStatusDto>
+    for crate::api::sync::join::SyncDeliveryStatusDto
+{
+    fn into_into_dart(self) -> crate::api::sync::join::SyncDeliveryStatusDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::sync::join::SyncEnrollmentStateDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -14476,6 +14425,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::join::SyncEnrollmentSta
             self.local_applied.into_into_dart().into_dart(),
             self.remote_applied.into_into_dart().into_dart(),
             self.notification_pending.into_into_dart().into_dart(),
+            self.storage_blocked.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -15173,21 +15123,6 @@ impl SseEncode for crate::api::records::AnalysisTriggerResult {
                 unimplemented!("");
             }
         }
-    }
-}
-
-impl SseEncode for crate::api::sync::conflicts::AppUpdateDto {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.has_update, serializer);
-        <String>::sse_encode(self.latest_hash, serializer);
-        <i64>::sse_encode(self.latest_seq, serializer);
-        <String>::sse_encode(self.local_hash, serializer);
-        <i64>::sse_encode(self.local_seq, serializer);
-        <String>::sse_encode(self.version, serializer);
-        <String>::sse_encode(self.changelog, serializer);
-        <i64>::sse_encode(self.apk_size, serializer);
-        <String>::sse_encode(self.apk_sha256, serializer);
     }
 }
 
@@ -16775,6 +16710,16 @@ impl SseEncode for Vec<crate::api::sync::join::SyncDatasetEntryDto> {
     }
 }
 
+impl SseEncode for Vec<crate::api::sync::join::SyncDeliveryStatusDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::sync::join::SyncDeliveryStatusDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::sync::join::SyncEnrollmentStateDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -17547,6 +17492,18 @@ impl SseEncode for crate::api::sync::join::SyncDatasetEntryDto {
     }
 }
 
+impl SseEncode for crate::api::sync::join::SyncDeliveryStatusDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.peer_device_id, serializer);
+        <String>::sse_encode(self.state, serializer);
+        <String>::sse_encode(self.reason, serializer);
+        <i64>::sse_encode(self.until_ms, serializer);
+        <i64>::sse_encode(self.pending, serializer);
+        <i64>::sse_encode(self.awaiting_receipt, serializer);
+    }
+}
+
 impl SseEncode for crate::api::sync::join::SyncEnrollmentStateDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -17563,6 +17520,7 @@ impl SseEncode for crate::api::sync::join::SyncEnrollmentStateDto {
         <bool>::sse_encode(self.local_applied, serializer);
         <bool>::sse_encode(self.remote_applied, serializer);
         <bool>::sse_encode(self.notification_pending, serializer);
+        <bool>::sse_encode(self.storage_blocked, serializer);
     }
 }
 
@@ -18002,22 +17960,6 @@ mod io {
                     }
                 }
                 _ => unreachable!(),
-            }
-        }
-    }
-    impl CstDecode<crate::api::sync::conflicts::AppUpdateDto> for wire_cst_app_update_dto {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::conflicts::AppUpdateDto {
-            crate::api::sync::conflicts::AppUpdateDto {
-                has_update: self.has_update.cst_decode(),
-                latest_hash: self.latest_hash.cst_decode(),
-                latest_seq: self.latest_seq.cst_decode(),
-                local_hash: self.local_hash.cst_decode(),
-                local_seq: self.local_seq.cst_decode(),
-                version: self.version.cst_decode(),
-                changelog: self.changelog.cst_decode(),
-                apk_size: self.apk_size.cst_decode(),
-                apk_sha256: self.apk_sha256.cst_decode(),
             }
         }
     }
@@ -19900,6 +19842,18 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::sync::join::SyncDeliveryStatusDto>>
+        for *mut wire_cst_list_sync_delivery_status_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::sync::join::SyncDeliveryStatusDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::sync::join::SyncEnrollmentStateDto>>
         for *mut wire_cst_list_sync_enrollment_state_dto
     {
@@ -20499,6 +20453,21 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::api::sync::join::SyncDeliveryStatusDto>
+        for wire_cst_sync_delivery_status_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::join::SyncDeliveryStatusDto {
+            crate::api::sync::join::SyncDeliveryStatusDto {
+                peer_device_id: self.peer_device_id.cst_decode(),
+                state: self.state.cst_decode(),
+                reason: self.reason.cst_decode(),
+                until_ms: self.until_ms.cst_decode(),
+                pending: self.pending.cst_decode(),
+                awaiting_receipt: self.awaiting_receipt.cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::sync::join::SyncEnrollmentStateDto>
         for wire_cst_sync_enrollment_state_dto
     {
@@ -20518,6 +20487,7 @@ mod io {
                 local_applied: self.local_applied.cst_decode(),
                 remote_applied: self.remote_applied.cst_decode(),
                 notification_pending: self.notification_pending.cst_decode(),
+                storage_blocked: self.storage_blocked.cst_decode(),
             }
         }
     }
@@ -20931,26 +20901,6 @@ mod io {
         }
     }
     impl Default for wire_cst_analysis_trigger_result {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-    impl NewWithNullPtr for wire_cst_app_update_dto {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                has_update: Default::default(),
-                latest_hash: core::ptr::null_mut(),
-                latest_seq: Default::default(),
-                local_hash: core::ptr::null_mut(),
-                local_seq: Default::default(),
-                version: core::ptr::null_mut(),
-                changelog: core::ptr::null_mut(),
-                apk_size: Default::default(),
-                apk_sha256: core::ptr::null_mut(),
-            }
-        }
-    }
-    impl Default for wire_cst_app_update_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -22692,6 +22642,23 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_sync_delivery_status_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                peer_device_id: core::ptr::null_mut(),
+                state: core::ptr::null_mut(),
+                reason: core::ptr::null_mut(),
+                until_ms: Default::default(),
+                pending: Default::default(),
+                awaiting_receipt: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_sync_delivery_status_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_sync_enrollment_state_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -22708,6 +22675,7 @@ mod io {
                 local_applied: Default::default(),
                 remote_applied: Default::default(),
                 notification_pending: Default::default(),
+                storage_blocked: Default::default(),
             }
         }
     }
@@ -23331,11 +23299,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__handoff__build_seq(port_: i64) {
-        wire__crate__api__sync__handoff__build_seq_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__chat_runs__cancel_chat_run(
         port_: i64,
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
@@ -23350,14 +23313,6 @@ mod io {
         invitation_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__sync__invite__cancel_owner_sync_invitation_impl(port_, invitation_id)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__handoff__check_app_update(
-        port_: i64,
-        relay_url: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__sync__handoff__check_app_update_impl(port_, relay_url)
     }
 
     #[unsafe(no_mangle)]
@@ -23741,20 +23696,6 @@ mod io {
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__chat_runs__dispatch_chat_input_queue_impl(port_, conversation_id)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__handoff__download_update_apk(
-        port_: i64,
-        relay_url: *mut wire_cst_list_prim_u_8_strict,
-        build_hash: *mut wire_cst_list_prim_u_8_strict,
-        apk_sha256: *mut wire_cst_list_prim_u_8_strict,
-        apk_size: i64,
-        dest_dir: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__sync__handoff__download_update_apk_impl(
-            port_, relay_url, build_hash, apk_sha256, apk_size, dest_dir,
-        )
     }
 
     #[unsafe(no_mangle)]
@@ -25622,6 +25563,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__join__sync_delivery_status(
+        port_: i64,
+    ) {
+        wire__crate__api__sync__join__sync_delivery_status_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__web_search__test_doh_connection(
         port_: i64,
         doh_uri: *mut wire_cst_list_prim_u_8_strict,
@@ -26960,6 +26908,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_sync_delivery_status_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_sync_delivery_status_dto {
+        let wrap = wire_cst_list_sync_delivery_status_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_sync_delivery_status_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_sync_enrollment_state_dto(
         len: i32,
     ) -> *mut wire_cst_list_sync_enrollment_state_dto {
@@ -27162,19 +27124,6 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_AnalysisTriggerResult_Processed {
         count: i64,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_app_update_dto {
-        has_update: bool,
-        latest_hash: *mut wire_cst_list_prim_u_8_strict,
-        latest_seq: i64,
-        local_hash: *mut wire_cst_list_prim_u_8_strict,
-        local_seq: i64,
-        version: *mut wire_cst_list_prim_u_8_strict,
-        changelog: *mut wire_cst_list_prim_u_8_strict,
-        apk_size: i64,
-        apk_sha256: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -28314,6 +28263,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_sync_delivery_status_dto {
+        ptr: *mut wire_cst_sync_delivery_status_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_sync_enrollment_state_dto {
         ptr: *mut wire_cst_sync_enrollment_state_dto,
         len: i32,
@@ -28750,6 +28705,16 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_sync_delivery_status_dto {
+        peer_device_id: *mut wire_cst_list_prim_u_8_strict,
+        state: *mut wire_cst_list_prim_u_8_strict,
+        reason: *mut wire_cst_list_prim_u_8_strict,
+        until_ms: i64,
+        pending: i64,
+        awaiting_receipt: i64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_sync_enrollment_state_dto {
         role: *mut wire_cst_list_prim_u_8_strict,
         operation_id: *mut wire_cst_list_prim_u_8_strict,
@@ -28764,6 +28729,7 @@ mod io {
         local_applied: bool,
         remote_applied: bool,
         notification_pending: bool,
+        storage_blocked: bool,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -29152,33 +29118,6 @@ mod web {
                     count: self_.get(1).cst_decode(),
                 },
                 _ => unreachable!(),
-            }
-        }
-    }
-    impl CstDecode<crate::api::sync::conflicts::AppUpdateDto>
-        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sync::conflicts::AppUpdateDto {
-            let self_ = self
-                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
-                .unwrap();
-            assert_eq!(
-                self_.length(),
-                9,
-                "Expected 9 elements, got {}",
-                self_.length()
-            );
-            crate::api::sync::conflicts::AppUpdateDto {
-                has_update: self_.get(0).cst_decode(),
-                latest_hash: self_.get(1).cst_decode(),
-                latest_seq: self_.get(2).cst_decode(),
-                local_hash: self_.get(3).cst_decode(),
-                local_seq: self_.get(4).cst_decode(),
-                version: self_.get(5).cst_decode(),
-                changelog: self_.get(6).cst_decode(),
-                apk_size: self_.get(7).cst_decode(),
-                apk_sha256: self_.get(8).cst_decode(),
             }
         }
     }
@@ -31559,6 +31498,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::sync::join::SyncDeliveryStatusDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::sync::join::SyncDeliveryStatusDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::sync::join::SyncEnrollmentStateDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -32491,6 +32442,30 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::sync::join::SyncDeliveryStatusDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::join::SyncDeliveryStatusDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                6,
+                "Expected 6 elements, got {}",
+                self_.length()
+            );
+            crate::api::sync::join::SyncDeliveryStatusDto {
+                peer_device_id: self_.get(0).cst_decode(),
+                state: self_.get(1).cst_decode(),
+                reason: self_.get(2).cst_decode(),
+                until_ms: self_.get(3).cst_decode(),
+                pending: self_.get(4).cst_decode(),
+                awaiting_receipt: self_.get(5).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::sync::join::SyncEnrollmentStateDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -32501,8 +32476,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                13,
-                "Expected 13 elements, got {}",
+                14,
+                "Expected 14 elements, got {}",
                 self_.length()
             );
             crate::api::sync::join::SyncEnrollmentStateDto {
@@ -32519,6 +32494,7 @@ mod web {
                 local_applied: self_.get(10).cst_decode(),
                 remote_applied: self_.get(11).cst_decode(),
                 notification_pending: self_.get(12).cst_decode(),
+                storage_blocked: self_.get(13).cst_decode(),
             }
         }
     }
@@ -33380,13 +33356,6 @@ mod web {
     }
 
     #[wasm_bindgen]
-    pub fn wire__crate__api__sync__handoff__build_seq(
-        port_: flutter_rust_bridge::for_generated::MessagePort,
-    ) {
-        wire__crate__api__sync__handoff__build_seq_impl(port_)
-    }
-
-    #[wasm_bindgen]
     pub fn wire__crate__api__chat_runs__cancel_chat_run(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         conversation_id: String,
@@ -33401,14 +33370,6 @@ mod web {
         invitation_id: String,
     ) {
         wire__crate__api__sync__invite__cancel_owner_sync_invitation_impl(port_, invitation_id)
-    }
-
-    #[wasm_bindgen]
-    pub fn wire__crate__api__sync__handoff__check_app_update(
-        port_: flutter_rust_bridge::for_generated::MessagePort,
-        relay_url: String,
-    ) {
-        wire__crate__api__sync__handoff__check_app_update_impl(port_, relay_url)
     }
 
     #[wasm_bindgen]
@@ -33792,20 +33753,6 @@ mod web {
         conversation_id: String,
     ) {
         wire__crate__api__chat_runs__dispatch_chat_input_queue_impl(port_, conversation_id)
-    }
-
-    #[wasm_bindgen]
-    pub fn wire__crate__api__sync__handoff__download_update_apk(
-        port_: flutter_rust_bridge::for_generated::MessagePort,
-        relay_url: String,
-        build_hash: String,
-        apk_sha256: String,
-        apk_size: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
-        dest_dir: String,
-    ) {
-        wire__crate__api__sync__handoff__download_update_apk_impl(
-            port_, relay_url, build_hash, apk_sha256, apk_size, dest_dir,
-        )
     }
 
     #[wasm_bindgen]
@@ -35688,6 +35635,13 @@ mod web {
             idempotency_key,
             task_json,
         )
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__join__sync_delivery_status(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__sync__join__sync_delivery_status_impl(port_)
     }
 
     #[wasm_bindgen]

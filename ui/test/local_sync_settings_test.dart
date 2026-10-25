@@ -75,11 +75,15 @@ void main() {
         ),
       );
       final prepare = find.widgetWithText(FilledButton, '准备本机');
-      expect(tester.widget<FilledButton>(prepare).onPressed, isNull);
-      // 说明性长文案已裁剪：页面只保留状态、操作与必要提示。
-      await tester.tap(find.byType(CheckboxListTile));
-      await tester.pump();
+      expect(tester.widget<FilledButton>(prepare).onPressed, isNotNull);
+      // 共享 Provider/API Key 的确认改为点击后弹窗，不再常驻复选框。
       await tester.tap(prepare);
+      await tester.pumpAndSettle();
+      expect(
+        find.text('我理解：后续授权设备加入时，会共享所有 Provider 配置和 API Key。'),
+        findsOneWidget,
+      );
+      await tester.tap(find.widgetWithText(FilledButton, '我理解并准备'));
       await tester.pumpAndSettle();
       expect(controller.state?.state, 'local_ready');
       expect(find.text('同步已开启'), findsOneWidget);
@@ -112,6 +116,57 @@ void main() {
       controller.dispose();
     },
   );
+
+  testWidgets('设备名称在状态卡之前，准备本机紧跟输入框，确认走弹窗', (tester) async {
+    tester.view.physicalSize = const Size(320, 780);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final storage = TestSyncSecureStorage();
+    final controller = SyncSetupController(
+      keyStore: SyncKeyStore(storage: storage),
+      bridge: TestSyncSetupApi(storage),
+      previewEnabled: true,
+    );
+    await controller.refresh();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: LocalSyncSettings(controller: controller),
+            ),
+          ),
+        ),
+      ),
+    );
+    final nameField = find.byType(TextField);
+    expect(nameField, findsOneWidget);
+    // 设备名称在「同步未开启」状态卡之前。
+    expect(
+      tester.getTopLeft(nameField).dy,
+      lessThan(tester.getTopLeft(find.text('同步未开启')).dy),
+    );
+    // 「准备本机」紧跟输入框右侧（同一行）；窄屏不溢出。
+    final prepare = find.widgetWithText(FilledButton, '准备本机');
+    expect(
+      tester.getTopLeft(prepare).dx,
+      greaterThanOrEqualTo(tester.getTopRight(nameField).dx),
+    );
+    expect(tester.takeException(), isNull);
+    // 共享 Provider/API Key 的确认是弹窗，不是页面上的常驻复选框。
+    expect(find.byType(CheckboxListTile), findsNothing);
+    await tester.tap(prepare);
+    await tester.pumpAndSettle();
+    expect(find.text('准备本机加入同步？'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, '取消'));
+    await tester.pumpAndSettle();
+    expect(find.text('准备本机加入同步？'), findsNothing);
+    expect(controller.state?.state, 'not_configured');
+    await tester.pumpWidget(const SizedBox());
+    await controller.close();
+    controller.dispose();
+  });
 
   testWidgets(
     'release default shows the boundary without exposing unfinished setup',

@@ -11,7 +11,6 @@
 #   docker run -d --name elsewhen-relay \
 #     -p 8787:8787 \
 #     -v /path/to/relay-data:/data \
-#     -v /path/to/relay-releases:/releases \
 #     elsewhen-relay:latest
 #
 # 客户端中继 URL：http://<NAS IP>:8787
@@ -20,17 +19,19 @@ FROM node:26-alpine
 
 # node:sqlite 内置（>=22.5），无编译步骤、无原生依赖，musl/alpine 直接可用。
 WORKDIR /app
-COPY standalone/server.mjs /app/server.mjs
+# 四个模块缺一不可：server.mjs 静态 import 了 schema.mjs，运行时还派发到 blob.mjs
+# 与 sweeper.mjs（worker 线程），漏 COPY 会在容器启动时 ERR_MODULE_NOT_FOUND。
+# 测试文件不进镜像，所以逐文件列。
+COPY standalone/server.mjs standalone/schema.mjs standalone/sweeper.mjs standalone/blob.mjs /app/
 
 # 固定 UID=1500，宿主机挂载卷时 chown 1500:1500 即可。
-RUN mkdir -p /data/mailboxes /releases/release /releases/apk \
+RUN mkdir -p /data/mailboxes \
     && addgroup -S -g 1500 relay && adduser -S -u 1500 -G relay relay \
-    && chown -R relay:relay /data /releases /app
+    && chown -R relay:relay /data /app
 
 ENV NODE_ENV=production
 ENV PORT=8787
 ENV DATA_DIR=/data
-ENV RELEASES_DIR=/releases
 
 USER relay
 EXPOSE 8787

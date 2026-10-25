@@ -165,9 +165,67 @@ fn end_to_end_send_fetch_ack_against_real_worker() {
 
     // 阶段二：真实加密事件 + 应用层回执往返。
     application_roundtrip(&client, &sender, &mailbox, owner_a, replacement, expiry);
+
+    // 阶段三：blob 数据面 —— 分片流式上传 / 窗口拉取 / 逐窗确认 / close 精确回收。
+    // 复用一个新信箱，避免与前面已轮换的 owner 状态纠缠。
+    let blob_owner = key();
+    let blob_sender = key();
+    let blob_mailbox = client.create_mailbox(&blob_owner).unwrap();
+    let blob_sender_mb = client.create_mailbox(&blob_sender).unwrap();
+    let blob_cred = RelayClient::derive_sender_credential(&blob_sender, &blob_sender_mb, &blob_mailbox).unwrap();
+    let expiry2 = chrono::Utc::now().timestamp_millis() + 3_600_000;
+    client
+        .register_sender(&blob_mailbox, &blob_owner, &blob_sender_mb, &blob_cred, expiry2, 0)
+        .unwrap();
+    let blob_id = crate::sync::transport_relay::random_hex(24);
+    blob_roundtrip(
+        &client,
+        &blob_owner,
+        &blob_mailbox,
+        &blob_sender_mb,
+        &blob_cred,
+        &blob_id,
+    );
+
+    // R5-1 `/drop`：放弃的信必须真的从 relay 消失（否则死信堆到 MAX_MAILS），
+    // 但走的是独立签名域 —— 客户端不可能用「已消费」的调用表达「已丢弃」。
+    let abandoned = client
+        .send(&blob_mailbox, &blob_sender_mb, &blob_cred, 900, "Z2FyYmFnZQ==", expiry2)
+        .unwrap();
+    assert_eq!(client.status(&blob_mailbox, &blob_owner).unwrap().count, 1);
+    assert_eq!(
+        client.drop(&blob_mailbox, &blob_owner, &[abandoned.clone()]).unwrap(),
+        1
+    );
+    assert_eq!(client.status(&blob_mailbox, &blob_owner).unwrap().count, 0);
+    // 幂等：同一封再 drop 一次得 0，不是错误（丢响应重试的常态）。
+    assert_eq!(client.drop(&blob_mailbox, &blob_owner, &[abandoned]).unwrap(), 0);
+
+    // 阶段四：窗口化快照（R4）——分片经 blob 传输，接收端边拉边删，
+    // relay 峰值必须是一窗量级，close 后归零。
+    let snapshot_dir = std::env::temp_dir().join(format!(
+        "elsewhen-relay-blob-snapshot-{}",
+        uuid::Uuid::new_v4()
+    ));
+    std::fs::create_dir_all(&snapshot_dir).unwrap();
+    blob_snapshot_roundtrip(&client, &snapshot_dir);
+
+    // 阶段五：blob 缺口的边界 —— 不能跳着放，也不能报错（R4-6）。
+    blob_gap_import(&client, &snapshot_dir);
+
+    // 阶段六：abort 之后同 id 续传并发布（review 2026-10-25 M1）。
+    blob_abort_resume(&client, &snapshot_dir);
 }
 
 #[path = "../transport_relay_smoke_tests/roundtrip.rs"]
 mod roundtrip;
+#[path = "../transport_relay_smoke_tests/blob.rs"]
+mod blob_roundtrip;
+#[path = "../transport_relay_smoke_tests/snapshot_blob.rs"]
+mod snapshot_blob;
 
+use blob_roundtrip::blob_roundtrip;
 use roundtrip::application_roundtrip;
+use snapshot_blob::aborted_export_resumes_and_publishes as blob_abort_resume;
+use snapshot_blob::gap_import_breaks_without_error as blob_gap_import;
+use snapshot_blob::roundtrip as blob_snapshot_roundtrip;

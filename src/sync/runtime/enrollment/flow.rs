@@ -4,6 +4,25 @@ use super::*;
 use std::collections::HashSet;
 use std::sync::OnceLock;
 
+/// enrollment 扫描单页上限。relay 的 fetch 允许 1..=100，且服务端把单页响应
+/// 钳在 16MB 内，所以单页不会撑爆内存。老值 3 会把扫描卡在历轮配对留下
+/// 的、数量只增不减且永远不被 accept 的积压邮件上（约 500 封 → 每个控制步
+/// ack 都要多等数分钟）。30 仍然不够：死信堆到 800+ 时每拍的推进量追不上
+/// 重推量，而交接必须扫到尾部才能取到对端回执。
+const SCAN_PAGE_LIMIT: usize = 100;
+
+/// enrollment 扫描的游标键。
+///
+/// 不能直接用信箱地址：普通增量扫描（`engine::pull`）用的是同一行
+/// `sync_relay_cursors.after_id`，它扫到尾部就把游标写成 `"0"` 重新包绕。
+/// 两个扫描器的页面大小和「什么算已处理」都不一样，于是互相把对方的进度
+/// 回卷——信箱里一旦有几百封永不 ack 的死信（历轮配对留下的
+/// `provider:` / `pair-complete:`），交接扫描就永远到不了尾部，对端的回执
+/// 永远取不到，两端停在「等待成员授权与初始同步」。
+pub(super) fn scan_key(mailbox: &str) -> String {
+    format!("{mailbox}#enrollment")
+}
+
 /// 本进程内已对 joiner「响过一次」的重推邮件（mailbox, 邮件 id）。
 /// 只为把第一处不可应用邮件错误浮出水面；重启后再次响一次。
 fn transfer_drop_registry() -> &'static Mutex<HashSet<(String, String)>> {
@@ -208,8 +227,8 @@ pub(super) fn advance_proof(loan: &EnrollmentLoan, client: &RelayClient) -> Resu
     loan.check()?;
     let store = loan.store()?;
     let mailbox = &loan.bootstrap.issuer_mailbox;
-    let cursor = store.relay_scan_cursor(mailbox)?;
-    let page = client.fetch_page(mailbox, &loan.owner_credential, &cursor, 3)?;
+    let cursor = store.relay_scan_cursor(&scan_key(mailbox))?;
+    let page = client.fetch_page(mailbox, &loan.owner_credential, &cursor, SCAN_PAGE_LIMIT)?;
     accept_proof_page(loan, page)
 }
 
@@ -244,7 +263,7 @@ pub(super) fn accept_proof_page(
                         )
                     })?;
                     // A duplicate pass after native confirmation will ack the proof.
-                    store.save_relay_scan_cursor(mailbox, &mail.id)?;
+                    store.save_relay_scan_cursor(&scan_key(mailbox), &mail.id)?;
                     return Ok(());
                 }
             }
@@ -252,7 +271,7 @@ pub(super) fn accept_proof_page(
     }
     loan.check()?;
     store.save_relay_scan_cursor(
-        mailbox,
+        &scan_key(mailbox),
         if page.has_more {
             &page.next_cursor
         } else {
@@ -295,6 +314,8 @@ pub(super) fn prepare_snapshot(
         .collect();
     engine::stage_provider_updates(store, &encryption, vault.identity())?;
     let (key, _, _) = vault.peer_keys(&record.dataset_id, &record.peer.device_id)?;
+    let upload =
+        crate::sync::runtime::snapshot_upload(vault, &record.dataset_id, &record.peer.device_id)?;
     engine::snapshot::stage_enrollment_snapshot(
         store,
         &record.peer.device_id,
@@ -302,9 +323,26 @@ pub(super) fn prepare_snapshot(
         record.key_version,
         &key,
         vault.identity(),
+        upload.as_ref(),
     )?;
     loan.check()?;
     Ok(())
+}
+
+/// 一封 relay 邮件是不是数据面信封。
+///
+/// 同一个信箱里混着两种载荷：数据面信封（`crypto::seal(..).to_bytes()`，紧凑
+/// JSON 对象，首字节必是 `{`）和配对帧（原始 AEAD 密文，随机字节）。配对阶段
+/// 对端往本机信箱回过 response/proof-ack，这些邮件扫到交接时仍然在。它们不是
+/// 损坏的信封，只是不属于这条收件路径 —— 当成「不是我的东西」跳过。
+/// 只有「解出来必然为空或非 `{` 开头」才算外来帧；`{` 开头但解析失败的仍走
+/// 响亮报错路径，因为那才真的是损坏或被篡改的信封。
+fn looks_like_dataplane_envelope(ciphertext: &str) -> bool {
+    STANDARD
+        .decode(ciphertext)
+        .ok()
+        .and_then(|bytes| bytes.first().copied())
+        == Some(b'{')
 }
 
 pub(super) fn pull_transfer(
@@ -315,9 +353,28 @@ pub(super) fn pull_transfer(
 ) -> Result<()> {
     let store = loan.store()?;
     let mailbox = &record.route.local_mailbox;
-    let cursor = store.relay_scan_cursor(mailbox)?;
+    let cursor = store.relay_scan_cursor(&scan_key(mailbox))?;
     loan.check()?;
-    let page = client.fetch_page(mailbox, &loan.owner_credential, &cursor, 3)?;
+    let page = client.fetch_page(mailbox, &loan.owner_credential, &cursor, SCAN_PAGE_LIMIT)?;
+    // 诊断：交接卡住时唯一可信的现场输入是「信箱里到底有什么」。ELSEWHEN_DEBUG 才开，
+    // 只打主题/长度，不打正文。
+    let trace = std::env::var("ELSEWHEN_DEBUG").is_ok();
+    if trace {
+        // 统一走 `wire_log`（单一门控 + 四字段）：`subject` 是本机信箱前缀，
+        // 第三个槽位留 0 —— 这一行讲的是「信箱里有什么」，不是某一封的长度。
+        crate::sync::engine::deliver::wire_log(
+            "pull",
+            &mailbox[..8.min(mailbox.len())],
+            0,
+            &format!(
+                "role {:?} cursor {} n {} more {}",
+                loan.role,
+                &cursor[..8.min(cursor.len())],
+                page.envelopes.len(),
+                page.has_more
+            ),
+        );
+    }
     let mut first_error: Option<anyhow::Error> = None;
     for mail in &page.envelopes {
         loan.check()?;
@@ -348,7 +405,7 @@ pub(super) fn pull_transfer(
                         let changed = commit.vault_revision != loan.revision;
                         EnrollmentLoan::pause(session, &loan.invitation, loan.role, commit);
                         if changed {
-                            store.save_relay_scan_cursor(mailbox, &mail.id)?;
+                            store.save_relay_scan_cursor(&scan_key(mailbox), &mail.id)?;
                             return Ok(());
                         }
                     }
@@ -357,6 +414,22 @@ pub(super) fn pull_transfer(
                 Ok(transfer::ReceiveOutcome::Waiting) => false,
                 Err(error) if error.is::<rusqlite::Error>() || error.is::<std::io::Error>() => {
                     return Err(error);
+                }
+                Err(_) if !looks_like_dataplane_envelope(&mail.ciphertext) => {
+                    // 配对帧 / 其它非信封载荷：本机信箱里配对阶段的残留。
+                    // 不 accept、不 ack（ack 语义是「已应用」）、不算错误。
+                    if trace {
+                        crate::sync::engine::deliver::wire_log(
+                            "pull-foreign-frame",
+                            &mail.id,
+                            mail.ciphertext.len(),
+                            &format!(
+                                "from {} skipped",
+                                &mail.sender_mb[..8.min(mail.sender_mb.len())]
+                            ),
+                        );
+                    }
+                    false
                 }
                 Err(error) => {
                     // 发送端重推下「复现错误」的邮件不能永久阻塞整个交接：
@@ -377,6 +450,24 @@ pub(super) fn pull_transfer(
         } else {
             false
         };
+        if trace {
+            let subject = STANDARD
+                .decode(&mail.ciphertext)
+                .ok()
+                .and_then(|bytes| crate::sync::crypto::EncryptedEnvelope::from_bytes(&bytes).ok())
+                .map(|envelope| envelope.unverified_header().message_id.clone());
+            crate::sync::engine::deliver::wire_log(
+                "pull-mail",
+                &mail.id,
+                mail.ciphertext.len(),
+                &format!(
+                    "from {} subject {:?} accepted {}",
+                    &mail.sender_mb[..8.min(mail.sender_mb.len())],
+                    subject,
+                    accepted
+                ),
+            );
+        }
         if accepted {
             loan.check()?;
             // Failed relay deletion does not undo durable application or the receipt.
@@ -392,7 +483,7 @@ pub(super) fn pull_transfer(
         return Err(error);
     }
     store.save_relay_scan_cursor(
-        mailbox,
+        &scan_key(mailbox),
         if page.has_more {
             &page.next_cursor
         } else {
@@ -560,6 +651,23 @@ pub(crate) fn advance(
         || loan.check(),
     )?;
     pull_transfer(&loan, &client, record, &receive)?;
+    // blob 数据面：快照分片不在信箱里，必须主动去 blob 上拉。joiner 这一侧只有
+    // 它自己的信箱 owner 凭据，正好是 `blob-get`/`blob-ack` 要求的那个身份。
+    if loan.role == EnrollmentRole::Joiner
+        && store.snapshot_import_pending()?
+        && store.local_sync_membership_active()?
+    {
+        let download = crate::sync::engine::snapshot::BlobDownload {
+            client: &client,
+            mailbox: &record.route.local_mailbox,
+            owner_credential: &loan.owner_credential,
+            source: &record.peer.device_id,
+            key_version: record.key_version,
+            key: &receive,
+            public: &record.peer.signing_key,
+        };
+        crate::sync::engine::snapshot::import_blob_snapshots(&store, &download, 2)?;
+    }
     loan.result()
 }
 

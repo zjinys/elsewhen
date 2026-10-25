@@ -3,6 +3,36 @@
 use super::*;
 use crate::sync::protocol::validate_id;
 
+/// 一份在途的 blob 导入。
+#[derive(Debug, Clone)]
+pub(crate) struct BlobImport {
+    pub(crate) id: String,
+    pub(crate) key_version: u64,
+    pub(crate) blob_id: String,
+    /// 已落盘的最高片号（相对 0 起）。
+    pub(crate) highest: Option<usize>,
+}
+
+// `snapshot-start` 的处理结论在调用侧没有任何分支需要知道：「新记下」与「已收口」
+// 接下来都是「回执 + `Ok(true)`」。所以这里不返回枚举 —— 一个没有消费者的三态枚举
+// 就是新死代码（正是 review 拿来批评 `is_blocking` 的那种形态）。区别只体现在
+// **行为**上：已收口的快照不会被改动任何一行。
+//
+// 但「已收口」必须能与「出错」区分开：`snapshot-start` 是**通知**不是数据，对端
+// 因为丢了回执而重投是正常现象；把它当错误会让接收端按 `mail_id` 累计拒收，三次后
+// drop 掉那封信，发送端再发又是一封新 `mail_id`、计数归零 —— 无限循环。
+
+fn validate_blob_id(blob_id: &str) -> Result<()> {
+    ensure!(
+        (16..=64).contains(&blob_id.len())
+            && blob_id
+                .bytes()
+                .all(|c| c.is_ascii_alphanumeric() || c == b'_' || c == b'-'),
+        "sync_snapshot_blob_id_invalid"
+    );
+    Ok(())
+}
+
 impl Store {
     /// Only a fresh staging database may become an initial replica. The App
     /// keeps its existing local dataset active until this one is fully published.
@@ -51,6 +81,162 @@ impl Store {
             params![id, source, key_version as i64],
         )?;
         self.connection.execute("INSERT INTO sync_snapshot_target(singleton,snapshot_id) VALUES(1,?1) ON CONFLICT(singleton) DO UPDATE SET snapshot_id=excluded.snapshot_id",[id])?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(())
+    }
+
+    /// 一份正在从 blob 拉取的导入：分片在 relay 的哪个 blob 上、已经收到第几片。
+    /// `highest` 是已经**落盘**的最高片号（`None` = 一片都没收）。
+    ///
+    /// 这里**不看** `manifest`：窗口流控的意义就是「manifest 还没生成时就开始拉」，
+    /// 否则发送端等 ack、接收端等 manifest，两边一起卡到超时。分片本身是自验证的
+    /// （`snapshot:{id}:{index}` 头 + 内容密钥），不必等 manifest 才敢落盘。
+    pub(crate) fn pending_blob_imports(&self, source: &str) -> Result<Vec<BlobImport>> {
+        let mut statement = self.connection.prepare(
+            "SELECT s.id,s.key_version,s.blob_id,
+                    (SELECT MAX(chunk_index) FROM sync_snapshot_chunks c WHERE c.snapshot_id=s.id)
+             FROM sync_snapshots s JOIN sync_snapshot_target t ON t.snapshot_id=s.id
+             WHERE s.state='staging' AND s.transport='blob' AND s.blob_id IS NOT NULL
+               AND s.source_device_id=?1
+             ORDER BY s.rowid",
+        )?;
+        let rows = statement
+            .query_map([source], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, Option<i64>>(3)?,
+                ))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows
+            .into_iter()
+            .filter_map(|(id, key_version, blob_id, highest)| {
+                Some(BlobImport {
+                    id,
+                    key_version: u64::try_from(key_version).ok()?,
+                    blob_id,
+                    highest: highest.and_then(|h| usize::try_from(h).ok()),
+                })
+            })
+            .collect())
+    }
+
+    /// 已发布、但 relay 上的整块 blob 还没回收的快照（review m4）。
+    ///
+    /// 为什么需要这张清单：发布与回执在同一个事务里提交之后，行就不再满足
+    /// `pending_blob_imports`（那是 `state='staging'`），于是那一刻 `blob_close`
+    /// 一失败就再也没有下一拍去关它 —— relay 上那块空间只能等 30 分钟 TTL。
+    /// `blob_closed_at` 才是「已经回收了」的事实，与「还需不需要拉片」正交。
+    ///
+    /// 返回第三个元素是快照状态：`aborted`（作废）要用 `cancel` 关，
+    /// 已发布会用 `done` 关 —— 两者在 relay 侧语义不同（一个是撤回、一个是完成），
+    /// 但对空间的效果一样：立刻清零。
+    pub(crate) fn pending_blob_recycles(&self) -> Result<Vec<(String, String, String)>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id,blob_id,state FROM sync_snapshots
+             WHERE transport='blob' AND blob_id IS NOT NULL AND blob_closed_at IS NULL
+             ORDER BY rowid",
+        )?;
+        let rows = statement
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                ))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
+    }
+
+    /// 有没有待回收的 blob。给调用方一个便宜的探测：回收与「还有没有在途导入」
+    /// 是两件事，用同一个条件门控会让最后一块 blob 永远等不到回收。
+    pub(crate) fn blob_recycle_pending(&self) -> Result<bool> {
+        Ok(self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sync_snapshots
+               WHERE transport='blob' AND blob_id IS NOT NULL AND blob_closed_at IS NULL)",
+            [],
+            |r| r.get(0),
+        )?)
+    }
+
+    /// 记下「relay 上那块 blob 已经关掉了」。
+    ///
+    /// 只改有 `blob_id` 的行：mail 传输的导出没有 blob，不该被写成「已回收」。
+    pub(crate) fn mark_snapshot_blob_recycled(&self, id: &str, now_ms: i64) -> Result<()> {
+        self.connection.execute(
+            "UPDATE sync_snapshots SET blob_closed_at=?2 WHERE id=?1 AND blob_id IS NOT NULL",
+            params![id, now_ms],
+        )?;
+        Ok(())
+    }
+
+    /// `snapshot-start` 信令：先记下「这份快照走 blob、分片在哪个 blob 上」，
+    /// 之后逐片拉取不再依赖 manifest（manifest 要等最后一片才生成，等它就死锁）。
+    ///
+    /// 幂等：同一 `id` 重复通知（对端没收到回执）直接返回 `Ok` 而不是报错。
+    ///
+    /// 为什么不能报错：`snapshot-start` 是**通知**不是数据，对端因丢回执重投是正常
+    /// 现象；报错会让接收端按 `mail_id` 累计拒收，三次后 drop 掉那封信，发送端再发
+    /// 又是一封新 `mail_id`、计数归零 —— 无限循环（review B1 的直接成因）。
+    ///
+    /// 只有「同一 id 换一个 blob_id」才是真冲突 —— blob 身份一旦定下就不许改，
+    /// 换成另一个 blob 等于丢掉已收的分片。
+    pub(crate) fn begin_blob_snapshot_import(
+        &self,
+        id: &str,
+        source: &str,
+        key_version: u64,
+        blob_id: &str,
+    ) -> Result<()> {
+        validate_blob_id(blob_id)?;
+        validate_id(id)?;
+        // 先看有没有这一行：已收口的快照不能再走 `begin_snapshot_import`，
+        // 它对 `aborted` 会报 identity_conflict、对 `applied` 也过不了后面的
+        // `state == staging` 断言。授权仍要在这里自己补一遍，不能因为走上
+        // 早退分支就绕开「发送方必须是活跃成员」。
+        let existing: Option<(String, i64, String, Option<String>)> = self
+            .connection
+            .query_row(
+                "SELECT source_device_id,key_version,state,blob_id FROM sync_snapshots WHERE id=?1",
+                [id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )
+            .optional()?;
+        if let Some((peer, version, state, stored_blob)) = existing {
+            ensure!(
+                peer == source && version == key_version as i64,
+                "sync_snapshot_identity_conflict"
+            );
+            self.snapshot_source_authorized(source)?;
+            ensure!(
+                stored_blob.is_none_or(|stored| stored == blob_id),
+                "sync_snapshot_blob_conflict"
+            );
+            if state != "staging" {
+                return Ok(());
+            }
+            let tx = self.begin_write_transaction()?;
+            self.connection.execute(
+                "UPDATE sync_snapshots SET transport='blob',blob_id=?2 WHERE id=?1",
+                params![id, blob_id],
+            )?;
+            if let Some(tx) = tx {
+                tx.commit()?;
+            }
+            return Ok(());
+        }
+        // 新快照：保留 `begin_snapshot_import` 的空目标校验与「作废旧 staging」。
+        self.begin_snapshot_import(id, source, key_version)?;
+        let tx = self.begin_write_transaction()?;
+        self.connection.execute(
+            "UPDATE sync_snapshots SET transport='blob',blob_id=?2 WHERE id=?1",
+            params![id, blob_id],
+        )?;
         if let Some(tx) = tx {
             tx.commit()?;
         }
@@ -190,6 +376,18 @@ impl Store {
             "sync_snapshot_manifest_limit"
         );
         validate_id(&manifest.processor_device_id)?;
+        // 传输方式以 **manifest** 为准（它被发送端签名覆盖）：`snapshot-start`
+        // 只是提前给接收端一个线索，真伪在这里校正。blob 传输必须带 blob 身份。
+        let transport = manifest.transport.as_deref().unwrap_or("mail");
+        ensure!(
+            matches!(transport, "mail" | "blob"),
+            "sync_snapshot_manifest_limit"
+        );
+        match (transport, manifest.blob_id.as_deref()) {
+            ("blob", Some(blob_id)) => validate_blob_id(blob_id)?,
+            ("blob", None) => return Err(anyhow::anyhow!("sync_snapshot_blob_id_invalid")),
+            _ => {}
+        }
         if self.has_sync_authority()? {
             ensure!(
                 manifest.processor_device_id == identity.processor_device_id,
@@ -222,10 +420,21 @@ impl Store {
             ensure!(old == manifest, "sync_snapshot_manifest_conflict");
         } else {
             self.connection.execute(
-                "UPDATE sync_snapshots SET manifest=?2 WHERE id=?1",
-                params![id, bytes],
+                "UPDATE sync_snapshots SET manifest=?2,transport=?3,blob_id=?4 WHERE id=?1",
+                params![id, bytes, transport, manifest.blob_id],
             )?;
         }
+        ensure!(
+            manifest.blob_id.is_none()
+                || manifest.blob_id.as_deref()
+                    == self
+                        .connection
+                        .query_row("SELECT blob_id FROM sync_snapshots WHERE id=?1", [id], |r| {
+                            r.get::<_, Option<String>>(0)
+                        })?
+                        .as_deref(),
+            "sync_snapshot_blob_conflict"
+        );
         if state == "applied" {
             if let Some(tx) = tx {
                 tx.commit()?;

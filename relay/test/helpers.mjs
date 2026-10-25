@@ -1,7 +1,9 @@
 import { createHash, createHmac, randomBytes } from 'node:crypto';
+import { spawn } from 'node:child_process';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { build } from 'esbuild';
-import { Miniflare, Log, LogLevel, convertV4MiniflareOptions } from 'miniflare';
 
 export const key = () => randomBytes(32).toString('hex');
 export const hmac = (key, parts) => createHmac('sha256', Buffer.from(key, 'hex')).update(parts.join('|')).digest('hex');
@@ -44,27 +46,45 @@ export function rotateBody(owner, mb, replacement) {
   return { version: 2, mailbox_key: mb, new_cred_hex: replacement, ...auth(owner, 'rotate', [mb, replacement]) };
 }
 
-let compiled;
-export async function startRelay({ bindings = {}, r2 = false, persist } = {}) {
-  compiled ??= build({
-    entryPoints: [fileURLToPath(new URL('../src/worker.ts', import.meta.url))],
-    bundle: true, format: 'esm', platform: 'neutral', target: 'es2022',
-    external: ['cloudflare:workers'], write: false,
-  }).then(result => result.outputFiles[0].text);
-  const runtime = new Miniflare(convertV4MiniflareOptions({
-    modules: true, script: await compiled, compatibilityDate: '2026-09-30',
-    durableObjects: { MAILBOX: { className: 'Mailbox', useSQLite: true } },
-    ...(r2 ? { r2Buckets: { RELEASES: 'test-releases' } } : {}),
-    bindings: { MAIL_TTL_MS: '604800000', MAILBOX_QUOTA_BYTES: '52428800', MAX_ENVELOPE_BYTES: '8388608', ...bindings },
-    ...(persist ? { resourcePersistencePath: persist } : {}),
-    telemetry: { enabled: false },
-    host: '127.0.0.1', port: 0, log: new Log(LogLevel.ERROR),
-  }));
-  await runtime.ready;
+export async function startRelay({ bindings = {}, persist } = {}) {
+  // 只支持 standalone 版（relay/standalone/server.mjs）：Cloudflare Worker 实现已移除。
+  // 保留 runtime.ready / runtime.dispose() 两个形状，使调用方无需改动。
+  const dataDir = persist ?? mkdtempSync(join(tmpdir(), 'relay-test-data-'));
+  const server = join(dirname(fileURLToPath(import.meta.url)), '..', 'standalone', 'server.mjs');
+  const proc = spawn(process.execPath, [server], {
+    env: {
+      ...process.env,
+      PORT: '0',
+      DATA_DIR: dataDir,
+      MAIL_TTL_MS: '604800000',
+      MAILBOX_QUOTA_BYTES: '52428800',
+      MAX_ENVELOPE_BYTES: '8388608',
+      ...bindings,
+    },
+    stdio: ['ignore', 'pipe', 'inherit'],
+  });
+  const ready = new Promise((resolve, reject) => {
+    proc.stdout.on('data', chunk => {
+      const match = /listening on [^\n]*:(\d+)/.exec(String(chunk));
+      if (match) resolve(`http://127.0.0.1:${match[1]}`);
+    });
+    proc.on('exit', code => reject(new Error(`relay exited early: ${code}`)));
+  });
+  const runtime = {
+    ready,
+    dispose() { proc.kill('SIGKILL'); },
+    // 兼容旧 Miniflare 形状：直接向服务进程发原始请求，返回 undici Response。
+    async dispatchFetch(path, init = {}) {
+      const base = await ready;
+      return fetch(`${base}${path.startsWith('http') ? new URL(path).pathname + new URL(path).search : path}`, init);
+    },
+  };
   return {
     runtime,
     async call(path, body = {}, get = false) {
-      const response = await runtime.dispatchFetch(`http://relay.test${path}${get ? '?' + new URLSearchParams(body) : ''}`, get ? {} : {
+      const base = await ready;
+      const url = get ? `${base}${path}?${new URLSearchParams(body)}` : `${base}${path}`;
+      const response = await fetch(url, get ? {} : {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
       });
       return { status: response.status, body: await response.json() };

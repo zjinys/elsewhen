@@ -40,7 +40,6 @@ export 'generated.dart/api/review_report/store.dart';
 export 'generated.dart/api/rules.dart';
 export 'generated.dart/api/sync/conflicts.dart';
 export 'generated.dart/api/sync/datasets.dart';
-export 'generated.dart/api/sync/handoff.dart';
 export 'generated.dart/api/sync/invite.dart';
 export 'generated.dart/api/sync/join.dart';
 export 'generated.dart/api/theme.dart';

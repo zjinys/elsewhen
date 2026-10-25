@@ -15,16 +15,14 @@ use crate::{
 };
 use anyhow::{Context, Result, ensure};
 use rusqlite::OptionalExtension;
-use std::path::Path;
 
 pub mod conflicts;
 pub mod datasets;
-pub mod handoff;
 pub mod invite;
 pub mod join;
 
 pub use conflicts::{
-    AppUpdateDto, ObjectConflictDto, list_object_conflicts, list_wiki_page_conflicts,
+    ObjectConflictDto, list_object_conflicts, list_wiki_page_conflicts,
     resolve_object_conflict, resolve_wiki_page_conflict,
 };
 pub use datasets::{
@@ -34,7 +32,6 @@ pub use datasets::{
     list_sync_provider_conflicts, rename_sync_device, resolve_sync_provider_conflict,
     revoke_sync_member, select_default_sync_dataset, select_sync_dataset, yield_sync_processor,
 };
-pub use handoff::{build_seq, check_app_update, download_update_apk};
 pub use invite::{
     LocalSyncStateDto, ProcessingYieldProofDto, ProcessorHandoffStateDto, SyncInvitationOfferDto,
     SyncInvitationPreviewDto, SyncKeyCommitDto, SyncKeyRequestDto, approve_owner_sync_invitation,

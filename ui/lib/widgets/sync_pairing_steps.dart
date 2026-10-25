@@ -33,39 +33,76 @@ class SyncPairingSteps extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 2),
               child: Row(
                 children: [
-                  Icon(
-                    i < current
-                        ? Icons.check_circle
-                        : (i == current
-                              ? Icons.radio_button_checked
-                              : Icons.radio_button_unchecked),
-                    size: 14,
-                    color: i < current
-                        ? theme.colorScheme.primary
-                        : (i == current
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.outline),
-                  ),
+                  if (i == current)
+                    // 正在执行的步骤用转动图标，一眼能看出「还在进行」。
+                    // 注意：这是无限循环动画，渲染它的测试不能再用
+                    // pumpAndSettle（永不 idle），改用 test/support 里的
+                    // pumpPairingSteps 定长推进。
+                    const _StepSpinner(size: 16)
+                  else
+                    Icon(
+                      i < current
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      size: 16,
+                      // 未开始的步骤也要看得清：outline 是边框色，作为文字色在
+                      // 浅色分组底上几乎不可读，统一改用 onSurfaceVariant。
+                      color: i < current
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       steps[i],
-                      style: theme.textTheme.bodySmall?.copyWith(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: i <= current
                             ? theme.textTheme.bodyMedium?.color
-                            : theme.colorScheme.outline,
+                            : theme.colorScheme.onSurfaceVariant,
                         fontWeight: i == current ? FontWeight.w600 : null,
                       ),
                     ),
                   ),
-                  // 不用 CircularProgressIndicator：它是不确定时长动画，
-                  // 会让测试 pumpAndSettle 永不 idle；label 加粗已足够强调。
+                  // 当前步的强调交给转动图标 + 加粗文字，这里只留一个指向标记。
                   if (i == current)
-                    Text('◀', style: theme.textTheme.labelSmall),
+                    Text(
+                      '◀',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
                 ],
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// 当前步骤的转动图标（用户要求「正在执行的步骤」有动画）。
+/// 系统开启「减弱动态效果」时退化为静态图标。
+class _StepSpinner extends StatelessWidget {
+  const _StepSpinner({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return Icon(
+        Icons.radio_button_checked,
+        size: size,
+        color: theme.colorScheme.primary,
+      );
+    }
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CircularProgressIndicator(
+        strokeWidth: 2,
+        color: theme.colorScheme.primary,
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../bridge/api.dart' as api;
 import 'sync_join_api.dart';
+import 'sync_keep_alive.dart';
 import 'sync_key_store.dart';
 import 'sync_enrollment_controller.dart';
 
@@ -361,6 +362,9 @@ class SyncJoinController extends ChangeNotifier {
     final done = Completer<void>();
     _actionDone = done;
     _changed();
+    // 配对请求/核对审批/投递证明都是中继上的网络往返；本步没做完就
+    // 被系统冻结会退化成「发了但永远没回」。
+    SyncKeepAlive.hold('sync-join', text: '正在与已有设备配对');
     try {
       final coordinator = enrollment;
       if (coordinator != null && coordinator.enabled) {
@@ -383,6 +387,7 @@ class SyncJoinController extends ChangeNotifier {
       done.complete();
       if (identical(_actionDone, done)) _actionDone = null;
       _changed();
+      SyncKeepAlive.release('sync-join');
       _resumeEnrollment();
     }
   }

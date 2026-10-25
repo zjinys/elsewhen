@@ -54,6 +54,7 @@ api.SyncEnrollmentStateDto joinerComplete() => const api.SyncEnrollmentStateDto(
   localApplied: true,
   remoteApplied: true,
   notificationPending: false,
+      storageBlocked: false,
 );
 
 Future<void> pumpCard({

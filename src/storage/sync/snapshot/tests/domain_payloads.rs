@@ -351,6 +351,8 @@ fn snapshot_carries_wiki_assets_and_recipient_self_heals_image_bytes() {
         digest: String::new(),
         frontiers: Default::default(),
         logical_clock: 0,
+        transport: None,
+        blob_id: None,
     };
     let real_sha = {
         use ring::digest::{Digest, SHA256};

@@ -53,29 +53,12 @@ extension _TabsModel on _SettingsScreenState {
                   left: AppTheme.space3,
                   right: AppTheme.space3,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _version,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.textTertiary,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: _checkingUpdate
-                          ? null
-                          : () => AppUpdate.runFromSettings(context),
-                      child: Text(
-                        _checkingUpdate ? '检查中…' : '检查更新',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppTheme.accentPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  _version,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.textTertiary,
+                  ),
                 ),
               ),
           ],

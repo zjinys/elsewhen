@@ -6,6 +6,7 @@ import 'package:elsewhen_ui/sync/sync_join_controller.dart';
 import 'package:elsewhen_ui/sync/sync_key_store.dart';
 import 'package:elsewhen_ui/widgets/joiner_sync_pairing_settings.dart';
 
+import 'support/pairing_pump.dart';
 import 'support/sync_join.dart';
 import 'support/sync_setup.dart';
 
@@ -46,12 +47,15 @@ void main() {
           ),
         ),
       );
+      // 邀请码输入现在收在「通过 Key」弹窗里，先打开弹窗再输入。
+      await tester.tap(find.text('通过 Key'));
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.byType(TextField).first,
         'SYNTHETIC_INVITATION',
       );
-      await tester.ensureVisible(find.text('预览邀请（不联网）'));
       await tester.tap(find.text('预览邀请（不联网）'));
+      await tester.pump();
       await tester.pumpWidget(const SizedBox());
       gate.complete();
       await tester.pumpAndSettle();
@@ -227,13 +231,15 @@ void main() {
           ),
         ),
       );
-      expect(find.text('预览邀请（不联网）'), findsOneWidget);
+      expect(find.text('通过 Key'), findsOneWidget);
+      await tester.tap(find.text('通过 Key'));
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.byType(TextField).first,
         'SYNTHETIC_INVITATION',
       );
       await tester.tap(find.text('预览邀请（不联网）'));
-      await tester.pumpAndSettle();
+      await pumpPairingSteps(tester);
       final join = find.widgetWithText(FilledButton, '在独立暂存库发起加入');
       expect(tester.widget<FilledButton>(join).onPressed, isNull);
       expect(find.text('http://localhost:9876'), findsOneWidget);
@@ -242,13 +248,16 @@ void main() {
       await tester.pump();
       await tester.ensureVisible(join);
       await tester.tap(join);
-      await tester.pumpAndSettle();
+      await pumpPairingSteps(tester);
       expect(f.bridge.requests, 1);
+      // 邀请细节默认折叠（离开 preview 阶段后），核对指纹前先展开。
+      await tester.tap(find.textContaining('邀请设备：'));
+      await pumpPairingSteps(tester);
       expect(find.text('本机公钥指纹（请在已有设备核对）'), findsOneWidget);
       final inspect = find.text('检查已有设备审批');
       await tester.ensureVisible(inspect);
       await tester.tap(inspect);
-      await tester.pumpAndSettle();
+      await pumpPairingSteps(tester);
       expect(f.bridge.proofs, 1);
       expect(f.controller.state?.phase, 'proof_sent');
       expect(find.textContaining('安装证明已投递，等待授权与初始同步'), findsOneWidget);
@@ -283,7 +292,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('模拟检测到二维码'), findsOneWidget);
       await tester.tap(find.text('模拟检测到二维码'));
-      await tester.pumpAndSettle();
+      await pumpPairingSteps(tester);
       expect(f.bridge.previews, 1);
       expect(f.controller.state, isNotNull);
       expect(tester.takeException(), isNull);

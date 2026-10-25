@@ -1,55 +1,60 @@
 package dev.elsewhen.elsewhen_ui
 
-import android.content.Intent
-import androidx.core.content.FileProvider
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-import java.io.File
 
-/**
- * 应用内升级：Rust 侧下载并 sha256 校验后的 APK 通过 FileProvider 拉起
- * 系统安装器（用户在系统弹窗确认覆盖安装；首装会让用户授权
- * 「允许安装未知应用」）。
- */
+/// 平台通道只有一条：配对/初始快照传输期间的保活开关。
+/// （应用内升级已移除：relay 不再承担 APK 分发，安装靠手动装包。）
 class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.elsewhen/app_update")
+        // 配对/初始快照传输期间的保活开关：Dart 侧按「还有多少件事在跑」
+        // 计数（lib/sync/sync_keep_alive.dart），这里只负责拉起/停掉前台服务。
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.elsewhen/sync_keepalive")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
-                    "getCacheDir" -> {
-                        result.success(cacheDir.absolutePath)
+                    "start" -> {
+                        ensureNotificationPermission()
+                        SyncKeepAliveService.start(this, call.argument<String>("text"))
+                        result.success(true)
                     }
-                    "installApk" -> {
-                        val path = call.argument<String>("path")
-                        if (path == null) {
-                            result.error("invalid_args", "path required", null)
-                        } else {
-                            try {
-                                installApk(path)
-                                result.success(true)
-                            } catch (e: Exception) {
-                                result.error("install_failed", e.message, null)
-                            }
-                        }
+                    "stop" -> {
+                        SyncKeepAliveService.stop(this)
+                        result.success(true)
                     }
                     else -> result.notImplemented()
                 }
             }
     }
 
-    private fun installApk(path: String) {
-        val file = File(path)
-        if (!file.exists()) throw IllegalArgumentException("apk file missing: $path")
-        val uri = FileProvider.getUriForFile(
-            this, "${applicationContext.packageName}.update.provider", file
+    /**
+     * Android 13+ 的前台服务通知需要 POST_NOTIFICATIONS。没授权时服务照跑、
+     * 进程照样豁免冻结，只是通知不可见；所以这里只问一次，拒绝就不再打扰，
+     * 绝不能让权限弹窗挡在配对流程前面。
+     */
+    private fun ensureNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val granted = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (granted) return
+        val prefs = getSharedPreferences("sync_keepalive", MODE_PRIVATE)
+        if (prefs.getBoolean("notification_asked", false)) return
+        prefs.edit().putBoolean("notification_asked", true).apply()
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+            REQUEST_NOTIFICATIONS,
         )
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/vnd.android.package-archive")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        startActivity(intent)
+    }
+
+    private companion object {
+        private const val REQUEST_NOTIFICATIONS = 1062
     }
 }

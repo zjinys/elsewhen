@@ -17,7 +17,7 @@ Elsewhen 需要支持“手机随手记录、电脑继续处理、其他设备�
 | 数据存储 | SQLite，迁移截至 v15；`Store::open()` 开启外键，原始事件有不可变约束 |
 | 记录提交 | `insert_event`、`submit_input_as_event`、`submit_conversation_input` 已有原子提交边界；后者关联事件、消息和输入记录 |
 | 对话 | 有生成 run、待生成队列、明确审阅与业务回执；运行时仍属于本机 |
-| 中继 | `relay/src/worker.ts` 与 `src/sync/transport_relay.rs` 提供收发原型，存在待修权限和路由问题 |
+| 中继 | `relay/standalone/server.mjs`（唯一实现）与 `src/sync/transport_relay.rs` 提供收发，存在待修权限和路由问题 |
 | 完整同步 | 数据集/设备身份、配对、端到端加密、复制协议、应用入口均未实现 |
 | 其他传输 | P2P 与同步文件导入导出未实现；不作为首版前置 |
 
@@ -230,7 +230,7 @@ Wiki 的 slug 是可改的定位名，不是全球对象身份。同名 slug、�
 - 设备身份私钥/配对密钥使用受保护的本机存储，不复制给新设备、不写普通日志。Provider API Key 按第 3.1 节加密同步；不能为了同步密钥而开放明文设置查询 API。
 - 撤销包括成员授权、relay 投递权限与后续内容密钥更新。已被撤销设备拿到过的明文、旧密钥与旧密文无法远程收回；离线设备在收到撤销前仍可能持有旧授权，不能承诺即时全网生效。**撤销同步资格不会吊销已复制的 Provider API Key**；设备丢失后须在 Provider 侧撤销/轮换该 Key，再把新配置同步给剩余设备。
 
-自托管表示用户控制中继部署，不表示没有 Cloudflare 等基础设施提供者。运营者可见连接 IP、流量、时间与邮箱关联；内容保密依赖实际端到端加密，而不是邮箱标识被哈希。
+自托管表示用户控制中继部署（relay 只保留 standalone Node 实现，不再有 Cloudflare Worker 版），不表示没有基础设施提供者。运营者可见连接 IP、流量、时间与邮箱关联；内容保密依赖实际端到端加密，而不是邮箱标识被哈希。
 
 ### 9.1 成员授权的首版落地选择（2026-10-05）
 
@@ -274,7 +274,7 @@ S02 当前切片采用**固定数据集 owner → 成员的一跳签名授权**�
 | `src/storage/new_migrations.rs` | 按实际下一版本追加迁移；当前 v15，不能改已发布迁移 |
 | `src/storage/sync/`（拟新增） | 身份、操作、outbox/inbox、快照、回执、冲突与 GC 的存储事务 |
 | `src/sync/{protocol,crypto,engine}.rs`（拟新增） | 有界领域协议、配对/加密、持久收发；不暴露 raw SQL |
-| `src/sync/transport_relay.rs`、`relay/src/worker.ts` | 访问控制修复、稳定 wire 签名、有界分页/TTL/配额；加密后才接入 |
+| `src/sync/transport_relay.rs`、`relay/standalone/server.mjs` | 访问控制修复、稳定 wire 签名、有界分页/TTL/配额；加密后才接入 |
 | `src/storage/approvals.rs`、`src/storage/chat_runs.rs` | 保留本地执行授权与精确输入身份，不以同步恢复运行租约 |
 | `src/knowledge/dependencies.rs` 等 | S05 的精确证据闭包与版本校验，不从当前内容推断历史依据 |
 | `ui/lib/bridge/rust_bridge_repository.dart` | 同步生命周期与后台角色调度；Rust 入口必须同样校验 |

@@ -74,6 +74,13 @@ class RustBridgeRepository implements StorageRepository {
   /// 最近一次网络同步 tick 的错误（成功或跳过时清空）。
   final ValueNotifier<String?> lastSyncTickError = ValueNotifier(null);
 
+  /// 每个对端的投递状态（R6-1/R6-2 的 `deliver` 状态机视图）。由 Rust 从
+  /// outbox 现有列**推导**得出，Dart 侧不再自造一份进度：状态只有一个真相，
+  /// 面板与设置页都读它。每次 tick 后刷新；出错时保留上一次的值而不是清空
+  /// ——「刚才还好、现在空」会让用户以为同步被重置了。
+  final ValueNotifier<List<api.SyncDeliveryStatusDto>> syncDeliveryStatus =
+      ValueNotifier(const []);
+
   /// Changes produced by the background worker invalidate visible knowledge views.
   final ValueNotifier<int> knowledgeRevision = ValueNotifier(0);
 

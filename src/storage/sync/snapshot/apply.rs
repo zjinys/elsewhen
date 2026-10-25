@@ -317,6 +317,26 @@ impl Store {
                     ],
                 )?;
             }
+            Record::HabitPageLink {
+                id,
+                page_slug,
+                nudge_id,
+                status,
+                source,
+                created_at,
+                updated_at,
+            } => {
+                validate_id(id)?;
+                ensure!(
+                    matches!(status.as_str(), "suggested" | "active")
+                        && matches!(source.as_str(), "auto" | "manual"),
+                    "sync_snapshot_habit_page_link_invalid"
+                );
+                self.connection.execute(
+                    "INSERT INTO habit_page_links(id,page_slug,nudge_id,status,source,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7)",
+                    params![id, page_slug, nudge_id, status, source, created_at, updated_at],
+                )?;
+            }
             Record::Goal {
                 id,
                 content,

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/services.dart';
@@ -7,11 +8,21 @@ import 'package:flutter/services.dart';
 import '../bridge/api.dart' as api;
 import '../sync/sync_setup_controller.dart';
 import 'sync_pairing_steps.dart';
+import 'sync_tick_status.dart';
 import '../utils/desktop_prefs.dart';
+import '../theme/app_theme.dart';
 
 class OwnerSyncPairingSettings extends StatefulWidget {
-  const OwnerSyncPairingSettings({super.key, required this.controller});
+  const OwnerSyncPairingSettings({
+    super.key,
+    required this.controller,
+    this.deliveryStatuses,
+  });
   final SyncSetupController controller;
+
+  /// 每对端的投递状态（R6-2）。为 null 时不显示 —— 面板不自己造进度，
+  /// 拿不到就少一行，而不是编一个「同步中」。
+  final ValueListenable<List<api.SyncDeliveryStatusDto>>? deliveryStatuses;
 
   @override
   State<OwnerSyncPairingSettings> createState() =>
@@ -138,10 +149,11 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
             enabled: !controller.busy,
             keyboardType: TextInputType.url,
             autocorrect: false,
-            decoration: const InputDecoration(
+            style: AppTheme.fieldTextStyle,
+            cursorColor: AppTheme.accentPrimary,
+            decoration: AppTheme.fieldDecoration(
               labelText: '你已部署的中继 URL',
               hintText: 'https://…',
-              border: OutlineInputBorder(),
             ),
           ),
           CheckboxListTile(
@@ -196,6 +208,28 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
                 _ => '正在发送初始快照',
               },
             ),
+            const SizedBox(height: 8),
+          ],
+          // 交接轮询失联/失败时必须有可见原因：否则主设备也会停在同一帧转圈，
+          // 用户无法区分「还在搬」和「已经卡死」。
+          if (controller.enrollment.error != null) ...[
+            Text(
+              controller.enrollment.error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+            const SizedBox(height: 8),
+          ],
+          // relay 信箱打满（507）时，发送被主动停拍退避：给一个明确提示，
+          // 避免用户把「在等空间」当成「卡死」。
+          if (controller.enrollment.states.any((s) => s.storageBlocked)) ...[
+            Text(
+              '中继信箱已满：对方正在取件腾出空间，稍候会自动继续，无需操作。',
+              style: TextStyle(fontSize: 12, color: AppTheme.warning),
+            ),
+            const SizedBox(height: 8),
+          ],
+          if (widget.deliveryStatuses != null) ...[
+            SyncDeliverStatusLine(statuses: widget.deliveryStatuses!),
             const SizedBox(height: 8),
           ],
           const Text('邀请码仅交给可信设备。'),

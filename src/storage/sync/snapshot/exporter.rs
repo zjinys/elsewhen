@@ -88,6 +88,8 @@ impl SnapshotExporter {
             digest: String::new(),
             frontiers,
             logical_clock,
+            transport: None,
+            blob_id: None,
         };
         Ok(Self {
             view,
@@ -202,11 +204,10 @@ impl SnapshotExporter {
         Ok(None)
     }
 
-    pub(crate) fn next_encrypted_chunk(
-        &mut self,
-        key: &ContentKey,
-        signer: &DeviceIdentity,
-    ) -> Result<Option<Vec<u8>>> {
+    /// 切出下一片明文数据并累加 manifest 账（片数/字节/整流摘要）。
+    /// 加密封装拆在 `next_encrypted_chunk`：blob 续传要能"跳过前 N 片"而不付
+    /// 每片一次签名的代价，跳过时摘要仍然照算（manifest 摘要必须覆盖全部片）。
+    fn next_chunk_data(&mut self) -> Result<Option<Vec<u8>>> {
         if self.finished {
             return Ok(None);
         }
@@ -235,10 +236,21 @@ impl SnapshotExporter {
             self.manifest.bytes + data.len() <= MAX_SNAPSHOT_BYTES,
             "sync_snapshot_size_limit"
         );
-        let index = self.manifest.chunks;
         self.manifest.chunks += 1;
         self.manifest.bytes += data.len();
         self.hash.update(&data);
+        Ok(Some(data))
+    }
+
+    pub(crate) fn next_encrypted_chunk(
+        &mut self,
+        key: &ContentKey,
+        signer: &DeviceIdentity,
+    ) -> Result<Option<Vec<u8>>> {
+        let Some(data) = self.next_chunk_data()? else {
+            return Ok(None);
+        };
+        let index = self.manifest.chunks - 1;
         let payload = serde_json::to_vec(&SnapshotChunk {
             id: self.manifest.id.clone(),
             index,
@@ -250,9 +262,30 @@ impl SnapshotExporter {
         ))
     }
 
-    pub(crate) fn finish(mut self, key: &ContentKey, signer: &DeviceIdentity) -> Result<Vec<u8>> {
+    /// blob 续传：跳过已经传完的前 `count` 片。数据照读、摘要照算，只是不重封
+    /// 不重传（跳一片省一次 Ed25519 签名）。片数不够就是账对不上，直接报错。
+    pub(crate) fn skip_chunks(&mut self, count: usize) -> Result<()> {
+        for _ in 0..count {
+            ensure!(
+                self.next_chunk_data()?.is_some(),
+                "sync_snapshot_export_short"
+            );
+        }
+        Ok(())
+    }
+
+    /// 声明这份快照走 blob 数据面：manifest 里带上传输方式与 blob 身份，接收端
+    /// 只依据这两个**发送端签名覆盖**的字段决定去哪拉，不做任何运行时探测。
+    pub(crate) fn declare_blob(&mut self, blob_id: &str) {
+        self.manifest.transport = Some("blob".to_string());
+        self.manifest.blob_id = Some(blob_id.to_string());
+    }
+
+    pub(crate) fn finish(&mut self, key: &ContentKey, signer: &DeviceIdentity) -> Result<Vec<u8>> {
         ensure!(self.finished, "sync_snapshot_export_incomplete");
-        self.manifest.digest = hex(self.hash.finish().as_ref());
+        // `ring` 的 `Context::finish` 吃掉上下文，而 `finish` 现在借 &mut self
+        // （blob 续传要能反复切片后再收尾），所以用 clone 取摘要，光标不动。
+        self.manifest.digest = hex(ring::digest::Context::clone(&self.hash).finish().as_ref());
         let header = manifest_header(&self.manifest)?;
         crypto::seal(header, key, signer, &serde_json::to_vec(&self.manifest)?)?.to_bytes()
     }

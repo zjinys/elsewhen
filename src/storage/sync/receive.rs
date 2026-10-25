@@ -404,6 +404,11 @@ impl Store {
                 base_revision,
                 deleted,
             } => self.apply_sync_habit_nudge(op, nudge, base_revision, *deleted),
+            SyncMutation::HabitPageLinkChanged {
+                link,
+                base_revision,
+                deleted,
+            } => self.apply_sync_habit_page_link(op, link, base_revision, *deleted),
             SyncMutation::GoalChanged {
                 goal,
                 base_revision,

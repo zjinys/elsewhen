@@ -3,6 +3,7 @@
 
 mod analysis;
 mod delivery;
+pub(crate) use delivery::{BeginExport, SnapshotTransport};
 mod enrollment;
 mod fragments;
 mod gc;

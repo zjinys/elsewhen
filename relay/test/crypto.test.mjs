@@ -143,7 +143,9 @@ test('concurrent nonce replay accepts one request and quota remains exact', asyn
   const replayed = await Promise.all(Array.from({ length: 10 }, () => relay.call('/send', request)));
   assert.equal(replayed.filter(r => r.status === 200).length, 1);
   assert.equal(replayed.filter(r => r.status === 409).length, 9);
-  const overflow = await relay.call('/send', sendBody(credential, mb, sender, { content: Buffer.alloc(5).toString('base64') }));
+    // seq 必须换新号：R2-1 之后同一 (sender,seq) 被视为同一封逻辑邮件、直接替换
+  // 而不是新增——用 seq=1 重发会在配额账上走替换路径拿到 200，测不出 507。
+  const overflow = await relay.call('/send', sendBody(credential, mb, sender, { seq: 2, content: Buffer.alloc(5).toString('base64') }));
   assert.equal(overflow.status, 507);
   const status = await relay.call('/status', statusBody(owner, mb), true);
   assert.equal(status.body.bytes, 6);

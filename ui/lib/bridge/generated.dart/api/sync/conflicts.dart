@@ -9,7 +9,7 @@ import 'datasets.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `wiki_page_conflict_dto`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
 /// 列出待审阅的 wiki 页同步冲突（按流内序）。UI 必须保存 `local.updated_at`
 ///（行已物理删除为 null）并在裁决时原样回传；`localHeadDeleted` 提示删除态。
@@ -46,59 +46,6 @@ Future<void> resolveObjectConflict({
   expectedLocalUpdatedAt: expectedLocalUpdatedAt,
   acceptRemote: acceptRemote,
 );
-
-/// 应用升级检查结果。has_update 只在远端提交序号**严格大于**本地时为
-/// 真——hash 相同/不同都不足以分辨方向，`git rev-list --count` 才单调。
-class AppUpdateDto {
-  final bool hasUpdate;
-  final String latestHash;
-  final PlatformInt64 latestSeq;
-  final String localHash;
-  final PlatformInt64 localSeq;
-  final String version;
-  final String changelog;
-  final PlatformInt64 apkSize;
-  final String apkSha256;
-
-  const AppUpdateDto({
-    required this.hasUpdate,
-    required this.latestHash,
-    required this.latestSeq,
-    required this.localHash,
-    required this.localSeq,
-    required this.version,
-    required this.changelog,
-    required this.apkSize,
-    required this.apkSha256,
-  });
-
-  @override
-  int get hashCode =>
-      hasUpdate.hashCode ^
-      latestHash.hashCode ^
-      latestSeq.hashCode ^
-      localHash.hashCode ^
-      localSeq.hashCode ^
-      version.hashCode ^
-      changelog.hashCode ^
-      apkSize.hashCode ^
-      apkSha256.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is AppUpdateDto &&
-          runtimeType == other.runtimeType &&
-          hasUpdate == other.hasUpdate &&
-          latestHash == other.latestHash &&
-          latestSeq == other.latestSeq &&
-          localHash == other.localHash &&
-          localSeq == other.localSeq &&
-          version == other.version &&
-          changelog == other.changelog &&
-          apkSize == other.apkSize &&
-          apkSha256 == other.apkSha256;
-}
 
 class ObjectConflictDto {
   final String opId;

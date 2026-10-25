@@ -241,6 +241,9 @@ extension RepoWorkerReminders on RustBridgeRepository {
       if (_disposed) return;
       lastSyncTick.value = result;
       lastSyncTickError.value = null;
+      // 投递状态是同一拍的事实，跟着一起刷新：分开拉会出现「计数说发了 3 封、
+      // 状态还停在 uploading」的自相矛盾。
+      await _refreshDeliveryStatus();
       if (result.ran && (result.pulledAccepted > 0 || result.uploaded > 0)) {
         // 有新事件/新上行：唤醒分析队列并让知识视图在消化后刷新。会话/消息
         // 视图只订阅 syncArrivalRevision（拉到东西就即时上台，不等消化）。
@@ -252,6 +255,17 @@ extension RepoWorkerReminders on RustBridgeRepository {
       if (_disposed) return;
       lastSyncTickError.value = e.toString();
       debugPrint('network sync tick failed: $e');
+    }
+  }
+
+  /// 刷新每对端的投递状态（只读）。失败不影响 tick 本身：状态行是诊断信息，
+  /// 不是业务数据，拉不到就沿用上一次的。
+  Future<void> _refreshDeliveryStatus() async {
+    try {
+      final statuses = await api.syncDeliveryStatus();
+      if (!_disposed) syncDeliveryStatus.value = statuses;
+    } catch (e) {
+      debugPrint('sync delivery status failed: $e');
     }
   }
 

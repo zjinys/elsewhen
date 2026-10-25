@@ -10,6 +10,9 @@ use crate::sync::crypto::{self, ContentKey, DeviceIdentity, EnvelopeHeader};
 pub(crate) struct PendingWireEnvelope {
     pub message_id: String,
     pub encrypted_envelope: Vec<u8>,
+    /// relay 侧投递幂等键（明文、随 sender 签名上行）。同一逻辑投递的重发必须
+    /// 保持同值，不同投递必须互不相同——详见 `migrations/59-sync-wire-seq-hint`。
+    pub seq_hint: i64,
 }
 
 impl Store {
@@ -128,12 +131,17 @@ impl Store {
                     // 一旦漂移不可能撞同 id —— 因此同 id + 不同密文＝同一内容的
                     // 确定性重发，按幂等处理并留审计日志，不再堵死发件队列。
                     if hash != digest {
-                        if std::env::var("ELSEWHEN_DEBUG").is_ok() {
-                            eprintln!(
-                                "[sync-wire] acknowledged re-seal skipped recipient={} id={} stored={} incoming={}",
-                                header.recipient_device_id, header.message_id, hash, digest
-                            );
-                        }
+                        // 走同步投递的统一日志格式（单一门控 + 四字段）：
+                        // 第三个槽位是已存密文长度，两个摘要在 detail 里。
+                        crate::sync::engine::deliver::wire_log(
+                            "wire-reseal-skipped",
+                            &header.message_id,
+                            bytes.len(),
+                            &format!(
+                                "recipient {} stored {} incoming {}",
+                                header.recipient_device_id, hash, digest
+                            ),
+                        );
                     }
                     if let Some(tx) = tx {
                         tx.commit()?;
@@ -154,7 +162,18 @@ impl Store {
             }
         }
         let encrypted = crypto::seal(header.clone(), key, signer, payload)?.to_bytes()?;
-        self.connection.execute("INSERT INTO sync_wire_outbox(recipient_device_id,message_id,payload_hash,key_version,encrypted_envelope) VALUES(?1,?2,?3,?4,?5) ON CONFLICT(recipient_device_id,message_id) DO UPDATE SET payload_hash=excluded.payload_hash,key_version=excluded.key_version,encrypted_envelope=excluded.encrypted_envelope,available_at_ms=0,relay_id=NULL",params![header.recipient_device_id,header.message_id,digest,header.key_version as i64,encrypted])?;
+        // seq_hint 只在**首次插入**时发号，`ON CONFLICT` 不覆写：重发必须带同一个
+        // 号，relay 才能认出「这是同一封信」并替换旧副本而不是再插一份。
+        // 重封 = 新内容、新事实：旧的 `blocked_reason` / `last_error` 说的是**上一份**
+        // payload 的病（可能是配额、可能是 413），原样留着会让面板一直报一个
+        // 已经不成立的阻塞原因（m3）。整行状态本来就回到「没上过 relay」，
+        // 与它一致。
+        let seq: i64 = self.connection.query_row(
+            "UPDATE sync_wire_seq SET next=next+1 WHERE singleton=1 RETURNING next-1",
+            [],
+            |r| r.get(0),
+        )?;
+        self.connection.execute("INSERT INTO sync_wire_outbox(recipient_device_id,message_id,payload_hash,key_version,encrypted_envelope,seq_hint) VALUES(?1,?2,?3,?4,?5,?6) ON CONFLICT(recipient_device_id,message_id) DO UPDATE SET payload_hash=excluded.payload_hash,key_version=excluded.key_version,encrypted_envelope=excluded.encrypted_envelope,available_at_ms=0,relay_id=NULL,blocked_reason=NULL,last_error=''",params![header.recipient_device_id,header.message_id,digest,header.key_version as i64,encrypted,seq])?;
         if let Some(tx) = tx {
             tx.commit()?;
         }
@@ -169,11 +188,12 @@ impl Store {
     ) -> Result<Vec<PendingWireEnvelope>> {
         ensure!((1..=16).contains(&limit), "sync_wire_batch_limit_invalid");
         self.require_local_sync_membership()?;
-        let mut query=self.connection.prepare("SELECT message_id,encrypted_envelope FROM sync_wire_outbox w WHERE recipient_device_id=?1 AND state='pending' AND available_at_ms<=?2 AND EXISTS(SELECT 1 FROM sync_members WHERE device_id=?1 AND active=1) AND NOT EXISTS(SELECT 1 FROM sync_snapshot_export_wires x JOIN sync_snapshot_exports s ON s.id=x.snapshot_id WHERE x.recipient_device_id=w.recipient_device_id AND x.message_id=w.message_id AND s.state!='ready') ORDER BY available_at_ms,rowid LIMIT ?3")?;
+        let mut query=self.connection.prepare("SELECT message_id,encrypted_envelope,seq_hint FROM sync_wire_outbox w WHERE recipient_device_id=?1 AND state='pending' AND available_at_ms<=?2 AND EXISTS(SELECT 1 FROM sync_members WHERE device_id=?1 AND active=1) AND NOT EXISTS(SELECT 1 FROM sync_snapshot_export_wires x JOIN sync_snapshot_exports s ON s.id=x.snapshot_id WHERE x.recipient_device_id=w.recipient_device_id AND x.message_id=w.message_id AND s.state!='ready') ORDER BY available_at_ms,rowid LIMIT ?3")?;
         let rows = query.query_map(params![peer, now_ms, limit as i64], |r| {
             Ok(PendingWireEnvelope {
                 message_id: r.get(0)?,
                 encrypted_envelope: r.get(1)?,
+                seq_hint: r.get(2)?,
             })
         })?;
         let mut result = Vec::new();
@@ -191,6 +211,34 @@ impl Store {
             result.push(row);
         }
         Ok(result)
+    }
+
+    /// 取一封指定的 pending 信封：不参与任何「等导出就绪」的过滤。
+    ///
+    /// 只给 `snapshot-start` 这种**导出开始前就要到**的信令用：它在导出还没
+    /// ready 时就必须发出去，否则接收端无从知道该去哪个 blob 拉片，窗口流控
+    /// 会双边互等（发送方等 ack，接收方等 manifest）。
+    pub(crate) fn pending_wire_envelope(
+        &self,
+        peer: &str,
+        message_id: &str,
+    ) -> Result<Option<PendingWireEnvelope>> {
+        self.require_local_sync_membership()?;
+        Ok(self
+            .connection
+            .query_row(
+                "SELECT message_id,encrypted_envelope,seq_hint FROM sync_wire_outbox
+                 WHERE recipient_device_id=?1 AND message_id=?2 AND state='pending'",
+                params![peer, message_id],
+                |r| {
+                    Ok(PendingWireEnvelope {
+                        message_id: r.get(0)?,
+                        encrypted_envelope: r.get(1)?,
+                        seq_hint: r.get(2)?,
+                    })
+                },
+            )
+            .optional()?)
     }
 
     /// 该对端是否还有待发的快照导出线（初次交接/重快照在途）。此时放宽每拍
@@ -222,8 +270,17 @@ impl Store {
             "sync_enrollment_wire_scope_invalid"
         );
         self.require_local_sync_membership()?;
+        // 与 engine::push_due 同一套预算：日常控制消息每拍 ≤3 封足够，但初次
+        // 交接的快照线有几百片，3 封/拍会让 174 片拖上十几分钟（用户看到的就是
+        // 「一次只同步 3 条」）。快照导出线在途时放宽到 16 封，真正的上限是下面
+        // 的 8MB 字节预算。
+        let limit = if self.has_pending_snapshot_export_wires(peer)? {
+            16
+        } else {
+            3
+        };
         let encoded = serde_json::to_string(messages)?;
-        let mut query = self.connection.prepare("SELECT message_id,encrypted_envelope FROM sync_wire_outbox w
+        let mut query = self.connection.prepare(&format!("SELECT message_id,encrypted_envelope,seq_hint FROM sync_wire_outbox w
             WHERE recipient_device_id=?1 AND state='pending' AND available_at_ms<=?2
             AND EXISTS(SELECT 1 FROM sync_members WHERE device_id=?1 AND active=1)
             AND (message_id IN (SELECT value FROM json_each(?3)) OR (?4 IS NOT NULL AND
@@ -232,11 +289,12 @@ impl Store {
             AND (NOT EXISTS(SELECT 1 FROM sync_snapshot_export_wires x WHERE x.recipient_device_id=w.recipient_device_id AND x.message_id=w.message_id)
                 OR EXISTS(SELECT 1 FROM sync_snapshot_export_wires x JOIN sync_snapshot_exports s ON s.id=x.snapshot_id
                     WHERE x.recipient_device_id=w.recipient_device_id AND x.message_id=w.message_id AND s.state='ready' AND s.key_version=w.key_version))
-            ORDER BY available_at_ms,rowid LIMIT 3")?;
+            ORDER BY available_at_ms,rowid LIMIT {limit}"))?;
         let rows = query.query_map(params![peer, now_ms, encoded, snapshot], |r| {
             Ok(PendingWireEnvelope {
                 message_id: r.get(0)?,
                 encrypted_envelope: r.get(1)?,
+                seq_hint: r.get(2)?,
             })
         })?;
         let mut result = Vec::new();
@@ -256,25 +314,74 @@ impl Store {
         Ok(result)
     }
 
+    /// 记一次投递尝试。`failure=None` 表示成功。
+    ///
+    /// 失败时 `failure` 决定退避节奏（见 `deliver::backoff_ms`）并写下**分类码**
+    /// （`last_error`），让 `deliver` 状态机能回答「为什么在退避」——在这之前
+    /// 表里只有 attempts 与时间，UI 只能说「同步中」。
     pub(crate) fn record_sync_wire_attempt(
         &self,
         peer: &str,
         message_id: &str,
         now_ms: i64,
         relay_id: Option<&str>,
+        failure: Option<crate::sync::engine::deliver::DeliveryFailure>,
     ) -> Result<()> {
         let tx = self.begin_write_transaction()?;
         let attempts:Option<i64>=self.connection.query_row("SELECT attempts FROM sync_wire_outbox WHERE recipient_device_id=?1 AND message_id=?2 AND state='pending'",params![peer,message_id],|r|r.get(0)).optional()?;
         if let Some(attempts) = attempts {
-            let delay = (1_000_i64 << attempts.clamp(0, 6)).min(60_000);
+            let delay = match failure {
+                // 失败：按分类退避（见 `deliver::backoff_ms`）。
+                Some(failure) => crate::sync::engine::deliver::backoff_ms(failure, attempts),
+                // 成功：只是压住「每拍重发同一封」，与退避是两回事。
+                None => crate::sync::engine::deliver::resend_spacing_ms(attempts),
+            };
             let available = now_ms
                 .checked_add(delay)
                 .context("sync_retry_time_invalid")?;
-            self.connection.execute("UPDATE sync_wire_outbox SET attempts=MIN(attempts+1,1000000),available_at_ms=?3,relay_id=?4 WHERE recipient_device_id=?1 AND message_id=?2",params![peer,message_id,available,relay_id])?;
+            // relay_id 用 COALESCE 保留旧值：它是「这封信真的上过 relay」的唯一
+            // 证据，失败重试把它洗成 NULL 会让已在途的信封看起来从未发出，
+            // holes 与配额账目跟着一起失真（事故档案 §四 的直接原因）。
+            // blocked_reason 一律清空：能走到这里的只有两类事实 ——「成功了」与
+            // 「这次失败不阻塞」。两者都说明**旧的那条阻塞原因已经不成立**
+            // （配额可能已回落、也可能是另一类错），继续显示它就是在报旧账。
+            // 真正该保留的情况由 `block_sync_wire` 自己写（它不经过这里）。
+            // last_error 在成功时必须清空：它参与 `deliver_statuses` 的状态推导
+            // （`available_at_ms > now AND last_error <> ''` 才算 backoff），
+            // 留着旧分类码会把「已送出、等回执」误判成「正在退避」。
+            self.connection.execute("UPDATE sync_wire_outbox SET attempts=MIN(attempts+1,1000000),available_at_ms=?3,relay_id=COALESCE(?4,relay_id),blocked_reason=NULL,last_error=CASE WHEN ?4 IS NULL THEN ?5 ELSE '' END WHERE recipient_device_id=?1 AND message_id=?2",params![peer,message_id,available,relay_id,failure.map(|f|f.code()).unwrap_or("")])?;
         }
         if let Some(tx) = tx {
             tx.commit()?;
         }
+        Ok(())
+    }
+
+    /// 把一封信标成「阻塞」（要人看），并把下次尝试推后。
+    ///
+    /// 为什么真的要有这一步（review 2026-10-25 M3）：改之前 `blocked` 只存在于
+    /// 读侧枚举里，全仓没有任何一处写 `blocked_reason` —— `is_blocking()` 是个
+    /// 永远为假的死分支，413 这类**结构性不可恢复**的错误照样每拍重试，正是
+    /// R5「3 次必表态」要消灭的那种毒信循环。
+    ///
+    /// 阻塞**不等于**永久停：行仍是 `pending`，`until_ms` 一到还会再试一次
+    /// （用户可能升级了 relay 或两端上限已同步）。节奏由 `backoff_ms` 定：
+    /// 507 是 15 s（空间靠对端 ack 腾出，几秒内就发生），协议错位是 10 分钟
+    /// （重试再快也不会成功，快重试只是把毒信伪装成「正在重试」）。
+    ///
+    /// `reason` 同时写 `blocked_reason` 与 `last_error`：前者是「阻塞原因」，
+    /// 后者是分类码 —— 只写一个会让面板每次选择都少一半信息（m2）。
+    pub(crate) fn block_sync_wire(
+        &self,
+        peer: &str,
+        message_id: &str,
+        reason: &str,
+        until_ms: i64,
+    ) -> Result<()> {
+        self.connection.execute(
+            "UPDATE sync_wire_outbox SET available_at_ms=?3,blocked_reason=?4,last_error=?4 WHERE recipient_device_id=?1 AND message_id=?2 AND state='pending'",
+            params![peer, message_id, until_ms, reason],
+        )?;
         Ok(())
     }
 
@@ -379,7 +486,13 @@ mod tests {
             );
             // 但 ack 之后同 id 不同内容依旧是完整性事故，不可覆盖。
             store
-                .record_sync_wire_attempt("b", &header.message_id, 100, Some("0000000000000001"))
+                .record_sync_wire_attempt(
+                    "b",
+                    &header.message_id,
+                    100,
+                    Some("0000000000000001"),
+                    None,
+                )
                 .unwrap();
             assert!(
                 store

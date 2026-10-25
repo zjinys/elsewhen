@@ -8,6 +8,58 @@ use crate::storage::Store;
 use crate::sync::crypto::{ContentKey, DeviceIdentity, EnvelopeHeader};
 use crate::sync::protocol::validate_id;
 
+/// 一份快照走哪条路。**落库后不再变**：在途导出的续传、回执、关闭全按行里的
+/// 值走，绝不重新读环境变量或嗅探 relay —— 收发两端对「这份快照在哪」的判断
+/// 一旦不一致，就是整库替换路径上的悬空数据（R4-6）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SnapshotTransport {
+    /// 旧路径：逐片封成信件推进 `sync_wire_outbox`，接收方整份到齐才发布。
+    Mail,
+    /// 数据面：分片直接进 relay 的 blob，只有 manifest 走信件当信令。
+    Blob,
+}
+
+impl SnapshotTransport {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Mail => "mail",
+            Self::Blob => "blob",
+        }
+    }
+
+    pub(crate) fn parse(value: &str) -> Result<Self> {
+        match value {
+            "mail" => Ok(Self::Mail),
+            "blob" => Ok(Self::Blob),
+            _ => Err(anyhow::anyhow!("sync_snapshot_transport_unknown")),
+        }
+    }
+
+    /// 环境变量开关 `SYNC_SNAPSHOT_TRANSPORT=mail|blob`（默认 mail，灰度期保守）。
+    /// 只有**新建**导出会读它；没有任何路径会在在途导出上重新读。
+    pub(crate) fn from_env() -> Self {
+        match std::env::var("SYNC_SNAPSHOT_TRANSPORT").as_deref() {
+            Ok("blob") => Self::Blob,
+            _ => Self::Mail,
+        }
+    }
+}
+
+/// `begin_snapshot_export` 的结论。
+#[derive(Debug, Clone)]
+pub(crate) enum BeginExport {
+    /// 新建的导出：从第 0 片开始。
+    Begun(SnapshotTransport),
+    /// 在途的 blob 导出：从已传完的片数继续，不再重封前面的片。
+    Resume {
+        transport: SnapshotTransport,
+        blob_index: u64,
+        blob_id: Option<String>,
+    },
+    /// 这份传输已经建好或已确认，不需要再做任何事。
+    Done,
+}
+
 impl Store {
     /// 导出前用域表事实自愈头表：live head 指向已不存在的域行会让接收端
     /// 的 (deleted ⇔ 行存在) 一致性闸门必炸（快照整块作废，见
@@ -43,7 +95,8 @@ impl Store {
         id: &str,
         recipient: &str,
         key_version: u64,
-    ) -> Result<bool> {
+        transport: SnapshotTransport,
+    ) -> Result<BeginExport> {
         validate_id(id)?;
         validate_id(recipient)?;
         ensure!(
@@ -61,23 +114,81 @@ impl Store {
             active && recipient != identity.device_id,
             "sync_snapshot_recipient_not_authorized"
         );
-        let existing: Option<(String, i64, String)> = self.connection.query_row(
-            "SELECT recipient_device_id,key_version,state FROM sync_snapshot_exports WHERE id=?1",
-            [id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
-        ).optional()?;
-        if let Some((peer, version, state)) = existing {
+        // logical_clock 与导出视图一起钉住：blob 续传跨拍重开 exporter，只有数据
+        // 一格没动才允许接着传。漂了就必须换新请求 id —— 半新半旧的片拼出来的
+        // 快照 manifest 摘要对不上，接收端整份作废。
+        let logical_clock: i64 = self.connection.query_row(
+            "SELECT logical_clock FROM sync_replica WHERE singleton=1",
+            [],
+            |r| r.get(0),
+        )?;
+        let existing: Option<(String, i64, String, String, i64, Option<String>, i64)> = self
+            .connection
+            .query_row(
+                "SELECT recipient_device_id,key_version,state,transport,blob_index,blob_id,blob_clock
+                 FROM sync_snapshot_exports WHERE id=?1",
+                [id],
+                |r| {
+                    Ok((
+                        r.get(0)?,
+                        r.get(1)?,
+                        r.get(2)?,
+                        r.get(3)?,
+                        r.get(4)?,
+                        r.get(5)?,
+                        r.get(6)?,
+                    ))
+                },
+            )
+            .optional()?;
+        if let Some((peer, version, state, stored_transport, blob_index, blob_id, blob_clock)) =
+            existing
+        {
             ensure!(
                 peer == recipient && version == key_version as i64,
                 "sync_snapshot_identity_conflict"
             );
+            if matches!(state.as_str(), "ready" | "acknowledged") {
+                if let Some(tx) = tx {
+                    tx.commit()?;
+                }
+                return Ok(BeginExport::Done);
+            }
+            // 只有 blob 传输允许「同 id 续传」：它的进度是逐片 durable 的，续传
+            // 不重传来过的片。mail 传输的中断导出必须换新请求 id（旧语义不变）。
+            //
+            // `aborted` 为什么也能续传（review 2026-10-25 M1）：`abort_snapshot_export`
+            // 只作用于 `building`，所以 `aborted` 恒等于「建过但没建成」，不会出现
+            // 「已写成又 abort」。而 `blob_index`/`blob_id`/`blob_clock` 三列在 abort 时
+            // 未被触碰，续传点由 `upload_blob_chunks` 与 relay 事实对齐——
+            // `blob_open` 说 created 就从 0 开始，否则取 `max(本地, relay.highest+1)`，
+            // 因此续传**不会跳过没上传的片**。不放行的话，任何一次 staging 失败
+            // （断电/provay 抖一下）都会把 `claim_sync_resnapshot` 拿到的**同一个 id**
+            // 变成永久失败：每拍重 begin 一次、每次都 `requires_new_request`。
+            let resumable = matches!(state.as_str(), "building" | "aborted")
+                && stored_transport == SnapshotTransport::Blob.as_str();
+            ensure!(resumable, "sync_snapshot_export_requires_new_request");
             ensure!(
-                matches!(state.as_str(), "ready" | "acknowledged"),
+                transport == SnapshotTransport::Blob && blob_clock == logical_clock,
                 "sync_snapshot_export_requires_new_request"
             );
+            // 从 `aborted` 续传时把状态摆回 `building`：否则后续 `abort_snapshot_export`
+            // （只作用于 building）会变成空操作，失败也只能停在 aborted；而发布路径
+            // 也要求 building。幂等：本来就是 building 时这一句不改变任何东西。
+            if state != "building" {
+                self.connection.execute(
+                    "UPDATE sync_snapshot_exports SET state='building' WHERE id=?1",
+                    [id],
+                )?;
+            }
             if let Some(tx) = tx {
                 tx.commit()?;
             }
-            return Ok(false);
+            return Ok(BeginExport::Resume {
+                transport: SnapshotTransport::Blob,
+                blob_index: blob_index.max(0) as u64,
+                blob_id,
+            });
         }
         // A claimed re-snapshot (v30) may only be built under the request's
         // current id: an id rotated after re-flagging can never be satisfied
@@ -115,13 +226,41 @@ impl Store {
             .map(|s| s.roster.revision as i64)
             .unwrap_or(0);
         self.connection.execute(
-            "INSERT INTO sync_snapshot_exports(id,recipient_device_id,key_version,state,local_watermark,roster_revision) VALUES(?1,?2,?3,'building',?4,?5)",
-            params![id,recipient,key_version as i64,local_watermark,roster_revision],
+            "INSERT INTO sync_snapshot_exports(id,recipient_device_id,key_version,state,local_watermark,roster_revision,transport,blob_clock) VALUES(?1,?2,?3,'building',?4,?5,?6,?7)",
+            params![id,recipient,key_version as i64,local_watermark,roster_revision,transport.as_str(),logical_clock],
         )?;
         if let Some(tx) = tx {
             tx.commit()?;
         }
-        Ok(true)
+        Ok(BeginExport::Begun(transport))
+    }
+
+    /// 记下这份导出的 blob 身份。开一次就一直复用，重试不再开新 blob。
+    pub(crate) fn set_snapshot_blob_id(&self, id: &str, blob_id: &str) -> Result<()> {
+        ensure!(
+            (16..=64).contains(&blob_id.len())
+                && blob_id
+                    .bytes()
+                    .all(|c| c.is_ascii_alphanumeric() || c == b'_' || c == b'-'),
+            "sync_snapshot_blob_id_invalid"
+        );
+        let changed = self.connection.execute(
+            "UPDATE sync_snapshot_exports SET blob_id=?2 WHERE id=?1 AND state='building'",
+            params![id, blob_id],
+        )?;
+        ensure!(changed == 1, "sync_snapshot_export_not_building");
+        Ok(())
+    }
+
+    /// 上传进度：已传完的分片数。每片一提交，丢响应/断电都能从断点继续。
+    pub(crate) fn mark_snapshot_blob_progress(&self, id: &str, index: u64) -> Result<()> {
+        ensure!(index <= i64::MAX as u64, "sync_snapshot_blob_index_invalid");
+        let changed = self.connection.execute(
+            "UPDATE sync_snapshot_exports SET blob_index=?2 WHERE id=?1 AND state='building'",
+            params![id, index as i64],
+        )?;
+        ensure!(changed == 1, "sync_snapshot_export_not_building");
+        Ok(())
     }
 
     pub(crate) fn stage_snapshot_authority(
@@ -213,10 +352,18 @@ impl Store {
 
     /// Only the authenticated final application receipt retires the chunk sends.
     /// Covered operations keep their own acknowledgements; this is not a GC mark.
+    ///
+    /// `subject` 是回执证明的那封信封 id：通常是 `snapshot-end:{id}`（manifest），
+    /// 但接收方是在「触发 publish 的那片」上发回执的，乱序到达时最后一片 chunk
+    /// 先到、manifest 早已被消费，subject 就是 `snapshot:{id}:{index}`。哈希只能
+    /// 对着 subject 那封信封校验——拿 manifest 的哈希去比 chunk 的回执属于自造
+    /// `sync_wire_ack_mismatch`，代价是整条导出永不被确认，两端都停在
+    /// 「等待成员授权与初始同步」。
     pub(crate) fn acknowledge_snapshot_export(
         &self,
         peer: &str,
         id: &str,
+        subject: &str,
         payload_hash: &str,
     ) -> Result<()> {
         let tx = self.begin_write_transaction()?;
@@ -225,7 +372,7 @@ impl Store {
             params![id,peer], |r| r.get(0),
         )?;
         ensure!(ready, "sync_snapshot_export_not_ready");
-        self.acknowledge_sync_wire(peer, &format!("snapshot-end:{id}"), payload_hash)?;
+        self.acknowledge_sync_wire(peer, subject, payload_hash)?;
         self.connection.execute(
             "UPDATE sync_wire_outbox SET state='acknowledged' WHERE recipient_device_id=?1 AND message_id IN (SELECT message_id FROM sync_snapshot_export_wires WHERE snapshot_id=?2 AND recipient_device_id=?1)",
             params![peer,id],
@@ -277,6 +424,77 @@ impl Store {
             )
             .optional()?
             .unwrap_or_else(|| "0".into()))
+    }
+
+    /// 「必表态」计数（R5-2）：同一封邮件被扫描拒绝一次就 +1，返回累计次数。
+    ///
+    /// 为什么必须落库：扫描游标是持久的，进程重启后同一封坏信会被重新扫到；
+    /// 计数放内存等于每次重启重新数，阈值永远到不了 —— 事故里 9996 封死信正是
+    /// 「每圈都拒、每圈都不删、谁也不表态」堆出来的。
+    pub(crate) fn record_wire_rejection(
+        &self,
+        mailbox: &str,
+        sender_mailbox: &str,
+        mail_id: &str,
+        message_id: &str,
+        error: &str,
+        now_ms: i64,
+    ) -> Result<i64> {
+        // 冲突键是 `(mail_id, mailbox_id)`：relay 一个信箱一个库文件，`mail_id` 只是
+        // 那个文件里的 rowid，换信箱后同一个字符串会落到另一封信上（迁移 63）。
+        //
+        // `WHERE dropped_at IS NULL`：已经表态放弃的行是审计，不再被扫到的信改写 ——
+        // 否则「几次之后放弃」这个事实会被后续扫描悄悄抹掉，计数也会复活。
+        self.connection.execute(
+            "INSERT INTO sync_wire_rejections(mail_id,mailbox_id,sender_mailbox_id,message_id,attempts,last_error,first_seen_at,last_seen_at) \
+             VALUES(?1,?2,?3,?4,1,?5,?6,?6) \
+             ON CONFLICT(mail_id,mailbox_id) DO UPDATE SET attempts=sync_wire_rejections.attempts+1, \
+               last_error=excluded.last_error, last_seen_at=excluded.last_seen_at, \
+               message_id=CASE WHEN excluded.message_id='' THEN sync_wire_rejections.message_id ELSE excluded.message_id END \
+             WHERE sync_wire_rejections.dropped_at IS NULL",
+            params![mail_id, mailbox, sender_mailbox, message_id, error, now_ms],
+        )?;
+        Ok(self.connection.query_row(
+            "SELECT attempts FROM sync_wire_rejections WHERE mail_id=?1 AND mailbox_id=?2",
+            params![mail_id, mailbox],
+            |r| r.get(0),
+        )?)
+    }
+
+    /// 已表态放弃：行留着做审计（哪个 subject、为什么、几次之后放弃），
+    /// 但不再参与阈值判定。
+    pub(crate) fn mark_wire_rejection_dropped(
+        &self,
+        mailbox: &str,
+        mail_id: &str,
+        now_ms: i64,
+    ) -> Result<()> {
+        self.connection.execute(
+            "UPDATE sync_wire_rejections SET dropped_at=?3 WHERE mail_id=?1 AND mailbox_id=?2 AND dropped_at IS NULL",
+            params![mail_id, mailbox, now_ms],
+        )?;
+        Ok(())
+    }
+
+    /// 接受成功就整行删掉：这封信已经消费并 ack，留着只是一个永远不会被读的计数。
+    pub(crate) fn forget_wire_rejection(&self, mailbox: &str, mail_id: &str) -> Result<()> {
+        self.connection.execute(
+            "DELETE FROM sync_wire_rejections WHERE mail_id=?1 AND mailbox_id=?2",
+            params![mail_id, mailbox],
+        )?;
+        Ok(())
+    }
+
+    /// 清掉过期审计行。信件的 relay TTL 是 7 天，超过这个窗口的记录既不可能
+    /// 再被扫到，也没有排查价值；不清理会让这张表随死信无限增长（就是「为治
+    /// 无限增长又添一张无限增长的表」）。
+    pub(crate) fn prune_wire_rejections(&self, now_ms: i64) -> Result<()> {
+        const RETENTION_MS: i64 = 7 * 24 * 60 * 60 * 1000;
+        self.connection.execute(
+            "DELETE FROM sync_wire_rejections WHERE last_seen_at < ?1",
+            [now_ms - RETENTION_MS],
+        )?;
+        Ok(())
     }
 
     /// This is a scan cursor, not an ack: unresolved mail remains at the relay and

@@ -102,6 +102,48 @@ fn valid_local_time(value: &str) -> bool {
     (7..=22).contains(&hour) && minute < 60
 }
 
+/// 习惯页 → 习惯问候计划关联整行（migration 58）。page_slug 唯一 = 一张
+/// 习惯页最多属于一个习惯（去重约束）；nudge_id 不唯一 = 一个习惯可聚合
+/// 多张页面的证据。本表只记关联事实：归档/删除页面的清理由应用层在
+/// 同一事务内删行，最后一条 active 关联解除时置 habit_nudges.enabled=0。
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HabitPageLinkRecord {
+    pub id: String,
+    pub page_slug: String,
+    pub nudge_id: String,
+    pub status: String,
+    pub source: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl HabitPageLinkRecord {
+    pub(crate) fn validate(&self) -> Result<()> {
+        validate_id(&self.id)?;
+        validate_id(&self.nudge_id)?;
+        ensure!(
+            !self.page_slug.is_empty()
+                && self.page_slug.chars().count() <= 255
+                && !self.page_slug.chars().any(char::is_control),
+            "sync_habit_page_link_page_invalid"
+        );
+        ensure!(
+            matches!(self.status.as_str(), "suggested" | "active"),
+            "sync_habit_page_link_status_invalid"
+        );
+        ensure!(
+            matches!(self.source.as_str(), "auto" | "manual"),
+            "sync_habit_page_link_source_invalid"
+        );
+        ensure!(
+            !self.created_at.trim().is_empty() && !self.updated_at.trim().is_empty(),
+            "sync_habit_page_link_timestamp_invalid"
+        );
+        Ok(())
+    }
+}
+
 /// 目标整行。活跃上限 3 由收端触发器强制；远端写入越限按显式冲突立案
 /// （`goal_active_limit`），不静默顶掉本端目标。
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

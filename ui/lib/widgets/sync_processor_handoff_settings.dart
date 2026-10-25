@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../bridge/api.dart' as api;
 import '../sync/sync_processor_handoff_controller.dart';
+import '../theme/app_theme.dart';
 
 /// 设置页的加工移交区块（P4d）。
 ///
@@ -98,10 +99,7 @@ class _SyncProcessorHandoffSettingsState
               else ...[
                 DropdownButtonFormField<String>(
                   initialValue: _targetDevice,
-                  decoration: const InputDecoration(
-                    labelText: '目标设备',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: AppTheme.fieldDecoration(labelText: '目标设备'),
                   items: widget.candidates
                       .map(
                         (member) => DropdownMenuItem(

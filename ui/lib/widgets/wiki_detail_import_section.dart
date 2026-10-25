@@ -306,28 +306,9 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
           controller: _titleController,
           enabled: !_busy,
           textAlignVertical: TextAlignVertical.top,
-          decoration: InputDecoration(
+          // 全应用表单文本框的唯一尺子（本字段即 [AppTheme.fieldDecoration] 出处）
+          decoration: AppTheme.fieldDecoration(
             hintText: '标题（可选，留空自动取前 60 字）',
-            hintStyle: TextStyle(fontSize: 13, color: AppTheme.textTertiary),
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
-            filled: true,
-            fillColor: AppTheme.surface2,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppTheme.surface3),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppTheme.surface3),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppTheme.accentPrimary, width: 1.5),
-            ),
           ),
         ),
         const SizedBox(height: AppTheme.space2),
@@ -337,32 +318,12 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
           textAlignVertical: TextAlignVertical.top,
           style: TextStyle(fontSize: 13.5, color: AppTheme.textPrimary),
           cursorColor: AppTheme.accentPrimary,
-          decoration: InputDecoration(
+          decoration: AppTheme.fieldDecoration(
             hintText: '标签（可选，空格或逗号分隔，例如：工作 投资）',
-            hintStyle: TextStyle(fontSize: 13, color: AppTheme.textTertiary),
-            prefixIcon: Icon(Icons.sell_outlined, size: 16),
-            prefixIconConstraints: const BoxConstraints(
-              minWidth: 36,
-              minHeight: 36,
-            ),
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
-            filled: true,
-            fillColor: AppTheme.surface2,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppTheme.surface3),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppTheme.surface3),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              borderSide: BorderSide(color: AppTheme.accentPrimary, width: 1.5),
+            prefixIcon: Icon(
+              Icons.sell_outlined,
+              size: 16,
+              color: AppTheme.textTertiary,
             ),
           ),
         ),

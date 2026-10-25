@@ -1,4 +1,5 @@
 use super::*;
+use crate::storage::sync::SnapshotTransport;
 use crate::sync::{
     crypto::{self, DeviceIdentity, EnvelopeHeader},
     transport_relay::{RelayEnvelope, RelayPage},
@@ -93,7 +94,10 @@ fn invalid_proof_does_not_pin_the_cursor_or_ack_unrelated_mail() {
     assert_eq!(
         loan.store()
             .unwrap()
-            .relay_scan_cursor(&loan.bootstrap.issuer_mailbox)
+            // enrollment 扫描有独立游标键：普通增量扫描会把共用行写成 "0" 回卷它。
+            .relay_scan_cursor(&super::super::flow::scan_key(
+                &loan.bootstrap.issuer_mailbox
+            ))
             .unwrap(),
         "0000000000000002"
     );
@@ -347,7 +351,7 @@ fn abandoned_export_does_not_block_the_same_roster_in_a_new_ready_attempt() {
     let record = loan.record.as_ref().unwrap();
     let old = record.snapshot.as_ref().unwrap().id.clone();
     store
-        .begin_snapshot_export(&old, &record.peer.device_id, record.key_version)
+        .begin_snapshot_export(&old, &record.peer.device_id, record.key_version, SnapshotTransport::Mail)
         .unwrap();
     let signed = store.current_signed_roster().unwrap().unwrap();
     let id = engine::membership_message_id(&signed).unwrap();

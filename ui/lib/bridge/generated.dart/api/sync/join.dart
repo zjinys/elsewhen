@@ -8,7 +8,7 @@ import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `enrollment_dto`, `join_dto`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Parses and binds an invitation preview without contacting its relay.
 Future<SyncJoinStateDto> previewSyncJoin({required String invitationCode}) =>
@@ -116,6 +116,10 @@ Future<SyncEnrollmentStateDto> confirmSyncEnrollment({
   protectedRevision: protectedRevision,
 );
 
+/// 每对端一行。没有 pending 信封的对端不出现在列表里（= idle）。
+Future<List<SyncDeliveryStatusDto>> syncDeliveryStatus() =>
+    RustLib.instance.api.crateApiSyncJoinSyncDeliveryStatus();
+
 /// Runs one bounded push/pull cycle against every active peer. Callers are the
 /// app background worker only; there is no manual "sync now" business trigger.
 /// A failure here never affects local capture, which is purely local.
@@ -162,6 +166,54 @@ class SyncDatasetEntryDto {
           selected == other.selected;
 }
 
+/// 每个对端的投递状态（R6-1/R6-2）。只读推导：状态由 outbox 现有列算出，
+/// 这里不落库、不触发任何同步。`reason` 是分类码（`relay_quota` / `protocol` /
+/// `integrity` / `transport`），UI 负责翻成人话；不透出任何载荷或远端响应体。
+class SyncDeliveryStatusDto {
+  final String peerDeviceId;
+
+  /// idle / uploading / awaiting_receipt / backoff / blocked
+  final String state;
+
+  /// 分类码；无原因时为空串。
+  final String reason;
+
+  /// backoff 的到期时刻（毫秒），非 backoff 时为 0。
+  final PlatformInt64 untilMs;
+  final PlatformInt64 pending;
+  final PlatformInt64 awaitingReceipt;
+
+  const SyncDeliveryStatusDto({
+    required this.peerDeviceId,
+    required this.state,
+    required this.reason,
+    required this.untilMs,
+    required this.pending,
+    required this.awaitingReceipt,
+  });
+
+  @override
+  int get hashCode =>
+      peerDeviceId.hashCode ^
+      state.hashCode ^
+      reason.hashCode ^
+      untilMs.hashCode ^
+      pending.hashCode ^
+      awaitingReceipt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncDeliveryStatusDto &&
+          runtimeType == other.runtimeType &&
+          peerDeviceId == other.peerDeviceId &&
+          state == other.state &&
+          reason == other.reason &&
+          untilMs == other.untilMs &&
+          pending == other.pending &&
+          awaitingReceipt == other.awaitingReceipt;
+}
+
 /// Enrollment progress never selects the staged database or claims ongoing sync.
 class SyncEnrollmentStateDto {
   final String role;
@@ -178,6 +230,9 @@ class SyncEnrollmentStateDto {
   final bool remoteApplied;
   final bool notificationPending;
 
+  /// relay 信箱配额打满（507）：面板据此说明"在等对端取件腾空间"。
+  final bool storageBlocked;
+
   const SyncEnrollmentStateDto({
     required this.role,
     required this.operationId,
@@ -192,6 +247,7 @@ class SyncEnrollmentStateDto {
     required this.localApplied,
     required this.remoteApplied,
     required this.notificationPending,
+    required this.storageBlocked,
   });
 
   @override
@@ -208,7 +264,8 @@ class SyncEnrollmentStateDto {
       totalChunks.hashCode ^
       localApplied.hashCode ^
       remoteApplied.hashCode ^
-      notificationPending.hashCode;
+      notificationPending.hashCode ^
+      storageBlocked.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -227,7 +284,8 @@ class SyncEnrollmentStateDto {
           totalChunks == other.totalChunks &&
           localApplied == other.localApplied &&
           remoteApplied == other.remoteApplied &&
-          notificationPending == other.notificationPending;
+          notificationPending == other.notificationPending &&
+          storageBlocked == other.storageBlocked;
 }
 
 class SyncJoinEntryDto {

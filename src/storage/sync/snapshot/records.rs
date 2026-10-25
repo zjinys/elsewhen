@@ -18,12 +18,14 @@ pub(crate) const SNAPSHOT_CARRIED_DIRS: &[&str] = &["tweet_images"];
 /// 必须在新设备上仍然成立。
 /// v7：新增 Record::HabitNudge（习惯主动问候计划）；消息记录同时携带
 /// kind/ref，旧消息缺省仍按 chat 解释。
+/// v8：新增 Record::HabitPageLink（习惯页与问候计划的关联，迁移 58）：
+/// 关联随快照走；页面去重与计划启停联动由应用层负责。
 /// 同步语义：定义随人走，激活看平台——stdio 的 platform 变体不再导致
 /// 整表排除；行上不含 headers（凭据不离本机）与 trusted（信任是本机
 /// 事实，apply 强制置 0 回到逐次审批）。新增 serde 变体后旧端标签分发
 /// 失败会整份拒收，跨 v4/v5 必须显式 bump——与 wire 枚举不同（那边
 /// append-only 可被旧端忽略）。
-pub(crate) const SNAPSHOT_VERSION: u32 = 7;
+pub(crate) const SNAPSHOT_VERSION: u32 = 8;
 
 /// 随快照携带的表。QUERIES 必须真实覆盖这里的每一张（覆盖性由门禁测试
 /// `snapshot_carries_every_table_or_explicitly_excludes_it` 兜住：新增表不登记
@@ -42,6 +44,7 @@ pub(crate) const SNAPSHOT_CARRIED_TABLES: &[&str] = &[
     "event_recordability_decisions",
     "todos",
     "habit_nudges",
+    "habit_page_links",
     "goals",
     "rules",
     "sync_object_heads",
@@ -109,6 +112,9 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     ("sync_provider_versions_new", "per-device-sync-state"),
     ("sync_receipts", "per-device-sync-state"),
     ("sync_relay_cursors", "per-device-sync-state"),
+    // 「必表态」审计（迁移 61）：relay 邮件 id 是本机扫描事实，对端另有自己的
+    // 扫描进度；带进快照只会让接收方继承一堆与自己信箱无关的计数。
+    ("sync_wire_rejections", "per-device-sync-state"),
     ("sync_resnapshot_requests", "per-device-sync-state"),
     ("sync_snapshot_chunks", "per-device-sync-state"),
     ("sync_snapshot_export_wires", "per-device-sync-state"),
@@ -116,6 +122,9 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     ("sync_snapshot_target", "per-device-sync-state"),
     ("sync_snapshots", "per-device-sync-state"),
     ("sync_wire_receipts", "per-device-sync-state"),
+    // seq_hint 发号器（迁移 59）：纯本机计数器，同 outbox 收发行状态，
+    // 不入数据集内容。
+    ("sync_wire_seq", "per-device-sync-state"),
     // 应用记录时用 sync_mark_wiki_slug_seen 重建。
     ("sync_wiki_slug_seen", "derived-on-apply"),
     // 规则触发命中挂本地事件（events 不同步，提醒在哪台设备响是设备侧行为）；
@@ -228,6 +237,26 @@ pub(crate) struct SnapshotManifest {
     pub digest: String,
     pub frontiers: BTreeMap<String, i64>,
     pub logical_clock: i64,
+    /// 传输方式。`None`/`Some("mail")` = 逐片走信件（旧路径）；`Some("blob")` =
+    /// 分片在 relay 的 blob 上，只有这份 manifest 走信件当信令。由发送端签名覆盖，
+    /// 接收端据此决定去哪拉，不嗅探、不猜。
+    #[serde(default)]
+    pub transport: Option<String>,
+    /// blob 身份（`transport == "blob"` 时必填）。
+    #[serde(default)]
+    pub blob_id: Option<String>,
+}
+
+/// `snapshot-start:{id}` 的载荷：分片在哪个 blob 上。
+///
+/// 为什么需要这条信令：blob 传输是**流式**的，manifest（含片数/摘要）要到最后一
+/// 片才生成，而 relay 的 blob 配额远小于整份快照。接收端若等 manifest 才知道去
+/// 哪拉，发送端就会卡在「等 ack」、接收端卡在「等 manifest」，双边互等。
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct SnapshotStart {
+    pub(crate) version: u32,
+    pub(crate) blob_id: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -375,6 +404,17 @@ pub(crate) enum Record {
     HabitNudge {
         value: HabitNudgeRecord,
     },
+    /// 习惯页与问候计划的关联（迁移 58）：页面 → 计划多对一，去重靠
+    /// page_slug 唯一索引；启停联动在应用层，不在快照 apply 里做。
+    HabitPageLink {
+        id: String,
+        page_slug: String,
+        nudge_id: String,
+        status: String,
+        source: String,
+        created_at: String,
+        updated_at: String,
+    },
     Goal {
         id: String,
         content: String,
@@ -478,6 +518,7 @@ pub(crate) const QUERIES: &[&str] = &[
     "SELECT rowid,json_object('kind','classification','id',id,'event_id',event_id,'recordable',json(CASE WHEN recordable=1 THEN 'true' ELSE 'false' END),'event_kind',kind,'reason',reason,'created_at',created_at) FROM event_recordability_decisions WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','todo','id',id,'title',title,'status',status,'priority',priority,'due_at',due_at,'reminder',(reminder!=0),'related_event_id',related_event_id,'related_wiki_slug',related_wiki_slug,'note',note,'created_at',created_at,'updated_at',updated_at) FROM todos WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','habit_nudge','value',json_object('id',id,'page_slug',page_slug,'question',question,'done_label',done_label,'done_text',done_text,'missed_label',missed_label,'missed_text',missed_text,'weekdays',weekdays,'local_time',local_time,'enabled',json(CASE WHEN enabled=1 THEN 'true' ELSE 'false' END),'created_at',created_at,'updated_at',updated_at)) FROM habit_nudges WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','habit_page_link','id',id,'page_slug',page_slug,'nudge_id',nudge_id,'status',status,'source',source,'created_at',created_at,'updated_at',updated_at) FROM habit_page_links WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','goal','id',id,'content',content,'phase',phase,'status',status,'created_at',created_at,'updated_at',updated_at,'superseded_at',superseded_at) FROM goals WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','rule','id',id,'content',content,'status',status,'created_at',created_at,'updated_at',updated_at,'conversation_id',conversation_id,'review_version',review_version,'essence',essence) FROM rules WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT h.rowid,json_object('kind','head','object_kind',h.object_kind,'object_id',h.object_id,'revision_id',h.revision_id,'deleted',json(CASE WHEN h.deleted=1 THEN 'true' ELSE 'false' END)) FROM sync_object_heads h WHERE h.rowid>?1 ORDER BY h.rowid LIMIT 1",

@@ -1,5 +1,6 @@
 use super::super::*;
 use super::*;
+use crate::storage::sync::SnapshotTransport;
 
 #[test]
 fn native_roster_and_selected_offer_do_not_activate_or_overwrite_the_original_dataset() {
@@ -119,7 +120,7 @@ fn incomplete_export_gets_a_new_id_but_a_ready_export_is_not_regenerated() {
     let record = loan.record.as_ref().unwrap();
     loan.store()
         .unwrap()
-        .begin_snapshot_export(&original, &record.peer.device_id, record.key_version)
+        .begin_snapshot_export(&original, &record.peer.device_id, record.key_version, SnapshotTransport::Mail)
         .unwrap();
     drop(loan);
     f.confirm(f.mutate("owner", |loan, store| {
@@ -301,6 +302,7 @@ fn snapshot_preserves_keys_and_waits_for_the_authenticated_final_receipt() {
             &completion,
             now(),
             Some("synthetic-relay-id"),
+            None,
         )
         .unwrap();
     drop(owner);
@@ -449,3 +451,179 @@ fn snapshot_transfer_surfaces_progress_to_both_sides() {
     assert_eq!(joiner_view.received_chunks as usize, half);
     assert!(!joiner_view.local_applied);
 }
+
+/// 乱序到达的真实死锁：manifest 先到并被消费，最后一片 chunk 到齐才触发发布，
+/// 于是回执的 subject 是那片 chunk。旧实现里这封回执既不在发送 scope 里
+/// (`receipt_subjects` 写死四项)，owner 又拿 manifest 的哈希去比它——回执永远
+/// 发不出去/对不上，导出停在 ready，两端都停在「等待成员授权与初始同步」。
+#[test]
+fn chunk_triggered_publication_still_delivers_a_receipt_and_completes() {
+    let f = Pair::new();
+    f.channels();
+    for i in 0..700 {
+        let payload = format!("bulk-{}-{}", i, "x".repeat(1024));
+        f.owner
+            .store
+            .submit_input_as_event(&payload, "capture", None)
+            .unwrap();
+    }
+    let offer = f.export();
+    f.select(&offer);
+    let receipts: Vec<String> = {
+        let joiner = f.loan("joiner");
+        let stage = joiner.store().unwrap();
+        let vault = stage
+            .load_sync_vault(&joiner.installation, &joiner.master, joiner.revision)
+            .unwrap();
+        let record = joiner.record.as_ref().unwrap();
+        let (send, _, _) = vault
+            .peer_keys(&record.dataset_id, &record.peer.device_id)
+            .unwrap();
+        transfer::stage_receipts(&stage, record, &send, vault.identity()).unwrap();
+        let owner_device = record.peer.device_id.clone();
+        let receipts: Vec<Vec<u8>> = stage
+            .connection
+            .prepare(
+                "SELECT encrypted_envelope FROM sync_wire_outbox WHERE recipient_device_id=?1 AND message_id LIKE 'envelope-receipt-%'",
+            )
+            .unwrap()
+            .query_map([&owner_device], |r| r.get::<_, Vec<u8>>(0))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        drop(stage);
+        drop(joiner);
+        receipts
+            .into_iter()
+            .map(|bytes| STANDARD.encode(bytes))
+            .collect()
+    };
+    for wire in &receipts {
+        f.receive("owner", wire);
+    }
+    assert_eq!(f.state("owner").phase, "sending_snapshot");
+    assert!(offer.chunks >= 2, "测试至少需要两个分片");
+
+    let (peer, chunk_ids): (String, Vec<String>) = {
+        let owner = f.loan("owner");
+        let store = owner.store().unwrap();
+        let peer: String = store
+            .connection
+            .query_row(
+                "SELECT recipient_device_id FROM sync_snapshot_exports WHERE id=?1",
+                [&offer.snapshot_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let ids: Vec<String> = store
+            .connection
+            .prepare(
+                "SELECT message_id FROM sync_snapshot_export_wires WHERE snapshot_id=?1 AND message_id LIKE 'snapshot:%' ORDER BY message_id",
+            )
+            .unwrap()
+            .query_map([&offer.snapshot_id], |r| r.get(0))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        (peer, ids)
+    };
+
+    // 1) manifest 先到：只被持久化，不发布、不回执。
+    f.receive(
+        "joiner",
+        &f.wire(&format!("snapshot-end:{}", offer.snapshot_id)),
+    );
+    assert!(!f.state("joiner").local_applied);
+    // 2) 分片走完最后一片才发布 → 回执的 subject 是那片 chunk。
+    for id in &chunk_ids {
+        f.receive("joiner", &f.wire(id));
+    }
+    let applied = f.state("joiner");
+    assert!(applied.local_applied, "全部分片到齐即发布");
+    assert_eq!(applied.phase, "awaiting_receipt");
+
+    // 3) 回执必须真的进 outbox、并且落在发送 scope 内（旧实现两条都不满足）。
+    let chunk_receipts: Vec<String> = chunk_ids
+        .iter()
+        .map(|id| {
+            format!(
+                "envelope-receipt-{}",
+                crate::storage::sync::hash(id.as_bytes())
+            )
+        })
+        .collect();
+    // 3) 回执必须真的进 outbox、并且落在发送 scope 内。触发方是分片，但
+    //    publish_and_receipt 用的是 manifest 的 header → subject 是 snapshot-end。
+    let receipt = {
+        let joiner = f.loan("joiner");
+        let store = joiner.store().unwrap();
+        let vault = store
+            .load_sync_vault(&joiner.installation, &joiner.master, joiner.revision)
+            .unwrap();
+        let record = joiner.record.as_ref().unwrap();
+        let (send, _, _) = vault
+            .peer_keys(&record.dataset_id, &record.peer.device_id)
+            .unwrap();
+        transfer::stage_receipts(&store, record, &send, vault.identity()).unwrap();
+        let (scope, body) = transfer::outgoing_scope(&store, record).unwrap();
+        assert!(body.is_none(), "joiner 不投递快照体，只发回执");
+        let manifest_receipt = format!(
+            "envelope-receipt-{}",
+            crate::storage::sync::hash(
+                format!("snapshot-end:{}", offer.snapshot_id).as_bytes()
+            )
+        );
+        let pending: Vec<String> = store
+            .connection
+            .prepare("SELECT message_id FROM sync_wire_receipts WHERE target_device_id=?1 AND pending=1")
+            .unwrap()
+            .query_map([&record.peer.device_id], |r| r.get(0))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        assert!(
+            pending.contains(&format!("snapshot-end:{}", offer.snapshot_id)),
+            "发布必须为 manifest 排队回执: {:?}",
+            pending
+        );
+        assert!(
+            !pending.iter().any(|id| chunk_ids.contains(id)),
+            "分片不该各自排队回执（回执是整份快照级别的）: {:?}",
+            pending
+        );
+        assert!(
+            scope.contains(&manifest_receipt),
+            "这封回执必须可发送: scope={:?}",
+            scope
+        );
+        let bytes: Vec<u8> = store
+            .connection
+            .query_row(
+                "SELECT encrypted_envelope FROM sync_wire_outbox WHERE recipient_device_id=?1 AND message_id=?2",
+                rusqlite::params![record.peer.device_id, manifest_receipt],
+                |r| r.get(0),
+            )
+            .unwrap();
+        drop(joiner);
+        STANDARD.encode(bytes)
+    };
+
+    // 4) owner 收下回执 → 整条导出线（含全部分片）一起退休，不再重发。
+    f.receive("owner", &receipt);
+    assert!(f.state("owner").remote_applied, "导出应已被确认");
+    let remaining: i64 = {
+        let owner = f.loan("owner");
+        let store = owner.store().unwrap();
+        store
+            .connection
+            .query_row(
+                "SELECT COUNT(*) FROM sync_wire_outbox WHERE recipient_device_id=?1 AND message_id LIKE 'snapshot%' AND state!='acknowledged'",
+                [&peer],
+                |r| r.get(0),
+            )
+            .unwrap()
+    };
+    assert_eq!(remaining, 0, "确认后不再重发任何分片");
+    assert!(!chunk_receipts.is_empty());
+}
+
