@@ -189,6 +189,5 @@ Rust API 发生变化后运行 `scripts/regen.sh`，它会重新生成 Flutter-R
 
 ## 许可证
 
-项目本体以 [MIT License](LICENSE) 发布。第三方组件与依赖的许可说明见 [NOTICE.md](NOTICE.md)，
-其中 vendored 编辑器 `ui/third_party/appflowy_editor` 采用上游双许可（AGPL-3.0 OR MPL-2.0）
-中的 **MPL-2.0** 分支。
+项目以 [GNU AGPL-3.0](LICENSE) 发布。第三方组件与依赖的许可说明见 [NOTICE.md](NOTICE.md)，
+其中 vendored 编辑器 `ui/third_party/appflowy_editor` 沿用上游双许可（AGPL-3.0 OR MPL-2.0）。

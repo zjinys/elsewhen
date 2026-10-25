@@ -3,8 +3,11 @@
 ## 项目许可证
 
 elsewhen 本体（`src/`、`ui/lib/` 中除第三方 vendored 之外的代码）以
-**MIT License** 发布，见根目录 [`LICENSE`](LICENSE)。该声明与
-[`Cargo.toml`](Cargo.toml) 中的 `license = "MIT"` 一致。
+**GNU AGPL-3.0** 发布（仅此版本，`AGPL-3.0-only`），见根目录 [`LICENSE`](LICENSE)。该声明与
+[`Cargo.toml`](Cargo.toml) 中的 `license = "AGPL-3.0-only"` 一致。
+
+选用 AGPL-3.0 是因为本项目的编辑器底座 vendored 自 AppFlowy Editor
+（见下节），其 copyleft 及网络服务源码可得性要求在本项目层面保持一致。
 
 第三方组件与依赖各自的许可证以源文件 / 包元数据为准。要点如下：
 
@@ -13,12 +16,10 @@ elsewhen 本体（`src/`、`ui/lib/` 中除第三方 vendored 之外的代码）
 该目录 vendored 自上游 AppFlowy Editor，上游以 **AGPL-3.0 OR MPL-2.0**
 双许可发布（见其目录内 [`LICENSE`](ui/third_party/appflowy_editor/LICENSE)）。
 
-本项目的 **本地补丁与新加入代码选择 MPL-2.0 条款**：
-
-- MPL-2.0 为文件级（弱）copyleft，仅约束被修改的 MPL 文件本身；
-- 修改过的 `ui/third_party/appflowy_editor/` 下文件继续以 MPL-2.0 发布，
-  源码随本仓库提供，满足 MPL-2.0 的源码可得性要求；
-- 项目其余部分不受影响，可继续采用 MIT。
+- 本项目选择 AGPL-3.0 分支，与项目整体许可一致；
+- 修改过的 `ui/third_party/appflowy_editor/` 下文件继续满足
+  AGPL-3.0 的源码可得性要求（整个仓库即源码，随分发提供）；
+- 若有分发方只想单独复用该 vendored 目录，仍可按 MPL-2.0 分支执行。
 
 ## Rust / Dart 依赖
 
