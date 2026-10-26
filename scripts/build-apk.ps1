@@ -35,10 +35,12 @@ try {
     $dartHash = $null
     $rustHash = $null
     try {
-        $m = Select-String -Path $dartFrb -Pattern 'rustContentHash\s*=>\s*(\d+)' |
+        # `-?`：content hash 是 i32，负数很常见（当前 -854730017），
+        # 不带符号时预检会直接判定「读不到桥接 hash」而拦下每一次构建。
+        $m = Select-String -Path $dartFrb -Pattern 'rustContentHash\s*=>\s*(-?\d+)' |
             Select-Object -First 1
         if ($m) { $dartHash = $m.Matches[0].Groups[1].Value }
-        $m = Select-String -Path $rustFrb -Pattern 'FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH:\s*i32\s*=\s*(\d+)' |
+        $m = Select-String -Path $rustFrb -Pattern 'FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH:\s*i32\s*=\s*(-?\d+)' |
             Select-Object -First 1
         if ($m) { $rustHash = $m.Matches[0].Groups[1].Value }
     } catch {

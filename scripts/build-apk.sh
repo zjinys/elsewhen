@@ -18,8 +18,11 @@ cd "$(dirname "$0")/.."
 # 很远）。这里提前拦下，指向 regen.sh。
 DART_FRB="ui/lib/bridge/generated.dart/frb_generated.dart"
 RUST_FRB="src/frb_generated.rs"
-DART_HASH="$(grep -oE 'rustContentHash => [0-9]+' "$DART_FRB" 2>/dev/null | grep -oE '[0-9]+$' | head -1 || true)"
-RUST_HASH="$(grep -oE 'FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = [0-9]+' "$RUST_FRB" 2>/dev/null | grep -oE '[0-9]+$' | head -1 || true)"
+# 注意 `-?`：frb 的 content hash 是 i32，负数很常见（当前就是 -854730017）。
+# 原来的 `[0-9]+` 会把 `=> -854730017` 里 `854730017` 之后的位置匹配不上/只取绝对值，
+# 表现为「读不到桥接 hash」，于是不管桥对不对都直接退出，这个预检从来没真正放行过负 hash 的仓库。
+DART_HASH="$(grep -oE 'rustContentHash => -?[0-9]+' "$DART_FRB" 2>/dev/null | grep -oE -- '-?[0-9]+$' | head -1 || true)"
+RUST_HASH="$(grep -oE 'FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -?[0-9]+' "$RUST_FRB" 2>/dev/null | grep -oE -- '-?[0-9]+$' | head -1 || true)"
 if [[ -z "$DART_HASH" || -z "$RUST_HASH" ]]; then
   echo "error: 读不到桥接 hash（Dart='${DART_HASH}' Rust='${RUST_HASH}'）。" >&2
   echo "       先跑 ./scripts/regen.sh 重新生成两侧桥接代码。" >&2
