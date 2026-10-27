@@ -99,12 +99,28 @@ impl Store {
         receipt: &crate::sync::protocol::ApplicationReceipt,
     ) -> Result<()> {
         let identity = self.sync_identity()?.context("sync_not_initialized")?;
-        ensure!(
-            receipt.dataset_id == identity.dataset_id
-                && receipt.target_device_id == identity.device_id
-                && receipt.acknowledging_device_id == authenticated_device,
-            "sync_receipt_identity_mismatch"
-        );
+        if receipt.dataset_id != identity.dataset_id
+            || receipt.target_device_id != identity.device_id
+            || receipt.acknowledging_device_id != authenticated_device
+        {
+            // 诊断字段（缺陷 D3 / F13）：拒收必须留下「哪一个身份不符」。只写
+            // `sync_receipt_identity_mismatch` 这一句，害得上一轮排查整圈都只能
+            // 猜（`sync_wire_rejections.message_id` 像 `envelope-receipt-{hash}`，
+            // 反查不到原信令）。这三个字段都是公开标识、不是秘密，写进错误文本后
+            // 会随 `sync_wire_rejections.last_error` 落库，release 包也能直接查。
+            return Err(crate::sync::protocol::receipt_identity_mismatch(
+                "receipt",
+                &[
+                    ("dataset", &identity.dataset_id, &receipt.dataset_id),
+                    ("target", &identity.device_id, &receipt.target_device_id),
+                    (
+                        "ack",
+                        authenticated_device,
+                        &receipt.acknowledging_device_id,
+                    ),
+                ],
+            ));
+        }
         let tx = self.begin_write_transaction()?;
         // A re-snapshot application ack is a synthetic receipt whose op_id is
         // `resnapshot-ack:{export_id}`: it retires the export (which re-seeds

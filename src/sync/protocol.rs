@@ -102,6 +102,33 @@ impl SyncOperation {
     }
 }
 
+/// 回执身份不符时的错误文本（缺陷 D3 / F13 的诊断口径）。
+///
+/// 为什么错误文本里要塞字段：拒收原因会随 `sync_wire_rejections.last_error`
+/// 落库，而 `message_id` 是 `envelope-receipt-{hash}` 这种不可反查的形状 ——
+/// 上一轮排查唯一的线索就是一行 `sync_receipt_identity_mismatch`，既不知道是
+/// dataset、target 还是 acknowledging 对不上，也不知道两边各是什么。release
+/// 包拿不到调试日志，所以诊断必须进数据本身。
+///
+/// 只列出**真正不符**的字段（相等的不写，噪声会淹没线索）。开头保留原始错误
+/// 码，既有日志检索与前缀匹配不受影响。三个字段都是公开标识，不含密钥。
+///
+/// 字段读作 `名字 expected=<本机认定的值> actual=<信封里写的值>` ——
+/// 「local/recv」这种命名在 acknowledging 字段上会误导（本机其实没有
+/// 「本地 ack」这回事，本机有的是「这封信是谁认证发来的」）。
+pub(crate) fn receipt_identity_mismatch(
+    kind: &str,
+    fields: &[(&str, &str, &str)],
+) -> anyhow::Error {
+    let detail = fields
+        .iter()
+        .filter(|(_, expected, actual)| expected != actual)
+        .map(|(name, expected, actual)| format!("{name} expected={expected} actual={actual}"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    anyhow::anyhow!("sync_receipt_identity_mismatch kind={kind} {detail}")
+}
+
 pub(crate) fn validate_id(id: &str) -> Result<()> {
     ensure!(
         !id.is_empty()

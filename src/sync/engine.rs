@@ -694,19 +694,33 @@ pub(crate) fn accept_relay_payload(
     if message_id.starts_with("envelope-receipt-") {
         let receipt: EnvelopeReceipt = serde_json::from_slice(&plaintext)
             .map_err(|_| anyhow::anyhow!("sync_receipt_invalid"))?;
+        // 身份不符与「这封信根本不该被回执」是两件事，混在一个 ensure 里会让
+        // 排查把两种原因都读成 identity_mismatch（F13 现场就是这种情形）。
+        let identity_ok = receipt.dataset_id == identity.dataset_id
+            && receipt.acknowledging_device_id == sender
+            && receipt.target_device_id == identity.device_id;
+        if !identity_ok {
+            return Err(crate::sync::protocol::receipt_identity_mismatch(
+                "wire",
+                &[
+                    ("dataset", &identity.dataset_id, &receipt.dataset_id),
+                    ("target", &identity.device_id, &receipt.target_device_id),
+                    ("ack", sender, &receipt.acknowledging_device_id),
+                ],
+            ));
+        }
+        // `snapshot-start:` 也必须能回执：它是 outbox 里**唯一退不掉的信令**
+        // （不登记 `sync_snapshot_export_wires`，因此 `acknowledge_snapshot_export`
+        // 永远退不到它）。
+        let receiptable = receipt.message_id.starts_with("provider:")
+            || receipt.message_id.starts_with("snapshot-end:")
+            || receipt.message_id.starts_with("snapshot-start:")
+            || receipt.message_id.starts_with("membership:");
         ensure!(
-            receipt.dataset_id == identity.dataset_id
-                && receipt.acknowledging_device_id == sender
-                && receipt.target_device_id == identity.device_id
-                // `snapshot-start:` 也必须能回执：它是 outbox 里**唯一退不掉的信令**
-                // （不登记 `sync_snapshot_export_wires`，因此 `acknowledge_snapshot_export`
-                // 永远退不到它）。
-                && (receipt.message_id.starts_with("provider:")
-                    || receipt.message_id.starts_with("snapshot-end:")
-                    || receipt.message_id.starts_with("snapshot-start:")
-                    || receipt.message_id.starts_with("membership:"))
-                && envelope_receipt_id(&receipt.message_id) == message_id,
-            "sync_receipt_identity_mismatch"
+            receiptable && envelope_receipt_id(&receipt.message_id) == message_id,
+            "sync_receipt_not_receiptable message_id={} expected={} receiptable={receiptable}",
+            receipt.message_id,
+            message_id
         );
         if let Some(id) = receipt.message_id.strip_prefix("snapshot-end:") {
             store.acknowledge_snapshot_export(

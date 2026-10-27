@@ -99,3 +99,57 @@ fn deletion_propagates_without_deleting_raw_events_and_late_message_conflicts() 
     assert_eq!(a.count("sync_conflicts"), 1);
     assert_eq!(a.count("sync_object_heads"), 1);
 }
+
+/// 缺陷 D3 / F13：拒收必须留下「哪一个身份不符、两边各是什么」。
+///
+/// 负向面同样重要 —— 相等的字段**不能**也列出来，否则一条诊断里三个字段全写，
+/// 真正的那个不符反而被淹没。
+#[test]
+fn a_rejected_receipt_says_which_identity_field_disagreed() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    a.store
+        .submit_input_as_event("receipt-diag", "capture", None)
+        .unwrap();
+    deliver(&a, &b);
+    let receipts = b.store.pending_sync_receipts("a", 100).unwrap();
+    assert_eq!(receipts.len(), 1);
+
+    // 冒充方：acknowledging_device 不符（dataset/target 都对）。
+    let error = a
+        .store
+        .accept_sync_receipt("stranger", &receipts[0])
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.starts_with("sync_receipt_identity_mismatch"),
+        "错误码必须留在开头，既有日志检索/前缀匹配依赖它：{error}"
+    );
+    assert!(error.contains("kind=receipt"), "{error}");
+    let peer = b.store.sync_identity().unwrap().unwrap().device_id.clone();
+    assert!(
+        error.contains(&format!("ack expected=stranger actual={peer}")),
+        "acknowledging_device 不符必须点名，且要读出「本机认证的是谁 / 信封自称是谁」：{error}"
+    );
+    assert!(
+        !error.contains("dataset expected="),
+        "dataset 两边相等时不该出现在诊断里（噪声会淹没线索）：{error}"
+    );
+    assert!(
+        !error.contains("target expected="),
+        "target 两边相等时不该出现在诊断里：{error}"
+    );
+
+    // 目标不符：target 必被点名，且不再报 ack。
+    let mut wrong_target = receipts[0].clone();
+    wrong_target.target_device_id = "someone-else".into();
+    let error = a
+        .store
+        .accept_sync_receipt(&peer, &wrong_target)
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("target expected="), "{error}");
+    assert!(error.contains("actual=someone-else"), "{error}");
+    assert!(!error.contains("ack expected="), "{error}");
+}
