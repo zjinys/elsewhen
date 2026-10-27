@@ -8,6 +8,7 @@ import '../utils/device_name.dart';
 import '../bridge/api.dart' as api;
 import '../sync/sync_processor_handoff_controller.dart';
 import '../sync/sync_dataset_switch_api.dart';
+import '../sync/sync_repair_api.dart';
 import '../sync/sync_roster_controller.dart';
 import 'dataset_switch_card.dart';
 import '../sync/sync_provider_conflicts_controller.dart';
@@ -40,11 +41,15 @@ class LocalSyncSettings extends StatefulWidget {
     this.handoffController,
     this.rosterController,
     this.datasetApi,
+    this.repairApi,
   });
   final SyncSetupController? controller;
 
   /// 数据集切换注入缝；为空用默认原生实现（见 DatasetSwitchCard）。
   final SyncDatasetSwitchApi? datasetApi;
+
+  /// 「清除本机同步身份」注入缝；为空用默认原生实现。
+  final SyncRepairApi? repairApi;
   final RustBridgeRepository? repository;
 
   /// 可注入测试替身；为空时由本 widget 自建并随自身销毁。
@@ -69,6 +74,7 @@ enum _SyncTab { bind, manage }
 
 class _LocalSyncSettingsState extends State<LocalSyncSettings> {
   _SyncTab _tab = _SyncTab.bind;
+  bool _repairBusy = false;
   bool _tabTouched = false;
   final _name = TextEditingController(text: '这台设备');
   late final SyncProviderConflictsController _conflicts;
@@ -223,6 +229,12 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                 ],
               ),
             ),
+            // 缺陷 D1：requires_repair 是状态机里唯一没有出口的状态。这里给出
+            // 唯一的出口，且只在它出现 —— 正常身份不会看到这个按钮。
+            if (state?.state == 'requires_repair') ...[
+              const SizedBox(height: 12),
+              _buildRepairExit(theme, controller),
+            ],
             if (controller.error != null) ...[
               const SizedBox(height: 12),
               Semantics(
@@ -290,6 +302,109 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
         );
       },
     );
+  }
+
+  /// `requires_repair` 的唯一出口（roadmap C3 / 缺陷 D1）。
+  ///
+  /// 这个状态的真实现场：配对写到一半被中断 / 掉电 / 恢复备份 —— 本机有同步身份
+  /// 但没有名册授权，此前既不能修复也不能重来，用户只能删库（连笔记一起没）。
+  Widget _buildRepairExit(ThemeData theme, SyncSetupController controller) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: theme.colorScheme.error.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '本机的同步身份不完整（常见于配对过程中断、掉电或恢复备份）。'
+            '可以清除本机同步身份后重新配对 —— 笔记、对话、知识库都会保留。',
+            style: theme.textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: _repairBusy
+                  ? null
+                  : () => _confirmClearLocalSyncIdentity(theme, controller),
+              icon: const Icon(Icons.build_circle_outlined, size: 18),
+              label: Text(_repairBusy ? '正在清除…' : '清除本机同步身份'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 二次确认：先列清代价，再要求勾选承认「Provider API Key 会失效」。
+  ///
+  /// 不写内部术语（vault/authority/roster）：用户要能自己判断这一步的后果。
+  Future<void> _confirmClearLocalSyncIdentity(
+    ThemeData theme,
+    SyncSetupController controller,
+  ) async {
+    var acknowledged = false;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (dialog, setInner) => AlertDialog(
+          title: const Text('清除本机同步身份？'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('清除后：'),
+              const SizedBox(height: 6),
+              const Text('· 本机退出当前数据集，需要重新配对或重新加入才能再同步；'),
+              const Text('· 已保存的 Provider API Key 会失效，需要重新填写；'),
+              const Text('· 还没同步到其它设备的改动不会自动补发。'),
+              const SizedBox(height: 6),
+              const Text('笔记、对话、知识库不会被删除。'),
+              const SizedBox(height: 8),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: acknowledged,
+                onChanged: (value) =>
+                    setInner(() => acknowledged = value ?? false),
+                title: const Text('我已知晓，Provider API Key 需要重新填写'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialog).pop(false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: acknowledged
+                  ? () => Navigator.of(dialog).pop(true)
+                  : null,
+              child: const Text('清除并重新配对'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final repair = widget.repairApi ?? const FrbSyncRepairApi();
+    setState(() => _repairBusy = true);
+    try {
+      await repair.clearLocalSyncIdentity();
+      if (!mounted) return;
+      await controller.refresh();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text('清除失败：$error')),
+      );
+    } finally {
+      if (mounted) setState(() => _repairBusy = false);
+    }
   }
 
   /// 设备名称 + 准备本机（同一行）：命名是绑定前的必要决定，放在状态卡

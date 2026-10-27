@@ -135,6 +135,15 @@ pub fn send_owner_sync_approval(invitation_id: String) -> Result<()> {
 pub fn get_local_sync_state() -> Result<LocalSyncStateDto> {
     let config = AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
+    local_sync_state_for(&config, &store)
+}
+
+/// 状态判定的唯一实现。`get_local_sync_state` 与「清除本机同步身份」必须用同一份，
+/// 否则出口的准入条件会和 UI 显示的状态漂移（UI 显示 `requires_repair` 却拒绝执行）。
+pub(crate) fn local_sync_state_for(
+    config: &AppConfig,
+    store: &Store,
+) -> Result<LocalSyncStateDto> {
     let vault: Option<(String, i64)> = store
         .connection
         .query_row(
@@ -159,7 +168,7 @@ pub fn get_local_sync_state() -> Result<LocalSyncStateDto> {
         }
     } else if !active {
         "membership_inactive"
-    } else if runtime::unlocked(&config, vault.as_ref().map(|v| v.1).unwrap_or(0)) {
+    } else if runtime::unlocked(config, vault.as_ref().map(|v| v.1).unwrap_or(0)) {
         "local_ready"
     } else {
         "locked"
@@ -199,7 +208,7 @@ pub fn get_local_sync_state() -> Result<LocalSyncStateDto> {
     // 锁定/加入中/未配置都是 None，UI 显示「不可见」而不是猜一个值。
     let relay_url = match (vault.as_ref(), identity.as_ref()) {
         (Some((installation, revision)), Some(identity)) => {
-            runtime::session_master(&config, *revision).and_then(|master| {
+            runtime::session_master(config, *revision).and_then(|master| {
                 store
                     .load_sync_vault(installation, &master, *revision)
                     .ok()

@@ -20,6 +20,7 @@ pub mod conflicts;
 pub mod datasets;
 pub mod invite;
 pub mod join;
+pub mod repair;
 
 pub use conflicts::{
     ObjectConflictDto, list_object_conflicts, list_wiki_page_conflicts,
@@ -39,6 +40,7 @@ pub use invite::{
     get_local_sync_state, inspect_owner_sync_invitation, install_sync_key, lock_local_sync,
     prepare_sync_key_request, release_sync_key_request, send_owner_sync_approval,
 };
+pub use repair::clear_local_sync_identity;
 pub use join::{
     SyncDatasetEntryDto, SyncEnrollmentStateDto, SyncJoinEntryDto, SyncJoinStateDto,
     SyncTickResultDto, advance_sync_enrollment, confirm_sync_enrollment, confirm_sync_join_key,

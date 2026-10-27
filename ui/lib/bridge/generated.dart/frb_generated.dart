@@ -33,6 +33,7 @@ import 'api/sync/conflicts.dart';
 import 'api/sync/datasets.dart';
 import 'api/sync/invite.dart';
 import 'api/sync/join.dart';
+import 'api/sync/repair.dart';
 import 'api/theme.dart';
 import 'api/todos.dart';
 import 'api/tweet.dart';
@@ -112,7 +113,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -854730017;
+  int get rustContentHash => -1825278083;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -220,6 +221,8 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<CompanionRevisitDto?> crateApiCompanionFlowCheckCompanionRevisit();
+
+  Future<LocalSyncStateDto> crateApiSyncRepairClearLocalSyncIdentity();
 
   Future<String> crateApiWikiComposePageReferenceSupplement({
     required List<String> slugs,
@@ -1995,6 +1998,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiCompanionFlowCheckCompanionRevisitConstMeta =>
       const TaskConstMeta(debugName: "check_companion_revisit", argNames: []);
+
+  @override
+  Future<LocalSyncStateDto> crateApiSyncRepairClearLocalSyncIdentity() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__repair__clear_local_sync_identity(
+            port_,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_local_sync_state_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncRepairClearLocalSyncIdentityConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncRepairClearLocalSyncIdentityConstMeta =>
+      const TaskConstMeta(debugName: "clear_local_sync_identity", argNames: []);
 
   @override
   Future<String> crateApiWikiComposePageReferenceSupplement({

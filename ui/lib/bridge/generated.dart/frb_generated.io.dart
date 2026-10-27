@@ -33,6 +33,7 @@ import 'api/sync/conflicts.dart';
 import 'api/sync/datasets.dart';
 import 'api/sync/invite.dart';
 import 'api/sync/join.dart';
+import 'api/sync/repair.dart';
 import 'api/theme.dart';
 import 'api/todos.dart';
 import 'api/tweet.dart';
@@ -14440,6 +14441,18 @@ class RustLibWire implements BaseWire {
       );
   late final _wire__crate__api__sync__join__trigger_network_sync =
       _wire__crate__api__sync__join__trigger_network_syncPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__sync__repair__clear_local_sync_identity(int port_) {
+    return _wire__crate__api__sync__repair__clear_local_sync_identity(port_);
+  }
+
+  late final _wire__crate__api__sync__repair__clear_local_sync_identityPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__repair__clear_local_sync_identity',
+      );
+  late final _wire__crate__api__sync__repair__clear_local_sync_identity =
+      _wire__crate__api__sync__repair__clear_local_sync_identityPtr
           .asFunction<void Function(int)>();
 
   void wire__crate__api__theme__get_theme_prefs(int port_) {

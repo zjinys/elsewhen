@@ -19,6 +19,7 @@ pub(crate) mod provider_conflicts;
 mod providers;
 mod resnapshot;
 pub(crate) mod snapshot;
+mod reset;
 mod singleton;
 mod vault;
 mod wiki;

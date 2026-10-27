@@ -36,6 +36,7 @@ import 'api/sync/conflicts.dart';
 import 'api/sync/datasets.dart';
 import 'api/sync/invite.dart';
 import 'api/sync/join.dart';
+import 'api/sync/repair.dart';
 import 'api/theme.dart';
 import 'api/todos.dart';
 import 'api/tweet.dart';
@@ -6257,6 +6258,12 @@ class RustLibWire implements BaseWire {
     port_,
   );
 
+  void wire__crate__api__sync__repair__clear_local_sync_identity(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__sync__repair__clear_local_sync_identity(
+    port_,
+  );
+
   void wire__crate__api__wiki__compose_page_reference_supplement(
     NativePortType port_,
     JSAny slugs,
@@ -8618,6 +8625,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void wire__crate__api__companion_flow__check_companion_revisit(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__sync__repair__clear_local_sync_identity(
     NativePortType port_,
   );
 
