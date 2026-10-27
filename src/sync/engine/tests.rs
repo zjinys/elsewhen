@@ -58,6 +58,23 @@ fn export_state(store: &Store, id: &str) -> String {
         )
         .unwrap()
 }
+fn accept_result(
+    store: &Store,
+    bytes: &[u8],
+    peer: &str,
+    key: &ContentKey,
+    signer: &DeviceIdentity,
+) -> anyhow::Result<bool> {
+    accept_relay_payload(
+        store,
+        &STANDARD.encode(bytes),
+        peer,
+        1,
+        key,
+        &signer.public_key(),
+    )
+}
+
 fn accept(
     store: &Store,
     bytes: &[u8],
@@ -1042,5 +1059,76 @@ fn failed_blob_recycle_is_retried_on_the_next_sweep() {
         statuses,
         vec!["done", "cancel", "done", "cancel"],
         "已发布要 done、作废要 cancel；且失败的行仍在清单里等待重试"
+    );
+}
+
+/// 交接收尾后的迟到重投必须是「幂等收尾」，不是「信号种类不支持」。
+///
+/// 真机现场（2026-10-27 11:03，设备库 `sync_wire_rejections` 唯一一行）：
+/// 一封 `enrollment-complete:…` 被连拒 3 次后丢弃，`last_error` 写着
+/// `sync_wire_kind_unsupported` —— 我们完全支持这个信号，只是那一刻本机的
+/// enrollment 会话已经结束、普通分派里没有它的分支。对端因此收不到确认，
+/// 只能一直重投（这被认为是 D3「交接完成后 UI 不收敛」的源头）。
+fn sealed_control(
+    message_id: &str,
+    sender: &Database,
+    recipient: &Database,
+    key: &ContentKey,
+    signer: &DeviceIdentity,
+) -> Vec<u8> {
+    let header = EnvelopeHeader::new(
+        sender.store.sync_identity().unwrap().unwrap().dataset_id,
+        sender.store.sync_identity().unwrap().unwrap().device_id,
+        recipient.store.sync_identity().unwrap().unwrap().device_id,
+        1,
+        message_id,
+    )
+    .unwrap();
+    crypto::seal(header, key, signer, b"{}")
+        .unwrap()
+        .to_bytes()
+        .unwrap()
+}
+
+#[test]
+fn a_late_enrollment_frame_from_a_member_is_retired_quietly_not_rejected() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    let key = ContentKey::generate().unwrap();
+    let signer = DeviceIdentity::generate().unwrap();
+    let bytes = sealed_control("enrollment-complete:late-duplicate", &a, &b, &key, &signer);
+    let members_before = b.count("sync_members");
+
+    assert!(
+        accept(&b.store, &bytes, "a", &key, &signer),
+        "成员发来的迟到收尾帧要当成「已经做完的事」消费掉（返回 true 才会被 ack、从 relay 删掉）"
+    );
+    assert_eq!(
+        b.count("sync_wire_rejections"),
+        0,
+        "不许记成拒收：这条帧是支持的，只是没有会话了"
+    );
+    assert_eq!(
+        b.count("sync_members"),
+        members_before,
+        "幂等收尾不许动名册：这封信要达成的事已经达成，再动就是二次应用"
+    );
+}
+
+#[test]
+fn a_late_enrollment_frame_from_a_stranger_is_still_rejected() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    let stranger = Database::new("stranger");
+    let key = ContentKey::generate().unwrap();
+    let signer = DeviceIdentity::generate().unwrap();
+    let bytes = sealed_control("enrollment-offer:unknown", &stranger, &b, &key, &signer);
+
+    let error = accept_result(&b.store, &bytes, "stranger", &key, &signer).unwrap_err();
+    assert!(
+        format!("{error:#}").contains("sync_wire_kind_unsupported"),
+        "不是成员 ⇒ 这封信本来就不该到这儿，必须照旧拒收，否则真错误会被一起吞掉：{error:#}"
     );
 }

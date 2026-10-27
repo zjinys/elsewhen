@@ -373,6 +373,18 @@ impl Store {
     /// 是「还要不要等」，只给条数给不出这个判断。
     ///
     /// 只算 `state='pending'`：`acknowledged` 是终态，留在表里的是历史记录。
+    /// 这个设备是否还在我的名册里、且未被撤销。
+    ///
+    /// 迟到重投的判定只能用这一个事实：对端是成员 ⇒ 交接那封信要达成的事已经
+    /// 达成（幂等收尾）；不是成员 ⇒ 这封信本来就不该到这儿，照旧拒收。
+    pub(crate) fn sync_member_is_active(&self, device_id: &str) -> Result<bool> {
+        Ok(self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sync_members WHERE device_id=?1 AND active=1)",
+            [device_id],
+            |r| r.get(0),
+        )?)
+    }
+
     pub(crate) fn pending_wire_backlog(&self) -> Result<(i64, i64)> {
         Ok(self.connection.query_row(
             "SELECT COUNT(*), COALESCE(SUM(LENGTH(encrypted_envelope)), 0) \

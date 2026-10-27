@@ -748,6 +748,18 @@ pub(crate) fn accept_relay_payload(
         store.receive_sync_operation(sender, &plaintext)?;
         return store.sync_operation_durable(&op.op_id);
     }
+    // 交接已经走到终点之后，对端可能还在重投收尾控制帧（它没等到回执）。
+    // 这些帧到这里时会话已经结束，会一路落到下面那个 `ensure!` 里被记成
+    // 「信号种类不支持」并连拒 3 次后丢弃 —— 真机现场（2026-10-27 11:03）就是
+    // 一封 `enrollment-complete:` 这样被丢的。危害是双份的：把「支持」写成「不支持」，
+    // 且拒收表被正常收尾噪声占满（D3「交接完成后不收敛」的最可能源头）。
+    // 判定只认一个事实：**发送方已经在我名册里**（那这封信要达成的事已经达成）
+    // ⇒ 幂等收尾。发送方不是成员时仍然走入拒收，否则真错误会被一起吞掉。
+    if crate::sync::protocol::is_enrollment_control_id(&message_id)
+        && store.sync_member_is_active(sender)?
+    {
+        return Ok(true);
+    }
     ensure!(
         message_id.starts_with("receipt-"),
         "sync_wire_kind_unsupported"

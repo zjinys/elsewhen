@@ -129,6 +129,19 @@ pub(crate) fn receipt_identity_mismatch(
     anyhow::anyhow!("sync_receipt_identity_mismatch kind={kind} {detail}")
 }
 
+/// 交接（enrollment）阶段才有的控制帧。
+///
+/// 用途只有一个：**判断一封迟到的重投是不是「已经做完的事」**。交接收尾后对端
+/// 可能还在重投这些帧（它没等到回执），此时本机会话已经结束、普通分派里没有
+/// 它们的分支 —— 真机现场（2026-10-27 11:03）一封 `enrollment-complete:` 就是
+/// 这样被记成 `sync_wire_kind_unsupported` 连拒 3 次后丢弃的。
+pub(crate) fn is_enrollment_control_id(id: &str) -> bool {
+    id.starts_with("membership:")
+        || id.starts_with("enrollment-")
+        || id.starts_with("snapshot-start:")
+        || id.starts_with("snapshot-end:")
+}
+
 pub(crate) fn validate_id(id: &str) -> Result<()> {
     ensure!(
         !id.is_empty()
