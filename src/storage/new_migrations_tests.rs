@@ -110,6 +110,7 @@ fn migrations_are_discovered_from_the_directory() {
             "61-wire-rejections",
             "62-wire-last-error",
             "63-relay-v3-review-f5",
+            "64-drop-mail-snapshot",
         ],
         "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
     );
@@ -141,7 +142,7 @@ fn migration_applies_goals_table() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 63, "六十三条迁移跑完，user_version 应为 63");
+    assert_eq!(version, 64, "六十四条迁移跑完，user_version 应为 64");
     assert_eq!(
         latest_version().unwrap(),
         version,

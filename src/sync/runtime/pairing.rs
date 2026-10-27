@@ -26,18 +26,16 @@ impl BackgroundPause {
     /// Must be called while holding the sessions mutex: a background caller
     /// cannot record itself busy (or start work) without that mutex first.
     fn acquire(root: &Path) -> Self {
-        let mut map = waiting()
-            .lock()
-            .unwrap_or_else(|p| p.into_inner());
+        let mut map = waiting().lock().unwrap_or_else(|p| p.into_inner());
         *map.entry(root.to_path_buf()).or_insert(0) += 1;
-        Self { root: root.to_path_buf() }
+        Self {
+            root: root.to_path_buf(),
+        }
     }
 }
 impl Drop for BackgroundPause {
     fn drop(&mut self) {
-        let mut map = waiting()
-            .lock()
-            .unwrap_or_else(|p| p.into_inner());
+        let mut map = waiting().lock().unwrap_or_else(|p| p.into_inner());
         if let Some(count) = map.get_mut(&self.root) {
             *count = count.saturating_sub(1);
             if *count == 0 {
@@ -483,7 +481,9 @@ mod tests {
             started.elapsed() >= std::time::Duration::from_millis(250),
             "approve must wait for the in-flight background caller"
         );
-        dropped_rx.recv_timeout(std::time::Duration::from_secs(5)).ok();
+        dropped_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .ok();
         holder.join().unwrap();
         assert_eq!(committed.key.revision, 2);
         // The reservation is gone once the mutation finished, so background

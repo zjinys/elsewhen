@@ -1,5 +1,4 @@
 use super::*;
-use crate::storage::sync::SnapshotTransport;
 use crate::sync::{
     crypto::{self, DeviceIdentity, EnvelopeHeader},
     transport_relay::{RelayEnvelope, RelayPage},
@@ -305,9 +304,8 @@ fn production_send_scope_requires_both_receipts_before_snapshot_chunks() {
         .peer_keys(&record.dataset_id, &record.peer.device_id)
         .unwrap();
     transfer::stage_offer(&store, record, &send, vault.identity(), false).unwrap();
-    let (ids, snapshot) = transfer::outgoing_scope(&store, record).unwrap();
+    let ids = transfer::outgoing_scope(&store, record).unwrap();
     assert_eq!(ids, vec![roster.clone()]);
-    assert!(snapshot.is_none());
     let ack = |message: &str| {
         let hash: String = store.connection.query_row("SELECT payload_hash FROM sync_wire_outbox WHERE recipient_device_id=?1 AND message_id=?2",
             rusqlite::params![record.peer.device_id, message], |r| r.get(0)).unwrap();
@@ -316,19 +314,19 @@ fn production_send_scope_requires_both_receipts_before_snapshot_chunks() {
             .unwrap();
     };
     ack(&roster);
-    let (ids, snapshot) = transfer::outgoing_scope(&store, record).unwrap();
+    let ids = transfer::outgoing_scope(&store, record).unwrap();
     assert!(ids.contains(&offer_id(&f.invitation, &offer.snapshot_id)));
-    assert!(snapshot.is_none());
     ack(&offer_id(&f.invitation, &offer.snapshot_id));
-    let (ids, snapshot) = transfer::outgoing_scope(&store, record).unwrap();
-    assert_eq!(snapshot, Some(offer.snapshot_id.as_str()));
+    let ids = transfer::outgoing_scope(&store, record).unwrap();
+    assert!(ids.contains(&format!("snapshot-end:{}", offer.snapshot_id)));
     let due = store
-        .due_enrollment_wires(&record.peer.device_id, now(), &ids, snapshot)
+        .due_enrollment_wires(&record.peer.device_id, now(), &ids)
         .unwrap();
     assert!(!due.is_empty());
-    assert!(due.iter().all(
-        |w| w.message_id.starts_with("snapshot:") || w.message_id.starts_with("snapshot-end:")
-    ));
+    // 快照线只有两条信令：`snapshot-start`（blob 在哪）+ `snapshot-end`（manifest）。
+    assert!(due.iter().all(|w| {
+        w.message_id.starts_with("snapshot-start:") || w.message_id.starts_with("snapshot-end:")
+    }));
 }
 
 #[test]
@@ -351,7 +349,7 @@ fn abandoned_export_does_not_block_the_same_roster_in_a_new_ready_attempt() {
     let record = loan.record.as_ref().unwrap();
     let old = record.snapshot.as_ref().unwrap().id.clone();
     store
-        .begin_snapshot_export(&old, &record.peer.device_id, record.key_version, SnapshotTransport::Mail)
+        .begin_snapshot_export(&old, &record.peer.device_id, record.key_version)
         .unwrap();
     let signed = store.current_signed_roster().unwrap().unwrap();
     let id = engine::membership_message_id(&signed).unwrap();
@@ -389,10 +387,9 @@ fn abandoned_export_does_not_block_the_same_roster_in_a_new_ready_attempt() {
     let loan = f.loan("owner");
     let store = loan.store().unwrap();
     let record = loan.record.as_ref().unwrap();
-    let (ids, snapshot) = transfer::outgoing_scope(&store, record).unwrap();
-    assert!(snapshot.is_none());
+    let ids = transfer::outgoing_scope(&store, record).unwrap();
     let due = store
-        .due_enrollment_wires(&record.peer.device_id, now(), &ids, snapshot)
+        .due_enrollment_wires(&record.peer.device_id, now(), &ids)
         .unwrap();
     assert_eq!(due.len(), 1);
     assert_eq!(due[0].message_id, id);

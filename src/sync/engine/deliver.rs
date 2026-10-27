@@ -96,10 +96,16 @@ pub(crate) fn classify_delivery_failure(error: &anyhow::Error) -> DeliveryFailur
     if lower.contains("relay_quota") || text.contains("507") {
         return DeliveryFailure::Quota;
     }
-    if lower.contains("too large") || lower.contains("413") || text.contains("sync_relay_payload_too_large") {
+    if lower.contains("too large")
+        || lower.contains("413")
+        || text.contains("sync_relay_payload_too_large")
+    {
         return DeliveryFailure::Protocol;
     }
-    if lower.contains("data integrity") || lower.contains("digest") || text.contains("sync_wire_payload_mismatch") {
+    if lower.contains("data integrity")
+        || lower.contains("digest")
+        || text.contains("sync_wire_payload_mismatch")
+    {
         return DeliveryFailure::Integrity;
     }
     if lower.contains("nonce") || lower.contains("revision changed") || lower.contains("409") {
@@ -187,10 +193,10 @@ pub(crate) struct DeliverStatus {
 
 impl Store {
     /// 每个对端一行：状态由 outbox 现有列推导，不落新列。
-///
-/// 注意 backoff 的判定多一个 `last_error <> ''`：**「已送出、等下一轮重发」的
-/// 最小间隔不是退避**（见 `resend_spacing_ms`）。只看时间会把刚发出的信
-/// 显示成「正在重试」，那正是状态机要消灭的那种假话。
+    ///
+    /// 注意 backoff 的判定多一个 `last_error <> ''`：**「已送出、等下一轮重发」的
+    /// 最小间隔不是退避**（见 `resend_spacing_ms`）。只看时间会把刚发出的信
+    /// 显示成「正在重试」，那正是状态机要消灭的那种假话。
     pub(crate) fn deliver_statuses(&self, now_ms: i64) -> anyhow::Result<Vec<DeliverStatus>> {
         let mut stmt = self.connection.prepare(
             "SELECT recipient_device_id, COUNT(*),
@@ -376,7 +382,11 @@ mod tests {
     }
 
     /// 递归找 `eprintln!`（跳过测试文件——测试断言 stderr 不算日志格式）。
-    fn collect_eprintln(directory: &std::path::Path, root: &std::path::Path, out: &mut Vec<String>) {
+    fn collect_eprintln(
+        directory: &std::path::Path,
+        root: &std::path::Path,
+        out: &mut Vec<String>,
+    ) {
         let Ok(entries) = std::fs::read_dir(directory) else {
             return;
         };
@@ -397,7 +407,10 @@ mod tests {
             if !name.ends_with(".rs") || name.contains("test") {
                 continue;
             }
-            if path == std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/sync/engine/deliver.rs") {
+            if path
+                == std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("src/sync/engine/deliver.rs")
+            {
                 continue;
             }
             let Ok(text) = std::fs::read_to_string(&path) else {

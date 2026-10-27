@@ -80,10 +80,16 @@ mod crypto;
 mod tests;
 mod transfer;
 
-pub(crate) use blob::{BlobState, WINDOW_CHUNKS, blob_capability, set_blob_capability};
+// `BlobOpen`/`BlobWindow` 只有测试用的内存数据面（`sync::mem_blob`）需要直接
+// 命名；生产构建里不会被提到，所以给这条 re-export 关掉 unused 警告。
+#[allow(unused_imports)]
+pub(crate) use blob::{
+    BlobOpen, BlobSink, BlobSource, BlobState, BlobWindow, RelaySink, RelaySource, WINDOW_CHUNKS,
+    blob_capability, set_blob_capability,
+};
 pub(crate) use crypto::random_hex;
 pub(crate) use crypto::{
-    RelayBlobUnavailable, RelayHttpError, RelayQuotaExceeded, bytes_to_hex, derive_key, hmac_sign_hex, integer_field,
-    request_stamp, response_json, sha256_hex, sign, validate_cursor, validate_integer,
-    validate_mailbox,
+    RelayBlobUnavailable, RelayHttpError, RelayQuotaExceeded, bytes_to_hex, derive_key,
+    hmac_sign_hex, integer_field, request_stamp, response_json, sha256_hex, sign, validate_cursor,
+    validate_integer, validate_mailbox,
 };

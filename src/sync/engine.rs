@@ -264,14 +264,10 @@ pub(crate) fn push_due(
     credential: &[u8; 32],
     now_ms: i64,
 ) -> Result<PushReport> {
-    // 日常增量每拍 ≤3 封（30s 一拍足够）。初始交接/重快照的数百封快照线
-    // 若沿用 3 封/拍要拖半小时：检测到快照导出线在途时放宽到 16 封/拍，
-    // 配合 Dart 侧传输期的即时唤醒，把初始同步压到分钟级。
-    let limit = if store.has_pending_snapshot_export_wires(recipient)? {
-        16
-    } else {
-        3
-    };
+    // 每拍 ≤3 封（30s 一拍足够）。曾经这里在快照导出线在途时放宽到 16 封/拍，
+    // 那是为了让 174 片逐片信封塞得进信箱；分片改走 blob 数据面后，快照线在信箱
+    // 里只剩 `snapshot-end:` 一封 manifest（2026-10-26 C5-A）。
+    let limit = 3;
     let pending = store.due_sync_wire_envelopes(recipient, now_ms, limit)?;
     let mut report = PushReport::default();
     for entry in pending {
@@ -290,7 +286,13 @@ pub(crate) fn push_due(
             expiry,
         ) {
             Ok(id) => {
-                store.record_sync_wire_attempt(recipient, &entry.message_id, now_ms, Some(&id), None)?;
+                store.record_sync_wire_attempt(
+                    recipient,
+                    &entry.message_id,
+                    now_ms,
+                    Some(&id),
+                    None,
+                )?;
                 report.uploaded += 1;
                 report.uploaded_bytes += entry.encrypted_envelope.len();
                 if entry.message_id.starts_with("receipt-") {
@@ -379,10 +381,11 @@ pub(crate) fn push_due(
             }
         }
     }
-    if report.failed > 0 {
-        // 推送失败在桌面端只进本地日志（tee 到 agent-debug.log），不中断 tick。
-        // 结构化一行：哪一端、多少个密文字节、封数与失败数 —— 不含任何载荷。
-        deliver::wire_emit(push_summary_line(recipient, &report));
+    // 成败都打（C3-1）：现场 F3 里成功推送一行日志都没有，于是「本拍推了几封、
+    // 成几封」全靠 relay 侧数目反推。零封的一拍不打印，否则一个空闲 peer 会每 30s
+    // 刷一行「0 / 0」，噪音淹没真信号；有尝试就必须留痕。
+    if let Some(line) = push_summary_line_opt(recipient, &report) {
+        deliver::wire_emit(line);
     }
     Ok(report)
 }
@@ -392,6 +395,16 @@ pub(crate) fn push_due(
 /// 口径：`subject` 是**对端**（这一行属于哪个收件方的一次推送），`bytes` 是这一拍
 /// 真正上行的密文字节总数，`detail` 只说封数与失败数 —— 四个槽位各说一件事，
 /// 不再用「封数冒充 bytes」。
+/// 「这一拍要不要打汇总行」的判断本身（C3-1）。抽成函数是为了能被断言：
+/// 成败都打、零尝试不打。写在两个 `push_due` 里各判一次，就是「同一逻辑
+/// 写两遍」，改一处忘一处时日志会静默变成只记失败。
+pub(crate) fn push_summary_line_opt(recipient: &str, report: &PushReport) -> Option<String> {
+    if report.uploaded == 0 && report.failed == 0 {
+        return None;
+    }
+    Some(push_summary_line(recipient, report))
+}
+
 pub(crate) fn push_summary_line(recipient: &str, report: &PushReport) -> String {
     deliver::wire_line(
         "push-summary",
@@ -530,7 +543,7 @@ pub(crate) fn pull_page(
 
 /// 只为审计而窥探信封头里的业务 `message_id`：拒收时往往连密钥都没过，
 /// 读不出来就空着 —— 绝不让它影响拒绝本身的结果。
-fn peek_message_id(ciphertext_b64: &str) -> Option<String> {
+pub(crate) fn peek_message_id(ciphertext_b64: &str) -> Option<String> {
     let bytes = STANDARD.decode(ciphertext_b64).ok()?;
     let envelope = EncryptedEnvelope::from_bytes(&bytes).ok()?;
     Some(envelope.unverified_header().message_id.clone())
@@ -648,7 +661,14 @@ pub(crate) fn accept_relay_payload(
         || message_id.starts_with("snapshot-end:")
         || message_id.starts_with("snapshot-start:")
     {
-        return snapshot::accept_snapshot(store, &bytes, &expected, key, trusted_sender, &plaintext);
+        return snapshot::accept_snapshot(
+            store,
+            &bytes,
+            &expected,
+            key,
+            trusted_sender,
+            &plaintext,
+        );
     }
     // Keep deltas at the relay until the initial snapshot is atomically published.
     // Applying them into an unfinished staging database would either lose their

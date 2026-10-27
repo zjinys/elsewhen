@@ -266,6 +266,25 @@ pub(super) fn application_roundtrip(
             0,
         )
         .unwrap();
+    // 快照只走 blob 数据面（mail 分片路径 2026-10-26 C5-A 已删除）：分片密文
+    // 一封都不进信箱，信箱里只有 `snapshot-start` / `snapshot-end` 两条信令。
+    let upload = engine::snapshot::BlobUpload {
+        sink: Box::new(crate::sync::transport_relay::RelaySink {
+            client: client.clone(),
+            mailbox: target_mailbox.clone(),
+            sender_mb: source_mailbox.clone(),
+            credential: forward,
+        }),
+        signal: Some(engine::snapshot::SignalSender {
+            client: client.clone(),
+            mailbox: target_mailbox.clone(),
+            sender_mb: source_mailbox.clone(),
+            credential: forward,
+        }),
+        recipient: "target".into(),
+        key_version: 1,
+        window_wait_ms: engine::snapshot::WINDOW_WAIT_MS,
+    };
     engine::snapshot::stage_snapshot(
         &source,
         "target",
@@ -273,12 +292,9 @@ pub(super) fn application_roundtrip(
         1,
         &content_ab,
         &signer_a,
-        None,
+        &upload,
     )
     .unwrap();
-    target
-        .begin_snapshot_import("worker-checkpoint", "source", 1)
-        .unwrap();
     for _ in 0..4 {
         client
             .send(
@@ -335,12 +351,32 @@ pub(super) fn application_roundtrip(
         accepted += pulled.accepted;
         dropped += pulled.dropped;
         assert!(!pulled.acknowledgement_failed);
+        if target.snapshot_import_pending().unwrap() {
+            // 分片从 blob 上拉，逐窗确认后立即释放 relay 空间。
+            let download = engine::snapshot::BlobDownload {
+                source: &crate::sync::transport_relay::RelaySource {
+                    client: client.clone(),
+                    mailbox: target_mailbox.clone(),
+                    owner_credential: target_owner,
+                },
+                from: "source",
+                key_version: 1,
+                // 分片是用 **source→target** 那把内容密钥（`content_ab`）加密、
+                // 由 `signer_a` 签的 —— 与 `source_peer` 完全同一身份。
+                key: &content_ab,
+                public: &source_public,
+            };
+            engine::snapshot::import_blob_snapshots(&target, &download, 4).unwrap();
+        }
         if !target.snapshot_import_pending().unwrap() {
             break;
         }
     }
     assert!(rejects >= 4);
-    assert!(accepted > 4);
+    // 分片不再进信箱（C5-A）：信箱里只有 `snapshot-start` / `snapshot-end`
+    // 两条信令，`accepted` 不可能再像 mail 分片时代那样 >4。数据面确实推进了
+    // 由下面「快照必须完成 + 数据/配置落地」的断言把关。
+    assert!(accepted >= 2, "两条快照信令都必须被接受: {accepted}");
     // 「必表态」（R5-2）：开头那 4 封毒信连信封都不是，是**不可恢复**的拒绝。
     // 超过阈值后必须被 drop（relay 立即删）+ 本地留审计，否则它们会一直绕圈到
     // 7 天 TTL —— 事故里 9996 封死信就是这么堆到 MAX_MAILS 的。
@@ -403,8 +439,21 @@ pub(super) fn application_roundtrip(
     assert_eq!(reply.content, "configured on new device");
     provider_server.join().unwrap();
     assert_eq!(provider_calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+    let pending_receipts = target.pending_sync_wire_receipts("source", 100).unwrap();
+    // 分片走 blob，不存在逐片回执：只剩 `snapshot-start`（通知收口）与
+    // `snapshot-end`（manifest 收口）两条。
+    assert!(
+        pending_receipts
+            .iter()
+            .all(|receipt| !receipt.message_id.starts_with("snapshot:")),
+        "分片不该产生回执: {:?}",
+        pending_receipts
+            .iter()
+            .map(|receipt| receipt.message_id.as_str())
+            .collect::<Vec<_>>()
+    );
     engine::stage_receipts(&target, "source", 1, &content_ba, &signer_b).unwrap();
-    assert_eq!(
+    assert!(
         engine::push_due(
             &target,
             &client,
@@ -415,8 +464,8 @@ pub(super) fn application_roundtrip(
             now
         )
         .unwrap()
-        .uploaded,
-        1
+        .uploaded
+            >= 1
     );
     let returned = engine::pull_page(
         &source,
@@ -426,7 +475,10 @@ pub(super) fn application_roundtrip(
         &target_peer,
     )
     .unwrap();
-    assert_eq!(returned.accepted, 1);
+    // 信封里有两条回执：`snapshot-start`（通知收口）与 `snapshot-end`（manifest
+    // 收口）。它们能不能被应用、能不能把导出线彻底退休，由下面的
+    // `due_sync_wire_envelopes` 为空来把关。
+    assert!(returned.accepted >= 1, "回执必须被应用: {}", returned.accepted);
     assert!(
         source
             .due_sync_wire_envelopes("target", i64::MAX, 10)

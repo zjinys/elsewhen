@@ -206,6 +206,7 @@ fn snapshot_keeps_reply_basis_but_not_local_run_authority() {
     let key = ContentKey::generate().unwrap();
     let signer = DeviceIdentity::generate().unwrap();
     let mut export = snapshot::SnapshotExporter::new(&a.store, "b", "response-basis", 1).unwrap();
+    export.declare_blob("blob-response-basis-aa");
     b.store
         .begin_snapshot_import("response-basis", "a", 1)
         .unwrap();

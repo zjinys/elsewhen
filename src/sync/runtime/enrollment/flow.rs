@@ -1,8 +1,6 @@
 //! 报名主流程：EnrollmentLoan 租约、begin、证明交换、快照/传输、advance 与 confirm。
 
 use super::*;
-use std::collections::HashSet;
-use std::sync::OnceLock;
 
 /// enrollment 扫描单页上限。relay 的 fetch 允许 1..=100，且服务端把单页响应
 /// 钳在 16MB 内，所以单页不会撑爆内存。老值 3 会把扫描卡在历轮配对留下
@@ -21,13 +19,6 @@ const SCAN_PAGE_LIMIT: usize = 100;
 /// 永远取不到，两端停在「等待成员授权与初始同步」。
 pub(super) fn scan_key(mailbox: &str) -> String {
     format!("{mailbox}#enrollment")
-}
-
-/// 本进程内已对 joiner「响过一次」的重推邮件（mailbox, 邮件 id）。
-/// 只为把第一处不可应用邮件错误浮出水面；重启后再次响一次。
-fn transfer_drop_registry() -> &'static Mutex<HashSet<(String, String)>> {
-    static REGISTRY: OnceLock<Mutex<HashSet<(String, String)>>> = OnceLock::new();
-    REGISTRY.get_or_init(|| Mutex::new(HashSet::new()))
 }
 
 pub(super) struct EnrollmentLoan {
@@ -281,6 +272,12 @@ pub(super) fn accept_proof_page(
     Ok(())
 }
 
+/// 交接期一拍（面板一次 `advance`）最多为分片 ack 等多久。
+///
+/// 与后台流式路径的 `WINDOW_WAIT_MS`（20s）不同：这里不能把 UI 调用扣在窗口上。
+/// 传不完是常态 —— 导出留在 `building`，下一拍从 `blob_index` 续传。
+const ENROLLMENT_WINDOW_WAIT_MS: u64 = 2_000;
+
 pub(super) fn prepare_snapshot(
     loan: &EnrollmentLoan,
     store: &Store,
@@ -314,8 +311,14 @@ pub(super) fn prepare_snapshot(
         .collect();
     engine::stage_provider_updates(store, &encryption, vault.identity())?;
     let (key, _, _) = vault.peer_keys(&record.dataset_id, &record.peer.device_id)?;
-    let upload =
+    // 分片只能走 blob 数据面；拿不到上传上下文（relay 没有 `/blob/*`）是硬错误：
+    // 宁可让面板显示 `sync_protocol_unsupported`，也不再退回「几百封信 + 整份重发」。
+    let mut upload =
         crate::sync::runtime::snapshot_upload(vault, &record.dataset_id, &record.peer.device_id)?;
+    // 这一拍是**面板的一次 `advance` 调用**（不是后台流式线程）：等分片 ack
+    // 最多到这里就收手，留下 `building` 下一拍续传。交接期的吞吐来自轮询
+    // 频率（对端每拍也在推进），不是把一次 HTTP 请求扣在窗口上 20 秒。
+    upload.window_wait_ms = ENROLLMENT_WINDOW_WAIT_MS;
     engine::snapshot::stage_enrollment_snapshot(
         store,
         &record.peer.device_id,
@@ -323,7 +326,7 @@ pub(super) fn prepare_snapshot(
         record.key_version,
         &key,
         vault.identity(),
-        upload.as_ref(),
+        &upload,
     )?;
     loan.check()?;
     Ok(())
@@ -375,19 +378,47 @@ pub(super) fn pull_transfer(
             ),
         );
     }
+    // 一封扫到的邮件该怎么处置。三态显式，扫描循环里**不再有「悄悄跳过」**：
+    // 每一封都要么被应用并 ack，要么在等依赖（Waiting），要么计入拒收表，
+    // 够次数就在 relay 上显式 drop。
+    enum Disposition {
+        Applied,
+        Waiting,
+        /// 不属于这条收件路径、但**也不能丢**的载荷：配对阶段由对端写进
+        /// 本机信箱的配对帧（授权/证明，二进制，首字节不是 `{`）。它的主人是
+        /// 配对流程（`joining::poll` 会读走并 ack），enrollment 扫描既不 ack
+        /// （ack 语义是「已应用」，这里没应用）也不 drop（那会在配对流程读走
+        /// 之前把它删掉，直接把交接弄坏）。
+        ///
+        /// F9 的教训不是「每封信都得进拒收表」，而是「游标不能被它钉住」——
+        /// 那由循环末尾无条件推进游标解决，与计数无关。
+        Parked,
+        Rejected(anyhow::Error),
+    }
+
+    let now_ms = chrono::Utc::now().timestamp_millis();
     let mut first_error: Option<anyhow::Error> = None;
+    let mut doomed: Vec<String> = Vec::new();
+    // 金库修订变后本次租约作废：处理完这一封就停，游标停在**这一封**上。
+    let mut stop_after: Option<String> = None;
     for mail in &page.envelopes {
         loan.check()?;
-        let accepted = if loan.role == EnrollmentRole::Owner
+        let disposition = if loan.role == EnrollmentRole::Owner
             && mail.sender_mb == record.bootstrap.request_sender
             && mail.ciphertext.len() <= 24 * 1024
         {
-            STANDARD.decode(&mail.ciphertext).ok().is_some_and(|bytes| {
+            // 对端的配对证明。已授权 = 处理完毕；没授权 = 还没轮到它，不是拒收。
+            let authorized = STANDARD.decode(&mail.ciphertext).ok().is_some_and(|bytes| {
                 store
                     .load_sync_vault(&loan.installation, &loan.master, loan.revision)
                     .and_then(|v| v.pairing(&loan.invitation)?.authorized(&bytes))
                     .unwrap_or(false)
-            })
+            });
+            if authorized {
+                Disposition::Applied
+            } else {
+                Disposition::Waiting
+            }
         } else if mail.sender_mb == record.route.peer_mailbox {
             let mut all = sessions().lock().unwrap_or_else(|p| p.into_inner());
             let session = loan.current(&mut all)?;
@@ -405,50 +436,76 @@ pub(super) fn pull_transfer(
                         let changed = commit.vault_revision != loan.revision;
                         EnrollmentLoan::pause(session, &loan.invitation, loan.role, commit);
                         if changed {
-                            store.save_relay_scan_cursor(&scan_key(mailbox), &mail.id)?;
-                            return Ok(());
+                            stop_after = Some(mail.id.clone());
                         }
                     }
-                    true
+                    Disposition::Applied
                 }
-                Ok(transfer::ReceiveOutcome::Waiting) => false,
+                Ok(transfer::ReceiveOutcome::Waiting) => Disposition::Waiting,
                 Err(error) if error.is::<rusqlite::Error>() || error.is::<std::io::Error>() => {
                     return Err(error);
                 }
                 Err(_) if !looks_like_dataplane_envelope(&mail.ciphertext) => {
                     // 配对帧 / 其它非信封载荷：本机信箱里配对阶段的残留。
-                    // 不 accept、不 ack（ack 语义是「已应用」）、不算错误。
-                    if trace {
-                        crate::sync::engine::deliver::wire_log(
-                            "pull-foreign-frame",
-                            &mail.id,
-                            mail.ciphertext.len(),
-                            &format!(
-                                "from {} skipped",
-                                &mail.sender_mb[..8.min(mail.sender_mb.len())]
-                            ),
-                        );
-                    }
-                    false
+                    Disposition::Parked
                 }
-                Err(error) => {
-                    // 发送端重推下「复现错误」的邮件不能永久阻塞整个交接：
-                    // 第一次冒泡给 tick（joiner 日志/UI 可见），同一进程对同一
-                    // 邮件只响一次，之后跳过并推进扫描光标——扫描会包绕回来
-                    // 重访它，发送端的新导出/重置也不会被它饿死。
-                    let key = (mailbox.clone(), mail.id.clone());
-                    let loud = transfer_drop_registry()
-                        .lock()
-                        .unwrap_or_else(|p| p.into_inner())
-                        .insert(key);
-                    if loud && first_error.is_none() {
-                        first_error = Some(error);
-                    }
-                    false
-                }
+                Err(error) => Disposition::Rejected(error),
             }
         } else {
-            false
+            // 本机信箱、却不来自配对对端：历轮配对/注销留下的残留。
+            // 这正是 `sync_relay_cursors.after_id` 卡在 0 的来源（F9：同一封
+            // 被扫 1239 次）—— 不 ack、不 drop 的信永远排在最前面。
+            Disposition::Rejected(anyhow::anyhow!("sync_enrollment_unroutable_mail"))
+        };
+        let accepted = match disposition {
+            Disposition::Applied => {
+                store.forget_wire_rejection(mailbox, &mail.id)?;
+                // 删除失败不回退本地应用结果：下一圈重扫会幂等地再走一次。
+                let _ = client.ack(
+                    mailbox,
+                    &loan.owner_credential,
+                    std::slice::from_ref(&mail.id),
+                );
+                true
+            }
+            Disposition::Waiting => false,
+            Disposition::Parked => {
+                if trace {
+                    crate::sync::engine::deliver::wire_log(
+                        "pull-foreign-frame",
+                        &mail.id,
+                        mail.ciphertext.len(),
+                        &format!(
+                            "from {} parked",
+                            &mail.sender_mb[..8.min(mail.sender_mb.len())]
+                        ),
+                    );
+                }
+                false
+            }
+            Disposition::Rejected(error) => {
+                // 计数必须落库：游标持久、进程重启后同一封会被重新扫到，
+                // 计数放内存就永远到不了阈值。
+                let message_id =
+                    crate::sync::engine::peek_message_id(&mail.ciphertext).unwrap_or_default();
+                let attempts = store.record_wire_rejection(
+                    mailbox,
+                    &mail.sender_mb,
+                    &mail.id,
+                    &message_id,
+                    &format!("{error:#}"),
+                    now_ms,
+                )?;
+                if attempts == 1 && first_error.is_none() {
+                    // 只在**第一次**见到它时冒泡（joiner 日志/UI 能看见根因），
+                    // 之后只计数，不再每拍刷屏。
+                    first_error = Some(error);
+                }
+                if attempts >= crate::sync::engine::MAX_WIRE_REJECTIONS {
+                    doomed.push(mail.id.clone());
+                }
+                false
+            }
         };
         if trace {
             let subject = STANDARD
@@ -468,28 +525,52 @@ pub(super) fn pull_transfer(
                 ),
             );
         }
-        if accepted {
-            loan.check()?;
-            // Failed relay deletion does not undo durable application or the receipt.
-            let _ = client.ack(
-                mailbox,
-                &loan.owner_credential,
-                std::slice::from_ref(&mail.id),
-            );
+        if stop_after.is_some() {
+            break;
         }
     }
-    loan.check()?;
+    // 「必表态」的执行部分：够次数的不可恢复死信在 relay 上**显式 drop**。
+    // 不能用 `ack`：ack 的语义是「已应用」，这里恰恰相反。
+    if !doomed.is_empty() {
+        match client.drop(mailbox, &loan.owner_credential, &doomed) {
+            Ok(_) => {
+                for id in &doomed {
+                    store.mark_wire_rejection_dropped(mailbox, id, now_ms)?;
+                }
+                crate::sync::engine::deliver::wire_log(
+                    "pull-drop",
+                    &mailbox[..8.min(mailbox.len())],
+                    doomed.len(),
+                    &format!("n {}", doomed.len()),
+                );
+            }
+            // relay 太老（没有 `/drop`）或删除失败：不能假装成功，也不能静默
+            // 留着 —— 留一行日志，这一封下一圈还会被扫到，attempts 继续涨。
+            Err(error) => crate::sync::engine::deliver::wire_log(
+                "pull-drop-failed",
+                &mailbox[..8.min(mailbox.len())],
+                doomed.len(),
+                &format!("n {} {error:#}", doomed.len()),
+            ),
+        }
+    }
+    store.prune_wire_rejections(now_ms)?;
+    // 游标必须**先**推进再把错误冒泡：否则同一页下一拍从同一处重来，
+    // 一封不可应用的信就能把整条扫描钉死在原地（C2-2）。
+    match &stop_after {
+        Some(id) => store.save_relay_scan_cursor(&scan_key(mailbox), id)?,
+        None => store.save_relay_scan_cursor(
+            &scan_key(mailbox),
+            if page.has_more {
+                &page.next_cursor
+            } else {
+                "0"
+            },
+        )?,
+    }
     if let Some(error) = first_error {
         return Err(error);
     }
-    store.save_relay_scan_cursor(
-        &scan_key(mailbox),
-        if page.has_more {
-            &page.next_cursor
-        } else {
-            "0"
-        },
-    )?;
     Ok(())
 }
 
@@ -600,7 +681,14 @@ pub(crate) fn advance(
             .map(|s| store.enrollment_export_state(&s.id))
             .transpose()?
             .flatten();
-        if record.snapshot.is_none() || matches!(export.as_deref(), Some("building" | "aborted")) {
+        // 上一份导出已被中止（abort）或根本还没选过快照：占一个新 id。
+        //
+        // `building` **不能**走这里：blob 数据面有窗口流控，一次上传要跨好几拍
+        // （窗口满就留 `building` 等接收端 ack），旧 mail 路径一拍传完才让
+        // 「building 就重发一份」看起来无害。照老样子重发会一拍烧掉一个
+        // `snapshot_attempts`，三拍后整场交接死于 `snapshot_attempt_limit`,
+        // 接收端只好去追一串永远不会到达的 `snapshot-start`。
+        if record.snapshot.is_none() || matches!(export.as_deref(), Some("aborted")) {
             loan.mutate(|store| {
                 store.reserve_enrollment_snapshot(
                     &loan.installation,
@@ -611,10 +699,16 @@ pub(crate) fn advance(
             })?;
             return loan.result();
         }
-        if export.is_none() {
+        // 还没有导出行（占好 id 但没开跑）或正在传（building）：开跑/续传同一份。
+        //
+        // **传完不 return**：本拍很可能只推了一个窗口（blob 窗口流控），而名单、
+        // offer、`push_due` 与 `pull_transfer` 都不能等它传完 —— 接收端要先拿到
+        // 名单/offer 才会选中快照，才会去 `blob-ack` 分片；发送端在这个时候
+        // 已经卡在窗口上等它。旧 mail 路径一拍把所有分片塞进 outbox，这条路
+        // 从没被分开看过，于是「return 一下更干净」把两端锁成了一对互等。
+        if export.is_none() || matches!(export.as_deref(), Some("building")) {
             let vault = store.load_sync_vault(&loan.installation, &loan.master, loan.revision)?;
             prepare_snapshot(&loan, &store, &vault, record)?;
-            return loan.result();
         }
         if export.as_deref() == Some("acknowledged") && !record.owner_confirmed {
             loan.mutate(|store| {
@@ -636,7 +730,18 @@ pub(crate) fn advance(
             transfer::stage_offer(&store, record, &send, vault.identity(), true)?;
         } else if let Some(roster) = transfer::snapshot_roster_id(&store, record)? {
             if transfer::wire_acknowledged(&store, &record.peer.device_id, &roster)? {
-                transfer::stage_offer(&store, record, &send, vault.identity(), false)?;
+                // offer 里带的是 manifest 的哈希与片数 —— 那是**最后一片传完**
+                // 才有的东西。blob 上传要跨好几拍（正在等接收端 ack），所以
+                // 「名单已 ack、导出还没 ready」是这一拍的常态，不是错误：
+                // 本拍把已经 ack 的分片消化掉，下一拍再来取 offer。
+                let export = match &record.snapshot {
+                    Some(snapshot) => store.enrollment_export_state(&snapshot.id)?,
+                    None => None,
+                };
+                let ready = matches!(export.as_deref(), Some("ready" | "acknowledged"));
+                if ready {
+                    transfer::stage_offer(&store, record, &send, vault.identity(), false)?;
+                }
             }
         }
     }
@@ -658,10 +763,12 @@ pub(crate) fn advance(
         && store.local_sync_membership_active()?
     {
         let download = crate::sync::engine::snapshot::BlobDownload {
-            client: &client,
-            mailbox: &record.route.local_mailbox,
-            owner_credential: &loan.owner_credential,
-            source: &record.peer.device_id,
+            source: &crate::sync::transport_relay::RelaySource {
+                client: client.clone(),
+                mailbox: record.route.local_mailbox.clone(),
+                owner_credential: loan.owner_credential,
+            },
+            from: &record.peer.device_id,
             key_version: record.key_version,
             key: &receive,
             public: &record.peer.signing_key,

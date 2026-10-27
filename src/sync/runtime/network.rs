@@ -6,6 +6,7 @@
 
 use anyhow::{Context, Result, ensure};
 
+use crate::sync::transport_relay::RelaySource;
 use crate::{config::AppConfig, storage::Store};
 
 use super::{background_guard, now, sessions};
@@ -228,10 +229,12 @@ pub(crate) fn tick(config: &AppConfig) -> Result<Option<NetworkTickReport>> {
         // relay 空间；拉齐就发布并整块回收。
         if store.snapshot_import_pending()? {
             let download = crate::sync::engine::snapshot::BlobDownload {
-                client: &client,
-                mailbox: &route.local_mailbox,
-                owner_credential: vault.mailbox_owner(),
-                source: &peer_id,
+                source: &RelaySource {
+                    client: client.clone(),
+                    mailbox: route.local_mailbox.clone(),
+                    owner_credential: *vault.mailbox_owner(),
+                },
+                from: &peer_id,
                 key_version,
                 key: &receive_key,
                 public: &peer_signing,
@@ -249,10 +252,12 @@ pub(crate) fn tick(config: &AppConfig) -> Result<Option<NetworkTickReport>> {
         // false —— 塞在导入流程里，最后一块 blob 就再也等不到下一拍。
         if !recycle_swept && store.blob_recycle_pending()? {
             let download = crate::sync::engine::snapshot::BlobDownload {
-                client: &client,
-                mailbox: &route.local_mailbox,
-                owner_credential: vault.mailbox_owner(),
-                source: &peer_id,
+                source: &RelaySource {
+                    client: client.clone(),
+                    mailbox: route.local_mailbox.clone(),
+                    owner_credential: *vault.mailbox_owner(),
+                },
+                from: &peer_id,
                 key_version,
                 key: &receive_key,
                 public: &peer_signing,
@@ -279,9 +284,14 @@ pub(crate) fn tick(config: &AppConfig) -> Result<Option<NetworkTickReport>> {
             continue;
         };
         let (send_key, _, key_version) = vault.peer_keys(&identity.dataset_id, member)?;
-        // 数据面（blob）传输需要一条到该成员信箱的上传通道；开关关着就是 None，
-        // 导出退回逐片信件。
-        let upload = crate::sync::runtime::snapshot_upload(&vault, &identity.dataset_id, member)?;
+        // 重快照和初始快照走同一条数据面。拿不到上传通道（relay 没有 `/blob/*`）
+        // 只跳过这一轮重快照：claim 会在下一拍重新领，别的同步工作不受影响。
+        let upload =
+            match crate::sync::runtime::snapshot_upload(&vault, &identity.dataset_id, member) {
+                Ok(upload) => upload,
+                Err(error) if error.to_string() == "sync_protocol_unsupported" => continue,
+                Err(error) => return Err(error),
+            };
         crate::sync::engine::snapshot::stage_enrollment_snapshot(
             &store,
             member,
@@ -289,7 +299,7 @@ pub(crate) fn tick(config: &AppConfig) -> Result<Option<NetworkTickReport>> {
             key_version,
             &send_key,
             vault.identity(),
-            upload.as_ref(),
+            &upload,
         )?;
         report.resnapshot_staged += 1;
     }

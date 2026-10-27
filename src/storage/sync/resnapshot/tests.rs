@@ -3,7 +3,7 @@
 //! fail-closed rules. Fixture mirrors `gc/tests.rs`.
 
 use crate::storage::Store;
-use crate::storage::sync::{BeginExport, ReplicaIdentity, SnapshotTransport};
+use crate::storage::sync::{BeginExport, ReplicaIdentity};
 use rusqlite::OptionalExtension;
 use uuid::Uuid;
 
@@ -186,9 +186,9 @@ fn in_flight_export_blocks_new_claims_until_finished() {
     // A building export keeps the claim: no rotation, no second delivery.
     assert!(matches!(
         a.store
-            .begin_snapshot_export(&claim.snapshot_id, "b", 1, SnapshotTransport::Mail)
+            .begin_snapshot_export(&claim.snapshot_id, "b", 1)
             .unwrap(),
-        BeginExport::Begun(SnapshotTransport::Mail)
+        BeginExport::Begun
     ));
     assert!(a.store.claim_sync_resnapshot("b").unwrap().is_none());
     assert_eq!(a.export_watermark(&claim.snapshot_id), 5);
@@ -213,7 +213,7 @@ fn begin_export_rejects_ids_that_do_not_match_the_current_request() {
     // can never satisfy the current request.
     let err = a
         .store
-        .begin_snapshot_export("resnap-b-99", "b", 1, SnapshotTransport::Mail)
+        .begin_snapshot_export("resnap-b-99", "b", 1)
         .unwrap_err();
     assert!(
         err.to_string().contains("resnapshot_request_mismatch"),
@@ -221,9 +221,9 @@ fn begin_export_rejects_ids_that_do_not_match_the_current_request() {
     );
     assert!(matches!(
         a.store
-            .begin_snapshot_export(&claim.snapshot_id, "b", 1, SnapshotTransport::Mail)
+            .begin_snapshot_export(&claim.snapshot_id, "b", 1)
             .unwrap(),
-        BeginExport::Begun(SnapshotTransport::Mail)
+        BeginExport::Begun
     ));
 }
 
@@ -237,9 +237,9 @@ fn finish_completes_only_the_current_acknowledged_request_and_reseeds_watermark(
     let claim = a.store.claim_sync_resnapshot("b").unwrap().unwrap();
     assert!(matches!(
         a.store
-            .begin_snapshot_export(&claim.snapshot_id, "b", 1, SnapshotTransport::Mail)
+            .begin_snapshot_export(&claim.snapshot_id, "b", 1)
             .unwrap(),
-        BeginExport::Begun(SnapshotTransport::Mail)
+        BeginExport::Begun
     ));
     assert_eq!(a.export_watermark(&claim.snapshot_id), 7);
     a.capture_n("post", 3); // live frontier now 10, above the build watermark
@@ -280,9 +280,9 @@ fn reflag_rotates_request_so_an_old_ack_cannot_satisfy_the_new_one() {
     let first = a.store.claim_sync_resnapshot("b").unwrap().unwrap();
     assert!(matches!(
         a.store
-            .begin_snapshot_export(&first.snapshot_id, "b", 1, SnapshotTransport::Mail)
+            .begin_snapshot_export(&first.snapshot_id, "b", 1)
             .unwrap(),
-        BeginExport::Begun(SnapshotTransport::Mail)
+        BeginExport::Begun
     ));
     // Old export completes with its build-time watermark (3)...
     a.mark_export_ready(&first.snapshot_id);
@@ -318,7 +318,7 @@ fn resnapshot_states_report_pending_flagged_members_read_only() {
     a.flag("b");
     let claim = a.store.claim_sync_resnapshot("b").unwrap().unwrap();
     a.store
-        .begin_snapshot_export(&claim.snapshot_id, "b", 1, SnapshotTransport::Mail)
+        .begin_snapshot_export(&claim.snapshot_id, "b", 1)
         .unwrap();
     let states = a.store.sync_resnapshot_states().unwrap();
     assert_eq!(states.len(), 2);

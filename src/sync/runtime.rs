@@ -23,19 +23,29 @@ use std::{
 
 /// 为一份快照导出准备 blob 上传上下文：接收方信箱 + 本机在该信箱里的 sender 凭据。
 ///
-/// 只在 `SYNC_SNAPSHOT_TRANSPORT=blob` 时才去读路由/派生凭据（mail 传输不该多
-/// 一次凭据派生）；拿不到任何东西就返回 `None`，让导出退回信件路径。
+/// 发送侧用的是**接收方信箱里的 sender 凭据**：上传方在 v2 里本来就是那个信箱里
+/// 被授权的 sender 身份，让它持 owner 凭据等于把能读/删整个信箱的主密钥交给上传
+/// 方，与盲中继的信任模型冲突。
+///
+/// 拿不到上下文（没路由、没凭据、relay 没有 blob 数据面）是**错误**，不是「退回
+/// 信件」：快照现在只有一个去处，退回信件那半条路已经删除（2026-10-26 C5-A）。
 pub(crate) fn snapshot_upload(
     vault: &crate::sync::vault::LocalVault,
     dataset_id: &str,
     peer: &str,
-) -> Result<Option<crate::sync::engine::snapshot::BlobUpload>> {
-    use crate::storage::sync::SnapshotTransport;
+) -> Result<crate::sync::engine::snapshot::BlobUpload> {
     use crate::sync::transport_relay::RelayClient;
-    if SnapshotTransport::from_env() != SnapshotTransport::Blob {
-        return Ok(None);
-    }
     let (send_key, _, key_version) = vault.peer_keys(dataset_id, peer)?;
+    #[cfg(test)]
+    if let Some(plane) = test_plane() {
+        return Ok(crate::sync::engine::snapshot::BlobUpload {
+            sink: Box::new(plane),
+            signal: None,
+            recipient: peer.to_string(),
+            key_version,
+            window_wait_ms: crate::sync::engine::snapshot::WINDOW_WAIT_MS,
+        });
+    }
     let route = vault.peer_route(dataset_id, peer)?.clone();
     let credential = RelayClient::derive_sender_credential(
         &send_key.to_bytes(),
@@ -50,23 +60,113 @@ pub(crate) fn snapshot_upload(
     // 探测问的是**本机信箱**的 `/status`：同一台 relay 实例，能力等价，而发送方
     // 凭据本来无权读对端 `/status`。
     if !relay_supports_blob(&client, &route.local_mailbox, vault.mailbox_owner()) {
-        return Ok(None);
+        return Err(anyhow::anyhow!("sync_protocol_unsupported"));
     }
-    Ok(Some(crate::sync::engine::snapshot::BlobUpload {
-        client,
+    let sink = crate::sync::transport_relay::RelaySink {
+        client: client.clone(),
         mailbox: route.peer_mailbox.clone(),
         sender_mb: route.local_mailbox.clone(),
         credential,
+    };
+    Ok(crate::sync::engine::snapshot::BlobUpload {
+        sink: Box::new(sink),
+        signal: Some(crate::sync::engine::snapshot::SignalSender {
+            client,
+            mailbox: route.peer_mailbox.clone(),
+            sender_mb: route.local_mailbox.clone(),
+            credential,
+        }),
         recipient: peer.to_string(),
         key_version,
         // 一拍最多为一个窗口等一等；等不到就本拍收手，下一拍续传。
         window_wait_ms: crate::sync::engine::snapshot::WINDOW_WAIT_MS,
-    }))
+    })
+}
+
+/// 测试用的内存数据面（每个测试线程一块）。生产构建里这两个符号不存在。
+#[cfg(test)]
+thread_local! {
+    static TEST_PLANE: std::cell::RefCell<Option<Arc<crate::sync::mem_blob::MemBlob>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// 给当前测试线程装一块内存数据面：此后本线程里的快照上传/下载都走它。
+///
+/// 为什么要有这个接缝：mail 分片路径删掉之后快照只剩一条数据面，「没有 relay
+/// 就跑不了快照」意味着所有配对流程用例（`Pair` 那套）一条也跑不起来 —— 那正是
+/// 窗口流控、逐窗 ack、发布时序最值得覆盖的地方。真实的 relay 行为由
+/// `transport_relay` 的用例与真机冒烟负责，这里只负责让生产代码原样跑起来。
+#[cfg(test)]
+pub(crate) fn use_mem_blob_plane() -> Arc<crate::sync::mem_blob::MemBlob> {
+    let plane = crate::sync::mem_blob::MemBlob::new();
+    TEST_PLANE.with(|slot| *slot.borrow_mut() = Some(plane.clone()));
+    plane
+}
+
+#[cfg(test)]
+fn test_plane() -> Option<Arc<crate::sync::mem_blob::MemBlob>> {
+    TEST_PLANE.with(|slot| slot.borrow().clone())
+}
+
+/// 下载侧的数据面选择：生产永远是 relay，测试可能被换成内存实现。
+///
+/// 用 enum 而不是 `&dyn BlobSource` 直接塞进去，是为了让 `BlobDownload` 的借用
+/// 落在调用点上（生成 blob 请求要凭据，凭据是每个 peer 现算的）。
+pub(crate) enum DownloadPlane {
+    Relay(crate::sync::transport_relay::RelaySource),
+    #[cfg(test)]
+    Mem(Arc<crate::sync::mem_blob::MemBlob>),
+}
+
+impl crate::sync::transport_relay::BlobSource for DownloadPlane {
+    fn get_window(
+        &self,
+        blob_id: &str,
+        from: usize,
+        count: usize,
+    ) -> Result<crate::sync::transport_relay::BlobWindow> {
+        match self {
+            Self::Relay(source) => source.get_window(blob_id, from, count),
+            #[cfg(test)]
+            Self::Mem(plane) => plane.get_window(blob_id, from, count),
+        }
+    }
+    fn ack(&self, blob_id: &str, upto: usize) -> Result<()> {
+        match self {
+            Self::Relay(source) => source.ack(blob_id, upto),
+            #[cfg(test)]
+            Self::Mem(plane) => plane.ack(blob_id, upto),
+        }
+    }
+    fn close(&self, blob_id: &str, status: &str) -> Result<()> {
+        match self {
+            Self::Relay(source) => source.close(blob_id, status),
+            #[cfg(test)]
+            Self::Mem(plane) => plane.close(blob_id, status),
+        }
+    }
+}
+
+/// 对端信箱 + 本机在那里的 owner 凭据 → 一个可用的下载数据面。
+pub(crate) fn download_plane(
+    client: &crate::sync::transport_relay::RelayClient,
+    mailbox: String,
+    owner_credential: [u8; 32],
+) -> DownloadPlane {
+    #[cfg(test)]
+    if let Some(plane) = test_plane() {
+        return DownloadPlane::Mem(plane);
+    }
+    DownloadPlane::Relay(crate::sync::transport_relay::RelaySource {
+        client: client.clone(),
+        mailbox,
+        owner_credential,
+    })
 }
 
 /// 这台 relay 支不支持 blob 数据面（问一次 `/status`，结果按 `base_url` 缓存）。
 ///
-/// 探测失败**不**缓存：一次网络抖动不该让本进程永久退回信件面。但「问到了
+/// 探测失败**不**缓存：一次网络抖动不该让本进程永久失去数据面。但「问到了
 /// 且没有 `blob`」要缓存 —— 那是对这台 relay 的结论，不是一次事故。
 fn relay_supports_blob(
     client: &crate::sync::transport_relay::RelayClient,
@@ -83,7 +183,7 @@ fn relay_supports_blob(
             crate::sync::transport_relay::set_blob_capability(url, supported);
             supported
         }
-        // 保守：信件路径永远能跑，数据面探测不到就先不用它。
+        // 探测失败不缓存（下拍再问），本拍按「没有数据面」处理：快照只能等。
         Err(_) => false,
     }
 }

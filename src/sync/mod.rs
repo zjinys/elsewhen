@@ -10,6 +10,8 @@ pub(crate) mod datasets;
 pub(crate) mod engine;
 pub(crate) mod enrollment;
 pub(crate) mod fragments;
+#[cfg(test)]
+pub(crate) mod mem_blob;
 pub(crate) mod membership;
 pub(crate) mod pairing;
 pub mod protocol;

@@ -70,8 +70,9 @@ impl BlobState {
 /// 为什么要有这份缓存（review 2026-10-25 M2）：`snapshot_upload` 每拍都要回答
 /// 「这次导出走数据面还是信件面」，不打缓存就是每拍一次 `/status`。键是
 /// `base_url` 而不是「全局布尔」：换一台 relay 自然重新探测。
-static BLOB_CAPABILITY: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, bool>>> =
-    std::sync::OnceLock::new();
+static BLOB_CAPABILITY: std::sync::OnceLock<
+    std::sync::Mutex<std::collections::HashMap<String, bool>>,
+> = std::sync::OnceLock::new();
 
 fn blob_capability_map() -> &'static std::sync::Mutex<std::collections::HashMap<String, bool>> {
     BLOB_CAPABILITY.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()))
@@ -120,7 +121,7 @@ impl RelayClient {
             // 「这台 relay 没有 blob 数据面」（review N1）。`/blob/open` 在**有**
             // blob 面的 relay 上永不 404（不存在的 blob 会被建成新的），所以这个
             // 404 是结论性的 —— 顺手把这台 relay 降级成「没有数据面」，下一拍
-            // 的导出直接走信件，不再每拍撞一次 404。
+            // 直接以 `sync_protocol_unsupported` 停手，不再每拍撞一次 404。
             .map_err(|error| {
                 let error = blob_unavailable(error);
                 if error.is::<RelayBlobUnavailable>() {
@@ -322,6 +323,13 @@ impl RelayClient {
         );
         let chunks = parse_frames(&body)?;
         ensure!(chunks.len() <= limit, "relay returned too many chunks");
+        // 有分片却没有游标 = 协议违约（中间的代理把 `x-blob-from` 吃了，或 relay
+        // 漏了这个头）。这时默默返回空窗会让接收端永远“还差一片”，而发送端
+        // 永远等不到 ack —— 面板就停在「等待成员初始同步」上，跟事故现场一模一样。
+        ensure!(
+            chunks.is_empty() || start >= 0,
+            "relay blob window missing cursor"
+        );
         Ok(BlobWindow {
             from: usize::try_from(start).ok(),
             chunks,
@@ -368,9 +376,18 @@ impl RelayClient {
     ) -> Result<usize> {
         validate_mailbox(mailbox)?;
         validate_blob_id(blob_id)?;
-        ensure!(matches!(status, "done" | "cancel"), "invalid blob close status");
+        ensure!(
+            matches!(status, "done" | "cancel"),
+            "invalid blob close status"
+        );
         let (ts, nonce) = request_stamp();
-        let sig = sign(credential, "blob-close", &[mailbox, blob_id, status], ts, &nonce);
+        let sig = sign(
+            credential,
+            "blob-close",
+            &[mailbox, blob_id, status],
+            ts,
+            &nonce,
+        );
         let mut body = serde_json::json!({
             "version": VERSION, "mailbox_key": mailbox, "blob_id": blob_id, "status": status,
             "ts": ts, "nonce": nonce, "sig": sig,
@@ -392,14 +409,121 @@ pub(crate) struct BlobWindow {
     pub chunks: Vec<Vec<u8>>,
 }
 
+/// 发送端眼里的快照数据面：开一份 blob、看它的进度、放一片。
+///
+/// 为什么有这层 trait（2026-10-26 C5-A）：mail 分片路径删除后，「不需要 relay
+/// 也能跑快照」的单元测试通道就没了 —— 只剩 `#[ignore]` 的真 relay 冒烟用例，
+/// 等于把窗口/ack/发布时序的 CI 覆盖一起删掉。两个三方法接缝让测试用内存数据面
+/// 跑**同一段生产代码**，而不是留一条测试专用的快照旁路。
+pub(crate) trait BlobSink {
+    /// 幂等开户：`created` 为真表示从第 0 片重来。
+    fn open(&self, blob_id: &str) -> Result<BlobOpen>;
+    /// 仍未被接收方 ack 的片。`None` 表示 relay 上已经看不到这份 blob。
+    fn state(&self, blob_id: &str) -> Result<Option<BlobState>>;
+    fn put(&self, blob_id: &str, index: usize, payload: &[u8]) -> Result<()>;
+}
+
+/// 接收端眼里的快照数据面：取一窗、确认释放、关掉。
+pub(crate) trait BlobSource {
+    fn get_window(&self, blob_id: &str, from: usize, count: usize) -> Result<BlobWindow>;
+    /// 确认到第 `upto` 片（含）已落盘，relay 据此释放这一窗。
+    fn ack(&self, blob_id: &str, upto: usize) -> Result<()>;
+    fn close(&self, blob_id: &str, status: &str) -> Result<()>;
+}
+
+/// 共享一份数据面（`Arc<MemBlob>`、只读的 `Arc<RelaySink>` 都靠它）：让
+/// `Box<dyn BlobSink>` / `&dyn BlobSource` 可以从共享所有权构造出来。
+impl<T: BlobSink + ?Sized> BlobSink for std::sync::Arc<T> {
+    fn open(&self, blob_id: &str) -> Result<BlobOpen> {
+        (**self).open(blob_id)
+    }
+    fn state(&self, blob_id: &str) -> Result<Option<BlobState>> {
+        (**self).state(blob_id)
+    }
+    fn put(&self, blob_id: &str, index: usize, payload: &[u8]) -> Result<()> {
+        (**self).put(blob_id, index, payload)
+    }
+}
+
+impl<T: BlobSource + ?Sized> BlobSource for std::sync::Arc<T> {
+    fn get_window(&self, blob_id: &str, from: usize, count: usize) -> Result<BlobWindow> {
+        (**self).get_window(blob_id, from, count)
+    }
+    fn ack(&self, blob_id: &str, upto: usize) -> Result<()> {
+        (**self).ack(blob_id, upto)
+    }
+    fn close(&self, blob_id: &str, status: &str) -> Result<()> {
+        (**self).close(blob_id, status)
+    }
+}
+
+/// 生产实现：把身份（信箱 + 凭据）绑在结构里，让调用点不必每片传五个参数。
+pub(crate) struct RelaySink {
+    pub(crate) client: RelayClient,
+    pub(crate) mailbox: String,
+    pub(crate) sender_mb: String,
+    pub(crate) credential: [u8; 32],
+}
+
+impl BlobSink for RelaySink {
+    fn open(&self, blob_id: &str) -> Result<BlobOpen> {
+        self.client
+            .blob_open(&self.mailbox, &self.sender_mb, &self.credential, blob_id)
+    }
+
+    fn state(&self, blob_id: &str) -> Result<Option<BlobState>> {
+        self.client.blob_state(
+            &self.mailbox,
+            blob_id,
+            &self.credential,
+            Some(&self.sender_mb),
+        )
+    }
+
+    fn put(&self, blob_id: &str, index: usize, payload: &[u8]) -> Result<()> {
+        self.client.blob_put(
+            &self.mailbox,
+            &self.sender_mb,
+            &self.credential,
+            blob_id,
+            index,
+            payload,
+        )
+    }
+}
+
+/// 生产实现（接收端）：读/确认自己的信箱是 owner 权限。
+pub(crate) struct RelaySource {
+    pub(crate) client: RelayClient,
+    pub(crate) mailbox: String,
+    pub(crate) owner_credential: [u8; 32],
+}
+
+impl BlobSource for RelaySource {
+    fn get_window(&self, blob_id: &str, from: usize, count: usize) -> Result<BlobWindow> {
+        self.client
+            .blob_get_window(&self.mailbox, &self.owner_credential, blob_id, from, count)
+    }
+
+    fn ack(&self, blob_id: &str, upto: usize) -> Result<()> {
+        self.client
+            .blob_ack(&self.mailbox, &self.owner_credential, blob_id, upto)?;
+        Ok(())
+    }
+
+    fn close(&self, blob_id: &str, status: &str) -> Result<()> {
+        self.client
+            .blob_close(&self.mailbox, &self.owner_credential, blob_id, status, None)?;
+        Ok(())
+    }
+}
+
 /// 把 blob 端点的 404 从「HTTP 状态错」里挑出来单列成 `RelayBlobUnavailable`。
 /// 只用于 `open` / `put`：`get_window` 的 404 有另一层语义（「发送端还没传到
 /// 这一片」），它在调用点自己返回空窗，绝不能变成错误。
 fn blob_unavailable(error: anyhow::Error) -> anyhow::Error {
     match error.downcast_ref::<RelayHttpError>() {
-        Some(RelayHttpError(status)) if is_not_found_status(*status) => {
-            RelayBlobUnavailable.into()
-        }
+        Some(RelayHttpError(status)) if is_not_found_status(*status) => RelayBlobUnavailable.into(),
         _ => error,
     }
 }
@@ -452,8 +576,14 @@ mod tests {
             body.extend_from_slice(&(chunk.len() as u32).to_be_bytes());
             body.extend_from_slice(chunk);
         }
-        assert_eq!(parse_frames(&body).unwrap(), vec![b"first".to_vec(), b"second".to_vec()]);
-        assert!(parse_frames(&body[..body.len() - 1]).is_err(), "截断必须报错");
+        assert_eq!(
+            parse_frames(&body).unwrap(),
+            vec![b"first".to_vec(), b"second".to_vec()]
+        );
+        assert!(
+            parse_frames(&body[..body.len() - 1]).is_err(),
+            "截断必须报错"
+        );
         assert!(parse_frames(&body[..2]).is_err(), "长度前缀不完整必须报错");
         assert!(parse_frames(&[]).unwrap().is_empty(), "空窗是合法的");
     }
@@ -479,10 +609,12 @@ mod tests {
             "404 必须被单列成「blob 没了/没这能力」"
         );
         // 5xx 照旧是 HTTP 错误：这条路要退避，不是要重传。
-        let error = blob_unavailable(
-            RelayHttpError(reqwest::StatusCode::SERVICE_UNAVAILABLE).into(),
+        let error =
+            blob_unavailable(RelayHttpError(reqwest::StatusCode::SERVICE_UNAVAILABLE).into());
+        assert!(
+            !error.is::<RelayBlobUnavailable>(),
+            "5xx 不能被当成 blob 没了"
         );
-        assert!(!error.is::<RelayBlobUnavailable>(), "5xx 不能被当成 blob 没了");
         // 与 blob 无关的错误原样穿过去，不改语义。
         let error = blob_unavailable(anyhow::anyhow!("connection reset"));
         assert!(!error.is::<RelayBlobUnavailable>());
@@ -492,7 +624,7 @@ mod tests {
     /// 不存在的 blob 会被建成新的）。这一下必须顺手把该 relay 降级成「没有
     /// 数据面」，否则下一拍还会再撞一次。
     #[test]
-    fn blob_open_404_downgrades_that_relay_to_mail() {
+    fn blob_open_404_downgrades_that_relay_to_no_dataplane() {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
         std::thread::spawn(move || {
@@ -517,7 +649,9 @@ mod tests {
             )
             .unwrap_err();
         assert!(
-            error.to_string().contains("relay blob is gone or unsupported"),
+            error
+                .to_string()
+                .contains("relay blob is gone or unsupported"),
             "错误文本必须能让人看出是数据面缺失：{error}"
         );
         assert_eq!(
@@ -529,7 +663,11 @@ mod tests {
 
     #[test]
     fn acked_upto_is_the_first_present_chunk() {
-        let state = BlobState { present: vec![3, 4, 5], highest: Some(5), stored_bytes: 3 };
+        let state = BlobState {
+            present: vec![3, 4, 5],
+            highest: Some(5),
+            stored_bytes: 3,
+        };
         assert_eq!(state.acked_upto(), 3);
         assert_eq!(BlobState::default().acked_upto(), usize::MAX);
     }

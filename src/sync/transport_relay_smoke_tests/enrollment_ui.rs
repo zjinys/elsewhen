@@ -112,6 +112,58 @@ pub(crate) fn run() -> CompletedEnrollment {
 /// The steady-state P3 test uses a plain relay; lost-response recovery itself
 /// is only asserted when the fault proxy is in front.
 pub(crate) fn run_with_fault_proxy(fault_proxy: bool) -> CompletedEnrollment {
+    run_scaled(fault_proxy, Bulk::Single(60_000), false)
+}
+
+/// C0 复现用的快照体形状。事故库是 241 条事件共 ~44 MB 明文（≈174 个 256 KiB 分片），
+/// 不是「一条超大记录」——`MAX_RECORD_BYTES = 20 MiB` 会先把后者拦下，
+/// 那是另一条错误路径（`sync_snapshot_record_too_large`），不是现场症状。
+pub(crate) enum Bulk {
+    /// 一条 `"large shared original ".repeat(n)` 事件（≈ n/21 MB）。
+    Single(usize),
+    /// `count` 条 `bytes` 字节的独立事件 —— 事故规模的形状。
+    Spread { count: usize, bytes: usize },
+}
+
+impl Bulk {
+    fn records(&self) -> usize {
+        match self {
+            Bulk::Single(_) => 1,
+            Bulk::Spread { count, .. } => *count,
+        }
+    }
+
+    fn seed(&self, store: &Store) {
+        match self {
+            Bulk::Single(repeat) => {
+                store
+                    .submit_input_as_event(
+                        &"large shared original ".repeat(*repeat),
+                        "capture",
+                        None,
+                    )
+                    .unwrap();
+            }
+            Bulk::Spread { count, bytes } => {
+                for index in 0..*count {
+                    let payload = format!("{index:06}-{}", "y".repeat(bytes.saturating_sub(7)));
+                    store
+                        .submit_input_as_event(&payload, "capture", None)
+                        .unwrap();
+                }
+            }
+        }
+    }
+}
+
+/// C0 复现入口：同一套生产链路，只把快照体放大到事故规模（≈174 片）。
+///
+/// `trace=true` 时不再对 `advance` 的错误 panic，而是每拍打印双方相位、
+/// joiner 的 `received_chunks/total_chunks` 与错误串 —— 真机上这些全在
+/// logcat 之外的 Dart 侧，拿不到，只能在本地复现里第一次看到。
+#[allow(clippy::too_many_lines)]
+pub(crate) fn run_scaled(fault_proxy: bool, bulk: Bulk, trace: bool) -> CompletedEnrollment {
+    let bulk_events = bulk.records();
     let url =
         std::env::var("ELSEWHEN_RELAY_TEST_URL").expect("isolated test harness supplies relay URL");
     let parsed = reqwest::Url::parse(&url).unwrap();
@@ -142,9 +194,7 @@ pub(crate) fn run_with_fault_proxy(fault_proxy: bool) -> CompletedEnrollment {
         )
         .unwrap();
     let source = Store::open(&owner.database_path).unwrap();
-    source
-        .submit_input_as_event(&"large shared original ".repeat(60_000), "capture", None)
-        .unwrap();
+    bulk.seed(&source);
     let (provider_url, calls, provider_thread) = provider();
     let primary = source
         .save_ai_provider_config(
@@ -207,11 +257,9 @@ pub(crate) fn run_with_fault_proxy(fault_proxy: bool) -> CompletedEnrollment {
     let mut captured_late = false;
     let mut grant_failures = 0;
     let started = Instant::now();
+    let deadline = Duration::from_secs(if trace { 900 } else { 100 });
     loop {
-        assert!(
-            started.elapsed() < Duration::from_secs(100),
-            "P2 enrollment did not settle"
-        );
+        assert!(started.elapsed() < deadline, "P2 enrollment did not settle");
         let mut complete = 0;
         for (index, (config, role)) in [(owner, "owner"), (joiner, "joiner")]
             .into_iter()
@@ -238,10 +286,41 @@ pub(crate) fn run_with_fault_proxy(fault_proxy: bool) -> CompletedEnrollment {
                         grant_failures += 1;
                         continue;
                     }
+                    Err(error) if trace => {
+                        eprintln!(
+                            "[c0] {role} advance error at +{:?}: {error:#}",
+                            started.elapsed()
+                        );
+                        std::thread::sleep(Duration::from_millis(400));
+                        continue;
+                    }
                     Err(error) => panic!("P2 runtime failed: {error}"),
                 }
             };
-            if role == "owner" && state.phase == "awaiting_roster" && !captured_late {
+            if trace {
+                eprintln!(
+                    "[c0] +{:?} {role} phase={} chunks={}/{} local_applied={} remote_applied={}",
+                    started.elapsed(),
+                    state.phase,
+                    state.received_chunks,
+                    state.total_chunks,
+                    state.local_applied,
+                    state.remote_applied
+                );
+            }
+            // 「快照冻结之后再写一笔」的抓取点：blob 数据面下导出要跨多拍才 `ready`，
+            // 所以 owner 根本不会再停在 `awaiting_roster`（那个相位只在导出已 ready、
+            // 名单还没 ack 时成立）。这里的语义只要求两个事实：导出视图已钉住、
+            // 接收方还没拿到这一笔。`awaiting_snapshot_selection` 与 `sending_snapshot`
+            // 都以「导出 ready」为前提（manifest 已落盘 = 视图早钉住了），满足前一条；
+            // 后一条无论写得多晚都成立——快照是一份时间点视图，晚写本来就不该进去。
+            if role == "owner"
+                && matches!(
+                    state.phase.as_str(),
+                    "awaiting_snapshot_selection" | "sending_snapshot" | "awaiting_receipt"
+                )
+                && !captured_late
+            {
                 source
                     .submit_input_as_event("captured after frozen snapshot", "capture", None)
                     .unwrap();
@@ -318,8 +397,8 @@ pub(crate) fn run_with_fault_proxy(fault_proxy: bool) -> CompletedEnrollment {
     let target = Store::open(&target_path)
         .unwrap()
         .with_provider_master(joiner_key);
-    assert_eq!(target.list_events().unwrap().len(), 1);
-    assert_eq!(source.list_events().unwrap().len(), 2);
+    assert_eq!(target.list_events().unwrap().len(), bulk_events);
+    assert_eq!(source.list_events().unwrap().len(), bulk_events + 1);
     assert_eq!(original.list_events().unwrap().len(), 1);
     assert_eq!(
         original
@@ -421,4 +500,21 @@ fn production_enrollment_recovers_grants_native_writes_and_receipts() {
     crate::sync::runtime::lock(&completed.owner);
     crate::sync::runtime::lock(&completed.joiner);
     let _ = std::fs::remove_dir_all(completed.owner.data_dir.parent().unwrap());
+}
+
+/// C0 复现：事故规模的 mail 快照（≈174 片 / 63 MB 明文）走同一套生产链路，
+/// 打印 joiner 每拍相位与错误串。**只用于定性，不是 CI 守卫**。
+#[test]
+#[ignore = "C0 repro; requires an explicitly launched isolated relay"]
+fn c0_large_mail_snapshot_repro() {
+    let completed = run_scaled(
+        false,
+        Bulk::Spread {
+            count: 1_500,
+            bytes: 30_000,
+        },
+        true,
+    );
+    crate::sync::runtime::lock(&completed.owner);
+    crate::sync::runtime::lock(&completed.joiner);
 }

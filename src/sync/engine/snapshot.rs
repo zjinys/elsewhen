@@ -4,23 +4,34 @@
 use anyhow::{Context, Result, ensure};
 
 use super::*;
-use crate::storage::sync::{BeginExport, SnapshotTransport};
+use crate::storage::sync::BeginExport;
 use crate::storage::sync::snapshot::{SnapshotExporter, SnapshotStart};
 use crate::sync::protocol::{ApplicationReceipt, validate_id};
-use crate::sync::transport_relay::{BlobState, RelayClient, WINDOW_CHUNKS, random_hex};
+use crate::sync::transport_relay::{
+    BlobSink, BlobSource, BlobState, RelayClient, WINDOW_CHUNKS, random_hex,
+};
 
-/// 上传一份快照所需的 relay 上下文。发送侧用的是**接收方信箱里的 sender 凭据**：
-/// 上传方在 v2 里本来就是那个信箱里被授权的 sender 身份，让它持 owner 凭据等于
-/// 把能读/删整个信箱的主密钥交给上传方，与盲中继的信任模型冲突。
+/// 立刻推一封 `snapshot-start` 所需的发信身份（与数据面同一份凭据）。
 ///
-/// 没有这个上下文（离线重建、纯本地测试）时自动退回 mail 传输。
-pub(crate) struct BlobUpload {
+/// 单独一只结构而不是塞进 `BlobUpload`：数据面走 `BlobSink`，信令走信箱，两者
+/// 的失败语义不同（推不出去只是晚一拍，传不上去是这份快照没成）。
+pub(crate) struct SignalSender {
     pub(crate) client: RelayClient,
-    /// 对端信箱（收信方）。
     pub(crate) mailbox: String,
-    /// 本机在该信箱里的 sender 身份。
     pub(crate) sender_mb: String,
     pub(crate) credential: [u8; 32],
+}
+
+/// 上传一份快照所需的上下文。
+///
+/// **分片只能走 blob 数据面**（2026-10-26 C5-A）：mail 分片路径（几百封信推进
+/// outbox、靠重发兜底）已删除。`signal` 只用于「开传第一拍立刻推一次
+/// `snapshot-start`」，纯本地/测试可以不给 —— 那时信令就排在 outbox 里等下一拍。
+pub(crate) struct BlobUpload {
+    /// 数据面：开 / 看进度 / 放一片。生产是 `RelaySink`，测试是内存实现。
+    pub(crate) sink: Box<dyn BlobSink>,
+    /// 立刻推信令用（可选）。
+    pub(crate) signal: Option<SignalSender>,
     /// 对端设备 id 与这轮使用的密钥版本（`snapshot-start` 信令要用）。
     pub(crate) recipient: String,
     pub(crate) key_version: u64,
@@ -103,9 +114,18 @@ pub(crate) fn stage_snapshot(
     key_version: u64,
     key: &ContentKey,
     signer: &DeviceIdentity,
-    upload: Option<&BlobUpload>,
+    upload: &BlobUpload,
 ) -> Result<()> {
-    stage_snapshot_inner(store, recipient, id, key_version, key, signer, false, upload)
+    stage_snapshot_inner(
+        store,
+        recipient,
+        id,
+        key_version,
+        key,
+        signer,
+        false,
+        upload,
+    )
 }
 
 pub(crate) fn stage_enrollment_snapshot(
@@ -115,18 +135,9 @@ pub(crate) fn stage_enrollment_snapshot(
     key_version: u64,
     key: &ContentKey,
     signer: &DeviceIdentity,
-    upload: Option<&BlobUpload>,
+    upload: &BlobUpload,
 ) -> Result<()> {
-    stage_snapshot_inner(
-        store,
-        recipient,
-        id,
-        key_version,
-        key,
-        signer,
-        true,
-        upload,
-    )
+    stage_snapshot_inner(store, recipient, id, key_version, key, signer, true, upload)
 }
 
 fn stage_snapshot_inner(
@@ -137,7 +148,7 @@ fn stage_snapshot_inner(
     key: &ContentKey,
     signer: &DeviceIdentity,
     with_authority: bool,
-    upload: Option<&BlobUpload>,
+    upload: &BlobUpload,
 ) -> Result<()> {
     ensure!(
         store.connection.is_autocommit(),
@@ -151,24 +162,16 @@ fn stage_snapshot_inner(
     // 的 (deleted ⇔ 行存在) 一致性闸门必炸（快照整块作废）。只修不改
     // 其它状态，幂等。
     store.heal_snapshot_heads()?;
-    // 传输方式只看「有没有 blob 上传上下文」：调用方给了 `upload` 就是要走
-    // 数据面（那是 `snapshot_upload()` 在 env 里读到 blob 才构造出来的），否则
-    // 走信件；要求 blob 但拿不到 relay 上下文（离线/纯本地）时同样退回信件 ——
-    // 宁可慢，也不能让"快照只存在于一个我们连不上的地方"。
-    let transport = if upload.is_some() {
-        SnapshotTransport::Blob
-    } else {
-        SnapshotTransport::Mail
-    };
-    let (transport, resume) = match store.begin_snapshot_export(id, recipient, key_version, transport)?
-    {
+    // 快照在 relay 上只有一个去处：数据面。不再有「没有上传上下文就退回信件」——
+    // 那条路就是本次事故所在（重发整份、无线程进度、无收敛点）。拿不到上下文由
+    // 调用方判成 `sync_protocol_unsupported`，而不是默默地慢。
+    let resume = match store.begin_snapshot_export(id, recipient, key_version)? {
         BeginExport::Done => return Ok(()),
-        BeginExport::Begun(transport) => (transport, None),
+        BeginExport::Begun => None,
         BeginExport::Resume {
-            transport,
             blob_index,
             blob_id,
-        } => (transport, Some((blob_index, blob_id))),
+        } => Some((blob_index, blob_id)),
     };
     let result = (|| {
         let mut exporter = SnapshotExporter::new(store, recipient, id, key_version)?;
@@ -183,16 +186,8 @@ fn stage_snapshot_inner(
             )?;
             store.stage_snapshot_authority(id, &header, key, signer, &signed.encode()?)?;
         }
-        if transport == SnapshotTransport::Blob {
-            let upload = upload.context("sync_snapshot_blob_uploader_missing")?;
-            // 只有 manifest 进 outbox（R4-3）：分片全在 relay 的 blob 上。
-            return upload_blob_chunks(store, upload, id, &mut exporter, key, signer, resume);
-        }
-        while let Some(bytes) = exporter.next_encrypted_chunk(key, signer)? {
-            stage_piece(store, id, &bytes, key, signer, false)?;
-        }
-        let manifest = exporter.finish(key, signer)?;
-        stage_piece(store, id, &manifest, key, signer, true)
+        // 分片只去 blob；只有 manifest（`snapshot-end:{id}`）进 outbox 当信令。
+        upload_blob_chunks(store, upload, id, &mut exporter, key, signer, resume)
     })();
     if result.is_err() {
         store.abort_snapshot_export(id)?;
@@ -215,10 +210,7 @@ fn upload_blob_chunks(
     signer: &DeviceIdentity,
     resume: Option<(u64, Option<String>)>,
 ) -> Result<()> {
-    let client = &upload.client;
-    let mailbox = upload.mailbox.as_str();
-    let sender_mb = upload.sender_mb.as_str();
-    let credential = &upload.credential;
+    let sink = upload.sink.as_ref();
     // blob 身份：同一份导出只开一次，重试用同一个 id（旧的靠 TTL 收）。
     let blob_id = match resume.as_ref().and_then(|(_, blob_id)| blob_id.clone()) {
         Some(blob_id) => blob_id,
@@ -229,7 +221,7 @@ fn upload_blob_chunks(
         }
     };
     exporter.declare_blob(&blob_id);
-    let opened = client.blob_open(mailbox, sender_mb, credential, &blob_id)?;
+    let opened = sink.open(&blob_id)?;
     announce_blob_snapshot(store, upload, id, signer, key, &blob_id)?;
     // 续传点必须跟 relay 的事实对齐：blob 刚建（原来的被 TTL 收掉/换了 relay）
     // 就只能从 0 重来，否则跳过的那段片永远到不了对端。
@@ -237,8 +229,8 @@ fn upload_blob_chunks(
         0
     } else {
         let stored = resume.map(|(index, _)| index).unwrap_or(0);
-        let state = client.blob_state(mailbox, &blob_id, credential, Some(sender_mb))?;
-        let relayed = state
+        let relayed = sink
+            .state(&blob_id)?
             .as_ref()
             .and_then(|state| state.highest)
             .map_or(0, |highest| highest as u64 + 1);
@@ -250,8 +242,12 @@ fn upload_blob_chunks(
     exporter.skip_chunks(usize::try_from(start)?)?;
     let mut sent_bytes = 0usize;
     let mut index = usize::try_from(start)?;
-    let mut acked = current_ack(&ack_state(client, mailbox, sender_mb, credential, &blob_id)?, index);
-    let wait_deadline =
+    let mut acked = current_ack(&sink.state(&blob_id)?, index);
+    // 等的是**下一批 ack**，不是「整个窗口的一次性预算」：只要接收方还在推进，
+    // 续期接着传（真机 122 MB 才能一路流下去）；真的没人 ack 了，才在
+    // `window_wait_ms` 后本拍收手。用一次性 deadline 会让发送端每传一窗就得
+    // 重开一拍，把一条稳态流拆成一堆拍。
+    let mut wait_deadline =
         std::time::Instant::now() + std::time::Duration::from_millis(upload.window_wait_ms);
     while let Some(bytes) = exporter.next_encrypted_chunk(key, signer)? {
         // 在途窗口：接收方还没 ack 的片数不能超过一窗，否则 relay 上就会堆下整份。
@@ -261,9 +257,14 @@ fn upload_blob_chunks(
                 return Ok(());
             }
             std::thread::sleep(std::time::Duration::from_millis(WINDOW_POLL_MS));
-            acked = current_ack(&ack_state(client, mailbox, sender_mb, credential, &blob_id)?, index);
+            let next = current_ack(&sink.state(&blob_id)?, index);
+            if next > acked {
+                acked = next;
+                wait_deadline = std::time::Instant::now()
+                    + std::time::Duration::from_millis(upload.window_wait_ms);
+            }
         }
-        client.blob_put(mailbox, sender_mb, credential, &blob_id, index, &bytes)?;
+        sink.put(&blob_id, index, &bytes)?;
         index += 1;
         sent_bytes += bytes.len();
         store.mark_snapshot_blob_progress(id, index as u64)?;
@@ -278,7 +279,7 @@ fn upload_blob_chunks(
         &format!("chunks {} blob {}", index, &blob_id[..8.min(blob_id.len())]),
     );
     // manifest 是唯一进 outbox 的东西 —— 它才是「去 blob 拉这份快照」的信令。
-    stage_piece(store, id, &manifest, key, signer, true)
+    stage_manifest(store, id, &manifest, key, signer)
 }
 
 /// 发出 `snapshot-start` 信令：告诉接收端「这份快照的分片在这个 blob 上，可以
@@ -306,16 +307,20 @@ fn announce_blob_snapshot(
         "blob_id": blob_id,
     }))?;
     store.stage_sync_wire_envelope(&header, key, signer, &payload)?;
+    // 没有推送通道（纯本地/测试）时信令就排队在 outbox 里，下一拍由 `push_due` 发出。
+    let Some(signal) = &upload.signal else {
+        return Ok(());
+    };
     let Some(entry) = store.pending_wire_envelope(&upload.recipient, &message_id)? else {
         // 已经发出去过了（重试/续传）：不需要再推，接收端迟早会拉到。
         return Ok(());
     };
     let now_ms = chrono::Utc::now().timestamp_millis();
     let expiry = now_ms + 7 * 24 * 60 * 60 * 1000;
-    match upload.client.send(
-        &upload.mailbox,
-        &upload.sender_mb,
-        &upload.credential,
+    match signal.client.send(
+        &signal.mailbox,
+        &signal.sender_mb,
+        &signal.credential,
         entry.seq_hint,
         &STANDARD.encode(&entry.encrypted_envelope),
         expiry,
@@ -352,16 +357,6 @@ fn announce_blob_snapshot(
 }
 
 /// 接收方已确认到第几片（不含）。relay 上看不到未 ack 的片时，视作全部已确认。
-fn ack_state(
-    client: &RelayClient,
-    mailbox: &str,
-    sender_mb: &str,
-    credential: &[u8; 32],
-    blob_id: &str,
-) -> Result<Option<BlobState>> {
-    client.blob_state(mailbox, blob_id, credential, Some(sender_mb))
-}
-
 fn current_ack(state: &Option<BlobState>, uploaded: usize) -> usize {
     match state {
         // 还没有任何片在 relay 上：要么一片没传，要么全被 ack 了。
@@ -371,18 +366,21 @@ fn current_ack(state: &Option<BlobState>, uploaded: usize) -> usize {
     }
 }
 
-fn stage_piece(
+/// 把 manifest 封好的信封排进 outbox（导出的唯一一封）。
+///
+/// 以前这里叫 `stage_piece` 并且要区分 `finish`：mail 传输把 174 片全部塞进
+/// outbox，分片与 manifest 走同一个函数。分片改走 blob 数据面后只剩这一种。
+fn stage_manifest(
     store: &Store,
     id: &str,
     bytes: &[u8],
     key: &ContentKey,
     signer: &DeviceIdentity,
-    finish: bool,
 ) -> Result<()> {
     let envelope = EncryptedEnvelope::from_bytes(bytes)?;
     let header = envelope.unverified_header();
     let plaintext = crypto::open(&envelope, header, key, &signer.public_key())?;
-    store.stage_snapshot_export_payload(id, header, key, signer, &plaintext, finish)
+    store.stage_snapshot_manifest(id, header, key, signer, &plaintext)
 }
 
 fn publish_and_receipt(
@@ -412,12 +410,15 @@ fn publish_and_receipt(
     Ok(published)
 }
 
-/// 接收端从 blob 拉片的通道（owner 凭据：读/确认自己的信箱是 owner 权限）。
+/// 接收端从 blob 拉片的通道。
+///
+/// `source` 是数据面（生产：owner 凭据读自己的信箱；测试：内存实现），`from` 是
+/// 发送方设备 id。两者故意不同名：以前它们都叫 `source`，改一次传输就得靠读代码
+/// 分辨「这是 relay 客户端还是设备」。
 pub(crate) struct BlobDownload<'a> {
-    pub(crate) client: &'a RelayClient,
-    pub(crate) mailbox: &'a str,
-    pub(crate) owner_credential: &'a [u8; 32],
-    pub(crate) source: &'a str,
+    pub(crate) source: &'a dyn BlobSource,
+    /// 发送方设备 id（这份快照的 owner）。
+    pub(crate) from: &'a str,
     pub(crate) key_version: u64,
     pub(crate) key: &'a ContentKey,
     pub(crate) public: &'a [u8; 32],
@@ -432,7 +433,7 @@ pub(crate) fn import_blob_snapshots(
     download: &BlobDownload<'_>,
     rounds: usize,
 ) -> Result<bool> {
-    for import in store.pending_blob_imports(download.source)? {
+    for import in store.pending_blob_imports(download.from)? {
         ensure!(
             import.key_version == download.key_version,
             "sync_snapshot_identity_conflict"
@@ -441,13 +442,9 @@ pub(crate) fn import_blob_snapshots(
         // 诊断：blob 拉取只在 ELSEWHEN_DEBUG 下打进度（片号/长度，不打正文）。
         let trace = std::env::var("ELSEWHEN_DEBUG").is_ok();
         for _ in 0..rounds {
-            let window = download.client.blob_get_window(
-                download.mailbox,
-                download.owner_credential,
-                &import.blob_id,
-                from,
-                WINDOW_CHUNKS,
-            )?;
+            let window = download
+                .source
+                .get_window(&import.blob_id, from, WINDOW_CHUNKS)?;
             let Some(start) = window.from else {
                 // relay 上没有这一片起的东西：发送端还没传到，或整份被回收了。
                 // 两种都只能等下一拍；真正作废由 GC/重快照兜底。
@@ -462,7 +459,7 @@ pub(crate) fn import_blob_snapshots(
                 store.stage_snapshot_chunk(
                     &import.id,
                     start + offset,
-                    download.source,
+                    download.from,
                     download.key_version,
                     bytes,
                     download.key,
@@ -474,12 +471,7 @@ pub(crate) fn import_blob_snapshots(
             }
             let upto = start + window.chunks.len() - 1;
             // 先落盘后确认：本地事务已提交，才敢让 relay 删掉这一窗。
-            download.client.blob_ack(
-                download.mailbox,
-                download.owner_credential,
-                &import.blob_id,
-                upto,
-            )?;
+            download.source.ack(&import.blob_id, upto)?;
             from = upto + 1;
             if trace {
                 super::deliver::wire_log(
@@ -500,7 +492,7 @@ pub(crate) fn import_blob_snapshots(
             if publish_and_receipt(
                 store,
                 &import.id,
-                download.source,
+                download.from,
                 download.key_version,
                 &manifest,
                 download.key,
@@ -510,7 +502,8 @@ pub(crate) fn import_blob_snapshots(
                 // 回收失败**不算导入失败**：快照已经发布、回执也排上了，重试这一拍
                 // 什么都不会重做。失败只是让 blob 在 relay 上多待一会儿，下一拍
                 // `recycle_published_blobs` 接着关（close 在 relay 侧是幂等的）。
-                if let Err(error) = close_published_blob(store, download, &import.id, &import.blob_id, "done")
+                if let Err(error) =
+                    close_published_blob(store, download, &import.id, &import.blob_id, "done")
                 {
                     super::deliver::wire_log(
                         "blob-recycle",
@@ -539,13 +532,7 @@ fn close_published_blob(
     blob_id: &str,
     status: &str,
 ) -> Result<()> {
-    download.client.blob_close(
-        download.mailbox,
-        download.owner_credential,
-        blob_id,
-        status,
-        None,
-    )?;
+    download.source.close(blob_id, status)?;
     store.mark_snapshot_blob_recycled(id, chrono::Utc::now().timestamp_millis())
 }
 
@@ -557,10 +544,7 @@ fn close_published_blob(
 ///
 /// 一轮里每行只试一次：close 失败留在表里，下一拍再来（relay 侧 30 分钟 TTL 仍是
 /// 最终兜底，不会无限堆积）。
-pub(crate) fn recycle_published_blobs(
-    store: &Store,
-    download: &BlobDownload<'_>,
-) -> Result<usize> {
+pub(crate) fn recycle_published_blobs(store: &Store, download: &BlobDownload<'_>) -> Result<usize> {
     let mut recycled = 0;
     for (id, blob_id, state) in store.pending_blob_recycles()? {
         // 作废的那份要 `cancel`（撤回），已发布的要 `done`（消费完成）。
@@ -568,12 +552,7 @@ pub(crate) fn recycle_published_blobs(
         if close_published_blob(store, download, &id, &blob_id, status).is_ok() {
             recycled += 1;
         } else {
-            super::deliver::wire_log(
-                "blob-recycle",
-                &id[..8.min(id.len())],
-                0,
-                "still pending",
-            );
+            super::deliver::wire_log("blob-recycle", &id[..8.min(id.len())], 0, "still pending");
         }
     }
     Ok(recycled)
@@ -626,44 +605,15 @@ pub(super) fn accept_snapshot(
         // An incomplete manifest is durably staged, not an application receipt.
         return Ok(true);
     }
-    let suffix = header
-        .message_id
-        .strip_prefix("snapshot:")
-        .context("sync_snapshot_identity_invalid")?;
-    let (id, index) = suffix
-        .split_once(':')
-        .context("sync_snapshot_identity_invalid")?;
-    validate_id(id)?;
-    let index: usize = index
-        .parse()
-        .map_err(|_| anyhow::anyhow!("sync_snapshot_index_invalid"))?;
+    // 剩下的只可能是 `snapshot:{id}:{n}` —— 已删除的 mail 分片路径的消息 id。
+    //
+    // 分片只能从 blob 数据面拉（`import_blob_snapshots`）。信箱里收到分片信封，
+    // 说明对端还在跑 2026-10-26（C5-A）之前的版本：那份"分片"与 relay 上那份
+    // blob 没有任何关系，收下就等于把两条路重新接上（一半片来自信件、一半来自
+    // blob，拼出来的快照谁也不敢信）。所以明确拒绝，让对端看到可解释的原因。
     ensure!(
-        header.message_id == format!("snapshot:{id}:{index}"),
-        "sync_snapshot_identity_invalid"
+        !header.message_id.starts_with("snapshot:"),
+        "sync_snapshot_transport_unsupported"
     );
-    let tx = store.begin_write_transaction()?;
-    store.stage_snapshot_chunk(
-        id,
-        index,
-        &header.sender_device_id,
-        header.key_version,
-        bytes,
-        key,
-        public,
-    )?;
-    if let Some(manifest) = store.staged_snapshot_manifest(id)? {
-        publish_and_receipt(
-            store,
-            id,
-            &header.sender_device_id,
-            header.key_version,
-            &manifest,
-            key,
-            public,
-        )?;
-    }
-    if let Some(tx) = tx {
-        tx.commit()?;
-    }
-    Ok(true)
+    Err(anyhow::anyhow!("sync_wire_kind_unsupported"))
 }

@@ -172,10 +172,19 @@ fn end_to_end_send_fetch_ack_against_real_worker() {
     let blob_sender = key();
     let blob_mailbox = client.create_mailbox(&blob_owner).unwrap();
     let blob_sender_mb = client.create_mailbox(&blob_sender).unwrap();
-    let blob_cred = RelayClient::derive_sender_credential(&blob_sender, &blob_sender_mb, &blob_mailbox).unwrap();
+    let blob_cred =
+        RelayClient::derive_sender_credential(&blob_sender, &blob_sender_mb, &blob_mailbox)
+            .unwrap();
     let expiry2 = chrono::Utc::now().timestamp_millis() + 3_600_000;
     client
-        .register_sender(&blob_mailbox, &blob_owner, &blob_sender_mb, &blob_cred, expiry2, 0)
+        .register_sender(
+            &blob_mailbox,
+            &blob_owner,
+            &blob_sender_mb,
+            &blob_cred,
+            expiry2,
+            0,
+        )
         .unwrap();
     let blob_id = crate::sync::transport_relay::random_hex(24);
     blob_roundtrip(
@@ -190,16 +199,30 @@ fn end_to_end_send_fetch_ack_against_real_worker() {
     // R5-1 `/drop`：放弃的信必须真的从 relay 消失（否则死信堆到 MAX_MAILS），
     // 但走的是独立签名域 —— 客户端不可能用「已消费」的调用表达「已丢弃」。
     let abandoned = client
-        .send(&blob_mailbox, &blob_sender_mb, &blob_cred, 900, "Z2FyYmFnZQ==", expiry2)
+        .send(
+            &blob_mailbox,
+            &blob_sender_mb,
+            &blob_cred,
+            900,
+            "Z2FyYmFnZQ==",
+            expiry2,
+        )
         .unwrap();
     assert_eq!(client.status(&blob_mailbox, &blob_owner).unwrap().count, 1);
     assert_eq!(
-        client.drop(&blob_mailbox, &blob_owner, &[abandoned.clone()]).unwrap(),
+        client
+            .drop(&blob_mailbox, &blob_owner, &[abandoned.clone()])
+            .unwrap(),
         1
     );
     assert_eq!(client.status(&blob_mailbox, &blob_owner).unwrap().count, 0);
     // 幂等：同一封再 drop 一次得 0，不是错误（丢响应重试的常态）。
-    assert_eq!(client.drop(&blob_mailbox, &blob_owner, &[abandoned]).unwrap(), 0);
+    assert_eq!(
+        client
+            .drop(&blob_mailbox, &blob_owner, &[abandoned])
+            .unwrap(),
+        0
+    );
 
     // 阶段四：窗口化快照（R4）——分片经 blob 传输，接收端边拉边删，
     // relay 峰值必须是一窗量级，close 后归零。
@@ -217,10 +240,10 @@ fn end_to_end_send_fetch_ack_against_real_worker() {
     blob_abort_resume(&client, &snapshot_dir);
 }
 
-#[path = "../transport_relay_smoke_tests/roundtrip.rs"]
-mod roundtrip;
 #[path = "../transport_relay_smoke_tests/blob.rs"]
 mod blob_roundtrip;
+#[path = "../transport_relay_smoke_tests/roundtrip.rs"]
+mod roundtrip;
 #[path = "../transport_relay_smoke_tests/snapshot_blob.rs"]
 mod snapshot_blob;
 

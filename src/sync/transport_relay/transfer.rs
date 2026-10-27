@@ -162,7 +162,13 @@ impl RelayClient {
             );
         }
         let (ts, nonce) = request_stamp();
-        let sig = sign(owner_cred, operation, &[mailbox, &ids.join(",")], ts, &nonce);
+        let sig = sign(
+            owner_cred,
+            operation,
+            &[mailbox, &ids.join(",")],
+            ts,
+            &nonce,
+        );
         let result: serde_json::Value = self.post(
             operation,
             &serde_json::json!({

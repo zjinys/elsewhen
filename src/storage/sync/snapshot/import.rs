@@ -1,6 +1,7 @@
 //! 快照导入入口：staging 数据库校验、分片暂存与发布。
 
 use super::*;
+use crate::storage::sync::delivery::SNAPSHOT_TRANSPORT;
 use crate::sync::protocol::validate_id;
 
 /// 一份在途的 blob 导入。
@@ -77,8 +78,8 @@ impl Store {
         )?;
         self.connection.execute("DELETE FROM sync_snapshot_chunks WHERE snapshot_id IN (SELECT id FROM sync_snapshots WHERE state='aborted')",[])?;
         self.connection.execute(
-            "INSERT INTO sync_snapshots(id,source_device_id,key_version) VALUES(?1,?2,?3)",
-            params![id, source, key_version as i64],
+            "INSERT INTO sync_snapshots(id,source_device_id,key_version,transport) VALUES(?1,?2,?3,?4)",
+            params![id, source, key_version as i64, SNAPSHOT_TRANSPORT],
         )?;
         self.connection.execute("INSERT INTO sync_snapshot_target(singleton,snapshot_id) VALUES(1,?1) ON CONFLICT(singleton) DO UPDATE SET snapshot_id=excluded.snapshot_id",[id])?;
         if let Some(tx) = tx {
@@ -377,17 +378,22 @@ impl Store {
         );
         validate_id(&manifest.processor_device_id)?;
         // 传输方式以 **manifest** 为准（它被发送端签名覆盖）：`snapshot-start`
-        // 只是提前给接收端一个线索，真伪在这里校正。blob 传输必须带 blob 身份。
-        let transport = manifest.transport.as_deref().unwrap_or("mail");
+        // 只是提前给接收端一个线索，真伪在这里校正。
+        //
+        // 快照只有一条传输路径（blob 数据面）。拿到一份 `transport` 缺省或写
+        // `'mail'` 的 manifest，说明对端还在跑已删除的分片信件路径 —— 那份分片
+        // 根本不在任何 blob 上，拉不到也不该假装能拉。明确报 `unsupported`，
+        // 让面板显示可解释的原因，而不是卡在「收集中」（2026-10-26 C5-A）。
+        let transport = manifest.transport.as_deref().unwrap_or("");
         ensure!(
-            matches!(transport, "mail" | "blob"),
-            "sync_snapshot_manifest_limit"
+            transport == SNAPSHOT_TRANSPORT,
+            "sync_snapshot_transport_unsupported"
         );
-        match (transport, manifest.blob_id.as_deref()) {
-            ("blob", Some(blob_id)) => validate_blob_id(blob_id)?,
-            ("blob", None) => return Err(anyhow::anyhow!("sync_snapshot_blob_id_invalid")),
-            _ => {}
-        }
+        let blob_id = manifest
+            .blob_id
+            .as_deref()
+            .context("sync_snapshot_blob_id_invalid")?;
+        validate_blob_id(blob_id)?;
         if self.has_sync_authority()? {
             ensure!(
                 manifest.processor_device_id == identity.processor_device_id,
@@ -429,9 +435,11 @@ impl Store {
                 || manifest.blob_id.as_deref()
                     == self
                         .connection
-                        .query_row("SELECT blob_id FROM sync_snapshots WHERE id=?1", [id], |r| {
-                            r.get::<_, Option<String>>(0)
-                        })?
+                        .query_row(
+                            "SELECT blob_id FROM sync_snapshots WHERE id=?1",
+                            [id],
+                            |r| { r.get::<_, Option<String>>(0) }
+                        )?
                         .as_deref(),
             "sync_snapshot_blob_conflict"
         );
@@ -505,9 +513,23 @@ impl Store {
             }
             ensure!(*sequence >= 0, "sync_snapshot_frontier_invalid");
             let (count,minimum,maximum):(i64,Option<i64>,Option<i64>)=self.connection.query_row("SELECT COUNT(*),MIN(origin_sequence),MAX(origin_sequence) FROM (SELECT origin_sequence FROM sync_operations WHERE origin_stream_id=?1 AND state IN ('applied','conflict') UNION ALL SELECT origin_sequence FROM sync_checkpoint_operations WHERE origin_stream_id=?1)",[stream],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?)))?;
+            // 这里守的是「快照给出的操作是一段**连续序号**，且上界正好落在声明的
+            // frontier 上」，**不是**「行数等于序号」：发送端的 GC 会删掉已被全员
+            // 确认的历史前缀（`sync_gc_state.gc_floor`），序号起点因此不再是 1 ——
+            // 真机现场 owner 流 `be73b530` 的 frontier=241，库里只剩 178..241 的
+            // 64 条，按行数比永远不等，于是**任何**快照都发布不了（手机停在
+            // 174/174、`snapshot-end:` 永远 pending，2026-10-27）。
+            //
+            // 快照本身的完整性由上面的 `bytes/records/digest` 兜底；这里只需挡住
+            // 「越界」（行数多于序号）和「留洞」（中间缺号）。`count == 0` 表示
+            // 该流的操作全部被压缩掉了，接收端靠领域表 + frontier 声明即可。
+            let contiguous = match (count, minimum, maximum) {
+                (0, _, _) => true,
+                (rows, Some(low), Some(high)) => high == *sequence && rows == high - low + 1,
+                _ => false,
+            };
             ensure!(
-                count == *sequence
-                    && (*sequence == 0 || (minimum == Some(1) && maximum == Some(*sequence))),
+                count <= *sequence && (*sequence == 0 || contiguous),
                 "sync_snapshot_frontier_not_covered"
             );
             ensure!(

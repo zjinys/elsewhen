@@ -121,24 +121,25 @@ fn receipt_subjects(store: &Store, record: &EnrollmentRecord) -> Result<Vec<Stri
     }
     if let Some(snapshot) = &record.snapshot {
         ids.push(offer_id(&record.invitation_id, &snapshot.id));
+        ids.push(format!("snapshot-start:{}", snapshot.id));
         ids.push(format!("snapshot-end:{}", snapshot.id));
         ids.push(completion_id(&record.invitation_id, &snapshot.id));
     }
     for receipt in store.pending_sync_wire_receipts(&record.peer.device_id, 100)? {
         let id = &receipt.message_id;
-        let belongs_to_this_snapshot = match &record.snapshot {
-            Some(snapshot) => id.contains(&snapshot.id),
-            None => false,
-        };
         let in_scope = id.starts_with("membership:")
             || id.starts_with("enrollment-")
-            || id.starts_with("snapshot-end:")
-            || (id.starts_with("snapshot:") && belongs_to_this_snapshot);
+            || id.starts_with("snapshot-start:")
+            || id.starts_with("snapshot-end:");
         if in_scope && !ids.contains(id) {
             ids.push(id.clone());
         }
     }
-    // due_enrollment_wires 的白名单上限是 8 条。
+    // due_enrollment_wires 的白名单上限是 8 条（两处必须一致，否则
+    // `sync_enrollment_wire_scope_invalid`）。这个数原本被抬到 32 是为了让 174 片
+    // 逐片回执每拍多走几条 —— 逐片回执随 mail 分片路径删除后，固定项（roster /
+    // offer / snapshot-end / completion）+ 几条迟到的 membership 回执就是全部，
+    // 8 条足够，也不再需要为「几百封信」留预算。
     ids.truncate(8);
     Ok(ids)
 }
@@ -200,12 +201,15 @@ pub(crate) fn wire_acknowledged(store: &Store, peer: &str, message: &str) -> Res
         .is_some_and(|(state, _)| state == "acknowledged"))
 }
 
-pub(crate) fn outgoing_scope<'a>(
-    store: &Store,
-    record: &'a EnrollmentRecord,
-) -> Result<(Vec<String>, Option<&'a str>)> {
+/// 这一拍允许发哪些信。
+///
+/// 快照线只有一封：`snapshot-end:{id}`（manifest）。它要在 offer 被确认后才进
+/// 白名单，而 SQL 里还有一道 `sync_snapshot_exports.state='ready'` 的闸门 ——
+/// 后者保证「分片还在传就宣告完成」不可能发生。以前这里返回第二个值
+/// (`snapshot_allowed`) 去放开 `snapshot:{id}:{n}` 的逐片信封，随 mail 分片路径
+/// 删除（2026-10-26 C5-A）。
+pub(crate) fn outgoing_scope(store: &Store, record: &EnrollmentRecord) -> Result<Vec<String>> {
     let mut ids = Vec::new();
-    let mut snapshot_allowed = None;
     if record.role == EnrollmentRole::Joiner {
         ids = receipt_subjects(store, record)?
             .iter()
@@ -217,15 +221,19 @@ pub(crate) fn outgoing_scope<'a>(
             let snapshot = record.snapshot.as_ref().unwrap();
             let offer = offer_id(&record.invitation_id, &snapshot.id);
             ids.push(offer.clone());
+            // `snapshot-start:{id}`：blob 数据面的开场信令。它不带分片，只告诉
+            // 接收端「分片在哪个 blob 上」，所以可以和 offer 一起推；数据面本身
+            // 有 `blob_open` 的 404 兜底，信令迟到不会让双方各说各话。
+            ids.push(format!("snapshot-start:{}", snapshot.id));
             if wire_acknowledged(store, &record.peer.device_id, &offer)? {
-                snapshot_allowed = Some(snapshot.id.as_str());
+                ids.push(format!("snapshot-end:{}", snapshot.id));
             }
             if record.owner_confirmed {
                 ids.push(completion_id(&record.invitation_id, &snapshot.id));
             }
         }
     }
-    Ok((ids, snapshot_allowed))
+    Ok(ids)
 }
 
 pub(crate) fn push_due(
@@ -240,12 +248,11 @@ pub(crate) fn push_due(
     if record.role == EnrollmentRole::Joiner {
         stage_receipts(store, record, key, signer)?;
     }
-    let (ids, snapshot_allowed) = outgoing_scope(store, record)?;
-    if ids.is_empty() && snapshot_allowed.is_none() {
+    let ids = outgoing_scope(store, record)?;
+    if ids.is_empty() {
         return Ok(PushReport::default());
     }
-    let entries =
-        store.due_enrollment_wires(&record.peer.device_id, now_ms, &ids, snapshot_allowed)?;
+    let entries = store.due_enrollment_wires(&record.peer.device_id, now_ms, &ids)?;
     let credential = RelayClient::derive_sender_credential(
         &key.to_bytes(),
         &record.route.local_mailbox,
@@ -274,6 +281,7 @@ pub(crate) fn push_due(
                     None,
                 )?;
                 report.uploaded += 1;
+                report.uploaded_bytes += entry.encrypted_envelope.len();
                 if entry.message_id.starts_with("envelope-receipt-") {
                     let envelope = EncryptedEnvelope::from_bytes(&entry.encrypted_envelope)?;
                     let header = EnvelopeHeader::new(
@@ -306,6 +314,13 @@ pub(crate) fn push_due(
                 // 同 engine::push_due：507 不是"没送到"，是"现在发什么都没用"。
                 // 停止本拍发送并退避，否则 16 封一起撞上限，每封都白洗一次计数。
                 let failure = crate::sync::engine::deliver::classify_delivery_failure(&error);
+                // 同 engine::push_due：一封一行只记分类码，不落远端响应体。
+                crate::sync::engine::deliver::wire_log(
+                    "push",
+                    &entry.message_id,
+                    entry.encrypted_envelope.len(),
+                    failure.code(),
+                );
                 if failure == crate::sync::engine::deliver::DeliveryFailure::Quota {
                     // 阻塞要落表（`blocked_reason` + `last_error`），否则
                     // `deliver_statuses` 的 blocked 分支永远没人写，面板只能靠猜。
@@ -328,6 +343,12 @@ pub(crate) fn push_due(
                 report.failed += 1;
             }
         }
+    }
+    // 与 `engine::push_due` 同一口径（C3-1）：交接路径也必须「成败都打」，
+    // 否则初始同步的 174 封信只会在 relay 侧看得到，本地日志一片空白。
+    if let Some(line) = crate::sync::engine::push_summary_line_opt(&record.peer.device_id, &report)
+    {
+        crate::sync::engine::deliver::wire_emit(line);
     }
     Ok(report)
 }
@@ -405,22 +426,42 @@ pub(crate) fn accept(
         };
         return Ok(ReceiveOutcome::Durable(Some(commit)));
     }
-    if id.starts_with("snapshot:") || id.starts_with("snapshot-end:") {
+    if id.starts_with("snapshot-start:")
+        || id.starts_with("snapshot:")
+        || id.starts_with("snapshot-end:")
+    {
         if record.role != EnrollmentRole::Joiner {
             return Ok(ReceiveOutcome::Waiting);
         }
-        let Some(selected) = &record.snapshot else {
-            return Ok(ReceiveOutcome::Waiting);
-        };
-        ensure!(
-            // `snapshot-start` 是 blob 传输的开场信令：它先于任何分片到达，
-            // 只带 blob 身份，安全等级与 snapshot 分片本身相同。
-            id == &format!("snapshot-start:{}", selected.id)
-                || id == &format!("snapshot-end:{}", selected.id)
-                || id.starts_with(&format!("snapshot:{}:", selected.id)),
-            "sync_enrollment_snapshot_identity_mismatch"
-        );
+        let is_start = id.starts_with("snapshot-start:");
+        match &record.snapshot {
+            Some(selected) => ensure!(
+                // `snapshot-start` 是 blob 传输的开场信令：它先于任何分片到达，
+                // 只带 blob 身份，安全等级与 snapshot 分片本身相同。
+                id == &format!("snapshot-start:{}", selected.id)
+                    || id == &format!("snapshot-end:{}", selected.id)
+                    || id.starts_with(&format!("snapshot:{}:", selected.id)),
+                "sync_enrollment_snapshot_identity_mismatch"
+            ),
+            // 还没选过快照（offer 还没到）：**只有** `snapshot-start` 可以先收。
+            //
+            // 它是「分片在哪个 blob 上」的线索，而且它是接收端唯一能开始拉数据的
+            // 入口 —— 压着它等 offer，就等成了互等：offer 要导出 `ready`，`ready`
+            // 要全部分片传完，分片传完要接收端 ack，接收端 ack 要先去拉。
+            // 收下它不改本机任何既有数据：`begin_blob_snapshot_import` 自带
+            // 「发送方是活跃成员」与「目标库为空」两道闸，真正的**发布**仍然要等
+            // offer 里的 manifest 哈希（下面 `snapshot-end` 分支），所以未选中的
+            // 快照永远进不了本机库。
+            None if is_start => {}
+            None => return Ok(ReceiveOutcome::Waiting),
+        }
         if id.starts_with("snapshot-end:") {
+            // `snapshot-end:` 只能来自已选中的快照（上面 `match` 已把未选中的情况
+            // 退成 `Waiting`），所以这里 `record.snapshot` 一定在。
+            let selected = record
+                .snapshot
+                .as_ref()
+                .context("sync_enrollment_snapshot_missing")?;
             ensure!(
                 selected.manifest_hash.as_deref()
                     == Some(crate::storage::sync::hash(&wire.plaintext).as_str()),
@@ -450,34 +491,31 @@ pub(crate) fn accept(
         if let Some(selected) = &record.snapshot {
             subjects.extend([
                 offer_id(&record.invitation_id, &selected.id),
+                // `snapshot-start:{id}` 也要收：它是 blob 数据面的开场通知，只
+                // 带 blob 身份；不收它的回执，发送端就会每拍重投这条信令。
+                format!("snapshot-start:{}", selected.id),
                 format!("snapshot-end:{}", selected.id),
                 completion_id(&record.invitation_id, &selected.id),
             ]);
         }
-        // 接收方的发布回执 subject 是触发 publish 的那封邮件 id：可能是
-        // snapshot-end，也可能是一片 chunk（最后一片先于 mail 乱序到达时）。
-        // 两者都证明整个导出在接收方已发布，不得据此丢弃回执。
-        let snapshot_subject = receipt
+        // 只有一种快照回执：`snapshot-end:{id}` = 整份导出已在接收方发布。
+        // 它是唯一能推进导出状态的回执（`acknowledge_snapshot_export` 顺带播种
+        // watermark、给 GC 松绑）。逐片回执（`snapshot:{id}:{n}`）曾是 mail 传输
+        // 的不变式①在信箱里的对偶，随 mail 分片路径一起删除（2026-10-26 C5-A）；
+        // 分片级的「已落盘」现在由数据面的 `blob_ack` 表达，不必再绕一圈信件。
+        let published = receipt
             .message_id
             .strip_prefix("snapshot-end:")
-            .map(str::to_string)
-            .or_else(|| {
-                receipt
-                    .message_id
-                    .strip_prefix("snapshot:")
-                    .and_then(|rest| rest.split(':').next().map(str::to_string))
-            });
+            .map(str::to_string);
         ensure!(
             receipt.dataset_id == record.dataset_id
                 && receipt.acknowledging_device_id == record.peer.device_id
                 && receipt.target_device_id == record.local_device_id
-                && (subjects.contains(&receipt.message_id) || snapshot_subject.is_some())
+                && (subjects.contains(&receipt.message_id) || published.is_some())
                 && *id == envelope_receipt_id(&receipt.message_id),
             "sync_enrollment_receipt_identity_mismatch"
         );
-        if let Some(snapshot) = snapshot_subject {
-            // 哈希对 subject 那封信封验证：可能是 manifest，也可能是触发发布的
-            // 那片 chunk（见上方注释）。
+        if let Some(snapshot) = published {
             store.acknowledge_snapshot_export(
                 &record.peer.device_id,
                 &snapshot,

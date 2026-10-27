@@ -13,7 +13,7 @@ use crate::sync::{
     crypto::{ContentKey, DeviceIdentity},
     engine,
     engine::snapshot::{BlobDownload, BlobUpload},
-    transport_relay::{RelayClient, WINDOW_CHUNKS},
+    transport_relay::{RelayClient, RelaySource, WINDOW_CHUNKS},
 };
 
 /// relay 自己的 blob 账（`/status` 是 owner 签名操作）。峰值断言只能看 relay 的
@@ -48,8 +48,12 @@ pub(super) fn roundtrip(client: &RelayClient, directory: &std::path::Path) {
             })
             .unwrap();
     }
-    source.authorize_sync_member("target", "stream-target").unwrap();
-    target.authorize_sync_member("source", "stream-source").unwrap();
+    source
+        .authorize_sync_member("target", "stream-target")
+        .unwrap();
+    target
+        .authorize_sync_member("source", "stream-source")
+        .unwrap();
     let signer_a = DeviceIdentity::generate().unwrap();
     let content_ab = ContentKey::generate().unwrap();
     // 正文规模默认 1 条 9.5 MB 事件（73 片，远超一窗），窗口流控才会真的被触发。
@@ -89,10 +93,18 @@ pub(super) fn roundtrip(client: &RelayClient, directory: &std::path::Path) {
         )
         .unwrap();
     let upload = BlobUpload {
-        client: client.clone(),
-        mailbox: target_mailbox.clone(),
-        sender_mb: source_mailbox.clone(),
-        credential: forward,
+        sink: Box::new(crate::sync::transport_relay::RelaySink {
+            client: client.clone(),
+            mailbox: target_mailbox.clone(),
+            sender_mb: source_mailbox.clone(),
+            credential: forward,
+        }),
+        signal: Some(engine::snapshot::SignalSender {
+            client: client.clone(),
+            mailbox: target_mailbox.clone(),
+            sender_mb: source_mailbox.clone(),
+            credential: forward,
+        }),
         recipient: "target".into(),
         key_version: 1,
         // 一遍「发送一拍 / 接收一拍」是串行跑的，等满 20 s 会把测试拖成分钟级。
@@ -120,7 +132,7 @@ pub(super) fn roundtrip(client: &RelayClient, directory: &std::path::Path) {
             1,
             &content_ab,
             &signer_a,
-            Some(&upload),
+            &upload,
         )
         .unwrap();
         // outbox 里永远只该有「信令」（snapshot-start / manifest）：分片密文一律
@@ -158,11 +170,14 @@ pub(super) fn roundtrip(client: &RelayClient, directory: &std::path::Path) {
         assert_eq!(pulled.rejected, 0, "快照信令不得被拒");
         assert!(!pulled.acknowledgement_failed);
         if target.snapshot_import_pending().unwrap() {
+            let source = RelaySource {
+                client: client.clone(),
+                mailbox: target_mailbox.clone(),
+                owner_credential: target_owner,
+            };
             let download = BlobDownload {
-                client,
-                mailbox: &target_mailbox,
-                owner_credential: &target_owner,
-                source: "source",
+                source: &source,
+                from: "source",
                 key_version: 1,
                 key: &content_ab,
                 public: &source_public,
@@ -250,8 +265,12 @@ pub(super) fn gap_import_breaks_without_error(client: &RelayClient, directory: &
             })
             .unwrap();
     }
-    source.authorize_sync_member("target", "stream-target").unwrap();
-    target.authorize_sync_member("source", "stream-source").unwrap();
+    source
+        .authorize_sync_member("target", "stream-target")
+        .unwrap();
+    target
+        .authorize_sync_member("source", "stream-source")
+        .unwrap();
 
     let owner = key();
     let mailbox = client.create_mailbox(&owner).unwrap();
@@ -271,7 +290,14 @@ pub(super) fn gap_import_breaks_without_error(client: &RelayClient, directory: &
     // 只放尾巴：0..19 缺失。
     for index in 20..30 {
         client
-            .blob_put(&mailbox, &sender_mb, &forward, &blob_id, index, b"gap-frame")
+            .blob_put(
+                &mailbox,
+                &sender_mb,
+                &forward,
+                &blob_id,
+                index,
+                b"gap-frame",
+            )
             .unwrap();
     }
     target
@@ -279,11 +305,14 @@ pub(super) fn gap_import_breaks_without_error(client: &RelayClient, directory: &
         .unwrap();
     let content = ContentKey::generate().unwrap();
     let public = DeviceIdentity::generate().unwrap().public_key();
+    let download_source = RelaySource {
+        client: client.clone(),
+        mailbox: mailbox.clone(),
+        owner_credential: owner,
+    };
     let download = BlobDownload {
-        client,
-        mailbox: &mailbox,
-        owner_credential: &owner,
-        source: "source",
+        source: &download_source,
+        from: "source",
         key_version: 1,
         key: &content,
         public: &public,
@@ -343,8 +372,12 @@ pub(super) fn aborted_export_resumes_and_publishes(
             })
             .unwrap();
     }
-    source.authorize_sync_member("target", "stream-target").unwrap();
-    target.authorize_sync_member("source", "stream-source").unwrap();
+    source
+        .authorize_sync_member("target", "stream-target")
+        .unwrap();
+    target
+        .authorize_sync_member("source", "stream-source")
+        .unwrap();
     source
         .submit_input_as_event("aborted export resumes", "capture", None)
         .unwrap();
@@ -368,11 +401,15 @@ pub(super) fn aborted_export_resumes_and_publishes(
         .unwrap();
 
     // 第一次：指向一个必然连不上的地址（端口 1 上没人监听）。
+    let unreachable = RelayClient::new("http://127.0.0.1:1").unwrap();
     let broken = BlobUpload {
-        client: RelayClient::new("http://127.0.0.1:1").unwrap(),
-        mailbox: target_mailbox.clone(),
-        sender_mb: source_mailbox.clone(),
-        credential: forward,
+        sink: Box::new(crate::sync::transport_relay::RelaySink {
+            client: unreachable.clone(),
+            mailbox: target_mailbox.clone(),
+            sender_mb: source_mailbox.clone(),
+            credential: forward,
+        }),
+        signal: None,
         recipient: "target".into(),
         key_version: 1,
         window_wait_ms: 200,
@@ -385,7 +422,7 @@ pub(super) fn aborted_export_resumes_and_publishes(
             1,
             &content_ab,
             &signer_a,
-            Some(&broken),
+            &broken,
         )
         .is_err(),
         "连不上 relay 就该失败（这一步是造 abort，不是在被测路径上）"
@@ -410,10 +447,18 @@ pub(super) fn aborted_export_resumes_and_publishes(
 
     // 第二次：同一个 id，真的 relay。必须续传并发布。
     let upload = BlobUpload {
-        client: client.clone(),
-        mailbox: target_mailbox.clone(),
-        sender_mb: source_mailbox.clone(),
-        credential: forward,
+        sink: Box::new(crate::sync::transport_relay::RelaySink {
+            client: client.clone(),
+            mailbox: target_mailbox.clone(),
+            sender_mb: source_mailbox.clone(),
+            credential: forward,
+        }),
+        signal: Some(engine::snapshot::SignalSender {
+            client: client.clone(),
+            mailbox: target_mailbox.clone(),
+            sender_mb: source_mailbox.clone(),
+            credential: forward,
+        }),
         recipient: "target".into(),
         key_version: 1,
         window_wait_ms: 200,
@@ -437,7 +482,7 @@ pub(super) fn aborted_export_resumes_and_publishes(
             1,
             &content_ab,
             &signer_a,
-            Some(&upload),
+            &upload,
         )
         .unwrap();
         engine::push_due(
@@ -450,15 +495,24 @@ pub(super) fn aborted_export_resumes_and_publishes(
             now + tick * 60_000,
         )
         .unwrap();
-        let pulled = engine::pull_page(&target, client, &target_mailbox, &target_owner, &source_peer)
-            .unwrap();
+        let pulled = engine::pull_page(
+            &target,
+            client,
+            &target_mailbox,
+            &target_owner,
+            &source_peer,
+        )
+        .unwrap();
         assert_eq!(pulled.rejected, 0);
         if target.snapshot_import_pending().unwrap() {
+            let source = RelaySource {
+                client: client.clone(),
+                mailbox: target_mailbox.clone(),
+                owner_credential: target_owner,
+            };
             let download = BlobDownload {
-                client,
-                mailbox: &target_mailbox,
-                owner_credential: &target_owner,
-                source: "source",
+                source: &source,
+                from: "source",
                 key_version: 1,
                 key: &content_ab,
                 public: &source_public,

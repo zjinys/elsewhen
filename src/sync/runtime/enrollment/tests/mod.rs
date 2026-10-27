@@ -13,6 +13,12 @@ use crate::sync::{
 struct Pair {
     owner: Fixture,
     joiner: Fixture,
+    /// 这一对设备的快照数据面（生产里是 relay `/blob/*`，测试里是内存实现）。
+    ///
+    /// 在 `new()` 里就给当前线程装上：`prepare_snapshot` 走的是生产的
+    /// `snapshot_upload`，没有数据面它会诚实地报 `sync_protocol_unsupported`，
+    /// 而这些用例本来也不该联网。
+    plane: std::sync::Arc<crate::sync::mem_blob::MemBlob>,
     owner_key: [u8; 32],
     joiner_key: [u8; 32],
     invitation: String,
@@ -22,6 +28,7 @@ struct Pair {
 
 impl Pair {
     fn new() -> Self {
+        let plane = crate::sync::runtime::use_mem_blob_plane();
         let owner = Fixture::new();
         owner
             .store
@@ -123,6 +130,7 @@ impl Pair {
         Self {
             owner,
             joiner,
+            plane,
             owner_key,
             joiner_key,
             invitation,
@@ -283,6 +291,39 @@ impl Pair {
         drop(loan);
         result
     }
+    /// 让 joiner（或 owner）真的从（测试用）blob 数据面拉一片窗口。
+    ///
+    /// 生产里这一拍由 `network.rs` / `flow.rs` 的 tick 触发；这些用例不跑 relay，
+    /// 于是把 tick 里那一步单独拎出来调 —— 调的是同一段 `import_blob_snapshots`。
+    fn import(
+        &self,
+        role: &str,
+        plane: &std::sync::Arc<crate::sync::mem_blob::MemBlob>,
+        rounds: usize,
+    ) -> bool {
+        let loan = self.loan(role);
+        let store = loan.store().unwrap();
+        let vault = store
+            .load_sync_vault(&loan.installation, &loan.master, loan.revision)
+            .unwrap();
+        let record = loan.record.as_ref().unwrap();
+        let (_, key, _) = vault
+            .peer_keys(&record.dataset_id, &record.peer.device_id)
+            .unwrap();
+        crate::sync::engine::snapshot::import_blob_snapshots(
+            &store,
+            &crate::sync::mem_blob::mem_download(
+                plane,
+                &record.peer.device_id,
+                record.key_version,
+                &key,
+                &record.peer.signing_key,
+            ),
+            rounds,
+        )
+        .unwrap()
+    }
+
     fn roster(&self) -> String {
         let loan = self.loan("owner");
         transfer::snapshot_roster_id(&loan.store().unwrap(), loan.record.as_ref().unwrap())
@@ -312,3 +353,5 @@ impl Pair {
 mod proof_fence;
 
 mod loan_flow;
+
+mod scan_drops;

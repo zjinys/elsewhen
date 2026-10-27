@@ -348,6 +348,7 @@ fn paired_content_producer_cannot_add_unsigned_snapshot_members() {
         .unwrap();
     let key = ContentKey::generate().unwrap();
     let mut export = SnapshotExporter::new(&producer.store, "c", "unsigned-members", 1).unwrap();
+    export.declare_blob("blob-unsigned-members-aa");
     c.store
         .begin_snapshot_import("unsigned-members", "b", 1)
         .unwrap();
@@ -400,6 +401,7 @@ fn old_content_snapshot_cannot_reactivate_a_revoked_member_or_assign_processor()
         .unwrap();
     let key = ContentKey::generate().unwrap();
     let mut exporter = SnapshotExporter::new(&a.store, "c", "old-view", 1).unwrap();
+    exporter.declare_blob("blob-old-view-aaaaaaaa");
     let mut chunks = vec![];
     while let Some(bytes) = exporter.next_encrypted_chunk(&key, &a.signer).unwrap() {
         chunks.push(bytes);

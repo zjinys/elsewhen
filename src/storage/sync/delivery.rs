@@ -8,51 +8,28 @@ use crate::storage::Store;
 use crate::sync::crypto::{ContentKey, DeviceIdentity, EnvelopeHeader};
 use crate::sync::protocol::validate_id;
 
-/// 一份快照走哪条路。**落库后不再变**：在途导出的续传、回执、关闭全按行里的
-/// 值走，绝不重新读环境变量或嗅探 relay —— 收发两端对「这份快照在哪」的判断
-/// 一旦不一致，就是整库替换路径上的悬空数据（R4-6）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SnapshotTransport {
-    /// 旧路径：逐片封成信件推进 `sync_wire_outbox`，接收方整份到齐才发布。
-    Mail,
-    /// 数据面：分片直接进 relay 的 blob，只有 manifest 走信件当信令。
-    Blob,
-}
-
-impl SnapshotTransport {
-    pub(crate) fn as_str(self) -> &'static str {
-        match self {
-            Self::Mail => "mail",
-            Self::Blob => "blob",
-        }
-    }
-
-    pub(crate) fn parse(value: &str) -> Result<Self> {
-        match value {
-            "mail" => Ok(Self::Mail),
-            "blob" => Ok(Self::Blob),
-            _ => Err(anyhow::anyhow!("sync_snapshot_transport_unknown")),
-        }
-    }
-
-    /// 环境变量开关 `SYNC_SNAPSHOT_TRANSPORT=mail|blob`（默认 mail，灰度期保守）。
-    /// 只有**新建**导出会读它；没有任何路径会在在途导出上重新读。
-    pub(crate) fn from_env() -> Self {
-        match std::env::var("SYNC_SNAPSHOT_TRANSPORT").as_deref() {
-            Ok("blob") => Self::Blob,
-            _ => Self::Mail,
-        }
-    }
-}
+/// 一份快照在 relay 上的传输方式。**只有一种**（2026-10-26 C5-A）。
+///
+/// 曾经这里是个枚举（`Mail`/`Blob`）：mail 分片路径把整份快照封成几百封信推进
+/// `sync_wire_outbox`，靠「全塞进去 + 重发兜底」收敛。它在 relay 上留下整份副本、
+/// 每片信封套两层 base64（≈2.67×）、且必须手工补上 blob 数据面（R4）本来就有的
+/// 三条不变式（有界在途 / 进度反馈 / 断点续传）。实测吞吐 mail 0.38 MB/s 对 blob
+/// 4.1 MB/s，而 `from_env()` 的默认值还是 mail —— 也就是说生产一直在跑那条更差、
+/// 更复杂的路。C5-A 删掉它：分片只走 blob 数据面，信箱只承载信令。
+///
+/// 为什么还留着 `sync_snapshot_exports.transport` 列：删列要重建 `sync_snapshot_exports`
+/// 与 `sync_snapshots` 两张被外键引用的表，风险与收益不成比例。列现在是**只写
+/// 常量**的历史标记（迁移 64 已清空所有 `'mail'` 行），读它的地方只剩「续传必须是
+/// blob」这一条闸门。
+pub(crate) const SNAPSHOT_TRANSPORT: &str = "blob";
 
 /// `begin_snapshot_export` 的结论。
 #[derive(Debug, Clone)]
 pub(crate) enum BeginExport {
     /// 新建的导出：从第 0 片开始。
-    Begun(SnapshotTransport),
-    /// 在途的 blob 导出：从已传完的片数继续，不再重封前面的片。
+    Begun,
+    /// 在途的导出：从已传完的片数继续，不再重封前面的片。
     Resume {
-        transport: SnapshotTransport,
         blob_index: u64,
         blob_id: Option<String>,
     },
@@ -95,7 +72,6 @@ impl Store {
         id: &str,
         recipient: &str,
         key_version: u64,
-        transport: SnapshotTransport,
     ) -> Result<BeginExport> {
         validate_id(id)?;
         validate_id(recipient)?;
@@ -122,10 +98,10 @@ impl Store {
             [],
             |r| r.get(0),
         )?;
-        let existing: Option<(String, i64, String, String, i64, Option<String>, i64)> = self
+        let existing: Option<(String, i64, String, i64, Option<String>, i64)> = self
             .connection
             .query_row(
-                "SELECT recipient_device_id,key_version,state,transport,blob_index,blob_id,blob_clock
+                "SELECT recipient_device_id,key_version,state,blob_index,blob_id,blob_clock
                  FROM sync_snapshot_exports WHERE id=?1",
                 [id],
                 |r| {
@@ -136,14 +112,11 @@ impl Store {
                         r.get(3)?,
                         r.get(4)?,
                         r.get(5)?,
-                        r.get(6)?,
                     ))
                 },
             )
             .optional()?;
-        if let Some((peer, version, state, stored_transport, blob_index, blob_id, blob_clock)) =
-            existing
-        {
+        if let Some((peer, version, state, blob_index, blob_id, blob_clock)) = existing {
             ensure!(
                 peer == recipient && version == key_version as i64,
                 "sync_snapshot_identity_conflict"
@@ -154,8 +127,12 @@ impl Store {
                 }
                 return Ok(BeginExport::Done);
             }
-            // 只有 blob 传输允许「同 id 续传」：它的进度是逐片 durable 的，续传
-            // 不重传来过的片。mail 传输的中断导出必须换新请求 id（旧语义不变）。
+            // 同 id 续传：导出的进度是逐片 durable 的（`blob_index`），续传不重传
+            // 来过的片。
+            //
+            // 这里不再检查 `transport` 列：值只可能是 `'blob'`（迁移 64 用触发器把
+            // `'mail'` 写入直接拒掉，存量 mail 行也已清空）。原先这条比对是「在途
+            // 导出不许被环境变量降级」的闸门；环境变量没了，闸门也就没东西可挡。
             //
             // `aborted` 为什么也能续传（review 2026-10-25 M1）：`abort_snapshot_export`
             // 只作用于 `building`，所以 `aborted` 恒等于「建过但没建成」，不会出现
@@ -165,11 +142,12 @@ impl Store {
             // 因此续传**不会跳过没上传的片**。不放行的话，任何一次 staging 失败
             // （断电/provay 抖一下）都会把 `claim_sync_resnapshot` 拿到的**同一个 id**
             // 变成永久失败：每拍重 begin 一次、每次都 `requires_new_request`。
-            let resumable = matches!(state.as_str(), "building" | "aborted")
-                && stored_transport == SnapshotTransport::Blob.as_str();
-            ensure!(resumable, "sync_snapshot_export_requires_new_request");
             ensure!(
-                transport == SnapshotTransport::Blob && blob_clock == logical_clock,
+                matches!(state.as_str(), "building" | "aborted"),
+                "sync_snapshot_export_requires_new_request"
+            );
+            ensure!(
+                blob_clock == logical_clock,
                 "sync_snapshot_export_requires_new_request"
             );
             // 从 `aborted` 续传时把状态摆回 `building`：否则后续 `abort_snapshot_export`
@@ -185,7 +163,6 @@ impl Store {
                 tx.commit()?;
             }
             return Ok(BeginExport::Resume {
-                transport: SnapshotTransport::Blob,
                 blob_index: blob_index.max(0) as u64,
                 blob_id,
             });
@@ -227,12 +204,12 @@ impl Store {
             .unwrap_or(0);
         self.connection.execute(
             "INSERT INTO sync_snapshot_exports(id,recipient_device_id,key_version,state,local_watermark,roster_revision,transport,blob_clock) VALUES(?1,?2,?3,'building',?4,?5,?6,?7)",
-            params![id,recipient,key_version as i64,local_watermark,roster_revision,transport.as_str(),logical_clock],
+            params![id,recipient,key_version as i64,local_watermark,roster_revision,SNAPSHOT_TRANSPORT,logical_clock],
         )?;
         if let Some(tx) = tx {
             tx.commit()?;
         }
-        Ok(BeginExport::Begun(transport))
+        Ok(BeginExport::Begun)
     }
 
     /// 记下这份导出的 blob 身份。开一次就一直复用，重试不再开新 blob。
@@ -296,14 +273,17 @@ impl Store {
         Ok(())
     }
 
-    pub(crate) fn stage_snapshot_export_payload(
+    /// 把这份导出的 **manifest**（`snapshot-end:{id}`）排进 outbox，并把导出置 `ready`。
+    ///
+    /// 分片不在 outbox 里（它们走 blob 数据面），所以这里是导出唯一会进信箱的东西：
+    /// 它宣告「分片都传完了，去 `blob_id` 拉」，也是接收方唯一能断言「全片已落盘」的证据。
+    pub(crate) fn stage_snapshot_manifest(
         &self,
         id: &str,
         header: &EnvelopeHeader,
         key: &ContentKey,
         signer: &DeviceIdentity,
         payload: &[u8],
-        finish: bool,
     ) -> Result<()> {
         let tx = self.begin_write_transaction()?;
         let (peer, version, state): (String, i64, String) = self.connection.query_row(
@@ -318,11 +298,7 @@ impl Store {
             "sync_snapshot_export_not_building"
         );
         ensure!(
-            if finish {
-                header.message_id == format!("snapshot-end:{id}")
-            } else {
-                header.message_id.starts_with(&format!("snapshot:{id}:"))
-            },
+            header.message_id == format!("snapshot-end:{id}"),
             "sync_snapshot_identity_conflict"
         );
         self.stage_sync_wire_envelope(header, key, signer, payload)?;
@@ -330,12 +306,10 @@ impl Store {
             "INSERT INTO sync_snapshot_export_wires(snapshot_id,recipient_device_id,message_id) VALUES(?1,?2,?3)",
             params![id,peer,header.message_id],
         )?;
-        if finish {
-            self.connection.execute(
-                "UPDATE sync_snapshot_exports SET state='ready' WHERE id=?1",
-                [id],
-            )?;
-        }
+        self.connection.execute(
+            "UPDATE sync_snapshot_exports SET state='ready' WHERE id=?1",
+            [id],
+        )?;
         if let Some(tx) = tx {
             tx.commit()?;
         }
@@ -350,15 +324,12 @@ impl Store {
         Ok(())
     }
 
-    /// Only the authenticated final application receipt retires the chunk sends.
-    /// Covered operations keep their own acknowledgements; this is not a GC mark.
+    /// 只有经签名认证的「最终应用回执」能退休这份导出。被覆盖的操作有自己的
+    /// 确认，这不是 GC 标记。
     ///
-    /// `subject` 是回执证明的那封信封 id：通常是 `snapshot-end:{id}`（manifest），
-    /// 但接收方是在「触发 publish 的那片」上发回执的，乱序到达时最后一片 chunk
-    /// 先到、manifest 早已被消费，subject 就是 `snapshot:{id}:{index}`。哈希只能
-    /// 对着 subject 那封信封校验——拿 manifest 的哈希去比 chunk 的回执属于自造
-    /// `sync_wire_ack_mismatch`，代价是整条导出永不被确认，两端都停在
-    /// 「等待成员授权与初始同步」。
+    /// subject 恒为 `snapshot-end:{id}`（manifest）：它是接收方唯一能断言「全片
+    /// 已落盘且已发布」的事实。分片级确认在 blob 数据面上由 `blob_ack` 完成，
+    /// 不经过这张表 —— mail 分片路径和它的逐片回执已于 2026-10-26（C5-A）删除。
     pub(crate) fn acknowledge_snapshot_export(
         &self,
         peer: &str,

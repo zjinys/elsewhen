@@ -28,7 +28,9 @@ pub(super) fn blob_roundtrip(
 ) {
     // 开户：新 blob 必须回报 `created:true`，否则续传会把「relay 上早被收掉」
     // 误判成「全部已送达」，跳过的那段分片永远到不了对端。
-    let opened = client.blob_open(mailbox, sender_mb, credential, blob_id).unwrap();
+    let opened = client
+        .blob_open(mailbox, sender_mb, credential, blob_id)
+        .unwrap();
     assert!(opened.created, "首次 open 必须创建新 blob");
     assert!(opened.have.is_empty());
 
@@ -36,7 +38,14 @@ pub(super) fn blob_roundtrip(
     let total = 40;
     for index in 0..total {
         client
-            .blob_put(mailbox, sender_mb, credential, blob_id, index, &chunk(index))
+            .blob_put(
+                mailbox,
+                sender_mb,
+                credential,
+                blob_id,
+                index,
+                &chunk(index),
+            )
             .unwrap();
     }
     // 结构去重：同一片重投只占一份空间（丢响应重试的常态）。
@@ -93,7 +102,9 @@ pub(super) fn blob_roundtrip(
     );
 
     // 重复 open 幂等：不新建、不丢进度，并把还剩下的片报回来（续传用）。
-    let reopened = client.blob_open(mailbox, sender_mb, credential, blob_id).unwrap();
+    let reopened = client
+        .blob_open(mailbox, sender_mb, credential, blob_id)
+        .unwrap();
     assert!(!reopened.created, "已存在的 blob 不能回报 created");
     assert_eq!(reopened.have, (WINDOW_CHUNKS..total).collect::<Vec<_>>());
 
@@ -107,7 +118,11 @@ pub(super) fn blob_roundtrip(
         assert_eq!(page.from, Some(from));
         assert_eq!(page.chunks.len(), (total - from).min(WINDOW_CHUNKS));
         for (offset, bytes) in page.chunks.iter().enumerate() {
-            assert!(bytes == &chunk(from + offset), "第 {} 片字节不一致", from + offset);
+            assert!(
+                bytes == &chunk(from + offset),
+                "第 {} 片字节不一致",
+                from + offset
+            );
         }
         from += page.chunks.len();
     }
@@ -130,11 +145,13 @@ pub(super) fn blob_roundtrip(
     assert!(gone.present.is_empty());
     assert_eq!(gone.highest, None);
     assert_eq!(gone.stored_bytes, 0);
-    assert!(client
-        .blob_get_window(mailbox, owner, blob_id, 0, WINDOW_CHUNKS)
-        .unwrap()
-        .chunks
-        .is_empty());
+    assert!(
+        client
+            .blob_get_window(mailbox, owner, blob_id, 0, WINDOW_CHUNKS)
+            .unwrap()
+            .chunks
+            .is_empty()
+    );
 
     // 另一个合法 sender 不能替开户方写/撤回：blob 记的是开户人 `sender_mb`，
     // 任何别的 sender（哪怕是同一信箱里被授权的）都只能吃 403。
@@ -142,9 +159,12 @@ pub(super) fn blob_roundtrip(
     // 否则 create_mailbox 会回到开户 sender 自己的信箱（等于重复注册同一个 sender）。
     let intruder_key = key();
     let intruder_mb = client.create_mailbox(&intruder_key).unwrap();
-    let intruder_cred =
-        crate::sync::transport_relay::RelayClient::derive_sender_credential(&intruder_key, &intruder_mb, mailbox)
-            .unwrap();
+    let intruder_cred = crate::sync::transport_relay::RelayClient::derive_sender_credential(
+        &intruder_key,
+        &intruder_mb,
+        mailbox,
+    )
+    .unwrap();
     let expiry = chrono::Utc::now().timestamp_millis() + 3_600_000;
     client
         .register_sender(mailbox, owner, &intruder_mb, &intruder_cred, expiry, 0)

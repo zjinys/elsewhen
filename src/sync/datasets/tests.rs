@@ -115,6 +115,7 @@ fn imported(catalog: &DatasetCatalog) -> (DatasetEntry, [u8; 32]) {
     let target = target.with_provider_master(master_b);
     target.enable_provider_key_sealing().unwrap();
     let mut export = SnapshotExporter::new(&source, &vb.device().device_id, "snapshot", 1).unwrap();
+    export.declare_blob("blob-snapshot-aaaaaaaa");
     target
         .begin_snapshot_import("snapshot", &va.device().device_id, 1)
         .unwrap();

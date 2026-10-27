@@ -149,13 +149,19 @@ pub(super) fn view(
             if result.remote_applied {
                 result.received_chunks = result.total_chunks;
             } else if result.total_chunks > 0 {
-                // Owner 端发送进度：对端已回执的快照分片信封数量（消息 id 形如
-                // snapshot:{snapshot_id}:{index}，见 storage/sync/delivery.rs）。
+                // Owner 端进度：已**写进 relay 数据面**的片数（`blob_index`，逐片
+                // durable）。这不再是「对端回执了几封信」—— 分片不走信箱，接收方
+                // 的消费进度只有它自己知道；UI 对 owner 的措辞是「正在发送初始
+                // 快照」，报「已上传 N 片」是诚实的，报「已完成 N 片」不是。
                 result.received_chunks = store.connection.query_row(
-                    "SELECT COUNT(*) FROM sync_wire_outbox WHERE recipient_device_id=?1 AND message_id LIKE 'snapshot:'||?2||':%' AND state='acknowledged'",
-                    rusqlite::params![record.peer.device_id, snapshot.id],
-                    |r| r.get(0),
+                    "SELECT blob_index FROM sync_snapshot_exports WHERE id=?1",
+                    [&snapshot.id],
+                    |r| r.get::<_, i64>(0),
                 )?;
+                // 全部上传完但还没被确认：进度就停在总数上（不再是 0 或跳变）。
+                if result.received_chunks > result.total_chunks {
+                    result.received_chunks = result.total_chunks;
+                }
             }
             if record.owner_confirmed {
                 result.notification_pending = !store

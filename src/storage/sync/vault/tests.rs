@@ -36,6 +36,7 @@ fn initial_snapshot_preserves_each_installations_own_vault() {
     let content = ContentKey::generate().unwrap();
     let mut exporter =
         SnapshotExporter::new(&a.store, &vault_b.device().device_id, "vault-boundary", 1).unwrap();
+    exporter.declare_blob("blob-vault-boundary-aa");
     b.store
         .begin_snapshot_import("vault-boundary", &vault_a.device().device_id, 1)
         .unwrap();

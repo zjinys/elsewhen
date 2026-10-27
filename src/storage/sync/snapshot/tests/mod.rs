@@ -56,6 +56,10 @@ pub(super) fn export(
     signer: &DeviceIdentity,
 ) -> (Vec<Vec<u8>>, Vec<u8>) {
     let mut exporter = SnapshotExporter::new(source, target, id, 1).unwrap();
+    // 快照只有 blob 一条传输（C5-A）：manifest 必须带 transport 与 blob 身份，
+    // 否则接收端按设计拒收。分片在这一层仍然直接 `stage_snapshot_chunk`，
+    // blob 的窗口流控由 `sync::engine` 与 relay 冒烟用例负责。
+    exporter.declare_blob(&format!("blob-{id}"));
     let mut chunks = Vec::new();
     while let Some(chunk) = exporter.next_encrypted_chunk(key, signer).unwrap() {
         chunks.push(chunk)

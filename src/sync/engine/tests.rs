@@ -1,6 +1,8 @@
-use super::snapshot::stage_snapshot;
+use super::snapshot::{import_blob_snapshots, stage_snapshot};
 use super::*;
-use crate::storage::sync::{BeginExport, ReplicaIdentity, SnapshotTransport};
+use crate::storage::sync::{BeginExport, ReplicaIdentity};
+use crate::sync::mem_blob::{MemBlob, mem_download, mem_upload};
+use crate::sync::transport_relay::{RelaySource, WINDOW_CHUNKS};
 use rusqlite::params;
 
 mod fragments;
@@ -46,6 +48,16 @@ fn pair(a: &Database, b: &Database) {
     a.store.authorize_sync_member("b", "stream-b").unwrap();
     b.store.authorize_sync_member("a", "stream-a").unwrap();
 }
+fn export_state(store: &Store, id: &str) -> String {
+    store
+        .connection
+        .query_row(
+            "SELECT state FROM sync_snapshot_exports WHERE id=?1",
+            [id],
+            |r| r.get(0),
+        )
+        .unwrap()
+}
 fn accept(
     store: &Store,
     bytes: &[u8],
@@ -74,7 +86,7 @@ fn snapshot_delivery_survives_manifest_first_restart_and_lost_application_receip
     let backward_key = ContentKey::generate().unwrap();
     let backward_signer = DeviceIdentity::generate().unwrap();
     a.store
-        .submit_input_as_event(&"multi-chunk original ".repeat(60_000), "capture", None)
+        .submit_input_as_event(&"multi-chunk original ".repeat(200_000), "capture", None)
         .unwrap();
     a.store
         .save_ai_provider_config(
@@ -98,14 +110,114 @@ fn snapshot_delivery_survives_manifest_first_restart_and_lost_application_receip
         &signer,
     )
     .unwrap();
-    stage_snapshot(&a.store, "b", "initial", 1, &key, &signer, None).unwrap();
-    let original_wires = a.wires("b");
-    let chunks: Vec<_> = original_wires
+    let plane = MemBlob::new();
+    let upload = mem_upload(&plane, "b", 1);
+    stage_snapshot(&a.store, "b", "initial", 1, &key, &signer, &upload).unwrap();
+    let blob_id: String = a
+        .store
+        .connection
+        .query_row(
+            "SELECT blob_id FROM sync_snapshot_exports WHERE id='initial'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    // 一拍只放一窗：窗口满了发送端收手，导出留在 `building`，manifest 一个字节
+    // 都不许进 outbox —— 「宣告完成」跑在分片前面就是事故原型。
+    assert_eq!(
+        plane.live_chunks(&blob_id),
+        WINDOW_CHUNKS,
+        "前提：这份快照要多于一窗，否则窗口流控整条路都没跑到"
+    );
+    let first_wires = a.wires("b");
+    assert!(
+        first_wires
+            .iter()
+            .any(|(id, _)| id == "snapshot-start:initial"),
+        "开场信令要先走：{:?}",
+        first_wires.iter().map(|(id, _)| id).collect::<Vec<_>>()
+    );
+    assert!(
+        !first_wires
+            .iter()
+            .any(|(id, _)| id == "snapshot-end:initial"),
+        "分片没传完不许宣告 manifest"
+    );
+    let state: String = a
+        .store
+        .connection
+        .query_row(
+            "SELECT state FROM sync_snapshot_exports WHERE id='initial'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(state, "building");
+
+    // 接收端先拿开场信令，再把这一窗拉下来并确认（片随即在数据面上释放）。
+    let start = &first_wires
         .iter()
-        .filter(|(id, _)| id.starts_with("snapshot:"))
-        .collect();
-    assert!(chunks.len() > 4);
-    assert!(original_wires.iter().all(|(_,bytes)| !String::from_utf8_lossy(bytes).contains("SYNTHETIC_SNAPSHOT_SECRET")));
+        .find(|(id, _)| id == "snapshot-start:initial")
+        .unwrap()
+        .1;
+    assert!(accept(&b.store, start, "a", &key, &signer));
+    let public = signer.public_key();
+    let download = mem_download(&plane, "a", 1, &key, &public);
+    assert!(!import_blob_snapshots(&b.store, &download, 8).unwrap());
+    assert_eq!(
+        plane.live_chunks(&blob_id),
+        0,
+        "确认过的片必须立刻在数据面上释放"
+    );
+
+    // 两边交替推进：接收端拉完一窗、确认掉，发送端下一拍才放下一窗。整条线
+    // 必须能在「一拍一窗」的节奏里走到头，而不是靠扩大窗口硬撑。
+    let mut rounds = 0;
+    while export_state(&a.store, "initial") == "building" {
+        let download = mem_download(&plane, "a", 1, &key, &public);
+        assert!(
+            !import_blob_snapshots(&b.store, &download, 1).unwrap(),
+            "manifest 还没到，绝不能发布"
+        );
+        stage_snapshot(&a.store, "b", "initial", 1, &key, &signer, &upload).unwrap();
+        rounds += 1;
+        assert!(rounds < 64, "窗口流控必须能推进，否则两边互相等死");
+    }
+    let uploaded: i64 = a
+        .store
+        .connection
+        .query_row(
+            "SELECT blob_index FROM sync_snapshot_exports WHERE id='initial'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(
+        uploaded > WINDOW_CHUNKS as i64,
+        "续传必须把剩下的片传完（blob_index={uploaded}）"
+    );
+    let original_wires = a.wires("b");
+    // 分片不再进信箱：outbox 里只有「blob 在哪」和 manifest 两条信令。
+    assert!(
+        original_wires
+            .iter()
+            .all(|(id, _)| !id.starts_with("snapshot:")),
+        "分片不得再写进 sync_wire_outbox：{:?}",
+        original_wires.iter().map(|(id, _)| id).collect::<Vec<_>>()
+    );
+    assert!(
+        original_wires
+            .iter()
+            .any(|(id, _)| id == "snapshot-start:initial")
+    );
+    assert!(
+        original_wires
+            .iter()
+            .any(|(id, _)| id == "snapshot-end:initial")
+    );
+    assert!(original_wires
+        .iter()
+        .all(|(_, bytes)| !String::from_utf8_lossy(bytes).contains("SYNTHETIC_SNAPSHOT_SECRET")));
     let manifest = &original_wires
         .iter()
         .find(|(id, _)| id == "snapshot-end:initial")
@@ -115,20 +227,29 @@ fn snapshot_delivery_survives_manifest_first_restart_and_lost_application_receip
         .submit_input_as_event("after checkpoint", "capture", None)
         .unwrap();
     let reopened_source = Store::open(&a.store.path).unwrap();
-    stage_snapshot(&reopened_source, "b", "initial", 1, &key, &signer, None).unwrap();
+    stage_snapshot(&reopened_source, "b", "initial", 1, &key, &signer, &upload).unwrap();
     assert_eq!(
         original_wires,
         a.wires("b"),
         "retry must not regenerate the snapshot from a newer source view"
     );
-    b.store.begin_snapshot_import("initial", "a", 1).unwrap();
+
+    // 接收端：先收到「blob 在哪」，再收到 manifest（manifest 可以比片先到）。
+    let start = &original_wires
+        .iter()
+        .find(|(id, _)| id == "snapshot-start:initial")
+        .unwrap()
+        .1;
+    assert!(accept(&b.store, start, "a", &key, &signer));
     assert!(accept(&b.store, manifest, "a", &key, &signer));
-    assert_eq!(b.count("events"), 0);
+    assert_eq!(b.count("events"), 0, "manifest 单独到不能发布");
     assert!(
         b.store
             .pending_sync_wire_receipts("a", 100)
             .unwrap()
-            .is_empty()
+            .iter()
+            .all(|r| r.message_id != "snapshot-end:initial"),
+        "manifest 只是被暂存，不能算应用回执"
     );
     // A provider update and an event arriving early must not contaminate staging.
     let provider = &original_wires
@@ -151,11 +272,23 @@ fn snapshot_delivery_survives_manifest_first_restart_and_lost_application_receip
         .unwrap();
     assert!(!accept(&b.store, &delta, "a", &key, &signer));
     assert_eq!(b.count("sync_operations"), 0);
-    assert!(accept(&b.store, &chunks[0].1, "a", &key, &signer));
+
+    // 最后一窗：进程中途重启也必须接着拉，缺片之前绝不许发布。
     let reopened = Store::open(&b.store.path).unwrap();
-    for (_, bytes) in chunks.iter().skip(1).rev() {
-        assert!(accept(&reopened, bytes, "a", &key, &signer));
+    let download = mem_download(&plane, "a", 1, &key, &public);
+    let mut published = false;
+    for _ in 0..64 {
+        if import_blob_snapshots(&reopened, &download, 1).unwrap() {
+            published = true;
+            break;
+        }
     }
+    assert!(published, "重启后必须接着拉完并发布");
+    assert_eq!(
+        plane.live_chunks(&blob_id),
+        0,
+        "确认过的片必须在 relay 上释放"
+    );
     assert!(!b.store.snapshot_import_pending().unwrap());
     assert_eq!(b.count("events"), 1);
     assert_eq!(
@@ -195,7 +328,7 @@ fn snapshot_delivery_survives_manifest_first_restart_and_lost_application_receip
     b.store
         .acknowledge_sync_wire("a", &final_receipt_id, &receipt_hash)
         .unwrap();
-    // Replayed manifest (or chunk) regenerates only the receipt, never the data.
+    // Replayed manifest still only regenerates the receipt, never the data.
     assert!(accept(&b.store, manifest, "a", &key, &signer));
     stage_receipts(&b.store, "a", 1, &backward_key, &backward_signer).unwrap();
     assert_eq!(b.count("events"), 2);
@@ -220,8 +353,26 @@ fn snapshot_delivery_survives_manifest_first_restart_and_lost_application_receip
         &backward_key,
         &backward_signer
     ));
-    let remaining: i64 = a.store.connection.query_row("SELECT COUNT(*) FROM sync_wire_outbox WHERE message_id LIKE 'snapshot%' AND state!='acknowledged'",[],|r|r.get(0)).unwrap();
-    assert_eq!(remaining, 0);
+    let manifest_state: String = a
+        .store
+        .connection
+        .query_row(
+            "SELECT state FROM sync_wire_outbox WHERE message_id='snapshot-end:initial'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(manifest_state, "acknowledged");
+    let export_state: String = a
+        .store
+        .connection
+        .query_row(
+            "SELECT state FROM sync_snapshot_exports WHERE id='initial'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(export_state, "acknowledged", "manifest 回执退休整份导出");
     assert_eq!(
         a.store.pending_sync_operations("b", 100).unwrap().len(),
         2,
@@ -229,130 +380,144 @@ fn snapshot_delivery_survives_manifest_first_restart_and_lost_application_receip
     );
 }
 
-/// 乱序到达：接收方是在「最后一片 chunk」上触发发布的，所以回执 subject 是那片
-/// chunk 而不是 manifest。旧实现对 subject 不敏感、拿 manifest 的 hash 去比
-/// chunk 的回执，必然 `sync_wire_ack_mismatch`：导出永远不会被确认，发送方永远
-/// 重发整份快照，两端都停在「等待成员授权与初始同步」。
+/// 只有 manifest 能退休一份导出。
+///
+/// 曾经这里是「乱序到达：接收方在最后一片 chunk 上触发发布，回执 subject 是那片
+/// chunk」—— 旧的 mail 路径每片都回执，于是导出 ack 必须接受任意分片 subject。
+/// 分片路径删除后这个入口只剩 `snapshot-end:{id}`：拿分片 id 当 subject 时，
+/// outbox 里根本没有那一行，`acknowledge_sync_wire` 直接拒掉。
 #[test]
-fn snapshot_ack_accepts_the_chunk_that_triggered_publication() {
+fn only_the_manifest_can_retire_an_export() {
     let a = Database::new("a");
     a.store.authorize_sync_member("b", "stream-b").unwrap();
     let key = ContentKey::generate().unwrap();
     let signer = DeviceIdentity::generate().unwrap();
-    stage_snapshot(&a.store, "b", "ordered", 1, &key, &signer, None).unwrap();
-    let (chunk, chunk_hash): (String, String) = a
+    let plane = MemBlob::new();
+    stage_snapshot(
+        &a.store,
+        "b",
+        "ordered",
+        1,
+        &key,
+        &signer,
+        &mem_upload(&plane, "b", 1),
+    )
+    .unwrap();
+    let manifest_hash: String = a
         .store
         .connection
         .query_row(
-            "SELECT message_id,payload_hash FROM sync_wire_outbox WHERE recipient_device_id='b' AND message_id LIKE 'snapshot:ordered:%' ORDER BY rowid LIMIT 1",
-            [],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )
-        .unwrap();
-    let (manifest_hash, chunk_hash_actual): (String, String) = a
-        .store
-        .connection
-        .query_row(
-            "SELECT (SELECT payload_hash FROM sync_wire_outbox WHERE message_id='snapshot-end:ordered'), ?1",
-            [&chunk_hash],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )
-        .unwrap();
-    assert_ne!(
-        manifest_hash, chunk_hash_actual,
-        "前提：分片与 manifest 的哈希不同"
-    );
-    // chunk 回执：拿 manifest 的哈希去比是旧实现的自毁点。
-    assert!(
-        a.store
-            .acknowledge_snapshot_export("b", "ordered", &chunk, &manifest_hash)
-            .is_err(),
-        "错配的哈希仍必须被拒"
-    );
-    a.store
-        .acknowledge_snapshot_export("b", "ordered", &chunk, &chunk_hash)
-        .unwrap();
-    let state: String = a
-        .store
-        .connection
-        .query_row("SELECT state FROM sync_snapshot_exports WHERE id='ordered'", [], |r| {
-            r.get(0)
-        })
-        .unwrap();
-    assert_eq!(state, "acknowledged", "导出应被整条退休");
-    let remaining: i64 = a
-        .store
-        .connection
-        .query_row(
-            "SELECT COUNT(*) FROM sync_wire_outbox WHERE recipient_device_id='b' AND message_id LIKE 'snapshot%' AND state!='acknowledged'",
+            "SELECT payload_hash FROM sync_wire_outbox WHERE message_id='snapshot-end:ordered'",
             [],
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(remaining, 0, "整份快照线（含 manifest）一起退休");
+    for (subject, hash) in [
+        ("snapshot:ordered:0", "anything"),
+        ("snapshot-end:ordered", "wrong"),
+    ] {
+        assert!(
+            a.store
+                .acknowledge_snapshot_export("b", "ordered", subject, hash)
+                .is_err(),
+            "{subject} 不该能退休导出"
+        );
+    }
+    a.store
+        .acknowledge_snapshot_export("b", "ordered", "snapshot-end:ordered", &manifest_hash)
+        .unwrap();
+    let state: String = a
+        .store
+        .connection
+        .query_row(
+            "SELECT state FROM sync_snapshot_exports WHERE id='ordered'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(state, "acknowledged", "导出应被整条退休");
+    let remaining: Vec<String> = a
+        .store
+        .connection
+        .prepare(
+            "SELECT message_id FROM sync_wire_outbox WHERE recipient_device_id='b' AND message_id LIKE 'snapshot%' AND state!='acknowledged'",
+        )
+        .unwrap()
+        .query_map([], |r| r.get(0))
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    assert_eq!(
+        remaining,
+        vec!["snapshot-start:ordered".to_string()],
+        "manifest 退休即导出收口；开场信令由它自己的回执退役（与导出无关）"
+    );
 }
 
+/// 没传完的导出不许发 manifest，也不许把「在途」当成「新请求」。
 #[test]
-fn partial_export_is_not_uploadable_and_new_request_is_required_after_restart() {
+fn partial_export_is_not_uploadable_and_resumes_after_restart() {
     let a = Database::new("a");
     a.store.authorize_sync_member("b", "stream-b").unwrap();
     let key = ContentKey::generate().unwrap();
     let signer = DeviceIdentity::generate().unwrap();
     assert!(matches!(
-        a.store
-            .begin_snapshot_export("partial", "b", 1, SnapshotTransport::Mail)
-            .unwrap(),
-        BeginExport::Begun(_)
+        a.store.begin_snapshot_export("partial", "b", 1).unwrap(),
+        BeginExport::Begun
     ));
-    let header = EnvelopeHeader::new("dataset", "a", "b", 1, "snapshot:partial:0").unwrap();
     a.store
-        .stage_snapshot_export_payload("partial", &header, &key, &signer, b"incomplete", false)
+        .set_snapshot_blob_id("partial", "0123456789abcdef01234567")
         .unwrap();
+    a.store.mark_snapshot_blob_progress("partial", 3).unwrap();
     assert!(
         a.store
             .due_sync_wire_envelopes("b", i64::MAX, 10)
             .unwrap()
-            .is_empty()
+            .is_empty(),
+        "manifest 没排进 outbox 之前，快照线一封都不该发"
     );
+    // 续传点读行、不读内存：换了进程也一样。
     let reopened = Store::open(&a.store.path).unwrap();
-    assert!(stage_snapshot(&reopened, "b", "partial", 1, &key, &signer, None).is_err());
+    match reopened.begin_snapshot_export("partial", "b", 1).unwrap() {
+        BeginExport::Resume {
+            blob_index,
+            blob_id,
+        } => {
+            assert_eq!(blob_index, 3, "重启不能把已传片数抹成 0");
+            assert_eq!(blob_id.as_deref(), Some("0123456789abcdef01234567"));
+        }
+        other => panic!("在途导出必须续传，实际 {other:?}"),
+    }
+    // 没到 ready 的导出连「回执」都接不住。
+    assert!(
+        reopened
+            .acknowledge_snapshot_export("b", "partial", "snapshot-end:partial", "wrong")
+            .is_err()
+    );
+    // 同一 id 换个 key_version = 不同的一代交付，必须拒。
+    assert!(reopened.begin_snapshot_export("partial", "b", 2).is_err());
     reopened.abort_snapshot_export("partial").unwrap();
+    reopened.revoke_sync_member("b").unwrap();
     assert!(
         reopened
             .due_sync_wire_envelopes("b", i64::MAX, 10)
             .unwrap()
             .is_empty()
     );
-    stage_snapshot(&reopened, "b", "replacement", 1, &key, &signer, None).unwrap();
+    let plane = MemBlob::new();
     assert!(
-        !reopened
-            .due_sync_wire_envelopes("b", i64::MAX, 10)
-            .unwrap()
-            .is_empty()
+        stage_snapshot(
+            &reopened,
+            "b",
+            "replacement",
+            1,
+            &key,
+            &signer,
+            &mem_upload(&plane, "b", 1)
+        )
+        .is_err(),
+        "撤权之后不许再开新导出"
     );
-    assert!(
-        a.store
-            .acknowledge_snapshot_export("b", "partial", "snapshot-end:partial", "wrong")
-            .is_err()
-    );
-    assert!(
-        a.store
-            .acknowledge_snapshot_export("b", "replacement", "snapshot-end:replacement", "wrong")
-            .is_err()
-    );
-    assert!(
-        a.store
-            .begin_snapshot_export("replacement", "b", 2, SnapshotTransport::Mail)
-            .is_err()
-    );
-    a.store.revoke_sync_member("b").unwrap();
-    assert!(
-        a.store
-            .due_sync_wire_envelopes("b", i64::MAX, 10)
-            .unwrap()
-            .is_empty()
-    );
-    assert!(stage_snapshot(&a.store, "b", "replacement", 1, &key, &signer, None).is_err());
 }
 
 #[test]
@@ -362,8 +527,21 @@ fn unsolicited_snapshot_never_selects_or_overwrites_the_receiving_database() {
     pair(&a, &b);
     let key = ContentKey::generate().unwrap();
     let signer = DeviceIdentity::generate().unwrap();
-    stage_snapshot(&a.store, "b", "not-requested", 1, &key, &signer, None).unwrap();
+    let plane = MemBlob::new();
+    stage_snapshot(
+        &a.store,
+        "b",
+        "not-requested",
+        1,
+        &key,
+        &signer,
+        &mem_upload(&plane, "b", 1),
+    )
+    .unwrap();
     for (_, bytes) in a.wires("b") {
+        // 结果允许 Ok：`snapshot-start` 只是「分片在那个 blob 上」的登记，
+        // manifest 也只是被暂存 —— 分片一片没拉，发布闸门（片数够了才发布）
+        // 就过不去，未请求的快照一个字节都写不进来。
         assert!(
             accept_relay_payload(
                 &b.store,
@@ -373,18 +551,20 @@ fn unsolicited_snapshot_never_selects_or_overwrites_the_receiving_database() {
                 &key,
                 &signer.public_key()
             )
-            .is_err()
+            .is_ok()
         );
     }
-    assert_eq!(b.count("sync_snapshot_target"), 0);
+    assert_eq!(b.count("events"), 0, "没拉分片就不可能发布");
     assert_eq!(b.count("sync_snapshot_chunks"), 0);
     b.store
         .submit_input_as_event("local stays", "capture", None)
         .unwrap();
+    // 本机一旦有数据，就只有全新 staging 库能当初始副本：想覆盖也覆盖不了。
     assert!(
         b.store
-            .begin_snapshot_import("not-requested", "a", 1)
-            .is_err()
+            .begin_blob_snapshot_import("another", "a", 1, "0123456789abcdef01234567")
+            .is_err(),
+        "有数据的库不许再开新导入"
     );
     assert_eq!(b.store.list_events().unwrap()[0].raw_text, "local stays");
 }
@@ -571,7 +751,10 @@ fn protocol_failure_lands_as_blocked_with_a_ten_minute_delay() {
     )
     .unwrap();
     assert_eq!(report.failed, 1);
-    assert!(!report.quota_exhausted, "413 不是配额满，不该中止本拍其余信封");
+    assert!(
+        !report.quota_exhausted,
+        "413 不是配额满，不该中止本拍其余信封"
+    );
 
     let (blocked, last_error, available): (Option<String>, String, i64) = a
         .store
@@ -632,6 +815,32 @@ fn push_summary_reports_ciphertext_bytes_not_envelope_count() {
         4,
         "detail 里再带 `=` 就是伪字段（`wire_line` 会净化，这里锁住它）"
     );
+}
+
+/// 「成败都打」（C3-1）：成功的拍也必须留一行汇縴。
+///
+/// 现场 F3 里 174 封信成功推上中继时本地日志一行都没有，于是「本拍推了几封、
+/// 成几封」只能靠 relay 侧数目反推 —— 日志只记失败等于把成功当成默认值。
+#[test]
+fn push_summary_is_emitted_for_a_clean_successful_tick() {
+    let report = PushReport {
+        uploaded: 5,
+        uploaded_bytes: 8192,
+        failed: 0,
+        quota_exhausted: false,
+    };
+    assert_eq!(
+        push_summary_line_opt("peer-b", &report).as_deref(),
+        Some("[wire] event=push-summary subject=peer-b bytes=8192 detail=envelopes 5 failed 0"),
+        "一拍全成功的推送必须留一行汇縴"
+    );
+}
+
+/// 零尝试的一拍不能打行：一个空闲 peer 每 30s 刷一行「envelopes 0 failed 0」，
+/// 真信号会被噪音淹没。
+#[test]
+fn push_summary_is_silent_when_the_tick_attempted_nothing() {
+    assert!(push_summary_line_opt("peer-b", &PushReport::default()).is_none());
 }
 
 /// 真跑一拍上传，确认 `uploaded_bytes` 累加的是密文长度。
@@ -706,7 +915,7 @@ fn pushed_bytes_accumulate_the_real_ciphertext_length() {
 /// 作废的用 `cancel` —— relay 侧这两者含义不同（消费完成 / 撤回）。
 #[test]
 fn failed_blob_recycle_is_retried_on_the_next_sweep() {
-    use crate::sync::engine::snapshot::{recycle_published_blobs, BlobDownload};
+    use crate::sync::engine::snapshot::{BlobDownload, recycle_published_blobs};
 
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
@@ -767,11 +976,14 @@ fn failed_blob_recycle_is_retried_on_the_next_sweep() {
     let client = RelayClient::new(&url).unwrap();
     let key = ContentKey::generate().unwrap();
     let public = DeviceIdentity::generate().unwrap().public_key();
+    let source = RelaySource {
+        client,
+        mailbox: "ab".repeat(32),
+        owner_credential: [7u8; 32],
+    };
     let download = BlobDownload {
-        client: &client,
-        mailbox: &"ab".repeat(32),
-        owner_credential: &[7u8; 32],
-        source: "b",
+        source: &source,
+        from: "b",
         key_version: 1,
         key: &key,
         public: &public,

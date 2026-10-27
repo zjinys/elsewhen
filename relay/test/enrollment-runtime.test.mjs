@@ -66,6 +66,14 @@ test('P2 production runtimes recover committed grants and receipts after lost re
         ...(bytes.length ? { body: bytes } : {}),
       });
       const payload = Buffer.from(await result.arrayBuffer());
+      // 头必须原样转发：blob 数据面的窗口游标就在 `x-blob-from/-count/-next` 上
+      // （不走 base64 JSON 是为省 1.37× 膨胀）。丢掉这两颗头，接收端就会把
+      // 「这一窗有 10 片」当成「relay 上什么都没有」，每拍空转到天荒。
+      const headers = {};
+      result.headers.forEach((value, name) => {
+        if (['content-length', 'content-encoding', 'transfer-encoding'].includes(name)) return;
+        headers[name] = value;
+      });
       if (kind && result.ok && !lost.has(identity)) {
         lost.add(identity);
         counts[kind]++;
@@ -73,7 +81,7 @@ test('P2 production runtimes recover committed grants and receipts after lost re
         response.writeHead(503, { 'content-type': 'application/json' });
         response.end('{"error":"synthetic lost response"}');
       } else {
-        response.writeHead(result.status, { 'content-type': 'application/json' });
+        response.writeHead(result.status, headers);
         response.end(payload);
       }
     } catch (error) {

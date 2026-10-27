@@ -446,6 +446,7 @@ fn snapshot_read_view_preserves_local_key_capability_and_receiver_sealing_policy
     .unwrap();
     let mut exporter =
         SnapshotExporter::new(&a.store, &ib.device_id, "sealed-snapshot", 1).unwrap();
+    exporter.declare_blob("blob-sealed-snapshot-aa");
     b.store
         .begin_snapshot_import("sealed-snapshot", &ia.device_id, 1)
         .unwrap();

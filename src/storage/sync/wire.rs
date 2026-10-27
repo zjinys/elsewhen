@@ -241,56 +241,48 @@ impl Store {
             .optional()?)
     }
 
-    /// 该对端是否还有待发的快照导出线（初次交接/重快照在途）。此时放宽每拍
-    /// 发送预算，让初始同步在一分钟内完成，而不是拖上半小时（见 engine.rs）。
-    pub(crate) fn has_pending_snapshot_export_wires(&self, peer: &str) -> Result<bool> {
-        self.require_local_sync_membership()?;
-        Ok(self.connection.query_row(
-            "SELECT EXISTS(SELECT 1 FROM sync_snapshot_export_wires x JOIN sync_wire_outbox w ON w.recipient_device_id=x.recipient_device_id AND w.message_id=x.message_id WHERE x.recipient_device_id=?1 AND w.state='pending')",
-            [peer],
-            |r| r.get(0),
-        )?)
-    }
-
     /// Enrollment explicitly selects only its control messages and, after the
-    /// selection receipt, its snapshot. Pending business deltas cannot slip in.
+    /// selection receipt, its snapshot manifest (`snapshot-end:`). Business deltas
+    /// cannot slip in, and the manifest is still gated on `state='ready'` inside
+    /// the query — a snapshot is never announced before its bytes left.
     pub(crate) fn due_enrollment_wires(
         &self,
         peer: &str,
         now_ms: i64,
         messages: &[String],
-        snapshot: Option<&str>,
     ) -> Result<Vec<PendingWireEnvelope>> {
         ensure!(
             messages.len() <= 8
                 && messages.iter().all(|id| id.len() <= 240
                     && (id.starts_with("membership:")
                         || id.starts_with("enrollment-")
+                        || id.starts_with("snapshot-start:")
+                        || id.starts_with("snapshot-end:")
                         || id.starts_with("envelope-receipt-"))),
             "sync_enrollment_wire_scope_invalid"
         );
         self.require_local_sync_membership()?;
-        // 与 engine::push_due 同一套预算：日常控制消息每拍 ≤3 封足够，但初次
-        // 交接的快照线有几百片，3 封/拍会让 174 片拖上十几分钟（用户看到的就是
-        // 「一次只同步 3 条」）。快照导出线在途时放宽到 16 封，真正的上限是下面
-        // 的 8MB 字节预算。
-        let limit = if self.has_pending_snapshot_export_wires(peer)? {
-            16
-        } else {
-            3
-        };
+        // 与 engine::push_due 同一套预算：控制消息每拍 ≤3 封足够（交接期也是 ——
+        // 分片不再经过信箱，快照线只剩 `snapshot-end:` 一封 manifest）。以前这里
+        // 有个「快照导出线在途时放宽到 16 封」的分支，配合 174 片逐片信封才有意义，
+        // 随 mail 分片路径删除（2026-10-26 C5-A）。
+        let limit = 3;
         let encoded = serde_json::to_string(messages)?;
         let mut query = self.connection.prepare(&format!("SELECT message_id,encrypted_envelope,seq_hint FROM sync_wire_outbox w
             WHERE recipient_device_id=?1 AND state='pending' AND available_at_ms<=?2
             AND EXISTS(SELECT 1 FROM sync_members WHERE device_id=?1 AND active=1)
-            AND (message_id IN (SELECT value FROM json_each(?3)) OR (?4 IS NOT NULL AND
-                (message_id LIKE 'snapshot:%' OR message_id LIKE 'snapshot-end:%') AND EXISTS(
-                SELECT 1 FROM sync_snapshot_export_wires x WHERE x.snapshot_id=?4 AND x.recipient_device_id=?1 AND x.message_id=w.message_id)))
-            AND (NOT EXISTS(SELECT 1 FROM sync_snapshot_export_wires x WHERE x.recipient_device_id=w.recipient_device_id AND x.message_id=w.message_id)
+            AND message_id IN (SELECT value FROM json_each(?3))
+            -- 只有 manifest（`snapshot-end:`）才用「导出 ready」闸门：它是「发布」
+            -- 信令，早发就会让对方去拉一份还没传完的快照。名单（`membership:`）
+            -- 与开场信令（`snapshot-start:`）是**授权与位置**，不是数据：把它们
+            -- 也压到 ready 才发，就跟「接收端要先选快照、才会 ack 分片」成一圈
+            -- 互等 —— blob 一次上传跨好几拍，这一圈就死在这里。
+            AND (message_id NOT LIKE 'snapshot-end:%'
+                OR NOT EXISTS(SELECT 1 FROM sync_snapshot_export_wires x WHERE x.recipient_device_id=w.recipient_device_id AND x.message_id=w.message_id)
                 OR EXISTS(SELECT 1 FROM sync_snapshot_export_wires x JOIN sync_snapshot_exports s ON s.id=x.snapshot_id
                     WHERE x.recipient_device_id=w.recipient_device_id AND x.message_id=w.message_id AND s.state='ready' AND s.key_version=w.key_version))
             ORDER BY available_at_ms,rowid LIMIT {limit}"))?;
-        let rows = query.query_map(params![peer, now_ms, encoded, snapshot], |r| {
+        let rows = query.query_map(params![peer, now_ms, encoded], |r| {
             Ok(PendingWireEnvelope {
                 message_id: r.get(0)?,
                 encrypted_envelope: r.get(1)?,
