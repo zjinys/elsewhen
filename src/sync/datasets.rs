@@ -277,11 +277,7 @@ impl DatasetCatalog {
             "sync_dataset_identity_mismatch"
         );
         let snapshot_id:String=store.connection.query_row("SELECT s.id FROM sync_snapshots s JOIN sync_snapshot_target t ON t.snapshot_id=s.id WHERE s.state='applied'",[],|r|r.get(0))?;
-        let (installation, vault_revision): (String, i64) = store.connection.query_row(
-            "SELECT installation_id,revision FROM sync_local_vault WHERE singleton=1",
-            [],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )?;
+        let (installation, vault_revision) = store.local_vault_basis()?;
         ensure!(
             installation == entry.installation_id,
             "sync_dataset_installation_mismatch"

@@ -29,11 +29,7 @@ impl Store {
         if let Some(key) = self.provider_master {
             return Ok(key);
         }
-        let revision: i64 = self.connection.query_row(
-            "SELECT revision FROM sync_local_vault WHERE singleton=1",
-            [],
-            |r| r.get(0),
-        )?;
+        let revision = self.local_vault_revision()?;
         crate::sync::runtime::provider_master(&self.path, revision)
             .context("provider_key_locked（请先在设置→数据中解锁本机同步密钥）")
     }
@@ -50,11 +46,7 @@ impl Store {
         let identity = self
             .sync_identity()?
             .context("provider_key_identity_missing")?;
-        let installation: String = self.connection.query_row(
-            "SELECT installation_id FROM sync_local_vault WHERE singleton=1",
-            [],
-            |r| r.get(0),
-        )?;
+        let installation = self.local_vault_installation()?;
         Ok(serde_json::to_vec(&(
             "elsewhen.provider-key.v1",
             identity.dataset_id,
@@ -124,11 +116,7 @@ impl Store {
     pub(crate) fn enable_provider_key_sealing(&self) -> Result<()> {
         let tx = self.begin_write_transaction()?;
         let master = self.provider_master_key()?;
-        let installation: String = self.connection.query_row(
-            "SELECT installation_id FROM sync_local_vault WHERE singleton=1",
-            [],
-            |r| r.get(0),
-        )?;
+        let installation = self.local_vault_installation()?;
         let vault = self.load_sync_vault(&installation, &master, 1)?;
         self.require_sync_signer(vault.identity())?;
         if !self.provider_keys_sealed()? {

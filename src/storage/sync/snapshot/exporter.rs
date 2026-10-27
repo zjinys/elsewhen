@@ -69,11 +69,7 @@ impl SnapshotExporter {
             q.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
                 .collect::<rusqlite::Result<BTreeMap<_, _>>>()?
         };
-        let logical_clock = view.connection.query_row(
-            "SELECT logical_clock FROM sync_replica WHERE singleton=1",
-            [],
-            |r| r.get(0),
-        )?;
+        let logical_clock = view.replica_logical_clock()?;
         let manifest = SnapshotManifest {
             version: SNAPSHOT_VERSION,
             id: id.into(),

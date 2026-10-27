@@ -93,11 +93,7 @@ impl Store {
         // logical_clock 与导出视图一起钉住：blob 续传跨拍重开 exporter，只有数据
         // 一格没动才允许接着传。漂了就必须换新请求 id —— 半新半旧的片拼出来的
         // 快照 manifest 摘要对不上，接收端整份作废。
-        let logical_clock: i64 = self.connection.query_row(
-            "SELECT logical_clock FROM sync_replica WHERE singleton=1",
-            [],
-            |r| r.get(0),
-        )?;
+        let logical_clock = self.replica_logical_clock()?;
         let existing: Option<(String, i64, String, i64, Option<String>, i64)> = self
             .connection
             .query_row(

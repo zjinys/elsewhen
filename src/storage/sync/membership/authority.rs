@@ -183,11 +183,7 @@ impl Store {
 
         self.require_background_quiescent_for_sync()?;
 
-        let next_sequence: i64 = self.connection.query_row(
-            "SELECT next_sequence FROM sync_replica WHERE singleton=1",
-            [],
-            |r| r.get(0),
-        )?;
+        let next_sequence = self.replica_next_sequence()?;
         let final_sequence = next_sequence - 1;
 
         let proof = crate::sync::membership::ProcessingYieldProof::sign(

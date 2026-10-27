@@ -57,11 +57,7 @@ impl Store {
         self.require_local_sync_membership()?;
         let active:bool=self.connection.query_row("SELECT EXISTS(SELECT 1 FROM sync_members WHERE device_id=?1 AND stream_id=?2 AND active=1)",params![authenticated_device,op.origin_stream_id],|r|r.get(0))?;
         ensure!(active, "sync_member_not_authorized");
-        let local_clock: i64 = self.connection.query_row(
-            "SELECT logical_clock FROM sync_replica WHERE singleton=1",
-            [],
-            |r| r.get(0),
-        )?;
+        let local_clock = self.replica_logical_clock()?;
         let payload = serde_json::to_string(&op)?;
         let digest = hash(payload.as_bytes());
         // A clock too far ahead means the peer is far ahead of us (long-offline

@@ -172,3 +172,5 @@ mod snapshot_start_retirement;
 mod wire_rejections;
 
 mod local_identity;
+
+mod singleton_seam;

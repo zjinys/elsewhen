@@ -122,17 +122,9 @@ impl Store {
             !self.connection.is_autocommit(),
             "sync_requires_domain_transaction"
         );
-        let seq: i64 = self.connection.query_row(
-            "SELECT next_sequence FROM sync_replica WHERE singleton=1",
-            [],
-            |r| r.get(0),
-        )?;
+        let seq = self.replica_next_sequence()?;
         let next = seq.checked_add(1).context("sync_sequence_exhausted")?;
-        let clock: i64 = self.connection.query_row(
-            "SELECT logical_clock FROM sync_replica WHERE singleton=1",
-            [],
-            |r| r.get(0),
-        )?;
+        let clock = self.replica_logical_clock()?;
         let clock = clock.checked_add(1).context("sync_clock_exhausted")?;
         let operation = SyncOperation {
             protocol_version: PROTOCOL_VERSION,

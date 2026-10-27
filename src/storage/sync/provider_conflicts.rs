@@ -162,11 +162,7 @@ impl Store {
         let signer: [u8; 32] = signer
             .and_then(|bytes| bytes.as_slice().try_into().ok())
             .ok_or_else(|| anyhow::anyhow!("provider_conflict_sender_unknown"))?;
-        let (installation, revision): (String, i64) = self.connection.query_row(
-            "SELECT installation_id,revision FROM sync_local_vault WHERE singleton=1",
-            [],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )?;
+        let (installation, revision) = self.local_vault_basis()?;
         // 冲突信封用的是 vault 包裹密钥，不是 Provider 密封主密钥；
         // 运行时会话持有的正是这把 vault 主密钥。
         let master = crate::sync::runtime::provider_master(&self.path, revision)

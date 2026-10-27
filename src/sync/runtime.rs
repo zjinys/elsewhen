@@ -388,11 +388,7 @@ pub(crate) fn background_guard(
         {
             return Ok(None);
         }
-        let revision: i64 = store.connection.query_row(
-            "SELECT revision FROM sync_local_vault WHERE singleton=1",
-            [],
-            |r| r.get(0),
-        )?;
+        let revision = store.local_vault_revision()?;
         if revision != session.revision {
             return Ok(None);
         }
