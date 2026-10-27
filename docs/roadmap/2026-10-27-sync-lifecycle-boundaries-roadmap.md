@@ -151,6 +151,17 @@ Dart AI 分析 worker（每 tick）
 | C2 | **D2 worker 层**：`worker_reminders.dart` 区分终态错误（`sync_not_configured`/`sync_not_initialized`/`sync_vault_missing`）与瞬时错误；终态不重试，记一次日志 | **完成（2026-10-27 13:35），实测前后对比**：新增 `ui/lib/sync/background_failure_policy.dart`（纯逻辑、时钟可注入）：终态错误码（`sync_not_configured`/`sync_not_initialized`/`sync_vault_missing`）→ 指数退避 2→15 min 封顶 + **同一错误码只记一次**；瞬时错误（抢锁 BUSY/网络）→ 原节奏原样重试。接线：`worker_reminders.dart` 的 `_wakeAnalysisWorker` 在退避窗口内直接返回、`catch` 只记一次、成功路径 `recordSuccess()`；`rust_bridge_repository.dart:126` 的 `localSync.onReady` 先 `reset()` 再唤醒（用户解锁/准备本机后立刻恢复，不等 15 min）。**实测**（真实库副本 `ELSEWHEN_DATA_DIR=/tmp/c2content`，清空 38 张 `sync_*` 表但保留 `messages=640`/`wiki_pages=134`，确保真走到 provider key 路径）：**前**（旧 Rust release lib + 新 Dart 策略）`analysis worker failed` **5 条 / 130 s**，内容全是 `AnyhowException(Query returned no rows)`；**后**（`cargo build --release` 1m20s 后）**1 条 / 200 s**，内容为 `AnyhowException(sync_not_configured)`。用例 `test/background_failure_policy_test.dart` 7 条全绿；变异验证：把 `isTerminal` 改成恒 false → 6 条红、去掉「同因只记一次」→ 1 条红、退避封顶放大到 1h → 1 条红（均已还原、复跑全绿）；`sync_worker_pause_bridge_test.dart` 仍绿；`fvm flutter analyze` 133 issues / 0 error（与基线一致） | `[x]` |
 | C3 | **D1 出口**：新增重置本机的 Rust API + UI 入口（状态卡在 `requires_repair` 时出现「清除本机同步身份」，二次确认写明副作用），执行后清 `sync_replica`/`sync_local_vault`/`sync_authority*`/`sync_members`/`sync_member_keys`/游标/outbox/exports，**保留全部业务数据**；随后状态回 `not_configured` | 用例断言执行前后业务表行数不变、同步表归零、状态迁移 | `[x]` 2026-10-27 |
 
+
+| C4 | **用例与变异验证**：C0 两条红用例转绿；每条新用例做变异验证（把修复改坏 → 必须变红；若仍绿则补负向用例） | **完成（2026-10-27）**。①C0 两条红用例均已转绿：`local_identity::a_half_configured_local_identity_has_no_exit_back_to_not_configured`（C3 出口补上后）、`provider_keys::tests::unconfigured_master_key_read_reports_a_domain_error_not_rusqlite_text`（C1 接缝补上后）。②逐条变异（改坏实现 → 必须变红）：C1 接缝 `singleton_value` 退回裸 `query_row` ⇒ D2 用例 + `singleton_seam::every_singleton_accessor_reports_sync_not_configured_on_an_empty_store` 双双红；C2 `isTerminal` 恒 false ⇒ 6 红、去掉「同因只记一次」⇒ 1 红、退避封顶 1h ⇒ 1 红；C3 去掉 authority 守卫 ⇒ 1 红、跳过清 `sync_replica` ⇒ 2 红、不清 `provider_key_secrets` ⇒ 1 红、准入闸门放行一切 ⇒ 1 红；Dart 侧 A 无条件显示入口 ⇒ 2 红、B 确认按钮不看勾选 ⇒ 1 红、C 删「Key 会失效」文案 ⇒ 1 红、D 清完不刷新 ⇒ 1 红。全部还原后复绿。③**教训已固化**：变异必须先确认「能编译再跑」—— 首版「从 38 元素数组里删一项」直接编译失败，什么都没验证到却看起来是绿的；后改成运行时把 `sync_replica` 换成 `sync_frontiers` 才真正变红。④**被判定为「未被覆盖」的变异**：无（本轮所有变异均至少打红一条用例；若日后出现全绿，按纪律必须补负向用例而不是放过）。 | `[x]` 2026-10-27 |
+| C5 | **门禁四道全绿**：`cargo test --all-targets`、`cd relay && npm test`、`cd ui && fvm flutter analyze`、`scripts/regen.sh` | **完成（2026-10-27 15:0x）**，四条命令逐条贴输出：①`cargo test --all-targets` ⇒ `test result: ok. 974 passed; 0 failed; 20 ignored`（+9 条相对上轮 965，全部是 C1/C3 新增），`CARGO_EXIT=0`；②`cd relay && npm test` ⇒ `tests 49 / pass 49 / fail 0`，`RELAY_EXIT=0`；③`cd ui && fvm flutter analyze` ⇒ `133 issues found`、`grep -cE "^\s+error "` = **0**（与基线同：133 全是既有 warning/info，退出码因 warning 为 1，判据按「0 error」）；④`scripts/regen.sh` ⇒ `REGEN_EXIT=0`，末行「生成的 Dart/Rust bridge 与 target/release/libelsewhen.so 已保持一致」，跑完 `git status` 仅剩本文档改动（生成物与源码一致，无漂移） | `[x]` 2026-10-27 |
+| C6 | **真机验收**：在真机上把库造成 `requires_repair`（不改代码、只删 `sync_authority*`），点新出口 → 状态回「同步未开启」→ 能重新准备本机并完成一次配对；同时确认日志里 `analysis worker failed: … Query returned no rows` 不再出现 | 截图 + 日志 + 库行数 | `[ ]` |
+| C7 | **D3 定位与修复**：先取真机证据（①`receipt.rs:99-107` 拒收分支加三字段诊断日志，定位 F13 是哪一身份不符并修；②手机 release 构建下 controller 的阶段/错误日志出口；必要时加一次性诊断日志并重跑），再按 §三之二 的判据修「交接完成后 UI 不收敛」；补用例覆盖「回执被拒 → 发送端不无限重推」与「阶段到终态 → UI 离开等待页」，均做变异验证 | F13 定位日志 + 现象前后截图（不重启）+ 用例红绿 | `[ ]` |。**改写条款**：本步骤的「修」不做预先承诺 —— 若定位结果推翻 §三之二 方向 0（F13），则本行必须在动手前重写（见 §五之二「完成定义」第 2 条）
+| C8 | **D4 状态可见**：手机端加全局同步状态位（主界面状态条/角标 → 点击直达解锁），区分「待解锁积压（显示条数/字节）」与「网络延迟」；桌面端把 `sync_wire_outbox` 的 pending 投影成可读的「对端未确认 N 条 · 最近确认 HH:MM」。不新增协议字段，全部由已有状态派生 | 变异验证用例（含 `cd ui && fvm flutter test` 输出）+ 真机前后截图（锁态/解锁态各一） | `[ ]` |
+| C9 | **解锁路径真机验证（独立于其它步骤，可最先做）**：全新身份 + 全新安装 + app 重启后，确认「解锁本机密钥」能成功（本轮首次走到成员设备状态，该路径**从未成功验证过**）；解锁后积压在一个轮询周期内灌入、`sync_wire_outbox` 的 pending 归零、两端内容一致 | 解锁前后 relay 信箱计数 + 桌面 pending 计数 + 两端同一条消息截图 | `[ ]` |
+
+> 顺序理由：C0 先把两条缺陷钉成红用例（否则修完无法证明修的是什么）；C1/C2 是 D2 的两层，C3 是 D1；C4 收口；C5/C6 是门禁与真机。**C7 是唯一根因未确证的步骤**（其余步骤的根因都已用库/日志实测钉死），因此它被拆成「定位 → 修」，并带回写条款；**C9 建议提前到最前面单独跑** —— 它不依赖任何代码改动，却决定了后面所有真机验收能否进行（本轮用户实际卡住的正是这一环）。
+
+#### C3 证据明细
 | ｜证据｜ | ｜内容｜ |
 |---|---|
 | 存储出口 | `src/storage/sync/reset.rs`：`REPLICATION_TABLES`（38 张，显式列出）+ `clear_local_sync_identity_on()` 两道闸门（必须写事务内 = `sync_reset_requires_transaction`；authority 必须为空 = `sync_reset_requires_broken_identity`）+ 清 `provider_key_secrets`（密文 AAD 绑死旧 `dataset_id`+`installation_id`，留着只会显示「有 key 用不了」），**不动** `provider_key_policy` 与 `ai_provider_configs` 结构 |
@@ -160,15 +171,6 @@ Dart AI 分析 worker（每 tick）
 | UI 入口 | `ui/lib/widgets/local_sync_settings.dart`：`state == 'requires_repair'` 时出现代价说明 + 「清除本机同步身份」按钮；二次确认弹窗逐条列副作用（退出数据集 / **Provider API Key 会失效需重填** / 未同步改动不补发 / **笔记对话知识库不删**），且必须勾选「我已知晓…」才解锁「清除并重新配对」；成功后 `controller.refresh()` |
 | Dart 用例 | `ui/test/sync_repair_exit_test.dart` 4 条：出口只在 `requires_repair` 出现；`local_ready` 下**不出现**（负向）；未勾选时确认按钮 `onPressed == null` 且「取消」后 `repair.calls == 0`（负向）；勾选后 `calls == 1` 且状态刷新成 `not_configured`、入口消失 ⇒ `fvm flutter test test/sync_repair_exit_test.dart` **4 passed** |
 | Dart 变异验证 | A 无条件显示入口 → 2 条红；B 确认按钮不看勾选 → 1 条红；C 删掉「Key 会失效」文案 → 1 条红；D 清完不刷新控制器 → 1 条红。均还原后复绿 |
-
-| C4 | **用例与变异验证**：C0 两条红用例转绿；每条新用例做变异验证（把修复改坏 → 必须变红；若仍绿则补负向用例） | 变异前后测试输出 | `[ ]` |
-| C5 | **门禁四道全绿**：`cargo test --all-targets`、`cd relay && npm test`、`cd ui && fvm flutter analyze`、`scripts/regen.sh` | 四份输出尾部 | `[ ]` |
-| C6 | **真机验收**：在真机上把库造成 `requires_repair`（不改代码、只删 `sync_authority*`），点新出口 → 状态回「同步未开启」→ 能重新准备本机并完成一次配对；同时确认日志里 `analysis worker failed: … Query returned no rows` 不再出现 | 截图 + 日志 + 库行数 | `[ ]` |
-| C7 | **D3 定位与修复**：先取真机证据（①`receipt.rs:99-107` 拒收分支加三字段诊断日志，定位 F13 是哪一身份不符并修；②手机 release 构建下 controller 的阶段/错误日志出口；必要时加一次性诊断日志并重跑），再按 §三之二 的判据修「交接完成后 UI 不收敛」；补用例覆盖「回执被拒 → 发送端不无限重推」与「阶段到终态 → UI 离开等待页」，均做变异验证 | F13 定位日志 + 现象前后截图（不重启）+ 用例红绿 | `[ ]` |。**改写条款**：本步骤的「修」不做预先承诺 —— 若定位结果推翻 §三之二 方向 0（F13），则本行必须在动手前重写（见 §五之二「完成定义」第 2 条）
-| C8 | **D4 状态可见**：手机端加全局同步状态位（主界面状态条/角标 → 点击直达解锁），区分「待解锁积压（显示条数/字节）」与「网络延迟」；桌面端把 `sync_wire_outbox` 的 pending 投影成可读的「对端未确认 N 条 · 最近确认 HH:MM」。不新增协议字段，全部由已有状态派生 | 变异验证用例（含 `cd ui && fvm flutter test` 输出）+ 真机前后截图（锁态/解锁态各一） | `[ ]` |
-| C9 | **解锁路径真机验证（独立于其它步骤，可最先做）**：全新身份 + 全新安装 + app 重启后，确认「解锁本机密钥」能成功（本轮首次走到成员设备状态，该路径**从未成功验证过**）；解锁后积压在一个轮询周期内灌入、`sync_wire_outbox` 的 pending 归零、两端内容一致 | 解锁前后 relay 信箱计数 + 桌面 pending 计数 + 两端同一条消息截图 | `[ ]` |
-
-> 顺序理由：C0 先把两条缺陷钉成红用例（否则修完无法证明修的是什么）；C1/C2 是 D2 的两层，C3 是 D1；C4 收口；C5/C6 是门禁与真机。**C7 是唯一根因未确证的步骤**（其余步骤的根因都已用库/日志实测钉死），因此它被拆成「定位 → 修」，并带回写条款；**C9 建议提前到最前面单独跑** —— 它不依赖任何代码改动，却决定了后面所有真机验收能否进行（本轮用户实际卡住的正是这一环）。
 
 ---
 
