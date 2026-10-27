@@ -39,9 +39,19 @@ EOF
 fi
 echo "==> [0/3] 桥接 hash 一致（$RUST_HASH）"
 
-FLUTTER_ARGS=("$@")
-BUILD_MODE=release
+# 空参数一律丢弃：上游用 `"${arr[@]:-}"` 展开空数组时会递来一个空字符串（或
+# `APK_BUILD_ARGS=` 这类空配置值），flutter 会把它当成 target 文件，报
+# `Target file "" not found.` —— 一个跟构建毫无关系的报错。
+FLUTTER_ARGS=()
 for arg in "$@"; do
+  # 不要写成 `[ -n "$arg" ] && FLUTTER_ARGS+=(...)`：最后一项为空时整条
+  # 语句返回 1，配`set -e` 会直接在循环里退出。
+  if [ -n "$arg" ]; then
+    FLUTTER_ARGS+=("$arg")
+  fi
+done
+BUILD_MODE=release
+for arg in "${FLUTTER_ARGS[@]+"${FLUTTER_ARGS[@]}"}"; do
   case "$arg" in
     --debug|--profile) BUILD_MODE="${arg#--}" ;;
   esac

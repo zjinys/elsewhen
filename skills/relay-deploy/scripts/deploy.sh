@@ -82,6 +82,31 @@ CURRENT_TAG="$(remote "docker inspect -f '{{.Config.Image}}' '$RELAY_CONTAINER'"
 CURRENT_IMAGE="$(remote "docker inspect -f '{{.Image}}' '$RELAY_CONTAINER'" 2>/dev/null || true)"
 echo "  线上容器 ${RELAY_CONTAINER}：${CURRENT_TAG:-<不存在>}"
 
+# ── 线上信箱预检 ─────────────────────────────────────────────────────────
+# `openMailboxDb()` 在 open 时会建表 + 跑幂等索引迁移，这一步抛错 = relay 启动即死。
+# 而 relay 是「有新代码才有新迁移」的形态：仓库里的 schema.mjs 一改，线上每个老信箱
+# 都要能在它下面打开。所以在**动线上容器之前**，取一份线上信箱副本、用当前
+# schema.mjs 试开一遍；不过就中止，线上一个字节都不动。
+# 2026-10-25 就有一次「代码改了没重建镜像」：线上跑的是旧代码，`/health` 绿，
+# md5 不一致 —— 那种情况下部署这一步才是第一次真正跑新迁移。
+say "线上信箱预检（用当前 schema.mjs 试开线上副本）"
+# 只在真部署时跑：回滚回的是**旧镜像的** schema.mjs，本次代码能不能打开线上的库
+# 与它无关；只验证更不该碰任何东西。
+if [ "$MODE" != deploy ]; then
+  echo "  $MODE 模式，跳过"
+elif remote "test -d '$RELAY_HOST_DATA_DIR/mailboxes'" 2>/dev/null; then
+  MB_TMP="$(mktemp -d)"
+  remote "tar -cf - -C '$RELAY_HOST_DATA_DIR' mailboxes" | tar -xf - -C "$MB_TMP" \
+    || { rm -rf "$MB_TMP"; die "取线上信箱副本失败（线上未动）"; }
+  if ! node "$HERE/preflight-mailboxes.mjs" "$MB_TMP/mailboxes"; then
+    rm -rf "$MB_TMP"
+    die "当前 schema.mjs 打不开线上信箱 —— 部署会让 relay 启动即死，已中止（线上未动）"
+  fi
+  rm -rf "$MB_TMP"
+else
+  echo "  线上还没有 mailboxes 目录（首次部署），跳过"
+fi
+
 # 模块 md5 比对与 /health 等待都在 verify.sh 里 —— 同一份逻辑只写一遍，
 # 部署只管「换上去」，验证只管「是不是这份代码」。
 verify_online() {

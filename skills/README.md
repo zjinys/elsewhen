@@ -12,6 +12,34 @@
 | 技能 | 一句话 | 何时用 | 入口 |
 |---|---|---|---|
 | [`relay-deploy`](relay-deploy/SKILL.md) | 把仓库里的盲中继（relay）部署/更新/回滚到自建服务器，并**证明**换上去的确实是这份代码 | 改过 `relay/standalone/*` 之后要上线、要回滚、要体检线上 | `skills/relay-deploy/scripts/deploy.sh` |
+| [`android-app-update`](android-app-update/SKILL.md) | 把当前仓库的 APK 构建/安装/更新到 Android 设备，并**证明**设备上跑的确实是这份代码 | 改过 Rust/Flutter 之后要让手机跟上、问「手机上的 app 要不要更新」 | `skills/android-app-update/scripts/check.sh` |
+
+### android-app-update
+
+- **用途**：`scripts/build-apk.sh` 编 APK → `adb install -r` 覆盖安装（保留应用数据）→
+  把装好的 `base.apk` **从设备拉回来**再比 `libelsewhen.so`/`libapp.so` 的 md5 与
+  「认得哪些迁移」。
+- **用法**：
+  ```bash
+  ./skills/android-app-update/scripts/check.sh              # 只读体检：要不要更新
+  ./skills/android-app-update/scripts/build.sh               # 只编译
+  ./skills/android-app-update/scripts/install.sh --relaunch  # 装 + 复核 + 冷启动确认
+  ```
+- **怎么判定该不该更新**：不看时间戳。`libelsewhen.so`/`libapp.so` 的 md5 逐字节比，
+  外加「这个 `.so` 认得仓库 `migrations/` 里的哪些迁移」—— 后者能说出**差在哪**
+  （「设备上那版不认识迁移 `63-relay-v3-review-f5`」），而 md5 只能说出「不一样」。
+  ⚠ 不要用裸正则从二进制里猜迁移名：`strings` 里的 `67-s`、`35-w` 这类杂串到处都是，
+  可信集合只有仓库 `migrations/` 目录本身。
+- **判断迁移集合时不要写 `strings … | grep -q`**：`grep -q` 命中即退出，`strings`
+  收到 SIGPIPE，配合 `set -o pipefail` 整条管道被判失败 —— 存在被读成不存在。
+- **安全边界**：只用 `adb install -r`，不卸载、不 `pm clear`、不猜设备（多设备直接报错）、
+  装前先比 `Signer #1` SHA-256。**不做备份，因为做不到**：设备未 root、
+  app 非 debuggable，`adb root` 与 `run-as` 都被系统拒绝，adb 拿不到 `/data/data/<pkg>`。
+- **`install` Success ≠ 装对了**：必须把设备上的 APK 拉回来复核，与 `relay-deploy`
+  的「模块 md5 才作数」是同一条规矩。
+- **配置**：设备序列号、包名、允许的证书指纹、flutter 命令都在
+  `android-app-update/config.env`；带空格的值必须加引号（`APK_FLUTTER_CMD="fvm flutter"`，
+  不加引号会被 shell 读成「以赋值去执行命令」）。
 
 ### relay-deploy
 
@@ -27,11 +55,16 @@
 - **配置全在文件里**：服务器地址、SSH 用户、容器名、端口、数据目录、配额都改
   `relay-deploy/config.env`；密钥类写 `relay-deploy/config.local.env`（已 `.gitignore`）。
   **脚本里没有常量** —— 换一台服务器不该改代码。
-- **三条铁律**（写在这里，因为忘一次就会踩一次）：构建必须 `--network=host`；
+- **四条铁律**（写在这里，因为忘一次就会踩一次）：构建必须 `--network=host`；
   服务器上没有 node、没有仓库副本，只能 `docker save | ssh 'docker load'`；
-  重建容器**不许**带回 `/releases` 挂载与 `RELEASES_DIR`，但数据卷 `/data` 必须照原样挂回去。
+  重建容器**不许**带回 `/releases` 挂载与 `RELEASES_DIR`，但数据卷 `/data` 必须照原样挂回去；
+  **relay 侧代码改了就必须重新部署，模块 `md5` 才作数** —— 只跑 `node --test` 不算上线
+  （10-25 漏过一次：代码改到 18:43，镜像还是 15:45，`/health` 绿了一整天）。
 - **`/health` 绿 ≠ 部署成功**：旧镜像没有 `blob.mjs`/`sweeper.mjs` 时 healthcheck 照样绿，
   所以验证必须三层，见 `relay-deploy/references/runbook.md`。
+- **部署前先验线上信箱**：`deploy.sh` 会自动把线上信箱取一份副本、用仓库当前
+  `schema.mjs` 试开（`scripts/preflight-mailboxes.mjs`），开不了就中止 —— `openMailboxDb()`
+  的建表/幂等索引迁移一旦抛错，relay 就是启动即死。
 - **已知不做的**：线上**不跑** blob 数据面冒烟（会往生产信箱写真实分片）；数据面验收在本地
   standalone relay 上跑（`docs/roadmap/2026-10-24-relay-v3-dataplane-roadmap.md` 的验收节）。
 

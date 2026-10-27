@@ -35,7 +35,27 @@ description: 部署/更新/回滚/验证 Elsewhen 盲中继（relay）到自建�
 加 `--smoke` 在部署后再跑一次契约冒烟（`RELAY_SMOKE=1` 也行）。
 `--tag <name>` 指定镜像 tag，`--verify-only` 等价于 verify。
 
-## 三条铁律
+### 部署前会先验线上信箱（`scripts/preflight-mailboxes.mjs`）
+
+`openMailboxDb()` 在**开库时**建表并跑幂等索引迁移，这一步抛错 = relay 启动即死；
+而 relay 是「代码一改就带来新迁移」的形态，线上每个老信箱都要能在新 `schema.mjs`
+下打开。所以 `deploy.sh` 在构建镜像**之前**就把线上信箱 `tar` 一份副本回来，
+用仓库当前的 `schema.mjs` 逐个试开，不开就中止（线上一个字节都不动）。
+
+也可以单独跑（参数是信箱目录，脚本自己再复制一份到临时目录，源目录只读）：
+
+```bash
+ssh root@$RELAY_HOST "tar -cf - -C /mnt/cache/appdata/elsewhen-relay/data mailboxes" | tar -xf - -C /tmp/mb
+node skills/relay-deploy/scripts/preflight-mailboxes.mjs /tmp/mb/mailboxes
+# ✓ {"mailbox":"bf44c43f","bytes":4096,"idemIndex":1,"integrity":"ok","mail":0,...}
+```
+
+它打印每个信箱的 `mail/senders/owner/blobs/blobChunks/idemIndex/integrity`；
+`idemIndex=1` 表示幂等索引建得起来，`integrity=ok` 表示没有行被迁移删坏。
+**只拷主文件会漏数**：`-wal` 里可能还有未 checkpoint 的已提交事务，脚本连
+`-wal`/`-shm` 一起复制。
+
+## 四条铁律
 
 1. **构建必须 `--network=host`。** 本机 default bridge 建 veth 对会失败
    （`failed to add the host <=> sandbox pair interfaces: operation not supported`），
@@ -44,6 +64,11 @@ description: 部署/更新/回滚/验证 Elsewhen 盲中继（relay）到自建�
    机器上构建，`docker save | gzip -1 | ssh 'gunzip | docker load'` 过去。
 3. **重建容器时不许带回 `/releases` 挂载与 `RELEASES_DIR`。** R0 已删除应用内分发功能，
    老容器的这两个是历史遗留。数据卷 `/data` 必须照原样挂回去。
+4. **relay 侧代码改了就必须重新部署，`md5` 才作数。** 改完只跑 `node --test` 等于没上线
+   —— 2026-10-25 就是这样漏的：`relay/standalone/{server,schema,blob}.mjs` 改到 18:43，
+   镜像还是 15:45 那个，`/health` 一直绿、`version:2` 一直对，线上跑的却是 P4 之前的代码。
+   判断「线上是不是这份代码」的**唯一**依据是 `verify.sh` 的模块 md5 逐项相等，
+   不是 `/health`、不是容器 `healthy`、更不是「我记得部署过」。
 
 ## `/health` 绿不等于部署成功
 
