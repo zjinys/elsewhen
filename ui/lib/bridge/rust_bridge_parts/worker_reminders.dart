@@ -30,6 +30,9 @@ extension RepoWorkerReminders on RustBridgeRepository {
   void _wakeAnalysisWorker() {
     _idleWakes = 0;
     if (!_initialized || _disposed || !runBackgroundWorker) return;
+    // 终态失败（未配置同步身份/库被换）退避窗口内直接返回：不跑 tick、不刷日志。
+    // 瞬时失败不进这里（policy 只对领域错误码退避），重试节奏完全不变。
+    if (_failurePolicy.blocked) return;
     if (_analysisWorkerRunning) {
       _analysisRerunRequested = true;
       return;
@@ -102,14 +105,18 @@ extension RepoWorkerReminders on RustBridgeRepository {
           );
           if (!_disposed && changed > 0) knowledgeRevision.value++;
         }
+        _failurePolicy.recordSuccess();
       } catch (e) {
         // Queue state remains durable; the next wake retries after startup or
         // the periodic timer without surfacing an error in the save path.
         //
         // 不上抛是有意的（保存路径不该被后台 worker 的失败带崩），但**完全静默**
         // 不好：若每 tick 都因同一个原因失败（比如抢锁 BUSY），就会永远查不出来。
-        // 这里只记不抛，让问题在日志里留下痕迹。
-        debugPrint('analysis worker failed: $e');
+        // 这里只记不抛，让问题在日志里留下痕迹；**终态**失败（例如同步未配置）
+        // 同一个原因只记一次并退避，避免每拍一条同样的话把真故障淹掉。
+        if (_failurePolicy.recordFailure(e)) {
+          debugPrint('analysis worker failed: $e');
+        }
       } finally {
         _analysisWorkerRunning = false;
         if (_analysisRerunRequested) _wakeAnalysisWorker();

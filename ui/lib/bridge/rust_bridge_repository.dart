@@ -19,6 +19,7 @@ import '../models/tweet_fetch.dart';
 import '../models/rule.dart';
 import '../models/relation.dart';
 import '../models/goal.dart';
+import '../sync/background_failure_policy.dart';
 import '../sync/sync_setup_controller.dart';
 import 'ai_activity.dart';
 import 'api.dart' as api;
@@ -57,6 +58,9 @@ class RustBridgeRepository implements StorageRepository {
   bool _disposed = false;
   bool _housekeepingRunning = false;
   Timer? _analysisTimer;
+
+  /// 后台 worker 的失败分类与退避（终态不重试，见 [BackgroundFailurePolicy]）。
+  final BackgroundFailurePolicy _failurePolicy = BackgroundFailurePolicy();
 
   /// 后台 AI 活动（标题栏指示器订阅，见 [backgroundAiActivityProvider]）。
   final ValueNotifier<AiActivity?> backgroundAiActivity = ValueNotifier(null);
@@ -123,7 +127,11 @@ class RustBridgeRepository implements StorageRepository {
     localSync =
         syncSetupController ??
         SyncSetupController(autoEnrollment: runBackgroundWorker);
-    localSync.onReady = _wakeAnalysisWorker;
+    localSync.onReady = () {
+      // 用户/自愈刚把本机同步身份准备好（含解锁）：解除终态退避，立刻跑一拍。
+      _failurePolicy.reset();
+      _wakeAnalysisWorker();
+    };
   }
 
   /// 桌面平台让 Rust 侧 `ProjectDirs` 自解析；移动端 `directories` crate
