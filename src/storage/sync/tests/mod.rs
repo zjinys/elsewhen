@@ -170,3 +170,5 @@ mod deliver_state;
 mod snapshot_start_retirement;
 
 mod wire_rejections;
+
+mod local_identity;

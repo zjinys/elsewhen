@@ -536,3 +536,28 @@ fn duplicate_missing_config_fails_without_side_effects() {
     assert!(f.store.duplicate_ai_provider_config("missing").is_err());
     assert_eq!(f.count("ai_provider_configs"), 0);
 }
+
+/// D2（roadmap `2026-10-27-sync-lifecycle-boundaries` C0，红）：同步未配置时读
+/// provider master key 必须是**领域错误**，不能把 rusqlite 的 `Query returned no
+/// rows` 漏给上层。
+///
+/// 这条泄漏正是后台 worker 每 tick 抛 `AnyhowException(Query returned no rows)` 的
+/// 源头：调用方无法区分「同步还没配置（终态，不该重试）」和「临时抢锁失败」。
+#[test]
+fn unconfigured_master_key_read_reports_a_domain_error_not_rusqlite_text() {
+    let dir = std::env::temp_dir().join(format!(
+        "elsewhen-provider-unconfigured-{}",
+        uuid::Uuid::new_v4()
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let store = Store::open(&dir.join("test.db")).unwrap();
+    // 没有 sync_local_vault 行，也没有注入内存 master：这正是「同步未配置」的形状。
+    let error = store.provider_master_key().unwrap_err();
+    let text = format!("{error:#}");
+    drop(store);
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(
+        text.contains("sync_not_configured"),
+        "同步未配置时应返回领域错误 sync_not_configured，实际漏出：{text}"
+    );
+}
