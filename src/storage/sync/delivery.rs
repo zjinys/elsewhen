@@ -366,6 +366,22 @@ impl Store {
         Ok(())
     }
 
+    /// `sync_wire_outbox` 里还没被对端回执的封包：条数 + 字节数。
+    ///
+    /// 这是「同步卡在哪」唯一诚实的可观测口径（缺陷 D4：主界面此前完全看不到
+    /// 积压）。条数说明还有多少消息在飞，字节数说明量级 —— 锁定时用户最想知道的
+    /// 是「还要不要等」，只给条数给不出这个判断。
+    ///
+    /// 只算 `state='pending'`：`acknowledged` 是终态，留在表里的是历史记录。
+    pub(crate) fn pending_wire_backlog(&self) -> Result<(i64, i64)> {
+        Ok(self.connection.query_row(
+            "SELECT COUNT(*), COALESCE(SUM(LENGTH(encrypted_envelope)), 0) \
+             FROM sync_wire_outbox WHERE state='pending'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?)
+    }
+
     pub(crate) fn snapshot_import_pending(&self) -> Result<bool> {
         Ok(self.connection.query_row(
             "SELECT EXISTS(SELECT 1 FROM sync_snapshot_target t JOIN sync_snapshots s ON s.id=t.snapshot_id WHERE s.state='staging')",

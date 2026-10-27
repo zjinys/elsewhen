@@ -10157,6 +10157,8 @@ impl SseDecode for crate::api::sync::invite::LocalSyncStateDto {
         let mut var_isProcessor = <bool>::sse_decode(deserializer);
         let mut var_activePeers = <i64>::sse_decode(deserializer);
         let mut var_pendingOperations = <i64>::sse_decode(deserializer);
+        let mut var_pendingWireEnvelopes = <i64>::sse_decode(deserializer);
+        let mut var_pendingBytes = <i64>::sse_decode(deserializer);
         let mut var_relayUrl = <Option<String>>::sse_decode(deserializer);
         return crate::api::sync::invite::LocalSyncStateDto {
             state: var_state,
@@ -10169,6 +10171,8 @@ impl SseDecode for crate::api::sync::invite::LocalSyncStateDto {
             is_processor: var_isProcessor,
             active_peers: var_activePeers,
             pending_operations: var_pendingOperations,
+            pending_wire_envelopes: var_pendingWireEnvelopes,
+            pending_bytes: var_pendingBytes,
             relay_url: var_relayUrl,
         };
     }
@@ -13596,6 +13600,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::invite::LocalSyncStateD
             self.is_processor.into_into_dart().into_dart(),
             self.active_peers.into_into_dart().into_dart(),
             self.pending_operations.into_into_dart().into_dart(),
+            self.pending_wire_envelopes.into_into_dart().into_dart(),
+            self.pending_bytes.into_into_dart().into_dart(),
             self.relay_url.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -16866,6 +16872,8 @@ impl SseEncode for crate::api::sync::invite::LocalSyncStateDto {
         <bool>::sse_encode(self.is_processor, serializer);
         <i64>::sse_encode(self.active_peers, serializer);
         <i64>::sse_encode(self.pending_operations, serializer);
+        <i64>::sse_encode(self.pending_wire_envelopes, serializer);
+        <i64>::sse_encode(self.pending_bytes, serializer);
         <Option<String>>::sse_encode(self.relay_url, serializer);
     }
 }
@@ -20011,6 +20019,8 @@ mod io {
                 is_processor: self.is_processor.cst_decode(),
                 active_peers: self.active_peers.cst_decode(),
                 pending_operations: self.pending_operations.cst_decode(),
+                pending_wire_envelopes: self.pending_wire_envelopes.cst_decode(),
+                pending_bytes: self.pending_bytes.cst_decode(),
                 relay_url: self.relay_url.cst_decode(),
             }
         }
@@ -22108,6 +22118,8 @@ mod io {
                 is_processor: Default::default(),
                 active_peers: Default::default(),
                 pending_operations: Default::default(),
+                pending_wire_envelopes: Default::default(),
+                pending_bytes: Default::default(),
                 relay_url: core::ptr::null_mut(),
             }
         }
@@ -28374,6 +28386,8 @@ mod io {
         is_processor: bool,
         active_peers: i64,
         pending_operations: i64,
+        pending_wire_envelopes: i64,
+        pending_bytes: i64,
         relay_url: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
@@ -31680,8 +31694,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                11,
-                "Expected 11 elements, got {}",
+                13,
+                "Expected 13 elements, got {}",
                 self_.length()
             );
             crate::api::sync::invite::LocalSyncStateDto {
@@ -31695,7 +31709,9 @@ mod web {
                 is_processor: self_.get(7).cst_decode(),
                 active_peers: self_.get(8).cst_decode(),
                 pending_operations: self_.get(9).cst_decode(),
-                relay_url: self_.get(10).cst_decode(),
+                pending_wire_envelopes: self_.get(10).cst_decode(),
+                pending_bytes: self_.get(11).cst_decode(),
+                relay_url: self_.get(12).cst_decode(),
             }
         }
     }

@@ -17,6 +17,7 @@ import '../widgets/wiki_page_detail_view.dart';
 import '../widgets/custom_title_bar.dart';
 import '../widgets/ai_provider_setup_hint.dart';
 import '../widgets/companion_revisit_hint.dart';
+import '../widgets/sync_backlog_banner.dart';
 import '../widgets/glass.dart';
 import '../widgets/review_view.dart';
 import '../widgets/sync_workspace.dart';
@@ -103,6 +104,23 @@ class MainScreen extends ConsumerWidget {
             const AiProviderSetupHint(),
             // 情感回访（D6）：打开应用时最多一条温和的记忆回引，可关（设置→规则库）
             const CompanionRevisitHint(),
+            // 全局同步状态位（D4）：同步停摆/积压时主界面必须看得见，且要分清
+            // 「待解锁积压」与「等对端确认」—— 前者点一下就通，后者只能等。
+            // 只在移动端主界面挂：桌面端的同步信息住在同步工作区（同屏可见）。
+            if (isMobilePlatform)
+              Builder(
+                builder: (context) {
+                  final repository = ref.watch(storageRepositoryProvider);
+                  return SyncBacklogBanner(
+                    controller: repository is RustBridgeRepository
+                        ? repository.localSync
+                        : null,
+                    onOpenSync: () => ref
+                        .read(sidebarTabProvider.notifier)
+                        .set(SidebarTab.sync),
+                  );
+                },
+              ),
             Expanded(
               child: Row(
                 children: [

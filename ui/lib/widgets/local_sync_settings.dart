@@ -260,6 +260,12 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                     SyncDeliverStatusLine(
                       statuses: widget.repository!.syncDeliveryStatus,
                     ),
+                    // D4：积压的数据库口径（对端未确认条数/字节）。投递流只说
+                    // 「这一拍在等谁」，说不出「一共压着多少」。
+                    SyncBacklogLine(
+                      envelopes: state.pendingWireEnvelopes,
+                      bytes: state.pendingBytes,
+                    ),
                   ],
                 ),
               ),

@@ -60,7 +60,12 @@ class TestSyncSecureStorage extends FlutterSecureStorage {
   }
 }
 
-api.LocalSyncStateDto testSyncState(String state) => api.LocalSyncStateDto(
+api.LocalSyncStateDto testSyncState(
+  String state, {
+  int pendingOperations = 0,
+  int pendingWireEnvelopes = 0,
+  int pendingBytes = 0,
+}) => api.LocalSyncStateDto(
   state: state,
   installationId: state == 'not_configured' ? null : 'test-install',
   vaultRevision: state == 'not_configured' ? 0 : 1,
@@ -70,7 +75,9 @@ api.LocalSyncStateDto testSyncState(String state) => api.LocalSyncStateDto(
   isOwner: state != 'not_configured',
   isProcessor: state != 'not_configured',
   activePeers: 0,
-  pendingOperations: 0,
+  pendingOperations: pendingOperations,
+  pendingWireEnvelopes: pendingWireEnvelopes,
+  pendingBytes: pendingBytes,
 );
 
 class TestSyncSetupApi implements SyncSetupApi {
@@ -171,6 +178,8 @@ class TestSyncSetupApi implements SyncSetupApi {
       isProcessor: next.isProcessor,
       activePeers: next.activePeers,
       pendingOperations: next.pendingOperations,
+      pendingWireEnvelopes: next.pendingWireEnvelopes,
+      pendingBytes: next.pendingBytes,
     );
     return current.vaultRevision;
   }

@@ -14,6 +14,10 @@ pub struct LocalSyncStateDto {
     pub is_processor: bool,
     pub active_peers: i64,
     pub pending_operations: i64,
+    /// `sync_wire_outbox` 里未收到对端回执的封包条数（D4：把积压投影成可读数字）。
+    pub pending_wire_envelopes: i64,
+    /// 上述未回执封包的加密信封总字节数。
+    pub pending_bytes: i64,
     /// 当前生效的 relay 地址（本机已解锁并持有 peer route 时才有；锁定/未配置为 None）。
     pub relay_url: Option<String>,
 }
@@ -204,6 +208,10 @@ pub(crate) fn local_sync_state_for(
         [],
         |r| r.get(0),
     )?;
+    // D4：积压的「对端侧」口径。`pending_operations` 只说明本机还有多少操作没被
+    // 回执，说不出这些操作是否已经飞出去；`pending_wire_envelopes` 才是「对端还没
+    // 确认收到」的条数，两者一起才解释得清「为什么还没同步过去」。
+    let (pending_wire_envelopes, pending_bytes) = store.pending_wire_backlog()?;
     // relay 读面（设置页展示用）：本机已解锁才有 master 可解密 vault。
     // 锁定/加入中/未配置都是 None，UI 显示「不可见」而不是猜一个值。
     let relay_url = match (vault.as_ref(), identity.as_ref()) {
@@ -228,6 +236,8 @@ pub(crate) fn local_sync_state_for(
         is_processor,
         active_peers,
         pending_operations,
+        pending_wire_envelopes,
+        pending_bytes,
         relay_url,
     })
 }
@@ -284,3 +294,6 @@ pub fn lock_local_sync() -> Result<LocalSyncStateDto> {
     runtime::lock(&config);
     get_local_sync_state()
 }
+
+#[cfg(test)]
+mod tests;

@@ -99,6 +99,12 @@ class LocalSyncStateDto {
   final PlatformInt64 activePeers;
   final PlatformInt64 pendingOperations;
 
+  /// `sync_wire_outbox` 里未收到对端回执的封包条数（D4：把积压投影成可读数字）。
+  final PlatformInt64 pendingWireEnvelopes;
+
+  /// 上述未回执封包的加密信封总字节数。
+  final PlatformInt64 pendingBytes;
+
   /// 当前生效的 relay 地址（本机已解锁并持有 peer route 时才有；锁定/未配置为 None）。
   final String? relayUrl;
 
@@ -113,6 +119,8 @@ class LocalSyncStateDto {
     required this.isProcessor,
     required this.activePeers,
     required this.pendingOperations,
+    required this.pendingWireEnvelopes,
+    required this.pendingBytes,
     this.relayUrl,
   });
 
@@ -128,6 +136,8 @@ class LocalSyncStateDto {
       isProcessor.hashCode ^
       activePeers.hashCode ^
       pendingOperations.hashCode ^
+      pendingWireEnvelopes.hashCode ^
+      pendingBytes.hashCode ^
       relayUrl.hashCode;
 
   @override
@@ -145,6 +155,8 @@ class LocalSyncStateDto {
           isProcessor == other.isProcessor &&
           activePeers == other.activePeers &&
           pendingOperations == other.pendingOperations &&
+          pendingWireEnvelopes == other.pendingWireEnvelopes &&
+          pendingBytes == other.pendingBytes &&
           relayUrl == other.relayUrl;
 }
 

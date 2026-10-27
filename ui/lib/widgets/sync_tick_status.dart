@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../bridge/api.dart' as api;
+import '../sync/sync_backlog_notice.dart';
 import '../theme/app_theme.dart';
 import '../utils/error_report.dart';
 
@@ -147,4 +148,33 @@ class SyncDeliverStatusLine extends StatelessWidget {
   /// 设备 id 只留前 8 位：面板一行放不下 64 位 hex，而区分对端只要前几位。
   static String _shortPeer(String peer) =>
       peer.length <= 8 ? peer : peer.substring(0, 8);
+}
+
+/// D4：`sync_wire_outbox` 里 `state='pending'` 的数据库口径总量。
+///
+/// 与上面的投递状态流互补而不是重复：投递流说的是「这一拍在等谁、为什么退避」，
+/// 这条说的是「库里现在压着多少、多大」—— 后者才是「是不是卡住了」的判断依据。
+/// 为 0 时整条不渲染（没有积压就没有话要说）。
+class SyncBacklogLine extends StatelessWidget {
+  const SyncBacklogLine({
+    super.key,
+    required this.envelopes,
+    required this.bytes,
+  });
+
+  final int envelopes;
+  final int bytes;
+
+  @override
+  Widget build(BuildContext context) {
+    if (envelopes <= 0) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        '对端未确认 $envelopes 条 · ${formatBacklogBytes(bytes)}',
+        style: theme.textTheme.bodySmall?.copyWith(color: AppTheme.warning),
+      ),
+    );
+  }
 }

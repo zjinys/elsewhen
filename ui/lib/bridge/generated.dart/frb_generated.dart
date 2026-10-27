@@ -12052,8 +12052,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   LocalSyncStateDto dco_decode_local_sync_state_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 11)
-      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
     return LocalSyncStateDto(
       state: dco_decode_String(arr[0]),
       installationId: dco_decode_opt_String(arr[1]),
@@ -12065,7 +12065,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       isProcessor: dco_decode_bool(arr[7]),
       activePeers: dco_decode_i_64(arr[8]),
       pendingOperations: dco_decode_i_64(arr[9]),
-      relayUrl: dco_decode_opt_String(arr[10]),
+      pendingWireEnvelopes: dco_decode_i_64(arr[10]),
+      pendingBytes: dco_decode_i_64(arr[11]),
+      relayUrl: dco_decode_opt_String(arr[12]),
     );
   }
 
@@ -16031,6 +16033,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_isProcessor = sse_decode_bool(deserializer);
     var var_activePeers = sse_decode_i_64(deserializer);
     var var_pendingOperations = sse_decode_i_64(deserializer);
+    var var_pendingWireEnvelopes = sse_decode_i_64(deserializer);
+    var var_pendingBytes = sse_decode_i_64(deserializer);
     var var_relayUrl = sse_decode_opt_String(deserializer);
     return LocalSyncStateDto(
       state: var_state,
@@ -16043,6 +16047,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       isProcessor: var_isProcessor,
       activePeers: var_activePeers,
       pendingOperations: var_pendingOperations,
+      pendingWireEnvelopes: var_pendingWireEnvelopes,
+      pendingBytes: var_pendingBytes,
       relayUrl: var_relayUrl,
     );
   }
@@ -19827,6 +19833,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.isProcessor, serializer);
     sse_encode_i_64(self.activePeers, serializer);
     sse_encode_i_64(self.pendingOperations, serializer);
+    sse_encode_i_64(self.pendingWireEnvelopes, serializer);
+    sse_encode_i_64(self.pendingBytes, serializer);
     sse_encode_opt_String(self.relayUrl, serializer);
   }
 
