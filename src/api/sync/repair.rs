@@ -20,8 +20,8 @@ pub fn clear_local_sync_identity() -> Result<LocalSyncStateDto> {
     let store = Store::open(&config.database_path)?;
     let before = local_sync_state_for(&config, &store)?;
     ensure_reset_applicable(&before.state)?;
-    // 后台/前台 worker 正在写同步表时清理会留下半清状态。
-    store.require_background_quiescent_for_sync()?;
+    // 后台分析任务跑着的时候清理会留下半清状态；这道检查由存储层在写事务内做
+    // （`require_background_quiescent_for_sync` 自己要求已在领域事务中）。
     // 运行时会话里存着 master 与租约；不清掉会让随后的状态读取仍看到旧 revision。
     runtime::lock(&config);
     store.clear_local_sync_identity()?;

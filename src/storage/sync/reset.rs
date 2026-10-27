@@ -73,6 +73,12 @@ impl Store {
             !self.has_sync_authority()?,
             "sync_reset_requires_broken_identity"
         );
+        // 复制表之间互相有外键（replica → members → keys、exports → chunks…），
+        // 逐表删除必然在中途撞上「父行已没了子行还在」以外的情况：这里是反过来，
+        // 先删父表。与其维护一份脆弱的删除顺序，不如把外键检查推迟到 COMMIT ——
+        // 那一刻所有复制表都已清空，一致性自然成立。该 pragma 在 COMMIT 后自动失效。
+        self.connection
+            .execute_batch("PRAGMA defer_foreign_keys = ON")?;
         for table in REPLICATION_TABLES {
             self.connection
                 .execute(&format!("DELETE FROM \"{table}\""), [])?;
@@ -87,8 +93,11 @@ impl Store {
         Ok(())
     }
 
+    /// 事务由本函数开：`require_background_quiescent_for_sync` 要求调用方已在
+    /// 领域写事务内，否则它自己就会拒绝（`sync_requires_domain_transaction`）。
     pub(crate) fn clear_local_sync_identity(&self) -> Result<()> {
         let transaction = self.begin_write_transaction()?;
+        self.require_background_quiescent_for_sync()?;
         self.clear_local_sync_identity_on()?;
         if let Some(transaction) = transaction {
             transaction.commit()?;
