@@ -29,14 +29,16 @@ class SyncBacklogNotice {
 
   String get message => switch (kind) {
     SyncBacklogKind.lockedBacklog =>
-      '待解锁积压 $_size · 解开本机密钥后自动同步',
+      '待解锁积压 $envelopes 条 · $_size，解开本机密钥后自动同步',
     SyncBacklogKind.awaitingPeer =>
       '同步延迟：对端未确认 $envelopes 条 · $_size，正在重试',
   };
 
   String get actionLabel => '去解锁';
 
-  String get _size => '${formatBacklogBytes(bytes)}（$envelopes 条）';
+  /// 只渲染字节量级：条数已经在两条文案里各自说过了，再附一次会读成
+  /// 「对端未确认 1 条 · 2.7 KB（1 条）」——真机首屏当场撞到的重复。
+  String get _size => formatBacklogBytes(bytes);
 }
 
 /// 人类可读的字节量级：积压是「还要不要等」的判断依据，裸字节数帮不上这个忙。

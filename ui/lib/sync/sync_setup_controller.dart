@@ -195,6 +195,53 @@ class SyncSetupController extends ChangeNotifier {
     }
   }
 
+  Listenable? _backlogSource;
+  bool _backlogRefreshing = false;
+
+  /// 订阅「投递进度」信号，让积压口径跟着走。
+  ///
+  /// 状态快照（`state`）是一次性的；而积压是**动**的——封包发出、对端回执、
+  /// 重试都会改 `sync_wire_outbox.state='pending'` 的行数。真机现场：手机侧
+  /// 明明有 1 条未回执，主界面状态位却整整 8 分钟不出现，重启 app 才显示
+  /// 「对端未确认 1 条 · 2.7 KB」——一个只在重启时正确的指示器，等于没有。
+  /// 挂在每拍都会变的 `syncDeliveryStatus` 上，事件驱动就不需要轮询。
+  void attachBacklogSource(Listenable changes) {
+    if (identical(_backlogSource, changes)) return;
+    _backlogSource?.removeListener(_onBacklogTick);
+    _backlogSource = changes;
+    changes.addListener(_onBacklogTick);
+  }
+
+  void _onBacklogTick() => unawaited(refreshBacklog());
+
+  /// 静默重读快照：只更新积压相关字段，不动 `busy` / `error`。
+  ///
+  /// 不用 [refresh]：那个会把 `busy` 翻一遍，而它每拍都可能被触发，
+  /// 设置页的按钮会跟着闪。值没变就不 notify，避免无意义的整树重建。
+  Future<void> refreshBacklog() async {
+    if (_disposed || _closed || _backlogRefreshing || busy || joiner.active) {
+      return;
+    }
+    _backlogRefreshing = true;
+    try {
+      final next = await _bridge.state();
+      if (_disposed || _closed) return;
+      final previous = state;
+      if (previous != null &&
+          previous.state == next.state &&
+          previous.pendingWireEnvelopes == next.pendingWireEnvelopes &&
+          previous.pendingBytes == next.pendingBytes) {
+        return;
+      }
+      state = next;
+      _changed();
+    } catch (_) {
+      // 读不到就保留上一次（与 refresh() 同策略：别把失败显示成清零）。
+    } finally {
+      _backlogRefreshing = false;
+    }
+  }
+
   Future<void> restoreIfConfigured() async {
     await refresh();
     if (!_disposed && !_closed && state?.state == 'locked') {
@@ -405,6 +452,8 @@ class SyncSetupController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _backlogSource?.removeListener(_onBacklogTick);
+    _backlogSource = null;
     if (_disposed) return;
     _disposed = true;
     onReady = null;

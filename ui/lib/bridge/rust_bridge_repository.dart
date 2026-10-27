@@ -132,6 +132,9 @@ class RustBridgeRepository implements StorageRepository {
       _failurePolicy.reset();
       _wakeAnalysisWorker();
     };
+    // 积压口径必须跟着投递进度走：`syncDeliveryStatus` 每次 tick 后都会被重写，
+    // 在这里挂上去，主界面状态位（手机）/设置页行（桌面）读到的快照才是现在的。
+    localSync.attachBacklogSource(syncDeliveryStatus);
   }
 
   /// 桌面平台让 Rust 侧 `ProjectDirs` 自解析；移动端 `directories` crate

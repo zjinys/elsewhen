@@ -87,11 +87,16 @@ class TestSyncSetupApi implements SyncSetupApi {
   int preparations = 0;
   int installations = 0;
   int confirmations = 0;
+  /// `state()` 被读了几次：积压口径要跟着投递进度重新读，这条计数是判据。
+  int stateReads = 0;
   String? operation;
   final released = <String>[];
 
   @override
-  Future<api.LocalSyncStateDto> state() async => current;
+  Future<api.LocalSyncStateDto> state() async {
+    stateReads++;
+    return current;
+  }
   @override
   Future<api.SyncKeyRequestDto> prepare({
     String? name,

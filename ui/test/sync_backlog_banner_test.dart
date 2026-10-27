@@ -23,9 +23,7 @@ void main() {
       expect(notice, isNotNull);
       expect(notice!.kind, SyncBacklogKind.lockedBacklog);
       expect(notice.actionable, isTrue);
-      expect(notice.message, contains('待解锁积压'));
-      expect(notice.message, contains('12 条'));
-      expect(notice.message, contains('57 KB'));
+      expect(notice.message, '待解锁积压 12 条 · 57 KB，解开本机密钥后自动同步');
     });
 
     test('就绪 + 有未回执 => 对端未确认，且不提供假按钮', () {
@@ -43,8 +41,9 @@ void main() {
         isFalse,
         reason: '等对端确认没有本机可做的动作，给按钮只会让人以为点了会变快',
       );
-      expect(notice.message, contains('对端未确认 3 条'));
-      expect(notice.message, contains('2.0 KB'));
+      // 精确断言整句：真机上曾渲染成「对端未确认 1 条 · 2.7 KB（1 条）」，
+      // 条数被说了两遍 —— `contains` 抓不到这种重复。
+      expect(notice.message, '同步延迟：对端未确认 3 条 · 2.0 KB，正在重试');
     });
 
     test('没有积压 / 未配置 / 需要修复 都返回 null', () {
