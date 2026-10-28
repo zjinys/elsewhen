@@ -195,6 +195,11 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
               hasPreview: preview != null,
               pendingPairingId: controller.pendingPairingId,
               approvalDelivered: controller.approvalDelivered,
+              // 终态：enrollment 视图里这台新设备的交接已经 `complete`（对端
+              // 已回执/已被确认）。没有它，第五步会永远转圈。
+              deviceJoined: controller.enrollment.states.any(
+                (s) => s.role == 'owner' && s.phase == 'complete',
+              ),
             ),
           ),
           const SizedBox(height: 8),

@@ -221,6 +221,11 @@ pub(in crate::sync::runtime) fn enrollment_available(session: &Session) -> bool 
                     | Phase::ProofSent
                     | Phase::Enrollment
                     | Phase::EnrollmentConfirmation
+                    // 终态只是**界面**的终点，不是交接握手的终点：收尾回执/迟到重投
+                    // 仍要走 `enroll_tick`，所以这里必须继续放行。若把 `Joined`
+                    // 关掉，就会在「看起来完成」之后截断握手 —— 正是 C7 ⑩ 那类
+                    // 「对端永远等不到回执」的翻版。
+                    | Phase::Joined
             )
     })
 }

@@ -14,6 +14,10 @@ class SyncPairingSteps extends StatelessWidget {
 
   /// 当前所处步骤下标；小于它的显示完成，大于它的未开始。
   /// 传 -1 表示尚未开始任何步骤（全灰）。
+  ///
+  /// 传 `steps.length` 表示**全部完成**：没有任何一步是「进行中」，因此不会
+  /// 出现转圈图标，也不会出现 ◀ 指向标记。终态必须能表达出来 —— 否则最后一步
+  /// 会永远转圈（真机 2026-10-28 10:10 现场，见 roadmap C11）。
   final int current;
 
   @override
@@ -109,12 +113,18 @@ class _StepSpinner extends StatelessWidget {
 }
 
 /// owner 视角：当前推进到第几步（步骤数组见 owner 卡接线处）。
+///
+/// `deviceJoined` 是**终态**信号（enrollment 视图里该邀请已 `complete`）：为真时
+/// 返回 5 = 全部完成。少了它，第五步「新设备接入」会永远转圈 —— 和 joiner 侧
+/// 是同一个缺陷的两端。
 int ownerPairingStage({
   required String? invitationId,
   required bool hasPreview,
   required String? pendingPairingId,
   required bool approvalDelivered,
+  bool deviceJoined = false,
 }) {
+  if (deviceJoined) return 5;
   if (pendingPairingId != null) {
     // 审批已持久化；投递由轮询自动重试，确认送达即停在「等待安装」。
     return approvalDelivered ? 4 : 3;
@@ -131,6 +141,9 @@ int joinerStageFor(String phase) => switch (phase) {
   'awaiting_approval' => 2,
   'installation_confirmation' || 'proof_sent' => 3,
   'awaiting_membership' || 'enrollment' || 'enrollment_confirmation' => 4,
+  // 终态：五步全 ✔。它由本地事实推导（快照 applied + 本机名册 active），
+  // 不等任何一条确认帧 —— 详见 `src/sync/runtime/joining.rs::terminal_phase`。
+  'joined' => 5,
   _ => -1,
 };
 

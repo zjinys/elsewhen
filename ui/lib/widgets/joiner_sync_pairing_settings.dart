@@ -174,7 +174,10 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
               SyncDeliverStatusLine(statuses: widget.deliveryStatuses!),
             ],
           ],
-          if (phase == 'complete') ...[
+          // 加入流程的终态相位叫 `joined`（Rust `Phase::name()`）。这里原本写的是
+          // `'complete'` —— 那个字符串从来没有被产出过，于是这张带「进入数据集」
+          // 的卡在真机上从未显示，用户除了一个永远转圈的第五步什么都没有。
+          if (phase == 'joined') ...[
             DatasetSwitchCard(
               api: widget.datasetApi,
               catalogChanges: controller,

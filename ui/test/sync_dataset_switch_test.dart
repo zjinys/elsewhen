@@ -92,7 +92,10 @@ void main() {
       ownerFingerprint: 'ab',
       relayUrl: 'https://relay.test',
       expiresAtMs: 0,
-      phase: 'complete',
+      // 加入会话的终态相位名是 `joined`（Rust `Phase::name()`）。这条用例原本
+      // 写的是 `'complete'` —— 后端从来不产出那个字符串，于是它一直在验一段
+      // 死代码，而真机上那张卡从未出现过（roadmap C11）。
+      phase: 'joined',
       revision: 6,
       creating: false,
       approvalAckPending: false,

@@ -231,6 +231,16 @@ fn end_to_end_send_fetch_ack_against_real_worker() {
         uuid::Uuid::new_v4()
     ));
     std::fs::create_dir_all(&snapshot_dir).unwrap();
+    // 无论断言成败都要删掉：这个目录里的库每个可达百 MB 级，2026-10-28 实测
+    // 遗漏清理把 /tmp（tmpfs）堆到 99%、连带 flutter test 编译失败。用 guard
+    // 而不是散落的 remove，是为了让中途 panic 的路径也走回收。
+    struct Cleanup(std::path::PathBuf);
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    let _cleanup = Cleanup(snapshot_dir.clone());
     blob_snapshot_roundtrip(&client, &snapshot_dir);
 
     // 阶段五：blob 缺口的边界 —— 不能跳着放，也不能报错（R4-6）。

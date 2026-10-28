@@ -21,7 +21,7 @@ use crate::sync::{
 };
 use rusqlite::OptionalExtension;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Phase {
     Preview,
     KeyRequired,
@@ -33,6 +33,13 @@ enum Phase {
     ProofSent,
     Enrollment,
     EnrollmentConfirmation,
+    /// 加入流程的**终态**：初始快照已应用 + 本机名册已激活。
+    ///
+    /// 它由本地事实推导（见 `terminal_phase`），而不是由某条信令置位 ——
+    /// 真机 2026-10-28 10:10 的现场是「快照早已 `applied`、名册已装、桌面导出
+    /// 已 `acknowledged`，而界面仍停在最后一步转圈」，因为在此之前枚举里根本
+    /// 没有「完成」这个状态可落。
+    Joined,
     Failed,
 }
 impl Phase {
@@ -48,6 +55,7 @@ impl Phase {
             Self::ProofSent => "proof_sent",
             Self::Enrollment => "enrollment",
             Self::EnrollmentConfirmation => "enrollment_confirmation",
+            Self::Joined => "joined",
             Self::Failed => "requires_new_invitation",
         }
     }
@@ -91,14 +99,21 @@ pub(crate) struct JoinView {
     pub approval_ack_pending: bool,
 }
 
+/// 邀请码的截止时间只约束**还要继续动作**的相位。已经进入交接（`Enrollment` /
+/// `EnrollmentConfirmation`）或已经完成（`Joined`）的会话不受它约束：把终态渲染成
+/// 「邀请已过期」等于把完成说成失败。
+fn deadline_passed(phase: Phase, deadline: i64) -> bool {
+    deadline > 0
+        && now() >= deadline
+        && !matches!(
+            phase,
+            Phase::Enrollment | Phase::EnrollmentConfirmation | Phase::Joined
+        )
+}
+
 fn view(session: &Session) -> JoinView {
     let join = session.joining.as_ref().expect("joining session");
-    let expired = join.deadline > 0
-        && now() >= join.deadline
-        && !matches!(
-            join.phase,
-            Phase::Enrollment | Phase::EnrollmentConfirmation
-        );
+    let expired = deadline_passed(join.phase, join.deadline);
     JoinView {
         operation_id: session.operation.clone(),
         token: session.token.clone(),
@@ -365,10 +380,59 @@ pub fn prepare_resume(config: &AppConfig, entry_id: &str) -> Result<JoinView> {
     result
 }
 
+/// 加入流程的终点只认**本地事实**：初始快照已应用，且本机名册已激活（名册里
+/// 本机 `active=1` 且密钥可用）。等一条「确认帧」会把界面永久钉在最后一步 ——
+/// 那条帧可能永远不来（它自己也要被回执，见 C7 ⑩），而事实早就成立了。
+fn joined_locally(store: &Store) -> Result<bool> {
+    Ok(store.local_sync_membership_active()?
+        && store.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sync_snapshots WHERE state='applied')",
+            [],
+            |r| r.get(0),
+        )?)
+}
+
+/// 纯映射：事实成立且仍停在中间相位时落到 `Joined`，其余一律原样返回。
+/// 幂等 —— 同一批事实重复推导不会把已完成的相位再推回去。
+fn terminal_phase(phase: Phase, joined: bool) -> Phase {
+    if joined
+        && matches!(
+            phase,
+            Phase::AwaitingMembership | Phase::Enrollment | Phase::EnrollmentConfirmation
+        )
+    {
+        Phase::Joined
+    } else {
+        phase
+    }
+}
+
+/// 每拍状态轮询都重新推导一次终态。探测失败（例如用户已经切换到该数据集、
+/// 暂存条目变成 ready）只表示「现在还不是终态」，不能把一次状态轮询变成错误。
+fn advance_terminal(config: &AppConfig, session: &mut Session) {
+    let Some(phase) = session.joining.as_ref().map(|join| join.phase) else {
+        return;
+    };
+    if !matches!(
+        phase,
+        Phase::AwaitingMembership | Phase::Enrollment | Phase::EnrollmentConfirmation
+    ) {
+        return;
+    }
+    let Ok(store) = staging_store(config, session) else {
+        return;
+    };
+    let joined = joined_locally(&store).unwrap_or(false);
+    if let Some(join) = session.joining.as_mut() {
+        join.phase = terminal_phase(join.phase, joined);
+    }
+}
+
 pub fn state(config: &AppConfig, operation: &str) -> Result<JoinView> {
     let mut all = sessions().lock().unwrap_or_else(|p| p.into_inner());
     let session = session(&mut all, config)?;
     ensure!(session.operation == operation, "sync_join_request_stale");
+    advance_terminal(config, session);
     Ok(view(session))
 }
 
