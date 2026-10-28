@@ -449,3 +449,124 @@ fn discard_refuses_selected_entry() {
     assert!(catalog.discard_staging(&entry.id).is_err());
     assert!(catalog.list().unwrap().iter().any(|e| e.id == entry.id));
 }
+
+/// 造一个「已选中、且身份表齐全」的数据集工作区，返回 (workspace, 数据集库路径)。
+fn selected_dataset() -> (Workspace, PathBuf) {
+    let workspace = Workspace::new();
+    let _original = workspace.original();
+    let catalog = DatasetCatalog::open(&workspace.0).unwrap();
+    let (entry, master) = imported(&catalog);
+    catalog
+        .select_import(&catalog.prepare_selection(&entry.id).unwrap(), &master, 2)
+        .unwrap();
+    let path = catalog.path_for(&entry.id).unwrap();
+    assert_eq!(
+        selected_database_path(&workspace.0).unwrap(),
+        Some(path.clone())
+    );
+    (workspace, path)
+}
+
+/// 真机 2026-10-27 17:08 抓到：用户走完「清除本机同步身份」出口后，**下一次冷
+/// 启动整机起不来** —— `Failed to initialize / Bad state: 初始化存储失败:
+/// AnyhowException(Error resolving data directory: sync_selected_dataset_identity_changed)`。
+///
+/// 机制：出口合法地把 `sync_replica`/`sync_local_vault`/`sync_snapshots` 清空
+/// （`storage/sync/reset.rs::REPLICATION_TABLES`），而启动校验把「三张表全空」
+/// 当成「catalog 记的身份和文件里的身份不一致」。数据集本身业务表一格未动，
+/// 必须仍然能打开 —— 否则出口只是把「局部坏状态」换成「整机不可用」。
+#[test]
+fn a_dataset_that_left_sync_still_opens_on_the_next_start() {
+    let (workspace, path) = selected_dataset();
+
+    // 故意走**真实出口**而不是手写 DELETE：手删只能证明 SQL 对不对，
+    // 证明不了「出口之后的第一条启动路径」能不能走通。出口的准入闸门之一是
+    // 「authority 必须为空」（有权威 = 健康身份，该走切换数据集），所以先把
+    // 现场还原成 C6 那次真机的样子：authority 空、vault/replica 还在。
+    {
+        let store = Store::open(&path).unwrap();
+        store
+            .connection
+            .execute_batch(
+                "DELETE FROM sync_authority; DELETE FROM sync_authority_versions;",
+            )
+            .unwrap();
+        store.clear_local_sync_identity().unwrap();
+    }
+    {
+        let store = Store::open(&path).unwrap();
+        let rows: i64 = store
+            .connection
+            .query_row("SELECT COUNT(*) FROM sync_replica", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(rows, 0, "出口应已清掉 replica");
+        assert_eq!(
+            store.list_events().unwrap().len(),
+            1,
+            "业务数据必须一格不少"
+        );
+    }
+    assert_eq!(
+        selected_database_path(&workspace.0).unwrap(),
+        Some(path),
+        "退出同步后的数据集必须能在冷启动时打开"
+    );
+}
+
+/// 上一条的正向放行**不能**顺手放掉真正的身份不符：只清了一半（replica 还在、
+/// vault 没了）依旧要报错，否则「表全空」和「表残缺」就没区别了。
+#[test]
+fn a_partially_cleared_identity_is_still_a_startup_error() {
+    let (workspace, path) = selected_dataset();
+    {
+        let store = Store::open(&path).unwrap();
+        store
+            .connection
+            .execute_batch("PRAGMA defer_foreign_keys = ON")
+            .unwrap();
+        let transaction = store.connection.unchecked_transaction().unwrap();
+        store
+            .connection
+            .execute("DELETE FROM sync_local_vault", [])
+            .unwrap();
+        transaction.commit().unwrap();
+    }
+    let error = selected_database_path(&workspace.0).unwrap_err();
+    assert!(
+        format!("{error:#}").contains("sync_selected_dataset_identity_changed"),
+        "半清状态必须继续报身份不符：{error:#}"
+    );
+}
+
+/// 另外两条身份断言同样不能被「全空放行」带松：installation 被换、以及快照
+/// 没落到 `applied`，都还是 `sync_selected_dataset_identity_changed`。
+#[test]
+fn a_changed_installation_or_unapplied_snapshot_is_still_a_startup_error() {
+    let (workspace, path) = selected_dataset();
+    {
+        let store = Store::open(&path).unwrap();
+        store
+            .connection
+            .execute("UPDATE sync_local_vault SET installation_id='another-installation'", [])
+            .unwrap();
+    }
+    let error = selected_database_path(&workspace.0).unwrap_err();
+    assert!(
+        format!("{error:#}").contains("sync_selected_dataset_identity_changed"),
+        "installation 被换必须报错：{error:#}"
+    );
+
+    let (workspace, path) = selected_dataset();
+    {
+        let store = Store::open(&path).unwrap();
+        store
+            .connection
+            .execute("UPDATE sync_snapshots SET state='staging'", [])
+            .unwrap();
+    }
+    let error = selected_database_path(&workspace.0).unwrap_err();
+    assert!(
+        format!("{error:#}").contains("sync_selected_dataset_identity_changed"),
+        "快照未 applied 必须报错：{error:#}"
+    );
+}

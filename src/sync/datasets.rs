@@ -420,8 +420,35 @@ pub(crate) fn selected_database_path(root: &Path) -> Result<Option<PathBuf>> {
     let path = data_path(root, &id)?;
     checked_file(&path)?;
     let target = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-    let valid:bool=target.query_row("SELECT EXISTS(SELECT 1 FROM sync_replica WHERE dataset_id=?1) AND EXISTS(SELECT 1 FROM sync_local_vault WHERE installation_id=?2) AND EXISTS(SELECT 1 FROM sync_snapshots s JOIN sync_snapshot_target t ON t.snapshot_id=s.id WHERE s.id=?3 AND s.state='applied')",params![dataset,installation,snapshot],|r|r.get(0))?;
-    ensure!(valid, "sync_selected_dataset_identity_changed");
+    // 这三张表只为回答一个问题：“这个文件还是 catalog 记录的那个数据集吗？”
+    // 但**全空**是合法的第三种状态：走“清除本机同步身份”出口后，同步身份连同
+    // 派生中间态被清干净（`storage/sync/reset.rs::REPLICATION_TABLES` 会删掉
+    // `sync_replica`/`sync_local_vault`/`sync_snapshots`），数据集本身仍是一份
+    // 完好的本地数据，业务表一格未动。把“全空”当成“身份变了”会让用户刚用完
+    // 出口就再也打不开 app（真机 2026-10-27 17:08：`Failed to initialize /
+    // sync_selected_dataset_identity_changed`）。
+    // 因此：表里有行且值不同 ⇒ 真的被换过，报错；三张表全空 ⇒ 已退出同步的
+    // 普通数据集，放行。仍然不放宽的：catalog 记录 `state='ready'` 与
+    // `published_snapshot` 必填、文件缺失/非法 —— 那是“文件本身不对”，不是身份问题。
+    let (replica, vault, applied): (Option<String>, Option<String>, bool) = target.query_row(
+        "SELECT (SELECT dataset_id FROM sync_replica LIMIT 1),\
+         (SELECT installation_id FROM sync_local_vault LIMIT 1),\
+         EXISTS(SELECT 1 FROM sync_snapshots s JOIN sync_snapshot_target t ON t.snapshot_id=s.id WHERE s.id=?1 AND s.state='applied')",
+        [&snapshot],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+    )?;
+    let left_sync = replica.is_none() && vault.is_none() && !applied;
+    if !left_sync {
+        ensure!(
+            replica.as_deref() == Some(dataset.as_str()),
+            "sync_selected_dataset_identity_changed"
+        );
+        ensure!(
+            vault.as_deref() == Some(installation.as_str()),
+            "sync_selected_dataset_identity_changed"
+        );
+        ensure!(applied, "sync_selected_dataset_identity_changed");
+    }
     transaction.commit()?;
     Ok(Some(path))
 }
