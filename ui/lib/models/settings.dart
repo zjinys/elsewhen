@@ -233,7 +233,7 @@ class AppSettings {
     required this.aiProvider,
     required this.memory,
     required this.storage,
-    this.themeMode = AppThemeMode.dark,
+    this.themeMode = AppThemeMode.system,
     this.themePreset = AppThemePreset.amber,
     this.fontName = 'inter',
     this.fontSize = AppFonts.defaultFontSize,
@@ -311,7 +311,7 @@ class AppSettings {
       ),
       memory: const MemorySettings(strategyType: 'simple', maxMessages: 20),
       storage: const StorageSettings(adapterType: 'sqlite'),
-      themeMode: AppThemeMode.dark,
+      themeMode: AppThemeMode.system,
       themePreset: AppThemePreset.amber,
     );
   }

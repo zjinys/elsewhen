@@ -237,7 +237,13 @@ impl Store {
         )?;
         // A new member joins an empty dataset. Never overwrite an independent
         // local vault merely because the sender calls its payload a snapshot.
-        let conflict = head != bundle.base_revision || (head.is_none() && has_profiles);
+        let chain_conflict = head != bundle.base_revision || (head.is_none() && has_profiles);
+        // 链条分叉但内容与本地完全一致（含明文 Key、激活项、failover 序）：
+        // 应用它对数据是无操作，只把修订链接回本端 head——重装后设备重发
+        // 同一份快照就是这种形态，为「什么都没变」弹人工审阅只会训练用户
+        // 盲点确认。内容有任何实质差异仍走冲突审阅（失败关闭不变）。
+        let conflict =
+            chain_conflict && !self.provider_bundle_matches_local(&bundle, &canonical)?;
         self.connection.execute("INSERT INTO sync_provider_versions(revision_id,base_revision,sender_device_id,content_hash,encrypted_envelope,state) VALUES(?1,?2,?3,?4,?5,?6)",params![bundle.revision_id,bundle.base_revision,expected.sender_device_id,digest,bytes,if conflict {"conflict"} else {"applied"}])?;
         if conflict {
             if let Some(tx) = tx {
@@ -251,6 +257,35 @@ impl Store {
             tx.commit()?;
         }
         Ok(ProviderApplyResult::Applied)
+    }
+
+    /// 链条分叉的 bundle 是否与本地当前状态逐字节一致：用远端的修订身份
+    /// （revision_id / base_revision）重导出本地状态，再比对规范字节。
+    /// 一致 → 应用是无操作且能治愈修订链；不一致 → 必须人工审阅。
+    fn provider_bundle_matches_local(
+        &self,
+        bundle: &ProviderBundle,
+        canonical: &[u8],
+    ) -> Result<bool> {
+        let relabeled = self
+            .export_provider_bundle(&bundle.revision_id, bundle.base_revision.clone())?;
+        // updated_at 是本地写入时间戳（显式激活等操作会刷新它），不属于
+        // 内容同一性；两侧归一化后比对。
+        let strip = |mut value: serde_json::Value| {
+            if let Some(profiles) = value.get_mut("profiles").and_then(|p| p.as_array_mut()) {
+                for profile in profiles {
+                    profile["updated_at"] = serde_json::Value::Null;
+                }
+            }
+            value
+        };
+        let canonical_bytes = |value: &ProviderBundle| -> Result<Vec<u8>> {
+            serde_json::to_vec(&strip(serde_json::to_value(value).map_err(|_| {
+                anyhow::anyhow!("sync_provider_bundle_invalid")
+            })?))
+            .map_err(|_| anyhow::anyhow!("sync_provider_bundle_invalid"))
+        };
+        Ok(canonical_bytes(&relabeled)? == canonical_bytes(bundle)?)
     }
 
     pub(super) fn replace_provider_bundle_on(&self, bundle: &ProviderBundle) -> Result<()> {

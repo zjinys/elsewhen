@@ -19,6 +19,7 @@ import '../widgets/custom_title_bar.dart';
 import '../widgets/font_picker_dialog.dart';
 import '../widgets/habit_nudge_settings.dart';
 import '../widgets/provider_endpoint_notice.dart';
+import '../widgets/provider_key_warning_badge.dart';
 import '../widgets/knowledge_digest_dialog.dart';
 import '../widgets/web_search_settings.dart';
 import '../widgets/doh_settings.dart';

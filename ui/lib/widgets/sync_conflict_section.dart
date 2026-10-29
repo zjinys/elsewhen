@@ -20,6 +20,7 @@ class SyncConflictSection extends StatelessWidget {
     required this.error,
     required this.cards,
     required this.emptyText,
+    this.onRetry,
   });
 
   final IconData icon;
@@ -30,6 +31,9 @@ class SyncConflictSection extends StatelessWidget {
   final String? error;
   final List<Widget> cards;
   final String emptyText;
+
+  /// 读取/裁决失败时的显式重拉入口（非自动刷新，不打断审阅）。
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +97,20 @@ class SyncConflictSection extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (onRetry != null)
+                  ActionChip(
+                    avatar: Icon(
+                      Icons.refresh,
+                      size: 14,
+                      color: theme.colorScheme.error,
+                    ),
+                    label: const Text('重新拉取'),
+                    labelStyle: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: busy ? null : onRetry,
+                  ),
               ],
             ),
           ),

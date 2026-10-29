@@ -17,6 +17,7 @@ api.AiProviderConfigDto edited(
   baseUrl: url,
   model: original.model,
   apiKeySource: original.apiKeySource,
+  hasApiKey: true,
   apiKey: key,
   isActive: original.isActive,
   temperature: original.temperature,

@@ -209,6 +209,7 @@ void main() {
         baseUrl: providerConfig.baseUrl,
         model: providerConfig.model,
         apiKeySource: providerConfig.apiKeySource,
+        hasApiKey: true,
         apiKey: '',
         isActive: true,
         temperature: providerConfig.temperature,

@@ -10197,8 +10197,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AiProviderConfigDto dco_decode_ai_provider_config_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 12)
-      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
     return AiProviderConfigDto(
       id: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
@@ -10207,11 +10207,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       model: dco_decode_String(arr[4]),
       apiKeySource: dco_decode_String(arr[5]),
       apiKey: dco_decode_String(arr[6]),
-      isActive: dco_decode_bool(arr[7]),
-      temperature: dco_decode_f_64(arr[8]),
-      maxTokens: dco_decode_opt_box_autoadd_i_64(arr[9]),
-      contextWindow: dco_decode_opt_box_autoadd_i_64(arr[10]),
-      revisionToken: dco_decode_opt_String(arr[11]),
+      hasApiKey: dco_decode_bool(arr[7]),
+      isActive: dco_decode_bool(arr[8]),
+      temperature: dco_decode_f_64(arr[9]),
+      maxTokens: dco_decode_opt_box_autoadd_i_64(arr[10]),
+      contextWindow: dco_decode_opt_box_autoadd_i_64(arr[11]),
+      revisionToken: dco_decode_opt_String(arr[12]),
     );
   }
 
@@ -13281,6 +13282,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_model = sse_decode_String(deserializer);
     var var_apiKeySource = sse_decode_String(deserializer);
     var var_apiKey = sse_decode_String(deserializer);
+    var var_hasApiKey = sse_decode_bool(deserializer);
     var var_isActive = sse_decode_bool(deserializer);
     var var_temperature = sse_decode_f_64(deserializer);
     var var_maxTokens = sse_decode_opt_box_autoadd_i_64(deserializer);
@@ -13294,6 +13296,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       model: var_model,
       apiKeySource: var_apiKeySource,
       apiKey: var_apiKey,
+      hasApiKey: var_hasApiKey,
       isActive: var_isActive,
       temperature: var_temperature,
       maxTokens: var_maxTokens,
@@ -17689,6 +17692,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.model, serializer);
     sse_encode_String(self.apiKeySource, serializer);
     sse_encode_String(self.apiKey, serializer);
+    sse_encode_bool(self.hasApiKey, serializer);
     sse_encode_bool(self.isActive, serializer);
     sse_encode_f_64(self.temperature, serializer);
     sse_encode_opt_box_autoadd_i_64(self.maxTokens, serializer);

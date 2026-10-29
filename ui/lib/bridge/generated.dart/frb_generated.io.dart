@@ -3315,6 +3315,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.model = cst_encode_String(apiObj.model);
     wireObj.api_key_source = cst_encode_String(apiObj.apiKeySource);
     wireObj.api_key = cst_encode_String(apiObj.apiKey);
+    wireObj.has_api_key = cst_encode_bool(apiObj.hasApiKey);
     wireObj.is_active = cst_encode_bool(apiObj.isActive);
     wireObj.temperature = cst_encode_f_64(apiObj.temperature);
     wireObj.max_tokens = cst_encode_opt_box_autoadd_i_64(apiObj.maxTokens);
@@ -16220,6 +16221,9 @@ final class wire_cst_ai_provider_config_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> api_key;
 
   @ffi.Bool()
+  external bool has_api_key;
+
+  @ffi.Bool()
   external bool is_active;
 
   @ffi.Double()
@@ -16240,6 +16244,7 @@ final class wire_cst_ai_provider_config_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> model,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> api_key_source,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> api_key,
+    required bool has_api_key,
     required bool is_active,
     required double temperature,
     required ffi.Pointer<ffi.Int64> max_tokens,
@@ -16253,6 +16258,7 @@ final class wire_cst_ai_provider_config_dto extends ffi.Struct {
     ..ref.model = model
     ..ref.api_key_source = api_key_source
     ..ref.api_key = api_key
+    ..ref.has_api_key = has_api_key
     ..ref.is_active = is_active
     ..ref.temperature = temperature
     ..ref.max_tokens = max_tokens

@@ -57,6 +57,7 @@ void main() {
         baseUrl: 'http://127.0.0.1:${server.port}/v1',
         model: 'fixture',
         apiKeySource: 'database',
+        hasApiKey: true,
         apiKey: 'fixture-key',
         isActive: true,
         temperature: 0,
@@ -85,9 +86,7 @@ void main() {
               'function': {
                 'name': 'enable_tools',
                 'arguments': jsonEncode({
-                  'skills': [
-                    skill,
-                  ],
+                  'skills': [skill],
                 }),
               },
             },

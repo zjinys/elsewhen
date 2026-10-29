@@ -69,6 +69,7 @@ impl Store {
                     base_url: row.get(3)?,
                     model: row.get(4)?,
                     api_key_source: row.get(5)?,
+                    has_api_key: false,
                     is_active: row.get::<_, i64>(6)? != 0,
                     temperature: row.get(7)?,
                     max_tokens: row.get(8)?,
@@ -76,7 +77,26 @@ impl Store {
                 })
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
-        Ok(rows)
+        let mut rows_out = Vec::with_capacity(rows.len());
+        // has_api_key 要看密封表（明文列在开启密封时恒空），逐行判：
+        // read_provider_key 解密封存需要 master，但「是否配置」只需存在性，
+        // 所以这里只查表不解密 —— 锁定态下也能正确标警告。
+        for mut row in rows {
+            let id = row.id.clone();
+            let plaintext: Option<String> = self.connection.query_row(
+                "SELECT api_key FROM ai_provider_configs WHERE id=?1",
+                [&id],
+                |r| r.get(0),
+            )?;
+            let sealed: bool = self.connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM provider_key_secrets WHERE config_id=?1)",
+                [&id],
+                |r| r.get(0),
+            )?;
+            row.has_api_key = sealed || plaintext.map(|k| !k.trim().is_empty()).unwrap_or(false);
+            rows_out.push(row);
+        }
+        Ok(rows_out)
     }
 
     /// Full provider configurations for runtime failover, including secrets.

@@ -90,7 +90,7 @@ class SettingsNotifier extends Notifier<AppSettings> {
       state = state.copyWith(
         themeMode: AppThemeMode.values.firstWhere(
           (m) => m.name == prefs.mode,
-          orElse: () => AppThemeMode.dark,
+          orElse: () => AppThemeMode.system,
         ),
         themePreset: AppThemePreset.fromName(prefs.preset),
         // 归一化旧机器名存值（inter/notoSansSc/...）为 Google Fonts 家族名

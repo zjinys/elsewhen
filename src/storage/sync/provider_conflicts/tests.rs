@@ -504,3 +504,101 @@ fn masking_is_utf8_safe_and_bounds_short_keys() {
     assert!(!masked.contains('\u{FFFD}'));
     assert_eq!(crate::storage::provider_keys::mask_api_key(""), "");
 }
+
+/// 链条分叉但内容与本地逐字节一致（重装后设备重发同一份快照的形态）：
+/// 不制造人工审阅冲突，直接 applied 并把修订链接回本地 head——否则为
+/// 「什么都没变」的修订反复打断用户，链条也永远无法自愈收敛。
+#[test]
+fn identical_content_on_forked_chain_applies_without_manual_review() {
+    let a = remote_store();
+    let b = Db::new("b");
+    let signer = DeviceIdentity::generate().unwrap();
+    let key = ContentKey::generate().unwrap();
+    // b 先正常接受一份，再在本地做一次显式激活（推进 head，制造分叉 base），
+    // 但激活项与远端一致 → 内容不变。
+    let bundle = a.store.export_provider_bundle("remote-rev-1", None).unwrap();
+    let (header, bytes) = encode(&bundle, &signer, &key);
+    assert_eq!(
+        b.store
+            .apply_encrypted_provider_bundle(&bytes, &header, &key, &signer.public_key())
+            .unwrap(),
+        crate::storage::sync::providers::ProviderApplyResult::Applied
+    );
+    let head_before = b.store.sync_provider_head_revision().unwrap();
+    let active = b.store.active_ai_provider_config().unwrap().unwrap();
+    b.store
+        .set_active_ai_provider_config_for_sync(&active.id, true)
+        .unwrap();
+    assert_ne!(
+        b.store.sync_provider_head_revision().unwrap(),
+        head_before,
+        "precondition: local head advanced so the next remote base is stale"
+    );
+
+    // 远端重发同内容、base 指向旧 head：链条分叉但内容一致 → 免审 applied。
+    let rebased = a
+        .store
+        .export_provider_bundle("remote-rev-2", Some(head_before.clone()))
+        .unwrap();
+    let mut local_relabeled = serde_json::to_value(
+        b.store
+            .export_provider_bundle("remote-rev-2", None)
+            .unwrap(),
+    )
+    .unwrap();
+    local_relabeled["base_revision"] = serde_json::Value::String(head_before.clone());
+    // 显式激活会刷新 updated_at；内容同一性比较只关心结构字段。
+    let strip_timestamps = |mut value: serde_json::Value| {
+        if let Some(profiles) = value.get_mut("profiles").and_then(|p| p.as_array_mut()) {
+            for profile in profiles {
+                profile["updated_at"] = serde_json::Value::Null;
+            }
+        }
+        value
+    };
+    assert_eq!(
+        strip_timestamps(local_relabeled),
+        strip_timestamps(serde_json::to_value(&rebased).unwrap()),
+        "precondition: local state relabeled matches the incoming bundle"
+    );
+    let (header, bytes) = encode(&rebased, &signer, &key);
+    assert_eq!(
+        b.store
+            .apply_encrypted_provider_bundle(&bytes, &header, &key, &signer.public_key())
+            .unwrap(),
+        crate::storage::sync::providers::ProviderApplyResult::Applied,
+        "identical content on a forked chain must not demand manual review"
+    );
+    assert_eq!(
+        b.store.sync_provider_head_revision().unwrap(),
+        "remote-rev-2",
+        "applying the identical bundle heals the revision chain"
+    );
+    assert!(
+        b.store
+            .list_sync_provider_conflicts_with(1, &key, &signer.public_key())
+            .unwrap()
+            .is_empty()
+    );
+
+    // 变异基线对照组：同一分叉形态但内容有实质差异 → 仍必须人工审阅。
+    // （用新的 revision：重放 remote-rev-2 会命中同 revision 幂等防线。）
+    let mut divergent = a
+        .store
+        .export_provider_bundle("remote-rev-3", Some(head_before))
+        .unwrap();
+    divergent.profiles[0].api_key = "SYNTHETIC_DIVERGED".into();
+    let (header, bytes) = encode(&divergent, &signer, &key);
+    assert_eq!(
+        b.store
+            .apply_encrypted_provider_bundle(&bytes, &header, &key, &signer.public_key())
+            .unwrap(),
+        crate::storage::sync::providers::ProviderApplyResult::Conflict,
+        "content divergence on a forked chain still requires explicit review"
+    );
+    let head_after = b.store.sync_provider_head_revision().unwrap();
+    assert_ne!(
+        head_after, "remote-rev-3",
+        "divergent revision must not advance the local head"
+    );
+}

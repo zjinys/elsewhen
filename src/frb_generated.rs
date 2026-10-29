@@ -7545,6 +7545,7 @@ impl SseDecode for crate::api::provider_config::AiProviderConfigDto {
         let mut var_model = <String>::sse_decode(deserializer);
         let mut var_apiKeySource = <String>::sse_decode(deserializer);
         let mut var_apiKey = <String>::sse_decode(deserializer);
+        let mut var_hasApiKey = <bool>::sse_decode(deserializer);
         let mut var_isActive = <bool>::sse_decode(deserializer);
         let mut var_temperature = <f64>::sse_decode(deserializer);
         let mut var_maxTokens = <Option<i64>>::sse_decode(deserializer);
@@ -7558,6 +7559,7 @@ impl SseDecode for crate::api::provider_config::AiProviderConfigDto {
             model: var_model,
             api_key_source: var_apiKeySource,
             api_key: var_apiKey,
+            has_api_key: var_hasApiKey,
             is_active: var_isActive,
             temperature: var_temperature,
             max_tokens: var_maxTokens,
@@ -11799,6 +11801,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::provider_config::AiProviderCo
             self.model.into_into_dart().into_dart(),
             self.api_key_source.into_into_dart().into_dart(),
             self.api_key.into_into_dart().into_dart(),
+            self.has_api_key.into_into_dart().into_dart(),
             self.is_active.into_into_dart().into_dart(),
             self.temperature.into_into_dart().into_dart(),
             self.max_tokens.into_into_dart().into_dart(),
@@ -15127,6 +15130,7 @@ impl SseEncode for crate::api::provider_config::AiProviderConfigDto {
         <String>::sse_encode(self.model, serializer);
         <String>::sse_encode(self.api_key_source, serializer);
         <String>::sse_encode(self.api_key, serializer);
+        <bool>::sse_encode(self.has_api_key, serializer);
         <bool>::sse_encode(self.is_active, serializer);
         <f64>::sse_encode(self.temperature, serializer);
         <Option<i64>>::sse_encode(self.max_tokens, serializer);
@@ -17965,6 +17969,7 @@ mod io {
                 model: self.model.cst_decode(),
                 api_key_source: self.api_key_source.cst_decode(),
                 api_key: self.api_key.cst_decode(),
+                has_api_key: self.has_api_key.cst_decode(),
                 is_active: self.is_active.cst_decode(),
                 temperature: self.temperature.cst_decode(),
                 max_tokens: self.max_tokens.cst_decode(),
@@ -20900,6 +20905,7 @@ mod io {
                 model: core::ptr::null_mut(),
                 api_key_source: core::ptr::null_mut(),
                 api_key: core::ptr::null_mut(),
+                has_api_key: Default::default(),
                 is_active: Default::default(),
                 temperature: Default::default(),
                 max_tokens: core::ptr::null_mut(),
@@ -27153,6 +27159,7 @@ mod io {
         model: *mut wire_cst_list_prim_u_8_strict,
         api_key_source: *mut wire_cst_list_prim_u_8_strict,
         api_key: *mut wire_cst_list_prim_u_8_strict,
+        has_api_key: bool,
         is_active: bool,
         temperature: f64,
         max_tokens: *mut i64,
@@ -29111,8 +29118,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                12,
-                "Expected 12 elements, got {}",
+                13,
+                "Expected 13 elements, got {}",
                 self_.length()
             );
             crate::api::provider_config::AiProviderConfigDto {
@@ -29123,11 +29130,12 @@ mod web {
                 model: self_.get(4).cst_decode(),
                 api_key_source: self_.get(5).cst_decode(),
                 api_key: self_.get(6).cst_decode(),
-                is_active: self_.get(7).cst_decode(),
-                temperature: self_.get(8).cst_decode(),
-                max_tokens: self_.get(9).cst_decode(),
-                context_window: self_.get(10).cst_decode(),
-                revision_token: self_.get(11).cst_decode(),
+                has_api_key: self_.get(7).cst_decode(),
+                is_active: self_.get(8).cst_decode(),
+                temperature: self_.get(9).cst_decode(),
+                max_tokens: self_.get(10).cst_decode(),
+                context_window: self_.get(11).cst_decode(),
+                revision_token: self_.get(12).cst_decode(),
             }
         }
     }

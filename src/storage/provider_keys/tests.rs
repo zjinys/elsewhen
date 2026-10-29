@@ -561,3 +561,31 @@ fn unconfigured_master_key_read_reports_a_domain_error_not_rusqlite_text() {
         "同步未配置时应返回领域错误 sync_not_configured，实际漏出：{text}"
     );
 }
+
+/// C12 后续（卡片「未配置 Key」警告）：`list_ai_provider_configs` 的
+/// `has_api_key` 只查存在性、不解密 —— 密封态与锁定态都要能正确判定，
+/// 否则锁定时全部卡片误亮警告。
+#[test]
+fn has_api_key_reflects_key_presence_in_sealed_and_locked_states() {
+    let f = Fixture::new(true);
+    let id = f.save("sealed-key", "sk-sealed");
+    // 密封态：密文存在 → true
+    let rows = f.store.list_ai_provider_configs().unwrap();
+    let row = rows.iter().find(|r| r.id == id).unwrap();
+    assert!(row.has_api_key, "密封密文存在时应判定为已配置");
+
+    // 模拟密文丢失（C12 前身份重置的形态）：删密文 → false
+    f.store
+        .connection
+        .execute("DELETE FROM provider_key_secrets", [])
+        .unwrap();
+    let rows = f.store.list_ai_provider_configs().unwrap();
+    let row = rows.iter().find(|r| r.id == id).unwrap();
+    assert!(!row.has_api_key, "密文被删后应判定为未配置（卡片亮警告）");
+
+    // 未密封但明文存在 → true（混合部署形态）
+    let id2 = f.save("plain-key", "sk-plain");
+    let rows = f.store.list_ai_provider_configs().unwrap();
+    let row2 = rows.iter().find(|r| r.id == id2).unwrap();
+    assert!(row2.has_api_key, "明文 key 存在时应判定为已配置");
+}

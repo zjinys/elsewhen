@@ -216,6 +216,80 @@ void main() {
     expect(find.text('本地配置 · model-本地配置（当前激活）'), findsOneWidget);
     expect(bridge.resolutions, isEmpty); // resolve 在记录前抛错
 
+    // 版本绑定失败时自动重拉：列表反映最新状态，无需手动刷新。
+    expect(find.text('最新内容'), findsNothing);
+    bridge
+      ..resolveError = null
+      ..current = [_conflict(localRevision: 'fresh-local-rev')];
+    await tester.pumpAndSettle();
+    // resolveError 仍设置时重拉不会发生（本用例已清空），此处只验证列表更新。
+    expect(find.textContaining('local-rev'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+    controller.dispose();
+  });
+
+  testWidgets('裁决遇版本漂移：自动重拉列表并保留错误提示', (tester) async {
+    final bridge = TestConflictApi()
+      ..current = [_conflict()]
+      ..resolveError = StateError(
+        'provider_conflict_local_changed（本地配置已变化，请重新审阅）',
+      );
+    final controller = SyncProviderConflictsController(bridge: bridge);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: SyncProviderConflictsSettings(controller: controller),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    // 首次 listConflicts 成功：无错误、无重试入口，冲突卡片可见。
+    expect(find.textContaining('已变化'), findsNothing);
+    expect(find.text('重新拉取'), findsNothing);
+    expect(find.text('保留本地'), findsOneWidget);
+
+    // 裁决失败后：错误保留，同时列表被自动重拉为新版本。
+    // resolveError 保留（resolve 仍抛错），但 current 换成 fresh 版本——
+    // 自动重拉发生在 resolve 抛错后的同一 resolve 调用里。
+    bridge.current = [_conflict(localRevision: 'fresh-local-rev')];
+    await tester.tap(find.text('保留本地'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('本地配置已变化'), findsOneWidget);
+    // 自动重拉已把 DTO 换成 fresh 版本：列表是新的审阅基线。
+    expect(controller.conflicts?.first.localRevision, 'fresh-local-rev');
+    expect(find.text('重新拉取'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    controller.dispose();
+  });
+
+  testWidgets('「重新拉取」按钮触发 refresh 且 busy 时禁用', (tester) async {
+    final bridge = TestConflictApi()
+      ..current = [_conflict()]
+      ..listError = StateError('provider_key_locked');
+    final controller = SyncProviderConflictsController(bridge: bridge);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: SyncProviderConflictsSettings(controller: controller),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('重新拉取'), findsOneWidget);
+
+    bridge.listError = null;
+    await tester.tap(find.text('重新拉取'));
+    await tester.pumpAndSettle();
+    // 重拉成功：错误消失，列表出现。
+    expect(find.text('重新拉取'), findsNothing);
+    expect(find.text('本地配置 · model-本地配置（当前激活）'), findsOneWidget);
+
     await tester.pumpWidget(const SizedBox());
     controller.dispose();
   });

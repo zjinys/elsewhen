@@ -98,6 +98,10 @@ extension _ProvidersView on _SettingsScreenState {
   /// 温度/上下文/输出上限/密钥来源等参数不进卡片（编辑对话框里可见），
   /// 卡片只留识别与切换所需的最小信息。
   Widget _buildProviderCard(api.AiProviderConfigDto p) {
+    // API Key 未配置（含密封密文被清、锁定态无法解出）时用警告色标出，
+    // 避免「看着配置齐全，一跑才发现 AI 全不可用」。判定与配色都在
+    // `provider_key_warning_badge.dart`，可独立测试。
+    final needsKey = !p.hasApiKey;
     return Container(
       padding: const EdgeInsets.all(AppTheme.space4),
       decoration: BoxDecoration(
@@ -106,9 +110,10 @@ extension _ProvidersView on _SettingsScreenState {
             : AppTheme.surface2,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
         border: Border.all(
-          color: p.isActive
-              ? AppTheme.accentPrimary.withValues(alpha: 0.5)
-              : AppTheme.surface3,
+          color: providerCardBorderColor(
+            hasApiKey: p.hasApiKey,
+            isActive: p.isActive,
+          ),
         ),
       ),
       child: Column(
@@ -148,6 +153,10 @@ extension _ProvidersView on _SettingsScreenState {
                     ),
                   ),
                 ),
+              ],
+              if (needsKey) ...[
+                const SizedBox(width: AppTheme.space2),
+                const ProviderKeyWarningBadge(),
               ],
             ],
           ),
@@ -196,56 +205,12 @@ extension _ProvidersView on _SettingsScreenState {
           // 不能加 const：AppTheme.surface3 是运行时主题色，深浅模式下不同。
           Divider(height: 1, color: AppTheme.surface3),
           const SizedBox(height: AppTheme.space2),
-          Row(
-            children: [
-              Expanded(
-                child: p.isActive
-                    // 激活项不再显示「设为激活」：按钮点了没意义，占位还让卡片左右不对称。
-                    ? Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          '对话使用此配置',
-                          style: TextStyle(
-                            color: AppTheme.textTertiary,
-                            fontSize: 11,
-                          ),
-                        ),
-                      )
-                    : Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton(
-                          onPressed: () => _activateProvider(p),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            minimumSize: const Size(0, 28),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: const Text('设为激活'),
-                        ),
-                      ),
-              ),
-              IconButton(
-                tooltip: '编辑',
-                icon: const Icon(Icons.edit_outlined, size: 18),
-                color: AppTheme.textSecondary,
-                visualDensity: VisualDensity.compact,
-                onPressed: () => _openProviderEditor(p),
-              ),
-              IconButton(
-                tooltip: '复制配置（API Key 需重新输入）',
-                icon: const Icon(Icons.copy_rounded, size: 18),
-                color: AppTheme.textSecondary,
-                visualDensity: VisualDensity.compact,
-                onPressed: () => _openProviderEditor(p, duplicate: true),
-              ),
-              IconButton(
-                tooltip: '删除',
-                icon: const Icon(Icons.delete_outline, size: 18),
-                color: AppTheme.error,
-                visualDensity: VisualDensity.compact,
-                onPressed: () => _deleteProvider(p),
-              ),
-            ],
+          ProviderCardActions(
+            isActive: p.isActive,
+            onActivate: () => _activateProvider(p),
+            onEdit: () => _openProviderEditor(p),
+            onDuplicate: () => _openProviderEditor(p, duplicate: true),
+            onDelete: () => _deleteProvider(p),
           ),
         ],
       ),
@@ -346,6 +311,7 @@ extension _ProvidersView on _SettingsScreenState {
           model: draft.model,
           apiKeySource: target?.apiKeySource ?? '',
           apiKey: draft.apiKey,
+          hasApiKey: target?.hasApiKey ?? false,
           // 复制出的配置不继承激活态：避免出现两个同时激活。
           isActive: duplicate ? false : target?.isActive ?? false,
           temperature: draft.temperature,
@@ -372,6 +338,7 @@ extension _ProvidersView on _SettingsScreenState {
         initialContextWindow: existing?.contextWindow?.toString() ?? '',
         initialMaxTokens: existing?.maxTokens?.toString() ?? '',
         initialProviderType: existing?.providerType ?? 'openai-compatible',
+        initialHasApiKey: existing?.hasApiKey ?? true,
       ),
     );
     // 保存成功时由对话框 pop；失败时对话框保持打开，此处只处理取消。

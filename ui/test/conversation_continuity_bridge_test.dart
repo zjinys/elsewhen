@@ -68,6 +68,7 @@ void main() {
         baseUrl: 'http://127.0.0.1:${server.port}/v1',
         model: 'fixture',
         apiKeySource: 'inline',
+        hasApiKey: true,
         apiKey: 'test-key',
         isActive: true,
         temperature: 0.7,

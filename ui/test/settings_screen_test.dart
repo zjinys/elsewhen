@@ -8,6 +8,8 @@ import 'package:elsewhen_ui/providers/settings_provider.dart';
 import 'package:elsewhen_ui/screens/settings_screen.dart';
 import 'package:elsewhen_ui/utils/window_service.dart';
 import 'package:elsewhen_ui/utils/window_service_stub.dart';
+import 'package:elsewhen_ui/theme/app_theme.dart';
+import 'package:elsewhen_ui/widgets/provider_key_warning_badge.dart';
 
 import 'support/isolated_bridge.dart';
 
@@ -32,6 +34,7 @@ void main() {
           baseUrl: 'https://isolated.example.com/v1',
           model: 'isolated-test-model',
           apiKeySource: '',
+          hasApiKey: true,
           apiKey: 'sk-isolated-test',
           isActive: true,
           temperature: 0.7,
@@ -129,6 +132,122 @@ void main() {
     );
   });
 
+  testWidgets('API Key 未配置的 provider 卡片：徽标与警告边框（生产组件直测）', (
+    tester,
+  ) async {
+    // hasApiKey=false 的 DTO 是 Rust 侧密文丢失时的真实输出形态（正常操作
+    // 无法构造：新建必填 key、编辑空 key 保留旧值 —— 后者已在
+    // settings_bridge_test 锁定）。卡片拼装在私有 extension 上无法注入，
+    // 但卡片的三块视觉决策都是生产组件/纯函数：徽标组件、边框配色函数、
+    // 操作按钮组。这里按生产卡片同样的组合方式整卡驱动并锁定分支：
+    // 无 key 必须亮徽标 + 警告边框；有 key 绝不能出现。
+    Widget card({required bool hasApiKey, required String label}) => Container(
+      padding: const EdgeInsets.all(AppTheme.space4),
+      decoration: BoxDecoration(
+        color: AppTheme.surface2,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(
+          color: providerCardBorderColor(hasApiKey: hasApiKey, isActive: false),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(label)),
+              // 生产卡片按 !hasApiKey 挂徽标；探针同构。
+              if (!hasApiKey) const ProviderKeyWarningBadge(),
+            ],
+          ),
+          const SizedBox(height: AppTheme.space3),
+          ProviderCardActions(
+            isActive: false,
+            onActivate: () {},
+            onEdit: () {},
+            onDuplicate: () {},
+            onDelete: () {},
+          ),
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              card(hasApiKey: false, label: '无key卡片'),
+              card(hasApiKey: true, label: '有key卡片'),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('未配置 Key'), findsOneWidget,
+        reason: '无 key 卡片必须亮警告徽标');
+
+    final borders = tester
+        .widgetList<Container>(
+          find.byWidgetPredicate(
+            (w) => w is Container && w.decoration is BoxDecoration,
+          ),
+        )
+        .map((c) => (c.decoration! as BoxDecoration).border as Border?)
+        .map((b) => b?.top.color)
+        .whereType<Color>()
+        .toList();
+    expect(
+      borders.contains(AppTheme.warning.withValues(alpha: 0.55)),
+      isTrue,
+      reason: '无 key 卡片边框应为警告色',
+    );
+    expect(
+      borders.contains(AppTheme.surface3),
+      isTrue,
+      reason: '有 key 卡片维持常态边框',
+    );
+  });
+
+  testWidgets('表单字段警告标签：无 key 时 API Key 标签换警告色并提示重填', (
+    tester,
+  ) async {
+    // 编辑对话框是私有 part 类，但其警告标签走公开组件
+    // ProviderKeyWarningFieldLabel —— 生产表单在 initialHasApiKey=false 时
+    // 渲染的就是它（「原密文已丢失，必须重填」）。
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              ProviderKeyWarningFieldLabel(
+                label: 'API Key',
+                warningHint: '原密文已丢失，必须重填',
+              ),
+              // 默认 hint（生产表单只在 warning 分支用它）
+              ProviderKeyWarningFieldLabel(label: '温度'),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('API Key'), findsOneWidget);
+    expect(find.text('原密文已丢失，必须重填'), findsOneWidget);
+    expect(find.byIcon(Icons.key_off_rounded), findsNWidgets(2));
+    expect(find.text('未配置'), findsOneWidget, reason: '默认 hint 是「未配置」');
+
+    // 警告色落在 label 与 hint 上
+    final label = tester.widget<Text>(find.text('API Key'));
+    expect(label.style?.color, AppTheme.warning);
+    final hint = tester.widget<Text>(find.text('原密文已丢失，必须重填'));
+    expect(hint.style?.color, AppTheme.warning);
+  });
+
   testWidgets('外观 tab：正文字号滑块存在并驱动设置状态', (tester) async {
     final container = ProviderContainer(
       overrides: [storageRepositoryProvider.overrideWithValue(repo)],
@@ -198,9 +317,7 @@ void main() {
     expect(find.textContaining('还没有规则'), findsNothing);
   });
 
-  testWidgets('桌面窗口：「关闭窗口时」用选项卡片选择并回写 WindowService', (
-    tester,
-  ) async {
+  testWidgets('桌面窗口：「关闭窗口时」用选项卡片选择并回写 WindowService', (tester) async {
     final fake = _FakeDesktopWindowService();
     WindowService.register(fake);
     addTearDown(() => WindowService.register(StubWindowService()));
@@ -222,8 +339,11 @@ void main() {
 
     // 托盘可用 → 渲染两张选项卡片（不是下拉，也不是 SegmentedButton）
     expect(find.text('关闭窗口时'), findsOneWidget);
-    expect(find.byType(SegmentedButton<CloseAction>), findsNothing,
-        reason: '卡片区块里 SegmentedButton 形态不搭，应为选项卡片');
+    expect(
+      find.byType(SegmentedButton<CloseAction>),
+      findsNothing,
+      reason: '卡片区块里 SegmentedButton 形态不搭，应为选项卡片',
+    );
     expect(find.byType(DropdownButtonFormField<CloseAction>), findsNothing);
     expect(find.text('最小化到托盘'), findsOneWidget);
     expect(find.text('退出应用'), findsOneWidget);

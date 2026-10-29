@@ -23,8 +23,10 @@ pub struct AiProviderConfigDto {
     pub base_url: String,
     pub model: String,
     pub api_key_source: String,
-    /// 明文密钥只在保存时上行；读取时不回传（用 api_key_source 判断是否已配置）
+    /// 明文密钥只在保存时上行；读取时不回传（用 has_api_key 判断是否已配置）
     pub api_key: String,
+    /// 明文或可解密封存任一存在即 true；锁定态也能正确判定（只查存在性不解密）
+    pub has_api_key: bool,
     pub is_active: bool,
     pub temperature: f64,
     pub max_tokens: Option<i64>,
@@ -46,6 +48,8 @@ fn dto_from_active(
         model: p.model,
         api_key_source: p.api_key_source,
         api_key: String::new(),
+        // active_ai_provider_metadata 的 WHERE 已过滤「必须有 key」，恒 true。
+        has_api_key: true,
         is_active: p.is_active,
         temperature: p.temperature,
         max_tokens: p.max_tokens,
@@ -87,6 +91,7 @@ pub fn list_ai_provider_configs() -> Result<Vec<AiProviderConfigDto>> {
                 model: r.model,
                 api_key_source: r.api_key_source,
                 api_key: String::new(),
+                has_api_key: r.has_api_key,
                 is_active: r.is_active,
                 temperature: r.temperature,
                 max_tokens: r.max_tokens,

@@ -262,6 +262,14 @@ Dart AI 分析 worker（每 tick）
 
 ---
 
+### 六之三、D8（2026-10-29 真机新抓到，**本轮已修**）：同内容假冲突 + 审阅错误无重拉出口
+
+- 现场：手机重装后以新身份（`f8de02aa`）向桌面推送 provider 快照，base 指向旧链头 `7cb300cc`，而桌面 head 已前进 ⇒ `apply_encrypted_provider_bundle` 按 `base_revision != head` 判 conflict（只看版本链、不比对内容）。**两条冲突内容逐项完全一致**（截图核对），第二条还是同一快照的重复推送（base 指向第一条 conflict 行）。用户点「保留本地」报 `provider_conflict_local_changed（本地配置已变化，请刷新后重新审阅）`——审阅窗口内后台同步推进了 head，且 UI 文案让「刷新」却没有刷新按钮。
+- 修法（两层）：
+  1. **Rust 根治假冲突**（`src/storage/sync/providers.rs`）：链条分叉但 bundle 内容与本地完全一致（含明文 Key、激活项、failover 序；`updated_at` 是本地写入时间戳，归一化后剥离）⇒ 直接 applied 并推进 head，**修订链自愈**；内容有任何实质差异仍走人工审阅。关键不变量不放松：信封仍需可信成员密钥解开，「不覆盖独立本地 vault」的保障在于内容逐字节一致时覆盖无意义。
+  2. **Flutter 审阅出口**（`ui/lib/sync/sync_provider_conflicts_controller.dart`、`ui/lib/widgets/sync_conflict_section.dart`）：裁决遇双版本绑定失败（`provider_conflict_local_changed` / `_revision_mismatch` / `_not_pending`）时**自动重拉列表**（后台随时推进 head，人工刷新往往又慢一步），错误文案改「请重新审阅下方最新列表」；`SyncConflictSection` 加可选 `onRetry`（错误态显示「重新拉取」ActionChip，busy 时禁用；三类冲突区共用，另两区不传即不显示）。
+- 验证：Rust 新用例 `identical_content_on_forked_chain_applies_without_manual_review`（同内容异 base → applied + head 前进 + 链治愈 + 审阅列表空；对照段：同形态异内容 → 仍 Conflict 且 head 不动）+ 变异（删免审分支 → 红）；Dart 新用例 2 条（裁决遇版本漂移自动重拉、重试按钮触发 refresh）+ 变异 2（删自动重拉 → 红；重试按钮 onPressed 恒 null → 红）。
+
 ### C12 证据明细（2026-10-28）
 
 | # | 证据 |
@@ -277,6 +285,8 @@ Dart AI 分析 worker（每 tick）
 ---
 
 ## 七、进度记录
+
+- **2026-10-29 15:xx D8 修复完成（同内容假冲突 + 审阅错误无重拉出口，未 push）**：修法与验证见 §六之三。五道门禁全绿：cargo **987** / relay **49** / analyze **0 error** / flutter test **+490** / regen EXIT=0。
 
 - **2026-10-28 15:30 C12 申报（provider key 重封迁移）**：方案 b 便宜版已在 §六收敛并逐条复核代码事实（见上）；确认唯一死穴是 C3 出口、重封可在同进程内完成（明文暂存迁移槽），**尚未改动任何代码**。
 - **2026-10-28 16:xx C12 完成**：重封迁移 + 双分支 UI + Rust 2 用例 3 变异 + Dart 2 用例 2 变异（其一暴露覆盖不足，补负向用例后打红）全部落地，五道门禁全绿（cargo 985 / relay 49 / analyze 0 error / flutter test +485 / regen EXIT=0），见 §C12 证据明细。**10 个已删 key 无法救回，仍需手动重填**。

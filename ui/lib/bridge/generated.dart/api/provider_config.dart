@@ -75,8 +75,11 @@ class AiProviderConfigDto {
   final String model;
   final String apiKeySource;
 
-  /// 明文密钥只在保存时上行；读取时不回传（用 api_key_source 判断是否已配置）
+  /// 明文密钥只在保存时上行；读取时不回传（用 has_api_key 判断是否已配置）
   final String apiKey;
+
+  /// 明文或可解密封存任一存在即 true；锁定态也能正确判定（只查存在性不解密）
+  final bool hasApiKey;
   final bool isActive;
   final double temperature;
   final PlatformInt64? maxTokens;
@@ -93,6 +96,7 @@ class AiProviderConfigDto {
     required this.model,
     required this.apiKeySource,
     required this.apiKey,
+    required this.hasApiKey,
     required this.isActive,
     required this.temperature,
     this.maxTokens,
@@ -109,6 +113,7 @@ class AiProviderConfigDto {
       model.hashCode ^
       apiKeySource.hashCode ^
       apiKey.hashCode ^
+      hasApiKey.hashCode ^
       isActive.hashCode ^
       temperature.hashCode ^
       maxTokens.hashCode ^
@@ -127,6 +132,7 @@ class AiProviderConfigDto {
           model == other.model &&
           apiKeySource == other.apiKeySource &&
           apiKey == other.apiKey &&
+          hasApiKey == other.hasApiKey &&
           isActive == other.isActive &&
           temperature == other.temperature &&
           maxTokens == other.maxTokens &&

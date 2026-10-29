@@ -2024,6 +2024,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.model),
       cst_encode_String(raw.apiKeySource),
       cst_encode_String(raw.apiKey),
+      cst_encode_bool(raw.hasApiKey),
       cst_encode_bool(raw.isActive),
       cst_encode_f_64(raw.temperature),
       cst_encode_opt_box_autoadd_i_64(raw.maxTokens),

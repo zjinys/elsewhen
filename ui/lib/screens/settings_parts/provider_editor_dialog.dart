@@ -46,11 +46,16 @@ class _ProviderEditorDialog extends StatefulWidget {
     required this.initialContextWindow,
     required this.initialMaxTokens,
     required this.initialProviderType,
+    required this.initialHasApiKey,
   });
 
   final bool isNew;
   final bool isDuplicate;
   final String initialName;
+
+  /// 该配置当前是否已有 key（密文丢失 / 未重填时为 false）。
+  /// false 时 API Key 字段标警告色，提示必须重填才能恢复可用。
+  final bool initialHasApiKey;
 
   /// 保存动作由对话框自己执行并由原生校验：失败时错误留在本框内，
   /// 输入不丢；成功时才 pop。此前保存发生在 pop 之后，校验失败
@@ -163,6 +168,8 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
                 hint: widget.isNew ? '输入你的 API Key' : '留空表示保持不变',
                 obscure: true,
                 controller: _apiKey,
+                warning: !widget.initialHasApiKey,
+                warningHint: '原密文已丢失，必须重填',
               ),
               const SizedBox(height: 12),
               _UsageFonts._buildTextField(

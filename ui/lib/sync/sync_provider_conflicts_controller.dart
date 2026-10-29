@@ -76,6 +76,8 @@ class SyncProviderConflictsController extends ChangeNotifier {
   /// 显式裁决。`conflict` 必须是用户当前审阅的同一 DTO——本地/远端版本
   /// 原样回传，任一不匹配 Rust 侧失败关闭（`provider_conflict_local_changed`
   /// / `provider_conflict_revision_mismatch`），本控制器原样上抛错误。
+  /// 版本漂移类失败后台同步可能随时推进 head，人工「刷新再重试」往往
+  /// 又慢一步：失败时立即自动重拉列表，让用户面对的是当前真实版本。
   Future<bool> resolve(
     api.ProviderSyncConflictDto conflict, {
     required bool acceptRemote,
@@ -96,11 +98,25 @@ class SyncProviderConflictsController extends ChangeNotifier {
       return true;
     } catch (e) {
       error = _describe(e);
+      // 版本绑定失败：审阅所见的版本已过期。自动重拉（失败时保留原错误）。
+      if (_staleReviewError(e)) {
+        try {
+          conflicts = await _bridge.listConflicts();
+        } catch (_) {}
+      }
       return false;
     } finally {
       busy = false;
       _changed();
     }
+  }
+
+  /// Rust 侧双版本绑定失败关闭的三类错误：审阅所见的本地/远端版本已过期。
+  static bool _staleReviewError(Object e) {
+    final text = e.toString();
+    return text.contains('provider_conflict_local_changed') ||
+        text.contains('provider_conflict_revision_mismatch') ||
+        text.contains('provider_conflict_not_pending');
   }
 
   static String _describe(Object e) {
@@ -109,10 +125,10 @@ class SyncProviderConflictsController extends ChangeNotifier {
       return '本机同步密钥已锁定：请先在上方解锁后审阅冲突。';
     }
     if (text.contains('provider_conflict_local_changed')) {
-      return '本地配置已变化，请刷新后重新审阅。';
+      return '本地配置已变化，请重新审阅下方最新列表。';
     }
     if (text.contains('provider_conflict_revision_mismatch')) {
-      return '冲突内容已变化，请刷新后重新审阅。';
+      return '冲突内容已变化，请重新审阅下方最新列表。';
     }
     if (text.contains('provider_conflict_not_pending')) {
       return '该冲突已裁决，请刷新列表。';

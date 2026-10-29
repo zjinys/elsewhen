@@ -405,18 +405,24 @@ extension _UsageFonts on _SettingsScreenState {
     String? hint,
     bool obscure = false,
     TextInputType? keyboardType,
+    // 警告态（如「API Key 未配置」）：label 换警告色并挂提示徽标。
+    bool warning = false,
+    String? warningHint,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: AppTheme.textSecondary,
+        if (warning)
+          ProviderKeyWarningFieldLabel(label: label, warningHint: warningHint ?? '未配置')
+        else
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.textSecondary,
+            ),
           ),
-        ),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,

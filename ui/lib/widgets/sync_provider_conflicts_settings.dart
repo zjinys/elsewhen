@@ -46,6 +46,7 @@ class _SyncProviderConflictsSettingsState
           busy: controller.busy,
           error: controller.error,
           emptyText: '没有待审阅的 Provider 同步冲突。',
+          onRetry: controller.refresh,
           cards: [
             for (final conflict in conflicts ?? const []) _ConflictCard(
               key: ValueKey(conflict.revisionId),

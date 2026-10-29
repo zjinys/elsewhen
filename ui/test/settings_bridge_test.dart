@@ -32,6 +32,7 @@ void main() {
         baseUrl: upUrl,
         model: upModel,
         apiKeySource: '',
+        hasApiKey: true,
         apiKey: upKey,
         isActive: false,
         temperature: 0.7,
@@ -52,11 +53,82 @@ void main() {
         'database',
         reason: 'apiKeySource 应标注为已配置（数据库来源）',
       );
+      expect(created.hasApiKey, isTrue, reason: '刚存了 key，hasApiKey 应为 true');
       print(
         '✓ AI provider config roundtrip OK: ${created.name} @ ${created.baseUrl}',
       );
     } finally {
       // 清理测试配置，避免污染共享测试库
+      await repo.deleteAiProviderConfig(id);
+    }
+  });
+
+  test('新建必填 key + 编辑空 key 保留旧值（hasApiKey 判定两侧）', () async {
+    // 门面拒绝无 key 新建（新建配置时必须填写 API Key），所以「无 key 配置」
+    // 只可能来自密文丢失（C12 前的身份重置）——那正是卡片亮警告的场景。
+    // 这里锁两个真实行为：新建拒空 key；编辑时空 key = 保留旧值。
+    await expectLater(
+      repo.saveAiProviderConfig(
+        api.AiProviderConfigDto(
+          id: '',
+          name: '__test_no_key__',
+          providerType: 'openai-compatible',
+          baseUrl: 'https://nokey.example.com/v1',
+          model: 'no-key-model',
+          apiKeySource: '',
+          hasApiKey: false,
+          apiKey: '',
+          isActive: false,
+          temperature: 0.7,
+          maxTokens: null,
+        ),
+      ),
+      throwsA(isA<Exception>()),
+      reason: '新建配置没有 key 必须被拒绝',
+    );
+
+    const testName = '__test_edit_keep_key__';
+    final id = await repo.saveAiProviderConfig(
+      api.AiProviderConfigDto(
+        id: '',
+        name: testName,
+        providerType: 'openai-compatible',
+        baseUrl: 'https://editkey.example.com/v1',
+        model: 'edit-key-model',
+        apiKeySource: '',
+        hasApiKey: true,
+        apiKey: 'sk-edit-keep',
+        isActive: false,
+        temperature: 0.7,
+        maxTokens: null,
+      ),
+    );
+    try {
+      // 编辑传空 key：语义是「保留旧值」，hasApiKey 应仍为 true
+      await repo.saveAiProviderConfig(
+        api.AiProviderConfigDto(
+          id: id,
+          name: testName,
+          providerType: 'openai-compatible',
+          baseUrl: 'https://editkey.example.com/v1',
+          model: 'edit-key-model',
+          apiKeySource: 'database',
+          hasApiKey: true,
+          apiKey: '',
+          isActive: false,
+          temperature: 0.7,
+          maxTokens: null,
+        ),
+      );
+      final edited = (await repo.listAiProviderConfigs()).firstWhere(
+        (p) => p.id == id,
+      );
+      expect(
+        edited.hasApiKey,
+        isTrue,
+        reason: '编辑空 key 保留旧值，hasApiKey 不得误报 false（否则卡片误亮警告）',
+      );
+    } finally {
       await repo.deleteAiProviderConfig(id);
     }
   });

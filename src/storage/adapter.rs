@@ -44,6 +44,8 @@ pub struct AiProviderConfigRow {
     pub base_url: String,
     pub model: String,
     pub api_key_source: String,
+    /// 明文或可解密的密封 key 任一存在即 true；设置页用它标「未配置」警告。
+    pub has_api_key: bool,
     pub is_active: bool,
     pub temperature: f64,
     pub max_tokens: Option<i64>,

@@ -30,7 +30,7 @@ pub fn get_theme_prefs() -> Result<ThemePrefsDto> {
     let store = Store::open(&config.database_path)?;
     let mode = store
         .get_meta("theme_mode")?
-        .unwrap_or_else(|| "dark".to_string());
+        .unwrap_or_else(|| "system".to_string());
     let preset = store
         .get_meta("theme_preset")?
         .unwrap_or_else(|| "amber".to_string());
