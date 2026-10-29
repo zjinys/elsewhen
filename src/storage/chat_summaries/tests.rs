@@ -231,7 +231,7 @@ fn exact_excerpt_is_bounded_and_cannot_read_later_inputs() {
 }
 
 #[test]
-fn explicit_branches_and_cycles_are_not_linear_summary_paths() {
+fn explicit_parent_edges_stay_causally_ordered() {
     let (_temp, store, conversation) = fixture();
     let a = store
         .send_message(&conversation, "user", "a", None)
@@ -240,13 +240,28 @@ fn explicit_branches_and_cycles_are_not_linear_summary_paths() {
         .send_message(&conversation, "assistant", "b", Some(&a))
         .unwrap();
     validate_history_path(&store.list_messages(&conversation).unwrap()).unwrap();
+    // 同父两条 habit_checkin（真机现场 2026-10-29 06:03/06:04）：合法分叉，
+    // 排序器全序已给出确定的合并路径，两条都是真实历史，都必须可摘要。
     store
-        .send_message(&conversation, "assistant", "branch", Some(&a))
+        .send_message(&conversation, "user", "checkin-1", Some(&a))
         .unwrap();
-    assert!(validate_history_path(&store.list_messages(&conversation).unwrap()).is_err());
+    store
+        .send_message(&conversation, "user", "checkin-2", Some(&a))
+        .unwrap();
+    validate_history_path(&store.list_messages(&conversation).unwrap()).unwrap();
+    // 悬空父仍拒。
     let mut history = store.list_messages(&conversation).unwrap();
     history.truncate(2);
-    history[0].parent_message_id = Some(history[1].id.clone());
+    history[0].parent_message_id = Some("missing-parent".into());
+    assert!(validate_history_path(&history).is_err());
+    // 父排在子之后（倒挂）仍拒。
+    let mut history = store.list_messages(&conversation).unwrap();
+    history.reverse();
+    assert!(validate_history_path(&history).is_err());
+    // 环仍拒。
+    let mut history = store.list_messages(&conversation).unwrap();
+    history[1].parent_message_id = Some(history[2].id.clone());
+    history[2].parent_message_id = Some(history[1].id.clone());
     assert!(validate_history_path(&history).is_err());
 }
 

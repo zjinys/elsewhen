@@ -270,6 +270,13 @@ Dart AI 分析 worker（每 tick）
   2. **Flutter 审阅出口**（`ui/lib/sync/sync_provider_conflicts_controller.dart`、`ui/lib/widgets/sync_conflict_section.dart`）：裁决遇双版本绑定失败（`provider_conflict_local_changed` / `_revision_mismatch` / `_not_pending`）时**自动重拉列表**（后台随时推进 head，人工刷新往往又慢一步），错误文案改「请重新审阅下方最新列表」；`SyncConflictSection` 加可选 `onRetry`（错误态显示「重新拉取」ActionChip，busy 时禁用；三类冲突区共用，另两区不传即不显示）。
 - 验证：Rust 新用例 `identical_content_on_forked_chain_applies_without_manual_review`（同内容异 base → applied + head 前进 + 链治愈 + 审阅列表空；对照段：同形态异内容 → 仍 Conflict 且 head 不动）+ 变异（删免审分支 → 红）；Dart 新用例 2 条（裁决遇版本漂移自动重拉、重试按钮触发 refresh）+ 变异 2（删自动重拉 → 红；重试按钮 onPressed 恒 null → 红）。
 
+### 六之四、D9（2026-10-29 真机新抓到，**本轮已修**）：摘要历史线性校验把合法分叉判死
+
+- 现场：用户 AI 回复开头反复出现「〔系统标注：本轮背景摘要不可用…〕」。取证库（`chat_run_events`）得真实错误：`摘要历史存在分支或不明确父链，未合并不同路径`。触发现场是会话 `93196d4f` 里同父两条 `habit_checkin`（06:03:48 / 06:04:00，同挂 06:00 习惯问候之下）——同父多子 = 合法分叉。
+- 根因：`validate_history_path`（`src/storage/chat_summaries.rs`）要求「带父链消息的前一条必须正好是它的父」（严格相邻单链）。这是把旧世界「null-parent 线性历史」的假设带进了显式父链时代：多端同步与并发回复（两设备同时发言、同一条习惯提醒打两次卡）落库后必然分叉，排序器（`sync_message_order.logical_clock`）给出的全序已保证确定的合并路径，两条分支都是真实发生的历史。
+- 修法：断言放宽为「父存在且位置在子之前」（悬空 / 倒挂 / 自指 / 环 / 重复 / 跨会话全部仍拒），放弃不构成摘要正确性必要条件的「严格相邻」。摘要节点的 span 校验（`validate_history_spans`：边界前全覆盖、无重叠空洞）走扁平有序列表，不受影响。
+- 验证：新用例 `explicit_parent_edges_stay_causally_ordered`（合法链过、同父双 checkin 过、悬空父拒、倒挂拒、环拒）+ 变异（恢复相邻断言 → 同父 checkin 用例红）。用户库 06:54 那轮失败随下一轮摘要自动重做消失，无需清数据。
+
 ### C12 证据明细（2026-10-28）
 
 | # | 证据 |
@@ -287,6 +294,7 @@ Dart AI 分析 worker（每 tick）
 ## 七、进度记录
 
 - **2026-10-29 15:xx D8 修复完成（同内容假冲突 + 审阅错误无重拉出口，未 push）**：修法与验证见 §六之三。五道门禁全绿：cargo **987** / relay **49** / analyze **0 error** / flutter test **+490** / regen EXIT=0。
+- **2026-10-29 D9 修复完成（摘要历史线性校验把合法分叉判死，未 push）**：修法与验证见 §六之四。五道门禁全绿：cargo **987** / relay **49** / analyze **0 error** / flutter test **+490** / regen EXIT=0。
 
 - **2026-10-28 15:30 C12 申报（provider key 重封迁移）**：方案 b 便宜版已在 §六收敛并逐条复核代码事实（见上）；确认唯一死穴是 C3 出口、重封可在同进程内完成（明文暂存迁移槽），**尚未改动任何代码**。
 - **2026-10-28 16:xx C12 完成**：重封迁移 + 双分支 UI + Rust 2 用例 3 变异 + Dart 2 用例 2 变异（其一暴露覆盖不足，补负向用例后打红）全部落地，五道门禁全绿（cargo 985 / relay 49 / analyze 0 error / flutter test +485 / regen EXIT=0），见 §C12 证据明细。**10 个已删 key 无法救回，仍需手动重填**。

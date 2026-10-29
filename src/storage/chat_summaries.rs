@@ -95,19 +95,20 @@ pub(crate) fn message_basis(message: &MessageSummary) -> String {
     )
 }
 
-/// Legacy null-parent history is linear; explicit edges must follow this path.
+/// 摘要历史必须是同会话内的因果有序列表：带父链的消息，其父必须存在于
+/// 自己之前（悬空/倒挂/自指都拒）。不要求相邻——多端同步与并发回复
+/// （同父两条习惯打卡、两设备同时发言）产生合法分叉，排序器给出的全序
+/// 已保证确定的合并路径，两条分支都是真实发生的历史，都应进入摘要。
 pub(crate) fn validate_history_path(messages: &[MessageSummary]) -> Result<()> {
     let mut seen = HashSet::new();
-    for (index, message) in messages.iter().enumerate() {
-        ensure!(seen.insert(message.id.as_str()), "摘要历史包含重复消息或环");
+    for message in messages {
         if let Some(parent) = &message.parent_message_id {
-            ensure!(
-                index > 0 && messages[index - 1].id == *parent,
-                "摘要历史存在分支或不明确父链，未合并不同路径"
-            );
+            // seen 只含已遍历的更早消息：父不在其中即悬空、倒挂或自指。
+            ensure!(seen.contains(parent.as_str()), "摘要历史父链悬空或倒挂，未合并不同路径");
         }
+        ensure!(seen.insert(message.id.as_str()), "摘要历史包含重复消息或环");
         ensure!(
-            index == 0 || message.conversation_id == messages[0].conversation_id,
+            messages.is_empty() || message.conversation_id == messages[0].conversation_id,
             "摘要历史包含其他会话"
         );
     }
