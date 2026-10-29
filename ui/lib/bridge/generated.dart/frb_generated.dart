@@ -113,7 +113,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -1825278083;
+  int get rustContentHash => 1099571517;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -892,6 +892,8 @@ abstract class RustLibApi extends BaseApi {
     required String slug,
     required String kind,
   });
+
+  Future<bool> crateApiSyncRepairProviderKeysMigratable();
 
   Future<void> crateApiGoalsReactivateGoal({required String id});
 
@@ -7095,6 +7097,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "propose_knowledge_page",
         argNames: ["slug", "kind"],
       );
+
+  @override
+  Future<bool> crateApiSyncRepairProviderKeysMigratable() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__sync__repair__provider_keys_migratable(
+            port_,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncRepairProviderKeysMigratableConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncRepairProviderKeysMigratableConstMeta =>
+      const TaskConstMeta(debugName: "provider_keys_migratable", argNames: []);
 
   @override
   Future<void> crateApiGoalsReactivateGoal({required String id}) {

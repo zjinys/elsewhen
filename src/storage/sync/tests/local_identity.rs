@@ -229,6 +229,130 @@ fn clearing_keeps_business_data_and_drops_undecryptable_provider_keys() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// C12 重封迁移：出口瞬间旧 master 还在（session 未锁定，API 层在 lock 前取出
+/// 传入）时，密文被解成明文暂存进进程内迁移槽；新 vault 建好后用新 master +
+/// 新 AAD 重封回库，读回的明文与原来一致。回退路径（旧 master 不可用）由
+/// `clearing_keeps_business_data_and_drops_undecryptable_provider_keys` 钉住。
+#[test]
+fn provider_keys_survive_an_identity_reset_when_the_old_master_is_available() {
+    let (dir, store) = half_configured_store("reseal");
+    let old_master = crate::sync::crypto::ContentKey::generate()
+        .unwrap()
+        .to_bytes();
+    // 密封前提：provider 配置 + 「必须密封」策略，用旧身份 master 密封一把 key。
+    {
+        let writer = store.clone().with_provider_master(old_master);
+        let transaction = writer.begin_write_transaction().unwrap();
+        writer
+            .connection
+            .execute(
+                "INSERT INTO ai_provider_configs(id,name,provider_type,base_url,model,api_key_source,enabled,created_at,updated_at,is_active)\
+                 VALUES('p1','OpenAI','openai','https://api.openai.com','gpt','inline',1,'2026-10-27T00:00:00Z','2026-10-27T00:00:00Z',1)",
+                [],
+            )
+            .unwrap();
+        writer
+            .connection
+            .execute("INSERT INTO provider_key_policy(singleton) VALUES(1)", [])
+            .unwrap();
+        writer.write_provider_key_on("p1", Some("sk-live-abc123")).unwrap();
+        if let Some(transaction) = transaction {
+            transaction.commit().unwrap();
+        }
+    }
+    let sealed_count: i64 = store
+        .connection
+        .query_row("SELECT COUNT(*) FROM provider_key_secrets", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(sealed_count, 1, "前提：密文应已密封落库");
+
+    // 出口：旧 master 可用 ⇒ 密文解出、暂存迁移槽，库里密文照常清掉。
+    store
+        .clear_local_sync_identity_with_migration(Some(old_master))
+        .unwrap();
+    let after_exit: i64 = store
+        .connection
+        .query_row("SELECT COUNT(*) FROM provider_key_secrets", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(after_exit, 0, "出口后库里不留旧密文");
+
+    // 新 vault（新 installation = 新 master），随后重封迁移槽。
+    let new_master = crate::sync::crypto::ContentKey::generate()
+        .unwrap()
+        .to_bytes();
+    let vault = store
+        .create_sync_vault("installation-2", &new_master, "device", "test")
+        .unwrap();
+    store.initialize_sync_replica(&replica(&vault)).unwrap();
+    let resealed = store.reseal_staged_provider_keys(&new_master).unwrap();
+    assert_eq!(resealed, 1, "迁移槽里的 key 应被重封");
+
+    // 用新 master 读回，明文必须与密封前一致。
+    let restored = store
+        .clone()
+        .with_provider_master(new_master)
+        .read_provider_key("p1")
+        .unwrap();
+    assert_eq!(restored.as_deref(), Some("sk-live-abc123"));
+    // 再取一次槽：已消费，不该重复重封。
+    assert_eq!(store.reseal_staged_provider_keys(&new_master).unwrap(), 0);
+    drop(store);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// 回退路径：旧 master 不可用（None）时出口维持现状 —— 密文删除、迁移槽
+/// 不留条目（新 vault 建好后重封是空操作）。
+#[test]
+fn provider_keys_stay_dropped_when_the_old_master_is_unavailable() {
+    let (dir, store) = half_configured_store("fallback");
+    {
+        let writer = store.clone();
+        let transaction = writer.begin_write_transaction().unwrap();
+        writer
+            .connection
+            .execute(
+                "INSERT INTO ai_provider_configs(id,name,provider_type,base_url,model,api_key_source,enabled,created_at,updated_at,is_active)\
+                 VALUES('p1','OpenAI','openai','https://api.openai.com','gpt','inline',1,'2026-10-27T00:00:00Z','2026-10-27T00:00:00Z',1)",
+                [],
+            )
+            .unwrap();
+        writer
+            .connection
+            .execute("INSERT INTO provider_key_policy(singleton) VALUES(1)", [])
+            .unwrap();
+        writer
+            .connection
+            .execute(
+                "INSERT INTO provider_key_secrets(config_id,ciphertext) VALUES('p1',x'00')",
+                [],
+            )
+            .unwrap();
+        if let Some(transaction) = transaction {
+            transaction.commit().unwrap();
+        }
+    }
+    store.clear_local_sync_identity().unwrap();
+    let fallback_master = crate::sync::crypto::ContentKey::generate()
+        .unwrap()
+        .to_bytes();
+    let vault = store
+        .create_sync_vault("installation-2", &fallback_master, "device", "test")
+        .unwrap();
+    store.initialize_sync_replica(&replica(&vault)).unwrap();
+    assert_eq!(
+        store.reseal_staged_provider_keys(&fallback_master).unwrap(),
+        0,
+        "旧 master 不可用时不能有东西被重封"
+    );
+    let count: i64 = store
+        .connection
+        .query_row("SELECT COUNT(*) FROM provider_key_secrets", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(count, 0, "解不开的密文必须清掉");
+    drop(store);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn every_replication_table_is_covered_by_the_reset_list() {
     // 迁移新增一张复制表却忘了加进 REPLICATION_TABLES，会让「清除身份」后留下

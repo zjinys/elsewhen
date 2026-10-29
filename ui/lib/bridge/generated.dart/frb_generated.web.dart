@@ -7595,6 +7595,12 @@ class RustLibWire implements BaseWire {
     kind,
   );
 
+  void wire__crate__api__sync__repair__provider_keys_migratable(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__sync__repair__provider_keys_migratable(
+    port_,
+  );
+
   void wire__crate__api__goals__reactivate_goal(
     NativePortType port_,
     String id,
@@ -9540,6 +9546,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String slug,
     String kind,
+  );
+
+  external void wire__crate__api__sync__repair__provider_keys_migratable(
+    NativePortType port_,
   );
 
   external void wire__crate__api__goals__reactivate_goal(

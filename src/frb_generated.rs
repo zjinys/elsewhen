@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1825278083;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1099571517;
 
 // Section: executor
 
@@ -4899,6 +4899,27 @@ fn wire__crate__api__knowledge__propose_knowledge_page_impl(
                     (move || {
                         let output_ok =
                             crate::api::knowledge::propose_knowledge_page(api_slug, api_kind)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__repair__provider_keys_migratable_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "provider_keys_migratable",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::repair::provider_keys_migratable()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -24889,6 +24910,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__repair__provider_keys_migratable(
+        port_: i64,
+    ) {
+        wire__crate__api__sync__repair__provider_keys_migratable_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__reactivate_goal(
         port_: i64,
         id: *mut wire_cst_list_prim_u_8_strict,
@@ -34972,6 +35000,13 @@ mod web {
         kind: String,
     ) {
         wire__crate__api__knowledge__propose_knowledge_page_impl(port_, slug, kind)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__repair__provider_keys_migratable(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__sync__repair__provider_keys_migratable_impl(port_)
     }
 
     #[wasm_bindgen]

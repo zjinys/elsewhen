@@ -10,6 +10,13 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `ensure_reset_applicable`
 
+/// C3 出口前判定：旧 vault master 是否还在本进程（未锁定）。
+///
+/// true ⇒ 出口会走重封迁移（C12），UI 确认弹窗应告诉用户「API Key 会自动
+/// 保留」；false ⇒ 回退现状（密文删除），弹窗必须维持「需要重新填写」。
+Future<bool> providerKeysMigratable() =>
+    RustLib.instance.api.crateApiSyncRepairProviderKeysMigratable();
+
 /// 清除本机同步身份，保留全部笔记/对话/知识库。
 ///
 /// 副作用（UI 必须逐条告知用户）：

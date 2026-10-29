@@ -4,9 +4,18 @@
 //! 其它任何状态都必须被拒 —— 这条能力不能被当成「重置本机」的通用按钮。
 
 use crate::{config::AppConfig, storage::Store, sync::runtime};
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 
 use super::invite::{LocalSyncStateDto, local_sync_state_for};
+
+/// C3 出口前判定：旧 vault master 是否还在本进程（未锁定）。
+///
+/// true ⇒ 出口会走重封迁移（C12），UI 确认弹窗应告诉用户「API Key 会自动
+/// 保留」；false ⇒ 回退现状（密文删除），弹窗必须维持「需要重新填写」。
+pub fn provider_keys_migratable() -> Result<bool> {
+    let config = AppConfig::load().context("sync_workspace_unavailable")?;
+    Ok(runtime::provider_keys_migratable(&config))
+}
 
 /// 清除本机同步身份，保留全部笔记/对话/知识库。
 ///
@@ -23,8 +32,12 @@ pub fn clear_local_sync_identity() -> Result<LocalSyncStateDto> {
     // 后台分析任务跑着的时候清理会留下半清状态；这道检查由存储层在写事务内做
     // （`require_background_quiescent_for_sync` 自己要求已在领域事务中）。
     // 运行时会话里存着 master 与租约；不清掉会让随后的状态读取仍看到旧 revision。
+    // C12：lock 会把 session 连同旧 master 一起删掉，所以**先**取 master 再 lock，
+    // 让出口在密文还解得开时把它暂存进重封迁移槽；session 不在（已锁定/重启后）
+    // 时传 None，出口回退到删密文。
+    let migration_master = runtime::provider_keys_source_master(&config);
     runtime::lock(&config);
-    store.clear_local_sync_identity()?;
+    store.clear_local_sync_identity_with_migration(migration_master)?;
     drop(store);
     local_sync_state_for(&config, &Store::open(&config.database_path)?)
 }

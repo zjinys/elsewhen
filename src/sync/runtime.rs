@@ -223,6 +223,73 @@ fn sessions() -> &'static Mutex<HashMap<PathBuf, Session>> {
     SESSIONS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+/// Provider key 重封迁移槽（roadmap C12）。
+///
+/// C3 出口（`clear_local_sync_identity_on`）删 `sync_local_vault` 后旧 master
+/// 永久不可用，`provider_key_secrets` 的密文 AAD 绑死旧身份，只能删。若出口
+/// 瞬间本进程 runtime session 仍持有旧 master，把密文解出的**明文**暂存在这里
+/// （进程内存，永不落库/不进 DTO/不进日志），等同一进程内建好新 vault
+/// （`confirm_key`）后用新 master + 新 AAD 重封回库。
+///
+/// 键 = 主库路径；值 = (config_id, 明文 key)。出口把槽填上后若一直没等到新
+/// vault（用户没有立刻重新配对），条目留在内存里直到进程退出 —— 不做过期：
+/// 迟到的重封也比丢 key 好，且明文只在本进程地址空间里。
+static PROVIDER_KEY_MIGRATION: OnceLock<Mutex<HashMap<PathBuf, Vec<(String, String)>>>> =
+    OnceLock::new();
+fn provider_key_migration() -> &'static Mutex<HashMap<PathBuf, Vec<(String, String)>>> {
+    PROVIDER_KEY_MIGRATION.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// 出口时旧 master 是否可用（决定 UI 弹窗文案走「自动保留」还是「需要重填」）。
+pub(crate) fn provider_keys_migratable(config: &AppConfig) -> bool {
+    sessions()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .get(&config.data_dir)
+        .is_some_and(|s| {
+            s.joining.is_none()
+                && s.database == config.database_path
+                && s.master.is_some()
+        })
+}
+
+/// 出口瞬间从 runtime session 取旧 master。调用方
+/// （`api::sync::repair::clear_local_sync_identity`）必须在 `runtime::lock`
+/// **之前**取 —— lock 会把整个 session 删掉。
+pub(crate) fn provider_keys_source_master(config: &AppConfig) -> Option<[u8; 32]> {
+    sessions()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .get(&config.data_dir)
+        .filter(|s| s.joining.is_none() && s.database == config.database_path)
+        .and_then(|s| s.master)
+}
+
+/// 把解出的明文暂存进迁移槽（出口侧调用）。空列表 = 清除条目（多次出口
+/// 只保留最后一次的真实状态，避免陈旧明文被误重封）。
+pub(crate) fn stage_provider_keys_for_resealing(
+    database: &Path,
+    keys: Vec<(String, String)>,
+) {
+    let mut slots = provider_key_migration()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner());
+    if keys.is_empty() {
+        slots.remove(database);
+        return;
+    }
+    slots.insert(database.to_path_buf(), keys);
+}
+
+/// 新 vault 就绪后取走迁移槽里的明文并清空条目（重封侧调用）。
+pub(crate) fn take_staged_provider_keys(database: &Path) -> Vec<(String, String)> {
+    provider_key_migration()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .remove(database)
+        .unwrap_or_default()
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct KeyRequest {
     pub token: String,
@@ -638,6 +705,10 @@ fn confirm_key_inner(
             tx.commit()?;
         }
     } else {
+        // C12：本机若是刚走完 C3 出口后重建的新 vault，先把迁移槽里的旧明文
+        // 重封到新 master 下。失败不阻断确认（槽被还原，回退由后续路径决定）。
+        let _ = store
+            .reseal_staged_provider_keys(session.master.as_ref().unwrap());
         store.enable_provider_key_sealing()?;
         store.recover_interrupted_analysis_jobs()?;
         store.recover_interrupted_digest_jobs()?;

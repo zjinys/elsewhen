@@ -64,7 +64,15 @@ pub(crate) const REPLICATION_TABLES: [&str; 38] = [
 
 impl Store {
     /// 事务内版本。调用方负责提交。
-    pub(crate) fn clear_local_sync_identity_on(&self) -> Result<()> {
+    ///
+    /// `migration_master` 是出口 API 在 `runtime::lock` **之前**从 session 取出的
+    /// 旧 vault master（roadmap C12）：Some 时先把密文解成明文、暂存进进程内
+    /// 迁移槽，等同一进程内建好新 vault 后重封；None（已锁定/进程重启后/解密
+    /// 失败）时回退现状 —— 直接删密文。出口本身绝不因迁移失败而失败。
+    pub(crate) fn clear_local_sync_identity_on(
+        &self,
+        migration_master: Option<[u8; 32]>,
+    ) -> Result<()> {
         ensure!(
             !self.connection.is_autocommit(),
             "sync_reset_requires_transaction"
@@ -73,6 +81,17 @@ impl Store {
             !self.has_sync_authority()?,
             "sync_reset_requires_broken_identity"
         );
+        // C12 迁移必须在删复制表**之前**做：AAD 要从 `sync_identity` /
+        // `sync_local_vault` 组装，而下面那一刀会把它们一起清掉。旧 master 由
+        // 出口 API 在 `runtime::lock` 之前取出传入；不可用（已锁定/重启后）或
+        // 解密失败时回退现状 —— 密文照删，出口绝不因迁移失败而失败。
+        // 先清槽，避免上一次出口留下的陈旧明文被误重封。
+        crate::sync::runtime::stage_provider_keys_for_resealing(&self.path, Vec::new());
+        if let Some(master) = migration_master
+            && let Ok(keys) = self.open_provider_keys_with(&master)
+        {
+            crate::sync::runtime::stage_provider_keys_for_resealing(&self.path, keys);
+        }
         // 复制表之间互相有外键（replica → members → keys、exports → chunks…），
         // 逐表删除必然在中途撞上「父行已没了子行还在」以外的情况：这里是反过来，
         // 先删父表。与其维护一份脆弱的删除顺序，不如把外键检查推迟到 COMMIT ——
@@ -86,8 +105,6 @@ impl Store {
         // Provider 密钥的密文 AAD 绑死 `dataset_id` + `installation_id`。身份一清，
         // 这些密文**永久**打不开 —— 留着只会让设置页显示一串「有配置但用不了」的
         // provider。删掉密文后读路径返回「未填写」，用户重填即可。
-        // 刻意不动：`provider_key_policy`（保留「密钥必须密封」的策略，别退回明文）、
-        // `ai_provider_configs` 的 base_url/模型等结构（用户手工填过的部分留着）。
         self.connection
             .execute("DELETE FROM provider_key_secrets", [])?;
         Ok(())
@@ -96,9 +113,18 @@ impl Store {
     /// 事务由本函数开：`require_background_quiescent_for_sync` 要求调用方已在
     /// 领域写事务内，否则它自己就会拒绝（`sync_requires_domain_transaction`）。
     pub(crate) fn clear_local_sync_identity(&self) -> Result<()> {
+        self.clear_local_sync_identity_with_migration(None)
+    }
+
+    /// C12：带重封迁移的出口。`migration_master` 由 API 层在 `runtime::lock`
+    /// 之前从 session 取出传入（None = 回退现状）。
+    pub(crate) fn clear_local_sync_identity_with_migration(
+        &self,
+        migration_master: Option<[u8; 32]>,
+    ) -> Result<()> {
         let transaction = self.begin_write_transaction()?;
         self.require_background_quiescent_for_sync()?;
-        self.clear_local_sync_identity_on()?;
+        self.clear_local_sync_identity_on(migration_master)?;
         if let Some(transaction) = transaction {
             transaction.commit()?;
         }

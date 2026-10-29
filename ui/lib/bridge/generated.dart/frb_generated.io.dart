@@ -14459,6 +14459,18 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sync__repair__clear_local_sync_identityPtr
           .asFunction<void Function(int)>();
 
+  void wire__crate__api__sync__repair__provider_keys_migratable(int port_) {
+    return _wire__crate__api__sync__repair__provider_keys_migratable(port_);
+  }
+
+  late final _wire__crate__api__sync__repair__provider_keys_migratablePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__repair__provider_keys_migratable',
+      );
+  late final _wire__crate__api__sync__repair__provider_keys_migratable =
+      _wire__crate__api__sync__repair__provider_keys_migratablePtr
+          .asFunction<void Function(int)>();
+
   void wire__crate__api__theme__get_theme_prefs(int port_) {
     return _wire__crate__api__theme__get_theme_prefs(port_);
   }

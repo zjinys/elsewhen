@@ -350,11 +350,29 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
   /// 二次确认：先列清代价，再要求勾选承认「Provider API Key 会失效」。
   ///
   /// 不写内部术语（vault/authority/roster）：用户要能自己判断这一步的后果。
+  ///
+  /// C12 分支：旧 master 还在本进程（未锁定）时，出口会把密文解出并在重新
+  /// 配对确认后重封到新 vault，API Key 自动保留 —— 文案与勾选都换成对应版本；
+  /// 判定不可用/抛错时回退到「会失效」的保守文案（宁多提醒，不静默承诺）。
   Future<void> _confirmClearLocalSyncIdentity(
     ThemeData theme,
     SyncSetupController controller,
   ) async {
     var acknowledged = false;
+    var migratable = false;
+    try {
+      final repair = widget.repairApi ?? const FrbSyncRepairApi();
+      migratable = await repair.providerKeysMigratable();
+    } catch (_) {
+      migratable = false;
+    }
+    if (!mounted) return;
+    final keyLine = migratable
+        ? '· 已保存的 Provider API Key 会自动保留（重新配对后自动迁移）；'
+        : '· 已保存的 Provider API Key 会失效，需要重新填写；';
+    final acknowledgeLabel = migratable
+        ? '我已知晓，本机需要重新配对才能同步'
+        : '我已知晓，Provider API Key 需要重新填写';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialog) => StatefulBuilder(
@@ -367,7 +385,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
               const Text('清除后：'),
               const SizedBox(height: 6),
               const Text('· 本机退出当前数据集，需要重新配对或重新加入才能再同步；'),
-              const Text('· 已保存的 Provider API Key 会失效，需要重新填写；'),
+              Text(keyLine),
               const Text('· 还没同步到其它设备的改动不会自动补发。'),
               const SizedBox(height: 6),
               const Text('笔记、对话、知识库不会被删除。'),
@@ -377,7 +395,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                 value: acknowledged,
                 onChanged: (value) =>
                     setInner(() => acknowledged = value ?? false),
-                title: const Text('我已知晓，Provider API Key 需要重新填写'),
+                title: Text(acknowledgeLabel),
               ),
             ],
           ),

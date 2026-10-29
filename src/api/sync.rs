@@ -41,6 +41,7 @@ pub use invite::{
     prepare_sync_key_request, release_sync_key_request, send_owner_sync_approval,
 };
 pub use repair::clear_local_sync_identity;
+pub use repair::provider_keys_migratable;
 pub use join::{
     SyncDatasetEntryDto, SyncEnrollmentStateDto, SyncJoinEntryDto, SyncJoinStateDto,
     SyncTickResultDto, advance_sync_enrollment, confirm_sync_enrollment, confirm_sync_join_key,

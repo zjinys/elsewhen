@@ -25,6 +25,42 @@ impl Store {
             |r| r.get(0),
         )?)
     }
+
+    /// C3 出口专用（roadmap C12）：用**调用方提供的旧 master** 把全部密文解成
+    /// 明文，供同进程内重封迁移。不碰 `provider_master_key()`（身份已坏，它
+    /// 会拒绝），也不用 `provider_key_context`（AAD 里的身份字段从本库读，
+    /// 出口事务里身份还在，但直接读表更诚实：这些字段此刻必然是旧值）。
+    pub(crate) fn open_provider_keys_with(
+        &self,
+        master: &[u8; 32],
+    ) -> Result<Vec<(String, String)>> {
+        ensure!(
+            !self.connection.is_autocommit(),
+            "provider_key_requires_transaction"
+        );
+        let mut keys = Vec::new();
+        let mut statement = self.connection.prepare(
+            "SELECT s.config_id, s.ciphertext, c.base_url, c.provider_type
+             FROM provider_key_secrets s JOIN ai_provider_configs c ON c.id = s.config_id
+             LIMIT 65",
+        )?;
+        let rows = statement
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, Vec<u8>>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, String>(3)?,
+                ))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        for (id, bytes, url, kind) in rows {
+            let context = self.provider_key_context_parts(&id, &url, &kind)?;
+            let value = open(master, &context, &bytes)?;
+            keys.push((id, value));
+        }
+        Ok(keys)
+    }
     fn provider_master_key(&self) -> Result<[u8; 32]> {
         if let Some(key) = self.provider_master {
             return Ok(key);
@@ -39,6 +75,12 @@ impl Store {
             [id],
             |r| Ok((r.get(0)?, r.get(1)?)),
         )?;
+        self.provider_key_context_parts(id, &url, &kind)
+    }
+
+    /// AAD 组装：身份字段允许由调用方传入（出口解密路径里身份马上要被清，
+    /// 但事务内读到的仍是旧值，两条路必须产出同一个 AAD）。
+    fn provider_key_context_parts(&self, id: &str, url: &str, kind: &str) -> Result<Vec<u8>> {
         ensure!(
             url.len() <= 16 * 1024 && kind.len() <= 256,
             "provider_key_context_too_large"
@@ -82,12 +124,21 @@ impl Store {
         Ok(plaintext)
     }
     fn seal_provider_key_on(&self, id: &str, value: &str) -> Result<()> {
+        let master = self.provider_master_key()?;
+        self.seal_provider_key_with_master(&master, id, value)
+    }
+
+    fn seal_provider_key_with_master(
+        &self,
+        master: &[u8; 32],
+        id: &str,
+        value: &str,
+    ) -> Result<()> {
         ensure!(
             !self.connection.is_autocommit(),
             "provider_key_requires_transaction"
         );
-        let master = self.provider_master_key()?;
-        let bytes = seal(&master, &self.provider_key_context(id)?, value)?;
+        let bytes = seal(master, &self.provider_key_context(id)?, value)?;
         self.connection.execute(
             "UPDATE ai_provider_configs SET api_key=NULL WHERE id=?1",
             [id],
@@ -113,6 +164,42 @@ impl Store {
         )?;
         Ok(())
     }
+    /// 新 vault 就绪后的重封迁移（roadmap C12）：把迁移槽里的明文用**新
+    /// master + 新 AAD**（本库当前身份）重封回 `provider_key_secrets`。
+    /// 自开事务；任何一条失败都整体回滚并把槽还回去（保持可重试），
+    /// 不留下半密封状态。旧密文必须已被出口删掉（否则会被覆盖 —— 但出口
+    /// 正是唯一往槽里填东西的路径，同一进程内时序上必然先删）。
+    pub(crate) fn reseal_staged_provider_keys(&self, master: &[u8; 32]) -> Result<usize> {
+        let staged = crate::sync::runtime::take_staged_provider_keys(&self.path);
+        if staged.is_empty() {
+            return Ok(0);
+        }
+        let result = self.reseal_provider_keys_inner(master, &staged);
+        if result.is_err() {
+            crate::sync::runtime::stage_provider_keys_for_resealing(&self.path, staged);
+        }
+        result
+    }
+
+    fn reseal_provider_keys_inner(
+        &self,
+        master: &[u8; 32],
+        keys: &[(String, String)],
+    ) -> Result<usize> {
+        let transaction = self.begin_write_transaction()?;
+        ensure!(self.provider_keys_sealed()?, "provider_key_policy_missing");
+        for (id, value) in keys {
+            // 身份已是新的：AAD 由 `seal_provider_key_on` 从本库当前值组装；
+            // master 显式传入 —— 此刻 runtime session 可能还没确认，不能指望
+            // `provider_master_key()` 能从 session 里找到新 master。
+            self.seal_provider_key_with_master(master, id, value)?;
+        }
+        if let Some(transaction) = transaction {
+            transaction.commit()?;
+        }
+        Ok(keys.len())
+    }
+
     pub(crate) fn enable_provider_key_sealing(&self) -> Result<()> {
         let tx = self.begin_write_transaction()?;
         let master = self.provider_master_key()?;

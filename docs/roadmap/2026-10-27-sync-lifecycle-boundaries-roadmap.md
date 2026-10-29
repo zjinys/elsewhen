@@ -162,6 +162,7 @@ Dart AI 分析 worker（每 tick）
 
 | C11 | **D3 的第二根因（重新配对后当场看到）：joiner 加入流程的第五步「等待成员授权与初始同步」永远不会打勾**。真机 2026-10-28 10:10 现场：前四步全 ✔、第五步持续转圈，而同一时刻 staging 库里 `sync_snapshots.state='applied'`、`sync_replica=1`/`sync_local_vault=1`/`sync_members=3`（本机 active）、桌面端该导出已 `acknowledged` ⇒ **初始同步其实早已完成**。结构性根因：`Phase` 枚举（`src/sync/runtime/joining.rs:24-41`）**根本没有「完成」这个终态**，`joinerStageFor` 最大只映射到 4（`ui/lib/widgets/sync_pairing_steps.dart:128-135`），而 `SyncPairingSteps` 把 `i == current` 渲染成无限转圈（同文件 `:36-41`）⇒ 只要相位落在 `awaiting_membership`/`enrollment`/`enrollment_confirmation` 任一个，最后一步就永远是「进行中」。真正的下一步藏在**另一张卡** `DatasetSwitchCard` 的「进入数据集」上（`ui/lib/widgets/dataset_switch_card.dart`），用户没有任何线索知道要点它 —— 2026-10-28 10:41 由我代点后 `workspace.selected_id` 才从 `d1bdfdba…` 变为 `39512723…`，force-stop 后冷启动才进入新数据集。**修法申报**：①Rust 补终态 `Phase::Joined`（名字 `joined`），判据 = 快照 `applied` 且本机成员 `active`（「终点推导」，不再等一个不会来的信令），在**状态轮询**（`joining::state`）里幂等推进 —— 不放在 `joining_install.rs` 的收尾，因为那时快照还没应用；②Dart `joinerStageFor` 把 `joined` 映射到 `steps.length`（五步全 ✔、无转圈）；③**顺带发现**：`joiner_sync_pairing_settings.dart:177` 的 `if (phase == 'complete')` 是**死代码** —— `Phase::name()` 从不产出 `complete`，所以那张带「进入数据集」的卡从来没显示过，这正是用户「除了转圈什么都没得点」的直接原因；改成 `joined` 才真正接上。④owner 侧 `ownerPairingStage` 增加 `deviceJoined` 入参（来源 = enrollment 视图 `phase == 'complete'`），到终点时返回 5。**范围（2026-10-28 11:05 追加申报）**：`src/sync/runtime/joining.rs`、`ui/lib/widgets/sync_pairing_steps.dart`、`ui/lib/widgets/joiner_sync_pairing_settings.dart`，**追加** `ui/lib/widgets/owner_sync_pairing_settings.dart` —— owner 侧是同一处缺陷（步骤表也是 5 行、`ownerPairingStage` 最大只返回 4 ⇒ 第五步「新设备接入」同样永不完成），故同批修；`joining_install.rs` 经复核**无需改动**（终态推导放在状态轮询里，`enrollment_available` 显式保留 `Joined`，不截断交接握手）。**不碰**协议帧、mail/blob 传输、DB schema。用例需覆盖「相位到终态 → 五步全 ✔ 且不出现转圈」，并做变异验证 | **完成（2026-10-28 14:4x，`24bf7f6`，已 push）**，见 §C11 证据明细 | `[x]` 2026-10-28 |
 
+| C12 | **provider key 重封迁移（§六方案 b 便宜版，用户已确认）**：C3 出口若本进程 runtime session 仍持有旧 vault master（未锁定），把 `provider_key_secrets` 全部解密、明文暂存**进程内迁移槽**（不落库/不进 DTO/不进日志）；随后同一进程内 `confirm_key`/joiner `install_key` 建好新 vault 后，用新 master + 新 AAD 重封回 `provider_key_secrets`。旧 master 不可用（已 `lock_local_sync`/进程重启后）时回退现状（出口删密文），且 UI 确认弹窗文案按「是否可自动迁移」区分：「API Key 将自动保留（自动重封）」vs「API Key 会失效，需要重新填写」。**范围（实现时修正）**：`src/storage/provider_keys.rs`（`open_provider_keys_with` 解密 + `reseal_staged_provider_keys` 重封 + `seal_provider_key_with_master`）、`src/storage/sync/reset.rs`（出口在**删复制表之前**解密暂存 —— AAD 依赖 `sync_identity`，删表后组装不出来）、`src/sync/runtime.rs`（迁移槽 + `provider_keys_source_master`/`provider_keys_migratable` + owner `confirm_key_inner` 触发重封）、`src/api/sync/repair.rs`/`sync.rs`（lock 前取 master + `provider_keys_migratable()` API）。**joining_install.rs 经复核无需改动**：joiner 的 key 来自 provider bundle，不走 C3 出口。UI：`ui/lib/sync/sync_repair_api.dart`（接口加 `providerKeysMigratable`）+ `ui/lib/widgets/local_sync_settings.dart`（文案/勾选双分支，判定抛错回退保守）。**不碰**：AAD 结构、schema、快照协议。用例与变异见 §C12 证据明细 | **完成（2026-10-28 16:xx）**，见 §C12 证据明细 | `[x]` 2026-10-28 |
 > 顺序理由：C0 先把两条缺陷钉成红用例（否则修完无法证明修的是什么）；C1/C2 是 D2 的两层，C3 是 D1；C4 收口；C5/C6 是门禁与真机。**C7 是唯一根因未确证的步骤**（其余步骤的根因都已用库/日志实测钉死），因此它被拆成「定位 → 修」，并带回写条款；**C9 建议提前到最前面单独跑** —— 它不依赖任何代码改动，却决定了后面所有真机验收能否进行（本轮用户实际卡住的正是这一环）。
 
 #### C10 证据明细
@@ -239,7 +240,7 @@ Dart AI 分析 worker（每 tick）
 
 ---
 
-## 六、关联发现（**待定，不纳入本轮**，需用户决定）
+## 六、关联发现：provider key 随身份失效（⇒ **已收敛为 C12，方案 b**）
 
 **换同步身份 ⇒ 旧 sealed provider keys 全部永久失效，且无任何提示。**
 
@@ -247,7 +248,9 @@ Dart AI 分析 worker（每 tick）
 - 根因：`provider_key_context()` 把 `dataset_id` + `installation_id` + provider id/url/type 当 AAD（`src/storage/provider_keys.rs:40-62`）；身份一换 AAD 全变，ChaCha20-Poly1305 认证必然失败（`:215`）。
 - 后果：`provider_key_secrets` 的 10 条密文变成永久无法解密的死数据；`ai_provider_configs.api_key` 早被写成 `NULL`，明文不存在，**用户只能去各服务商后台重新取 key**。而且快照设计上必含 provider keys（`src/storage/sync/snapshot/records.rs:80-81`）、UI 确认框只有「共享所有 Provider 配置和 API Key」一途（无「不共享」选项），所以只要桌面上有 sealed key，快照导出就必然撞上这个错误。
 - 与 D1 的关系：**D1 的「清除同步身份」出口必然踩到它**，所以 §四 C3 的确认弹窗必须写明「已有 Provider API Key 将失效，需要重新填写」，否则就是给出一个会静默破坏数据的出口。
-- 待决定的选项：(a) 出口里顺手把 key 作废并提示；(b) 提供「重封」迁移（需要旧 master，即先解锁旧 vault，实现成本高）；(c) 允许用户选择「快照不含 provider keys」。
+- ~~待决定的选项：(a) 出口里顺手把 key 作废并提示；(b) 提供「重封」迁移；(c) 允许用户选择「快照不含 provider keys」。~~ **已收敛（2026-10-28，用户选定方案 b 的便宜版）**，见下。
+- **方案收敛的关键事实（逐条复核过代码）**：①key 死亡的真正边界是 **vault 重建**（master 每个 installation 一把）。owner 侧**不走 C3 出口**的重新配对（撤销成员 + 现有 vault，`runtime.rs` `prepare_key` `creating=false`）本就不丢 key；joiner 重新加入经 provider bundle 从 owner 拿回全部 key（`src/storage/sync/providers.rs`）。②**唯一死穴是 C3 出口**（`clear_local_sync_identity_on` 删 `sync_local_vault` ⇒ 旧 master 永久不可用 ⇒ `reset.rs:92` 删密文）。③快照传输时 key 本来就以明文进 bundle（信封加密，key 材料不离本机的约束不破坏）——`sealed at rest` 防的只是「本机 DB 单独被偷」，该保留。④所以「重封」不需要复杂迁移：只需**在 C3 出口瞬间，若本进程 runtime session 仍持有旧 master（未锁定），把 `provider_key_secrets` 明文解出暂存进程内；随后 `confirm_key` 建好新 vault 时用新 master + 新 AAD 重封回库**。旧 master 不可用（已锁定/进程重启后）时回退现状：删密文。明文永不落库、不进 DTO、不进日志。
+- 对应申报步骤：**§四 C12**。
 - **当前实际状态（2026-10-27 11:40 实测）**：用户已选 B（丢 key 换速度）—— `provider_key_secrets` 已清空为 0 条、`provider_key_policy` 保留 1 行（sealed 标记）、`ai_provider_configs` 10 行结构（base_url/type/模型）完好但 `api_key` 全为 NULL。**⇒ AI 功能在桌面与手机两端都处于不可用状态，直到逐条重新填 key。** 这是一笔待办，不是待修 bug；若将来要做 (a) 或 (c)，必须同时给出「如何让用户知道哪些 provider 需要重填」的界面，否则等于把问题从「静默失效」挪到「静默缺失」。
 
 ### 六之二、D7（2026-10-28 真机新抓到，**待用户决定是否本轮修**）：录入期间的 op 帧被当成「名册未激活」拒收
@@ -259,7 +262,24 @@ Dart AI 分析 worker（每 tick）
 
 ---
 
+### C12 证据明细（2026-10-28）
+
+| # | 证据 |
+|---|---|
+| 1 | Rust 新增两条用例（`src/storage/sync/tests/local_identity.rs`）：`provider_keys_survive_an_identity_reset_when_the_old_master_is_available`（旧 master 可用：密封 → 出口暂存 → 新 vault → 重封 → 新 master 读回明文一致 → 槽不重复消费）与 `provider_keys_stay_dropped_when_the_old_master_is_unavailable`（回退：密文删除、重封空操作） |
+| 2 | Rust 变异验证（均先确认能编译再跑，改后还原复绿）：A 出口忽略 `migration_master`（恒 None）→ 成功用例红；B 重封用翻转的 master 字节（`broken[0] ^= 0xFF`）→ 红；C `take_staged_provider_keys` 改成 `get` 不 `remove`（可重复消费）→ 「再取一次槽」断言红 |
+| 3 | 实现中真 bug 由用例抓出：迁移暂存最初放在删复制表**之后**，AAD 组装报 `provider_key_identity_missing` —— 已改为删表**之前**（C12 的一个非显然约束：AAD 依赖即将被删的身份表）；重封接口最初想复用 `provider_master_key()`（session 还没确认）报 `provider_key_locked` —— 改为显式传新 master |
+| 4 | Dart 新增两条用例（`ui/test/sync_repair_exit_test.dart`）：「自动保留」分支（migratable=true 时文案/勾选切换、无「会失效」字样）+ 负向「判定抛错回退保守文案」 |
+| 5 | Dart 变异验证：A UI 恒走保守分支 → 「自动保留」用例红；B 判定抛错时误报可迁移 → 首轮**全绿（覆盖不足）**，按纪律补负向用例后 → 红，还原复绿 |
+| 6 | 五道门禁（2026-10-28）：`cargo test --all-targets` **985 passed / 0 failed**；`cd relay && npm test` **49/49**；`fvm flutter analyze` **133 issues = 0 error**（中途 134 有一条新 `use_build_context_synchronously` info，加 `mounted` guard 后回基线）；`fvm flutter test` **+485 All tests passed**（479 基线 + C11 4 + C12 2）；`scripts/regen.sh` EXIT=0 |
+| 7 | **边界与不解决**：迁移只保「同进程、未锁定」的 C3 出口；已锁定（`lock_local_sync`）或进程重启后的出口仍回退删密文（密文在 master 不可用时本来就解不开）。救不回本次已删的 10 个 key —— 用户仍需手动重填。owner 非 C3 的重新配对与 joiner 路径本就不丢 key（owner 用现有 vault，joiner 走 provider bundle），无需迁移 |
+
+---
+
 ## 七、进度记录
+
+- **2026-10-28 15:30 C12 申报（provider key 重封迁移）**：方案 b 便宜版已在 §六收敛并逐条复核代码事实（见上）；确认唯一死穴是 C3 出口、重封可在同进程内完成（明文暂存迁移槽），**尚未改动任何代码**。
+- **2026-10-28 16:xx C12 完成**：重封迁移 + 双分支 UI + Rust 2 用例 3 变异 + Dart 2 用例 2 变异（其一暴露覆盖不足，补负向用例后打红）全部落地，五道门禁全绿（cargo 985 / relay 49 / analyze 0 error / flutter test +485 / regen EXIT=0），见 §C12 证据明细。**10 个已删 key 无法救回，仍需手动重填**。
 
 - **2026-10-27 10:50** 建立本文档。D1/D2 均有现场实测证据（见 §一）。C0 尚未开始，无代码改动。
 - **2026-10-27 11:15** 上游 roadmap 第 3 次真机复跑**配对成功**（桌面对端确认、手机「成员设备」、数据完整落地、relay 残留 0）。同时暴露本文档 **D3**（交接完成后手机 UI 不收敛，需重启 app 才显示终态，见 §一 F10~F12 与 §三之二）：数据层与 UI 层出现了一次真实的一致性断裂，故新开 C7；D3 与 D1/D2 同源 —— 都是「状态机已经走到终点，但没有把终点正确地呈现/推导出来」。
