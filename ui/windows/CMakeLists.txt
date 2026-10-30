@@ -10,6 +10,12 @@ set(BINARY_NAME "elsewhen_ui")
 # versions of CMake.
 cmake_policy(VERSION 3.14...3.25)
 
+# VS 18 / MSVC 14.51 起 <experimental/coroutine> 由弃用变为硬错误（STL1011）。
+# local_auth_windows 2.0.2 的 CMake 仍传 /await，令 C++/WinRT 头改用 experimental
+# coroutine 头而触发该错误；错误信息建议用此宏抑制。在 add_subdirectory 之前
+# 全局定义，对 runner 与所有插件子目录生效。
+add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # Define build configuration option.
 get_property(IS_MULTICONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(IS_MULTICONFIG)
