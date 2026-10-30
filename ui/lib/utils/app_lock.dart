@@ -237,10 +237,8 @@ class AppLockService {
     try {
       return await _localAuth.authenticate(
         localizedReason: "验证指纹或面容以解锁 Elsewhen",
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-        ),
+        biometricOnly: true,
+        persistAcrossBackgrounding: true,
       );
     } catch (_) {
       return false;

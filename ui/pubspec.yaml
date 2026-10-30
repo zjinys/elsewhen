@@ -44,7 +44,7 @@ dependencies:
   crypto: ^3.0.0
 
   # 可选的指纹/面容解锁：系统级生物验证，仅移动端生效。
-  local_auth: ^2.3.0
+  local_auth: ^3.0.2
 
   # UI utilities
   intl: ^0.20.1
