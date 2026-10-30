@@ -245,5 +245,7 @@ apk_repo_head() {
 
 # 仓库里有没有还没提交/未跟踪的改动。用于提示「这个 APK 对应的不是任何一次提交」。
 apk_repo_dirty() {
-  git -C "$APK_REPO_ROOT" status --porcelain 2>/dev/null | grep -v '^?? skills/android-app-update/' | head -20
+  # grep 无匹配返回 1，pipefail 下会让整个替换非零、干净仓库反而
+  # 中断构建（set -e）：用 || true 吸收，只看过滤后的输出。
+  { git -C "$APK_REPO_ROOT" status --porcelain 2>/dev/null | grep -v '^?? skills/android-app-update/' || true; } | head -20
 }
