@@ -6,7 +6,9 @@ url='https://github.com/zjinys/elsewhen'
 arch=('x86_64')
 license=('AGPL3')
 # Flutter UI needs gtk3; the native sync keystore plugin also links libsecret.
-depends=('gtk3' 'libsecret')
+# tray_manager pulls in libayatana-appindicator -> libayatana-indicator -> ayatana-ido;
+# pacman does not resolve transitive .so deps of the bundle's plugins, list them all.
+depends=('gtk3' 'libsecret' 'libayatana-appindicator' 'libayatana-indicator' 'ayatana-ido')
 # 容器内 makepkg.conf 默认开 debug，会产出一个几乎为空的 elsewhen-debug 包；关掉。
 options=('!debug')
 package() {
