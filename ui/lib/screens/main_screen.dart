@@ -20,6 +20,7 @@ import '../widgets/companion_revisit_hint.dart';
 import '../widgets/sync_backlog_banner.dart';
 import '../widgets/glass.dart';
 import '../widgets/review_view.dart';
+import '../widgets/chat_proposal_review.dart';
 import '../widgets/sync_workspace.dart';
 import '../bridge/rust_bridge_repository.dart';
 
@@ -311,6 +312,15 @@ class TodayTitleBarActions extends ConsumerWidget {
           icon: Icons.note_add_outlined,
           onPressed: () => openCreateTopicDialog(context),
         ),
+        // 审阅提议：移动端 _NowStatus 整栏隐藏，桌面态的入口在手机上
+        // 不可达，而输入区/联系人 banner 文案都让用户「打开审阅提议」
+        // ——没有这个入口提议永远 pending。桌面同名按钮自带 pending
+        // 徽标与 dialog，直接复用（紧凑态＝图标无文案）。
+        if (conversationId != null)
+          ChatProposalReviewButton(
+            conversationId: conversationId,
+            compact: true,
+          ),
         _TitleBarIconAction(
           tooltip: searchVisible ? '隐藏搜索' : '搜索与日期定位',
           icon: searchVisible ? Icons.search_off : Icons.search,
