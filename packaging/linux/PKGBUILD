@@ -1,5 +1,5 @@
 pkgname=elsewhen
-pkgver=0.1.0
+pkgver=0.5.0
 pkgrel=1
 pkgdesc='Local-first personal event recorder with global hotkey capture'
 url='https://github.com/zjinys/elsewhen'
@@ -7,6 +7,8 @@ arch=('x86_64')
 license=('AGPL3')
 # Flutter UI needs gtk3; the native sync keystore plugin also links libsecret.
 depends=('gtk3' 'libsecret')
+# 容器内 makepkg.conf 默认开 debug，会产出一个几乎为空的 elsewhen-debug 包；关掉。
+options=('!debug')
 package() {
   install -d "$pkgdir/usr/lib/elsewhen"
   cp -a "$startdir/../../ui/build/linux/x64/release/bundle/." "$pkgdir/usr/lib/elsewhen/"
