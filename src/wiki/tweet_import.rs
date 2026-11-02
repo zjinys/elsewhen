@@ -505,6 +505,10 @@ pub fn save_text_page_with_kind(
     // 闸门的只有导入流（confirm_knowledge_source）——用户「存下来就是
     // 我的知识」，不属于「握取内容等定论」的心智。缺省 endorse，走
     // set_wiki_opinion 双写通道（wiki_pages + knowledge_sources 同进退）。
-    store.set_wiki_opinion(&outcome.page.slug, Some("endorse"))?;
+    // 只对素材 kind（source/note）表态：set_wiki_opinion 对 topic 直接
+    // 拒收（只有采集素材页可表态），topic 页入库即视为认可，不额外表态。
+    if matches!(kind, "note" | "source") {
+        store.set_wiki_opinion(&outcome.page.slug, Some("endorse"))?;
+    }
     Ok(outcome.page)
 }

@@ -1,4 +1,4 @@
-//! 目标 FRB 门面（FR-PES-005-01/02）。
+//! 目标 FRB 门面（FR-PES-005-01/02 & 2026-11 认知型目标升级）。
 //!
 //! 活跃目标上限由数据库触发器强制，本层只做参数校验与错误转译；
 //! 达到上限时不做任何自动顶替，错误直接上抛由界面提示用户先归档。
@@ -13,8 +13,12 @@ pub struct GoalDto {
     pub content: String,
     /// near / mid / long
     pub phase: String,
-    /// active / superseded
+    /// active / paused / completed
     pub status: String,
+    pub why: Option<String>,
+    pub current_focus: Option<String>,
+    pub blocker: Option<String>,
+    pub done_criteria: Option<String>,
     pub created_at: String,
     pub updated_at: String,
     pub superseded_at: Option<String>,
@@ -27,6 +31,10 @@ impl From<Goal> for GoalDto {
             content: g.content,
             phase: g.phase.as_str().to_string(),
             status: g.status.as_str().to_string(),
+            why: g.why,
+            current_focus: g.current_focus,
+            blocker: g.blocker,
+            done_criteria: g.done_criteria,
             created_at: g.created_at,
             updated_at: g.updated_at,
             superseded_at: g.superseded_at,
@@ -53,7 +61,7 @@ pub fn list_active_goals() -> Result<Vec<GoalDto>> {
         .collect())
 }
 
-/// 列出已归档目标（历史，按归档时间倒序）
+/// 列出已归档目标（历史所有非活跃，含暂停与达成，按时间倒序）
 pub fn list_archived_goals() -> Result<Vec<GoalDto>> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
@@ -64,16 +72,59 @@ pub fn list_archived_goals() -> Result<Vec<GoalDto>> {
         .collect())
 }
 
-/// 新建一条活跃目标
+/// 列出暂停搁置的目标（历史，按暂停时间倒序）
+pub fn list_paused_goals() -> Result<Vec<GoalDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    Ok(store
+        .list_paused_goals()?
+        .into_iter()
+        .map(GoalDto::from)
+        .collect())
+}
+
+/// 列出已达成的目标（成就，按达成时间倒序）
+pub fn list_completed_goals() -> Result<Vec<GoalDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    Ok(store
+        .list_completed_goals()?
+        .into_iter()
+        .map(GoalDto::from)
+        .collect())
+}
+
+/// 获取单个目标
+pub fn get_goal(id: String) -> Result<Option<GoalDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    Ok(store.get_goal(&id)?.map(GoalDto::from))
+}
+
+/// 新建一条活跃目标（支持传入各认知切片）
 ///
 /// 活跃目标已满 3 条时拒绝并报错，界面须提示用户先归档一条，不得自动顶替既有目标。
-pub fn create_goal(content: String, phase: String) -> Result<GoalDto> {
+pub fn create_goal(
+    content: String,
+    phase: String,
+    why: Option<String>,
+    current_focus: Option<String>,
+    blocker: Option<String>,
+    done_criteria: Option<String>,
+) -> Result<GoalDto> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
     if content.trim().is_empty() {
         anyhow::bail!("目标内容不能为空");
     }
-    let goal = store.create_goal(content.trim(), parse_phase(&phase)?)?;
+    let goal = store.create_goal_with_facets(
+        content.trim(),
+        parse_phase(&phase)?,
+        why.as_deref(),
+        current_focus.as_deref(),
+        blocker.as_deref(),
+        done_criteria.as_deref(),
+    )?;
     Ok(GoalDto::from(goal))
 }
 
@@ -87,16 +138,90 @@ pub fn update_goal(id: String, content: String, phase: String) -> Result<()> {
     store.update_goal(&id, content.trim(), parse_phase(&phase)?)
 }
 
-/// 归档一条目标，让出活跃名额但保留内容与阶段作为历史
+/// 滚动更新目标抓手与卡点（最常用的轻量认知更新操作）
+pub fn update_goal_focus(
+    id: String,
+    current_focus: Option<String>,
+    blocker: Option<String>,
+) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.update_goal_focus(&id, current_focus.as_deref(), blocker.as_deref())
+}
+
+/// 更新目标的所有认知切片字段
+pub fn update_goal_facets(
+    id: String,
+    why: Option<String>,
+    current_focus: Option<String>,
+    blocker: Option<String>,
+    done_criteria: Option<String>,
+) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.update_goal_facets(
+        &id,
+        why.as_deref(),
+        current_focus.as_deref(),
+        blocker.as_deref(),
+        done_criteria.as_deref(),
+    )
+}
+
+/// 完整更新目标的所有正文与切片字段
+pub fn update_goal_full(
+    id: String,
+    content: String,
+    phase: String,
+    why: Option<String>,
+    current_focus: Option<String>,
+    blocker: Option<String>,
+    done_criteria: Option<String>,
+) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    if content.trim().is_empty() {
+        anyhow::bail!("目标内容不能为空");
+    }
+    store.update_goal_full(
+        &id,
+        content.trim(),
+        parse_phase(&phase)?,
+        why.as_deref(),
+        current_focus.as_deref(),
+        blocker.as_deref(),
+        done_criteria.as_deref(),
+    )
+}
+
+/// 暂停搁置一条目标，让出活跃名额但保留内容与切片上下文作为历史以备随时复活
+pub fn pause_goal(id: String) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.pause_goal(&id)
+}
+
+/// 达成一条目标，让出活跃名额并记录为成就勋章
+pub fn complete_goal(id: String) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.complete_goal(&id)
+}
+
+/// 归档一条目标（向后兼容接口，等价于 pause_goal）
 pub fn archive_goal(id: String) -> Result<()> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
     store.archive_goal(&id)
 }
 
-/// 复活一条已归档目标。活跃目标已满 3 条时同样拒绝。
-pub fn reactivate_goal(id: String) -> Result<()> {
+/// 复活一条非活跃目标。活跃目标已满 3 条时同样拒绝。可同时指定当前新抓手与卡点。
+pub fn reactivate_goal(
+    id: String,
+    current_focus: Option<String>,
+    blocker: Option<String>,
+) -> Result<()> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
-    store.reactivate_goal(&id)
+    store.reactivate_goal_with_focus(&id, current_focus.as_deref(), blocker.as_deref())
 }

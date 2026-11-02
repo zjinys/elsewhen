@@ -127,7 +127,7 @@ impl Store {
     fn sync_goal_record(&self, id: &str) -> Result<Option<GoalRecord>> {
         self.connection
             .query_row(
-                "SELECT id,content,phase,status,created_at,updated_at,superseded_at \
+                "SELECT id,content,phase,status,why,current_focus,blocker,done_criteria,created_at,updated_at,superseded_at \
                  FROM goals WHERE id=?1",
                 [id],
                 |r| {
@@ -136,9 +136,13 @@ impl Store {
                         content: r.get(1)?,
                         phase: r.get(2)?,
                         status: r.get(3)?,
-                        created_at: r.get(4)?,
-                        updated_at: r.get(5)?,
-                        superseded_at: r.get(6)?,
+                        why: r.get(4)?,
+                        current_focus: r.get(5)?,
+                        blocker: r.get(6)?,
+                        done_criteria: r.get(7)?,
+                        created_at: r.get(8)?,
+                        updated_at: r.get(9)?,
+                        superseded_at: r.get(10)?,
                     })
                 },
             )
@@ -532,7 +536,12 @@ impl Store {
         // 活跃上限由本端触发器强制：这里先把「远端写入会越限」判成显式
         // 冲突（不静默顶掉本端目标），与或不与触发器等价都必须人工审。
         // 触发器本身兜底（apply 库与业务库同一 schema）。
-        if goal.status == "active" {
+        let status = if goal.status == "superseded" {
+            "paused"
+        } else {
+            goal.status.as_str()
+        };
+        if status == "active" {
             let current: Option<String> = self
                 .connection
                 .query_row("SELECT status FROM goals WHERE id=?1", [&goal.id], |r| {
@@ -559,15 +568,20 @@ impl Store {
             }
         }
         self.connection.execute(
-            "INSERT INTO goals(id,content,phase,status,created_at,updated_at,superseded_at) \
-             VALUES(?1,?2,?3,?4,?5,?6,?7) \
+            "INSERT INTO goals(id,content,phase,status,why,current_focus,blocker,done_criteria,created_at,updated_at,superseded_at) \
+             VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11) \
              ON CONFLICT(id) DO UPDATE SET content=excluded.content,phase=excluded.phase,status=excluded.status, \
+             why=excluded.why,current_focus=excluded.current_focus,blocker=excluded.blocker,done_criteria=excluded.done_criteria, \
              updated_at=excluded.updated_at,superseded_at=excluded.superseded_at",
             params![
                 goal.id,
                 goal.content,
                 goal.phase,
-                goal.status,
+                status,
+                goal.why,
+                goal.current_focus,
+                goal.blocker,
+                goal.done_criteria,
                 goal.created_at,
                 goal.updated_at,
                 goal.superseded_at

@@ -1,13 +1,15 @@
-//! 目标存取（FR-PES-005-01/02）。
+//! 目标存取（FR-PES-005-01/02 & 2026-11 认知型目标升级）。
 //!
 //! 活跃目标上限 3 条由 `new_migrations.rs` 里的数据库触发器强制，本层不自己数，
 //! 只负责把触发器抛出的 `active_goal_limit_reached` 翻成用户看得懂的话。
 //!
 //! `phase` 是标签不是槽位：同一阶段可以有多条活跃目标，也不要求三个阶段都有。
-//! 目标改内容走 `update_goal`（同一目标），换阶段或换方向走归档加新增，旧目标保留。
+//! 目标认知切片（`why`, `current_focus`, `blocker`, `done_criteria`）支持随时单字段滚动更新；
+//! 目标生命周期三态：`active`（活跃 ≤3）、`paused`（暂停搁置，保留上下文可随时读档）、
+//! `completed`（已达成里程碑）。
 
 use anyhow::Result;
-use rusqlite::{Error as SqliteError, params};
+use rusqlite::{Error as SqliteError, OptionalExtension, params};
 use uuid::Uuid;
 
 use super::Store;
@@ -52,37 +54,46 @@ impl GoalPhase {
     }
 }
 
-/// 目标状态：活跃 / 已归档
+/// 目标状态：活跃 / 暂停搁置 / 已达成
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GoalStatus {
     Active,
-    Superseded,
+    Paused,
+    Completed,
 }
 
 impl GoalStatus {
     pub fn as_str(self) -> &'static str {
         match self {
             GoalStatus::Active => "active",
-            GoalStatus::Superseded => "superseded",
+            GoalStatus::Paused => "paused",
+            GoalStatus::Completed => "completed",
         }
     }
 
     pub fn parse(raw: &str) -> Option<Self> {
         match raw {
             "active" => Some(GoalStatus::Active),
-            "superseded" => Some(GoalStatus::Superseded),
+            "paused" => Some(GoalStatus::Paused),
+            "completed" => Some(GoalStatus::Completed),
+            // 兼容历史存量
+            "superseded" => Some(GoalStatus::Paused),
             _ => None,
         }
     }
 }
 
-/// 一条目标（活跃或已归档）
+/// 一条目标（活跃、暂停或已达成）
 #[derive(Debug, Clone)]
 pub struct Goal {
     pub id: String,
     pub content: String,
     pub phase: GoalPhase,
     pub status: GoalStatus,
+    pub why: Option<String>,
+    pub current_focus: Option<String>,
+    pub blocker: Option<String>,
+    pub done_criteria: Option<String>,
     pub created_at: String,
     pub updated_at: String,
     pub superseded_at: Option<String>,
@@ -98,7 +109,8 @@ fn map_write_error(error: SqliteError) -> anyhow::Error {
     }
 }
 
-const SELECT_COLUMNS: &str = "id, content, phase, status, created_at, updated_at, superseded_at";
+const SELECT_COLUMNS: &str =
+    "id, content, phase, status, why, current_focus, blocker, done_criteria, created_at, updated_at, superseded_at";
 
 fn row_to_goal(row: &rusqlite::Row<'_>) -> rusqlite::Result<Goal> {
     let phase: String = row.get(2)?;
@@ -106,16 +118,19 @@ fn row_to_goal(row: &rusqlite::Row<'_>) -> rusqlite::Result<Goal> {
     Ok(Goal {
         id: row.get(0)?,
         content: row.get(1)?,
-        // 两列都有 CHECK 约束，解析失败说明数据被绕过写入，此时让上层报错而非静默降级。
         phase: GoalPhase::parse(&phase).ok_or_else(|| {
             SqliteError::InvalidColumnType(2, "phase".to_string(), rusqlite::types::Type::Text)
         })?,
         status: GoalStatus::parse(&status).ok_or_else(|| {
             SqliteError::InvalidColumnType(3, "status".to_string(), rusqlite::types::Type::Text)
         })?,
-        created_at: row.get(4)?,
-        updated_at: row.get(5)?,
-        superseded_at: row.get(6)?,
+        why: row.get(4)?,
+        current_focus: row.get(5)?,
+        blocker: row.get(6)?,
+        done_criteria: row.get(7)?,
+        created_at: row.get(8)?,
+        updated_at: row.get(9)?,
+        superseded_at: row.get(10)?,
     })
 }
 
@@ -134,15 +149,46 @@ impl Store {
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
 
-    /// 列出已归档目标，按归档时间倒序。
+    /// 列出所有非活跃目标（含暂停搁置与已达成），按归档/完成时间倒序。
     pub fn list_archived_goals(&self) -> Result<Vec<Goal>> {
         let sql = format!(
-            "SELECT {SELECT_COLUMNS} FROM goals WHERE status='superseded'
+            "SELECT {SELECT_COLUMNS} FROM goals WHERE status IN ('paused', 'completed')
              ORDER BY superseded_at DESC, created_at DESC"
         );
         let mut statement = self.connection.prepare(&sql)?;
         let rows = statement.query_map([], row_to_goal)?;
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
+    /// 列出暂停搁置的目标，按暂停时间倒序。
+    pub fn list_paused_goals(&self) -> Result<Vec<Goal>> {
+        let sql = format!(
+            "SELECT {SELECT_COLUMNS} FROM goals WHERE status='paused'
+             ORDER BY superseded_at DESC, created_at DESC"
+        );
+        let mut statement = self.connection.prepare(&sql)?;
+        let rows = statement.query_map([], row_to_goal)?;
+        Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
+    /// 列出已达成的目标，按达成时间倒序。
+    pub fn list_completed_goals(&self) -> Result<Vec<Goal>> {
+        let sql = format!(
+            "SELECT {SELECT_COLUMNS} FROM goals WHERE status='completed'
+             ORDER BY superseded_at DESC, created_at DESC"
+        );
+        let mut statement = self.connection.prepare(&sql)?;
+        let rows = statement.query_map([], row_to_goal)?;
+        Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
+    /// 根据 ID 获取单个目标详情
+    pub fn get_goal(&self, id: &str) -> Result<Option<Goal>> {
+        let sql = format!("SELECT {SELECT_COLUMNS} FROM goals WHERE id=?1");
+        Ok(self
+            .connection
+            .query_row(&sql, [id], row_to_goal)
+            .optional()?)
     }
 
     pub fn count_active_goals(&self) -> Result<i64> {
@@ -155,6 +201,19 @@ impl Store {
 
     /// 新建一条活跃目标。达上限时由触发器拒绝，不自动顶掉既有目标。
     pub fn create_goal(&self, content: &str, phase: GoalPhase) -> Result<Goal> {
+        self.create_goal_with_facets(content, phase, None, None, None, None)
+    }
+
+    /// 新建一条带认知切片的活跃目标。达上限时由触发器拒绝。
+    pub fn create_goal_with_facets(
+        &self,
+        content: &str,
+        phase: GoalPhase,
+        why: Option<&str>,
+        current_focus: Option<&str>,
+        blocker: Option<&str>,
+        done_criteria: Option<&str>,
+    ) -> Result<Goal> {
         let content = content.trim();
         if content.is_empty() {
             anyhow::bail!("目标内容不能为空");
@@ -165,6 +224,16 @@ impl Store {
             content: content.to_string(),
             phase,
             status: GoalStatus::Active,
+            why: why.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+            current_focus: current_focus
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty()),
+            blocker: blocker
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty()),
+            done_criteria: done_criteria
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty()),
             created_at: now.clone(),
             updated_at: now.clone(),
             superseded_at: None,
@@ -172,9 +241,18 @@ impl Store {
         let tx = self.begin_write_transaction()?;
         self.connection
             .execute(
-                "INSERT INTO goals(id, content, phase, status, created_at, updated_at, superseded_at)
-                 VALUES (?1, ?2, ?3, 'active', ?4, ?4, NULL)",
-                params![goal.id, goal.content, phase.as_str(), now],
+                "INSERT INTO goals(id, content, phase, status, why, current_focus, blocker, done_criteria, created_at, updated_at, superseded_at)
+                 VALUES (?1, ?2, ?3, 'active', ?4, ?5, ?6, ?7, ?8, ?8, NULL)",
+                params![
+                    goal.id,
+                    goal.content,
+                    phase.as_str(),
+                    goal.why,
+                    goal.current_focus,
+                    goal.blocker,
+                    goal.done_criteria,
+                    now
+                ],
             )
             .map_err(map_write_error)?;
         self.sync_record_goal(&goal.id)?;
@@ -209,14 +287,123 @@ impl Store {
         Ok(())
     }
 
-    /// 归档一条目标。归档即让出活跃名额，但保留内容与阶段作为历史。
-    pub fn archive_goal(&self, id: &str) -> Result<()> {
+    /// 滚动更新目标抓手与卡点（最常用的轻量认知更新操作）
+    pub fn update_goal_focus(
+        &self,
+        id: &str,
+        current_focus: Option<&str>,
+        blocker: Option<&str>,
+    ) -> Result<()> {
         let now = chrono::Utc::now().to_rfc3339();
         let tx = self.begin_write_transaction()?;
         let changed = self
             .connection
             .execute(
-                "UPDATE goals SET status='superseded', superseded_at=?2, updated_at=?2 WHERE id=?1",
+                "UPDATE goals SET current_focus=?2, blocker=?3, updated_at=?4 WHERE id=?1",
+                params![
+                    id,
+                    current_focus.map(str::trim).filter(|s| !s.is_empty()),
+                    blocker.map(str::trim).filter(|s| !s.is_empty()),
+                    now
+                ],
+            )
+            .map_err(map_write_error)?;
+        if changed == 0 {
+            anyhow::bail!("目标不存在: {id}");
+        }
+        self.sync_record_goal(id)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(())
+    }
+
+    /// 更新目标的所有认知切片字段
+    pub fn update_goal_facets(
+        &self,
+        id: &str,
+        why: Option<&str>,
+        current_focus: Option<&str>,
+        blocker: Option<&str>,
+        done_criteria: Option<&str>,
+    ) -> Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        let tx = self.begin_write_transaction()?;
+        let changed = self
+            .connection
+            .execute(
+                "UPDATE goals SET why=?2, current_focus=?3, blocker=?4, done_criteria=?5, updated_at=?6 WHERE id=?1",
+                params![
+                    id,
+                    why.map(str::trim).filter(|s| !s.is_empty()),
+                    current_focus.map(str::trim).filter(|s| !s.is_empty()),
+                    blocker.map(str::trim).filter(|s| !s.is_empty()),
+                    done_criteria.map(str::trim).filter(|s| !s.is_empty()),
+                    now
+                ],
+            )
+            .map_err(map_write_error)?;
+        if changed == 0 {
+            anyhow::bail!("目标不存在: {id}");
+        }
+        self.sync_record_goal(id)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(())
+    }
+
+    /// 完整更新目标的所有正文与切片字段
+    pub fn update_goal_full(
+        &self,
+        id: &str,
+        content: &str,
+        phase: GoalPhase,
+        why: Option<&str>,
+        current_focus: Option<&str>,
+        blocker: Option<&str>,
+        done_criteria: Option<&str>,
+    ) -> Result<()> {
+        let content = content.trim();
+        if content.is_empty() {
+            anyhow::bail!("目标内容不能为空");
+        }
+        let now = chrono::Utc::now().to_rfc3339();
+        let tx = self.begin_write_transaction()?;
+        let changed = self
+            .connection
+            .execute(
+                "UPDATE goals SET content=?2, phase=?3, why=?4, current_focus=?5, blocker=?6, done_criteria=?7, updated_at=?8 WHERE id=?1",
+                params![
+                    id,
+                    content,
+                    phase.as_str(),
+                    why.map(str::trim).filter(|s| !s.is_empty()),
+                    current_focus.map(str::trim).filter(|s| !s.is_empty()),
+                    blocker.map(str::trim).filter(|s| !s.is_empty()),
+                    done_criteria.map(str::trim).filter(|s| !s.is_empty()),
+                    now
+                ],
+            )
+            .map_err(map_write_error)?;
+        if changed == 0 {
+            anyhow::bail!("目标不存在: {id}");
+        }
+        self.sync_record_goal(id)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(())
+    }
+
+    /// 暂停搁置目标。让出活跃名额，但保留所有上下文作为切片历史以备随时复活。
+    pub fn pause_goal(&self, id: &str) -> Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        let tx = self.begin_write_transaction()?;
+        let changed = self
+            .connection
+            .execute(
+                "UPDATE goals SET status='paused', superseded_at=?2, updated_at=?2 WHERE id=?1",
                 params![id, now],
             )
             .map_err(map_write_error)?;
@@ -230,17 +417,69 @@ impl Store {
         Ok(())
     }
 
-    /// 复活一条已归档目标。达上限时由触发器拒绝。
-    pub fn reactivate_goal(&self, id: &str) -> Result<()> {
+    /// 完成达成目标。让出活跃名额，记录成就勋章。
+    pub fn complete_goal(&self, id: &str) -> Result<()> {
         let now = chrono::Utc::now().to_rfc3339();
         let tx = self.begin_write_transaction()?;
         let changed = self
             .connection
             .execute(
-                "UPDATE goals SET status='active', superseded_at=NULL, updated_at=?2 WHERE id=?1",
+                "UPDATE goals SET status='completed', superseded_at=?2, updated_at=?2 WHERE id=?1",
                 params![id, now],
             )
             .map_err(map_write_error)?;
+        if changed == 0 {
+            anyhow::bail!("目标不存在: {id}");
+        }
+        self.sync_record_goal(id)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(())
+    }
+
+    /// 归档目标（向后兼容接口，等价于 pause_goal）。
+    pub fn archive_goal(&self, id: &str) -> Result<()> {
+        self.pause_goal(id)
+    }
+
+    /// 复活一条非活跃目标。达上限时由触发器拒绝。
+    pub fn reactivate_goal(&self, id: &str) -> Result<()> {
+        self.reactivate_goal_with_focus(id, None, None)
+    }
+
+    /// 带新抓手/卡点复活目标（无缝读档体验）。
+    pub fn reactivate_goal_with_focus(
+        &self,
+        id: &str,
+        current_focus: Option<&str>,
+        blocker: Option<&str>,
+    ) -> Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+        let tx = self.begin_write_transaction()?;
+        let changed = if current_focus.is_some() || blocker.is_some() {
+            self.connection
+                .execute(
+                    "UPDATE goals SET status='active', superseded_at=NULL,
+                            current_focus=COALESCE(?2, current_focus),
+                            blocker=COALESCE(?3, blocker),
+                            updated_at=?4 WHERE id=?1",
+                    params![
+                        id,
+                        current_focus.map(str::trim).filter(|s| !s.is_empty()),
+                        blocker.map(str::trim).filter(|s| !s.is_empty()),
+                        now
+                    ],
+                )
+                .map_err(map_write_error)?
+        } else {
+            self.connection
+                .execute(
+                    "UPDATE goals SET status='active', superseded_at=NULL, updated_at=?2 WHERE id=?1",
+                    params![id, now],
+                )
+                .map_err(map_write_error)?
+        };
         if changed == 0 {
             anyhow::bail!("目标不存在: {id}");
         }
@@ -296,6 +535,46 @@ mod tests {
         assert_eq!(goals[0].phase, GoalPhase::Near);
         assert_eq!(goals[1].phase, GoalPhase::Long);
         assert_eq!(store.store.count_active_goals().unwrap(), 2);
+    }
+
+    #[test]
+    fn creates_and_updates_goal_with_facets() {
+        let store = store();
+        let g = store
+            .store
+            .create_goal_with_facets(
+                "全量升级认知目标",
+                GoalPhase::Near,
+                Some("核心系统演进"),
+                Some("落地 Phase G1 存储层"),
+                Some("无已知卡点"),
+                Some("所有单测全绿且迁移平滑"),
+            )
+            .unwrap();
+
+        let loaded = store.store.get_goal(&g.id).unwrap().unwrap();
+        assert_eq!(loaded.content, "全量升级认知目标");
+        assert_eq!(loaded.why.as_deref(), Some("核心系统演进"));
+        assert_eq!(loaded.current_focus.as_deref(), Some("落地 Phase G1 存储层"));
+        assert_eq!(loaded.blocker.as_deref(), Some("无已知卡点"));
+        assert_eq!(
+            loaded.done_criteria.as_deref(),
+            Some("所有单测全绿且迁移平滑")
+        );
+
+        // 滚动更新抓手
+        store
+            .store
+            .update_goal_focus(&g.id, Some("推进 Phase G2 AI 上下文"), Some("等待 G1 落地"))
+            .unwrap();
+        let updated = store.store.get_goal(&g.id).unwrap().unwrap();
+        assert_eq!(
+            updated.current_focus.as_deref(),
+            Some("推进 Phase G2 AI 上下文")
+        );
+        assert_eq!(updated.blocker.as_deref(), Some("等待 G1 落地"));
+        // why 和 criteria 不受影响
+        assert_eq!(updated.why.as_deref(), Some("核心系统演进"));
     }
 
     #[test]
@@ -369,31 +648,46 @@ mod tests {
     }
 
     #[test]
-    fn archive_frees_a_slot_and_keeps_history() {
+    fn pause_and_complete_frees_slot_and_distinguishes_status() {
         let store = store();
         for c in ["a", "b", "c"] {
             store.store.create_goal(c, GoalPhase::Near).unwrap();
         }
-        let target = id_of_created(&store, "a");
-        store.store.archive_goal(&target).unwrap();
+        let id_a = id_of_created(&store, "a");
+        let id_b = id_of_created(&store, "b");
+
+        // 暂停 a，完成 b
+        store.store.pause_goal(&id_a).unwrap();
         assert_eq!(store.store.count_active_goals().unwrap(), 2);
+        store.store.complete_goal(&id_b).unwrap();
+        assert_eq!(store.store.count_active_goals().unwrap(), 1);
 
+        let paused = store.store.list_paused_goals().unwrap();
+        assert_eq!(paused.len(), 1);
+        assert_eq!(paused[0].id, id_a);
+        assert_eq!(paused[0].status, GoalStatus::Paused);
+
+        let completed = store.store.list_completed_goals().unwrap();
+        assert_eq!(completed.len(), 1);
+        assert_eq!(completed[0].id, id_b);
+        assert_eq!(completed[0].status, GoalStatus::Completed);
+
+        // list_archived_goals 包含两者
         let archived = store.store.list_archived_goals().unwrap();
-        assert_eq!(archived.len(), 1);
-        assert_eq!(archived[0].id, target);
-        assert_eq!(archived[0].content, "a");
-        assert!(archived[0].superseded_at.is_some());
+        assert_eq!(archived.len(), 2);
 
+        // 腾出名额后可新增
         store.store.create_goal("d", GoalPhase::Mid).unwrap();
+        store.store.create_goal("e", GoalPhase::Long).unwrap();
         assert_eq!(store.store.count_active_goals().unwrap(), 3);
     }
 
-    /// 构造「3 条活跃 + 1 条已归档」，验证复活走 UPDATE 路径时也受上限约束。
+    /// 构造「3 条活跃 + 1 条已暂停」，验证复活走 UPDATE 路径时也受上限约束。
     #[test]
     fn reactivate_is_blocked_at_the_cap() {
         let store = store();
         let old = store.store.create_goal("old", GoalPhase::Long).unwrap();
-        store.store.archive_goal(&old.id).unwrap();
+        store.store.pause_goal(&old.id).unwrap();
         for c in ["x", "y", "z"] {
             store.store.create_goal(c, GoalPhase::Near).unwrap();
         }
@@ -408,24 +702,40 @@ mod tests {
     }
 
     #[test]
-    fn reactivate_succeeds_once_a_slot_is_free() {
+    fn reactivate_with_new_focus_succeeds_once_slot_is_free() {
         let store = store();
-        let old = store.store.create_goal("old", GoalPhase::Long).unwrap();
-        store.store.archive_goal(&old.id).unwrap();
+        let old = store
+            .store
+            .create_goal_with_facets(
+                "待唤醒目标",
+                GoalPhase::Long,
+                Some("最初愿景"),
+                Some("旧抓手"),
+                Some("旧卡点"),
+                None,
+            )
+            .unwrap();
+        store.store.pause_goal(&old.id).unwrap();
+
         for c in ["a", "b", "c"] {
             store.store.create_goal(c, GoalPhase::Near).unwrap();
         }
         let freed = id_of_created(&store, "a");
-        store.store.archive_goal(&freed).unwrap();
+        store.store.pause_goal(&freed).unwrap();
         assert_eq!(store.store.count_active_goals().unwrap(), 2);
 
-        store.store.reactivate_goal(&old.id).unwrap();
+        // 带新抓手读档复活
+        store
+            .store
+            .reactivate_goal_with_focus(&old.id, Some("全新抓手启动"), None)
+            .unwrap();
         assert_eq!(store.store.count_active_goals().unwrap(), 3);
-        // 复活后归档列表里只剩先前让位的那条
-        let archived = store.store.list_archived_goals().unwrap();
-        assert_eq!(archived.len(), 1);
-        assert_eq!(archived[0].id, freed);
-        assert!(active_by_id(&store, &old.id).superseded_at.is_none());
+
+        let reactivated = active_by_id(&store, &old.id);
+        assert_eq!(reactivated.status, GoalStatus::Active);
+        assert_eq!(reactivated.current_focus.as_deref(), Some("全新抓手启动"));
+        assert_eq!(reactivated.blocker.as_deref(), Some("旧卡点")); // 保留旧卡点
+        assert!(reactivated.superseded_at.is_none());
     }
 
     #[test]
@@ -446,6 +756,8 @@ mod tests {
                 .is_err()
         );
         assert!(store.store.archive_goal("nope").is_err());
+        assert!(store.store.pause_goal("nope").is_err());
+        assert!(store.store.complete_goal("nope").is_err());
         assert!(store.store.reactivate_goal("nope").is_err());
     }
 }

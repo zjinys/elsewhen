@@ -185,7 +185,7 @@ fn goals_replicate_archive_reactivate_and_cap_conflicts() {
         .query_row("SELECT status FROM goals WHERE id=?1", [&a1], |r| r.get(0))
         .unwrap();
     assert_eq!(
-        archived_b, "superseded",
+        archived_b, "paused",
         "归档随流复制（a2 候选不影响 a1 的归档）"
     );
     let _ = a1;

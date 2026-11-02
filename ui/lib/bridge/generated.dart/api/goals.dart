@@ -14,18 +14,40 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<List<GoalDto>> listActiveGoals() =>
     RustLib.instance.api.crateApiGoalsListActiveGoals();
 
-/// 列出已归档目标（历史，按归档时间倒序）
+/// 列出已归档目标（历史所有非活跃，含暂停与达成，按时间倒序）
 Future<List<GoalDto>> listArchivedGoals() =>
     RustLib.instance.api.crateApiGoalsListArchivedGoals();
 
-/// 新建一条活跃目标
+/// 列出暂停搁置的目标（历史，按暂停时间倒序）
+Future<List<GoalDto>> listPausedGoals() =>
+    RustLib.instance.api.crateApiGoalsListPausedGoals();
+
+/// 列出已达成的目标（成就，按达成时间倒序）
+Future<List<GoalDto>> listCompletedGoals() =>
+    RustLib.instance.api.crateApiGoalsListCompletedGoals();
+
+/// 获取单个目标
+Future<GoalDto?> getGoal({required String id}) =>
+    RustLib.instance.api.crateApiGoalsGetGoal(id: id);
+
+/// 新建一条活跃目标（支持传入各认知切片）
 ///
 /// 活跃目标已满 3 条时拒绝并报错，界面须提示用户先归档一条，不得自动顶替既有目标。
-Future<GoalDto> createGoal({required String content, required String phase}) =>
-    RustLib.instance.api.crateApiGoalsCreateGoal(
-      content: content,
-      phase: phase,
-    );
+Future<GoalDto> createGoal({
+  required String content,
+  required String phase,
+  String? why,
+  String? currentFocus,
+  String? blocker,
+  String? doneCriteria,
+}) => RustLib.instance.api.crateApiGoalsCreateGoal(
+  content: content,
+  phase: phase,
+  why: why,
+  currentFocus: currentFocus,
+  blocker: blocker,
+  doneCriteria: doneCriteria,
+);
 
 /// 编辑一条目标的正文与阶段（状态不变，故不受上限限制）
 Future<void> updateGoal({
@@ -38,13 +60,73 @@ Future<void> updateGoal({
   phase: phase,
 );
 
-/// 归档一条目标，让出活跃名额但保留内容与阶段作为历史
+/// 滚动更新目标抓手与卡点（最常用的轻量认知更新操作）
+Future<void> updateGoalFocus({
+  required String id,
+  String? currentFocus,
+  String? blocker,
+}) => RustLib.instance.api.crateApiGoalsUpdateGoalFocus(
+  id: id,
+  currentFocus: currentFocus,
+  blocker: blocker,
+);
+
+/// 更新目标的所有认知切片字段
+Future<void> updateGoalFacets({
+  required String id,
+  String? why,
+  String? currentFocus,
+  String? blocker,
+  String? doneCriteria,
+}) => RustLib.instance.api.crateApiGoalsUpdateGoalFacets(
+  id: id,
+  why: why,
+  currentFocus: currentFocus,
+  blocker: blocker,
+  doneCriteria: doneCriteria,
+);
+
+/// 完整更新目标的所有正文与切片字段
+Future<void> updateGoalFull({
+  required String id,
+  required String content,
+  required String phase,
+  String? why,
+  String? currentFocus,
+  String? blocker,
+  String? doneCriteria,
+}) => RustLib.instance.api.crateApiGoalsUpdateGoalFull(
+  id: id,
+  content: content,
+  phase: phase,
+  why: why,
+  currentFocus: currentFocus,
+  blocker: blocker,
+  doneCriteria: doneCriteria,
+);
+
+/// 暂停搁置一条目标，让出活跃名额但保留内容与切片上下文作为历史以备随时复活
+Future<void> pauseGoal({required String id}) =>
+    RustLib.instance.api.crateApiGoalsPauseGoal(id: id);
+
+/// 达成一条目标，让出活跃名额并记录为成就勋章
+Future<void> completeGoal({required String id}) =>
+    RustLib.instance.api.crateApiGoalsCompleteGoal(id: id);
+
+/// 归档一条目标（向后兼容接口，等价于 pause_goal）
 Future<void> archiveGoal({required String id}) =>
     RustLib.instance.api.crateApiGoalsArchiveGoal(id: id);
 
-/// 复活一条已归档目标。活跃目标已满 3 条时同样拒绝。
-Future<void> reactivateGoal({required String id}) =>
-    RustLib.instance.api.crateApiGoalsReactivateGoal(id: id);
+/// 复活一条非活跃目标。活跃目标已满 3 条时同样拒绝。可同时指定当前新抓手与卡点。
+Future<void> reactivateGoal({
+  required String id,
+  String? currentFocus,
+  String? blocker,
+}) => RustLib.instance.api.crateApiGoalsReactivateGoal(
+  id: id,
+  currentFocus: currentFocus,
+  blocker: blocker,
+);
 
 /// 目标 DTO
 class GoalDto {
@@ -54,8 +136,12 @@ class GoalDto {
   /// near / mid / long
   final String phase;
 
-  /// active / superseded
+  /// active / paused / completed
   final String status;
+  final String? why;
+  final String? currentFocus;
+  final String? blocker;
+  final String? doneCriteria;
   final String createdAt;
   final String updatedAt;
   final String? supersededAt;
@@ -65,6 +151,10 @@ class GoalDto {
     required this.content,
     required this.phase,
     required this.status,
+    this.why,
+    this.currentFocus,
+    this.blocker,
+    this.doneCriteria,
     required this.createdAt,
     required this.updatedAt,
     this.supersededAt,
@@ -76,6 +166,10 @@ class GoalDto {
       content.hashCode ^
       phase.hashCode ^
       status.hashCode ^
+      why.hashCode ^
+      currentFocus.hashCode ^
+      blocker.hashCode ^
+      doneCriteria.hashCode ^
       createdAt.hashCode ^
       updatedAt.hashCode ^
       supersededAt.hashCode;
@@ -89,6 +183,10 @@ class GoalDto {
           content == other.content &&
           phase == other.phase &&
           status == other.status &&
+          why == other.why &&
+          currentFocus == other.currentFocus &&
+          blocker == other.blocker &&
+          doneCriteria == other.doneCriteria &&
           createdAt == other.createdAt &&
           updatedAt == other.updatedAt &&
           supersededAt == other.supersededAt;

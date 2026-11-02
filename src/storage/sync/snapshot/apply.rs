@@ -342,6 +342,10 @@ impl Store {
                 content,
                 phase,
                 status,
+                why,
+                current_focus,
+                blocker,
+                done_criteria,
                 created_at,
                 updated_at,
                 superseded_at,
@@ -349,12 +353,20 @@ impl Store {
                 validate_id(id)?;
                 ensure!(
                     matches!(phase.as_str(), "near" | "mid" | "long")
-                        && matches!(status.as_str(), "active" | "superseded"),
+                        && matches!(status.as_str(), "active" | "paused" | "completed" | "superseded"),
                     "sync_snapshot_goal_status_invalid"
                 );
+                let normalized_status = if status == "superseded" {
+                    "paused"
+                } else {
+                    status.as_str()
+                };
                 // 源端受同样的活跃上限不变式约束，快照里不可能出现违限行；
                 // 违限行到此必炸（触发器 fail-closed），不旁路。
-                self.connection.execute("INSERT INTO goals(id,content,phase,status,created_at,updated_at,superseded_at) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![id,content,phase,status,created_at,updated_at,superseded_at])?;
+                self.connection.execute(
+                    "INSERT INTO goals(id,content,phase,status,why,current_focus,blocker,done_criteria,created_at,updated_at,superseded_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
+                    params![id,content,phase,normalized_status,why,current_focus,blocker,done_criteria,created_at,updated_at,superseded_at],
+                )?;
             }
             Record::Rule {
                 id,

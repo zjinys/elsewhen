@@ -13,18 +13,47 @@ extension RepoChatAndMisc on RustBridgeRepository {
     return dtos.map(Goal.fromDto).toList();
   }
 
-  /// 列出已归档目标（历史）
+  /// 列出已归档目标（历史所有非活跃，含暂停与达成）
   Future<List<Goal>> listArchivedGoals() async {
     final dtos = await api.listArchivedGoals();
     return dtos.map(Goal.fromDto).toList();
+  }
+
+  /// 列出暂停搁置的目标（历史）
+  Future<List<Goal>> listPausedGoals() async {
+    final dtos = await api.listPausedGoals();
+    return dtos.map(Goal.fromDto).toList();
+  }
+
+  /// 列出已达成目标（成就）
+  Future<List<Goal>> listCompletedGoals() async {
+    final dtos = await api.listCompletedGoals();
+    return dtos.map(Goal.fromDto).toList();
+  }
+
+  /// 获取单个目标
+  Future<Goal?> getGoal(String id) async {
+    final dto = await api.getGoal(id: id);
+    return dto == null ? null : Goal.fromDto(dto);
   }
 
   /// 新建目标。活跃目标已满 3 条时后端拒绝，错误信息为可展示的中文。
   Future<Goal> createGoal({
     required String content,
     required GoalPhase phase,
+    String? why,
+    String? currentFocus,
+    String? blocker,
+    String? doneCriteria,
   }) async {
-    final dto = await api.createGoal(content: content, phase: phase.wire);
+    final dto = await api.createGoal(
+      content: content,
+      phase: phase.wire,
+      why: why,
+      currentFocus: currentFocus,
+      blocker: blocker,
+      doneCriteria: doneCriteria,
+    );
     return Goal.fromDto(dto);
   }
 
@@ -35,11 +64,70 @@ extension RepoChatAndMisc on RustBridgeRepository {
     required GoalPhase phase,
   }) => api.updateGoal(id: id, content: content, phase: phase.wire);
 
-  /// 归档目标，让出活跃名额但保留为历史
+  /// 滚动更新目标抓手与卡点（最常用的轻量认知更新操作）
+  Future<void> updateGoalFocus({
+    required String id,
+    String? currentFocus,
+    String? blocker,
+  }) => api.updateGoalFocus(
+        id: id,
+        currentFocus: currentFocus,
+        blocker: blocker,
+      );
+
+  /// 更新目标的所有认知切片字段
+  Future<void> updateGoalFacets({
+    required String id,
+    String? why,
+    String? currentFocus,
+    String? blocker,
+    String? doneCriteria,
+  }) => api.updateGoalFacets(
+        id: id,
+        why: why,
+        currentFocus: currentFocus,
+        blocker: blocker,
+        doneCriteria: doneCriteria,
+      );
+
+  /// 完整更新目标的所有正文与切片字段
+  Future<void> updateGoalFull({
+    required String id,
+    required String content,
+    required GoalPhase phase,
+    String? why,
+    String? currentFocus,
+    String? blocker,
+    String? doneCriteria,
+  }) => api.updateGoalFull(
+        id: id,
+        content: content,
+        phase: phase.wire,
+        why: why,
+        currentFocus: currentFocus,
+        blocker: blocker,
+        doneCriteria: doneCriteria,
+      );
+
+  /// 暂停搁置目标，让出活跃名额但保留切片上下文作为历史以备随时复活
+  Future<void> pauseGoal(String id) => api.pauseGoal(id: id);
+
+  /// 达成目标，让出活跃名额并记录为成就勋章
+  Future<void> completeGoal(String id) => api.completeGoal(id: id);
+
+  /// 归档目标（向后兼容，等价于 pauseGoal）
   Future<void> archiveGoal(String id) => api.archiveGoal(id: id);
 
-  /// 复活已归档目标。活跃目标已满 3 条时后端拒绝。
-  Future<void> reactivateGoal(String id) => api.reactivateGoal(id: id);
+  /// 复活已归档目标。活跃目标已满 3 条时后端拒绝。支持传入新抓手与卡点。
+  Future<void> reactivateGoal(
+    String id, {
+    String? currentFocus,
+    String? blocker,
+  }) => api.reactivateGoal(
+        id: id,
+        currentFocus: currentFocus,
+        blocker: blocker,
+      );
 
   Future<WikiPage> openTodoWorkItem(String id) async {
     final dto = await api.openTodoWorkItem(id: id);

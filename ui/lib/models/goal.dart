@@ -34,13 +34,22 @@ enum GoalPhase {
   }
 }
 
-/// 目标状态：活跃 / 已归档
+/// 目标状态：活跃 / 暂停搁置 / 已达成
 enum GoalStatus {
   active,
-  superseded;
+  paused,
+  completed;
 
   static GoalStatus fromString(String s) {
-    return s == 'superseded' ? GoalStatus.superseded : GoalStatus.active;
+    switch (s) {
+      case 'paused':
+      case 'superseded':
+        return GoalStatus.paused;
+      case 'completed':
+        return GoalStatus.completed;
+      default:
+        return GoalStatus.active;
+    }
   }
 
   String get wire => name;
@@ -49,8 +58,10 @@ enum GoalStatus {
     switch (this) {
       case GoalStatus.active:
         return '进行中';
-      case GoalStatus.superseded:
-        return '已归档';
+      case GoalStatus.paused:
+        return '已暂停';
+      case GoalStatus.completed:
+        return '已达成';
     }
   }
 }
@@ -61,6 +72,10 @@ class Goal {
   final String content;
   final GoalPhase phase;
   final GoalStatus status;
+  final String? why;
+  final String? currentFocus;
+  final String? blocker;
+  final String? doneCriteria;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? supersededAt;
@@ -70,6 +85,10 @@ class Goal {
     required this.content,
     required this.phase,
     required this.status,
+    this.why,
+    this.currentFocus,
+    this.blocker,
+    this.doneCriteria,
     required this.createdAt,
     required this.updatedAt,
     this.supersededAt,
@@ -81,6 +100,10 @@ class Goal {
       content: dto.content,
       phase: GoalPhase.fromString(dto.phase),
       status: GoalStatus.fromString(dto.status),
+      why: dto.why,
+      currentFocus: dto.currentFocus,
+      blocker: dto.blocker,
+      doneCriteria: dto.doneCriteria,
       createdAt: DateTime.parse(dto.createdAt).toLocal(),
       updatedAt: DateTime.parse(dto.updatedAt).toLocal(),
       supersededAt: dto.supersededAt == null
@@ -89,5 +112,7 @@ class Goal {
     );
   }
 
-  bool get isArchived => status == GoalStatus.superseded;
+  bool get isArchived => status != GoalStatus.active;
+  bool get isPaused => status == GoalStatus.paused;
+  bool get isCompleted => status == GoalStatus.completed;
 }

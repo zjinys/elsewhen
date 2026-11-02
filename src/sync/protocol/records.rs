@@ -153,6 +153,14 @@ pub struct GoalRecord {
     pub content: String,
     pub phase: String,
     pub status: String,
+    #[serde(default)]
+    pub why: Option<String>,
+    #[serde(default)]
+    pub current_focus: Option<String>,
+    #[serde(default)]
+    pub blocker: Option<String>,
+    #[serde(default)]
+    pub done_criteria: Option<String>,
     pub created_at: String,
     pub updated_at: String,
     pub superseded_at: Option<String>,

@@ -47,12 +47,16 @@ void main() {
     test('wire 值与中文标签', () {
       expect(GoalStatus.active.wire, 'active');
       expect(GoalStatus.active.label, '进行中');
-      expect(GoalStatus.superseded.wire, 'superseded');
-      expect(GoalStatus.superseded.label, '已归档');
+      expect(GoalStatus.paused.wire, 'paused');
+      expect(GoalStatus.paused.label, '已暂停');
+      expect(GoalStatus.completed.wire, 'completed');
+      expect(GoalStatus.completed.label, '已达成');
     });
 
-    test('未知值回落到 active', () {
-      expect(GoalStatus.fromString('superseded'), GoalStatus.superseded);
+    test('解析与兼容：superseded 映射到 paused，未知值回落到 active', () {
+      expect(GoalStatus.fromString('paused'), GoalStatus.paused);
+      expect(GoalStatus.fromString('superseded'), GoalStatus.paused);
+      expect(GoalStatus.fromString('completed'), GoalStatus.completed);
       expect(GoalStatus.fromString('active'), GoalStatus.active);
       expect(GoalStatus.fromString('??'), GoalStatus.active);
     });
@@ -66,11 +70,34 @@ void main() {
       expect(goal.phase, GoalPhase.mid);
       expect(goal.status, GoalStatus.active);
       expect(goal.isArchived, isFalse);
+      expect(goal.isPaused, isFalse);
+      expect(goal.isCompleted, isFalse);
       expect(goal.supersededAt, isNull);
     });
 
-    test('已归档目标带归档时间', () {
+    test('转换认知切片字段', () {
       final goal = Goal.fromDto(
+        api.GoalDto(
+          id: 'g-facet',
+          content: '全功能交付',
+          phase: 'near',
+          status: 'active',
+          why: '满足第一批核心用户',
+          currentFocus: '完成目标切片化',
+          blocker: 'UI组件待改造',
+          doneCriteria: '测试全绿',
+          createdAt: '2026-09-28T10:00:00+00:00',
+          updatedAt: '2026-09-28T10:00:00+00:00',
+        ),
+      );
+      expect(goal.why, '满足第一批核心用户');
+      expect(goal.currentFocus, '完成目标切片化');
+      expect(goal.blocker, 'UI组件待改造');
+      expect(goal.doneCriteria, '测试全绿');
+    });
+
+    test('已归档目标带归档时间与暂停/达成状态区分', () {
+      final pausedGoal = Goal.fromDto(
         _dto(
           id: 'g2',
           content: '旧目标',
@@ -79,10 +106,25 @@ void main() {
           supersededAt: '2026-09-20T08:00:00+00:00',
         ),
       );
-      expect(goal.isArchived, isTrue);
-      expect(goal.supersededAt, isNotNull);
+      expect(pausedGoal.isArchived, isTrue);
+      expect(pausedGoal.isPaused, isTrue);
+      expect(pausedGoal.isCompleted, isFalse);
+      expect(pausedGoal.supersededAt, isNotNull);
       // 归档时间需已转本地时区供界面直接格式化
-      expect(goal.supersededAt!.isUtc, isFalse);
+      expect(pausedGoal.supersededAt!.isUtc, isFalse);
+
+      final completedGoal = Goal.fromDto(
+        _dto(
+          id: 'g3',
+          content: '已达成目标',
+          phase: 'near',
+          status: 'completed',
+          supersededAt: '2026-09-25T08:00:00+00:00',
+        ),
+      );
+      expect(completedGoal.isArchived, isTrue);
+      expect(completedGoal.isPaused, isFalse);
+      expect(completedGoal.isCompleted, isTrue);
     });
   });
 

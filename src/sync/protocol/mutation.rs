@@ -291,9 +291,21 @@ impl SyncMutation {
                     "sync_goal_phase_invalid"
                 );
                 ensure!(
-                    matches!(goal.status.as_str(), "active" | "superseded"),
+                    matches!(goal.status.as_str(), "active" | "paused" | "completed" | "superseded"),
                     "sync_goal_status_invalid"
                 );
+                if let Some(ref why) = goal.why {
+                    ensure!(why.len() <= 2048, "sync_goal_field_invalid");
+                }
+                if let Some(ref focus) = goal.current_focus {
+                    ensure!(focus.len() <= 2048, "sync_goal_field_invalid");
+                }
+                if let Some(ref blocker) = goal.blocker {
+                    ensure!(blocker.len() <= 2048, "sync_goal_field_invalid");
+                }
+                if let Some(ref criteria) = goal.done_criteria {
+                    ensure!(criteria.len() <= 2048, "sync_goal_field_invalid");
+                }
                 ensure!(!deleted, "sync_goal_delete_invalid");
             }
             Self::RuleChanged {

@@ -113,7 +113,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 1099571517;
+  int get rustContentHash => 378038980;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -224,6 +224,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<LocalSyncStateDto> crateApiSyncRepairClearLocalSyncIdentity();
 
+  Future<void> crateApiGoalsCompleteGoal({required String id});
+
   Future<String> crateApiWikiComposePageReferenceSupplement({
     required List<String> slugs,
     required String request,
@@ -285,6 +287,10 @@ abstract class RustLibApi extends BaseApi {
   Future<GoalDto> crateApiGoalsCreateGoal({
     required String content,
     required String phase,
+    String? why,
+    String? currentFocus,
+    String? blocker,
+    String? doneCriteria,
   });
 
   Future<SyncInvitationOfferDto> crateApiSyncInviteCreateOwnerSyncInvitation({
@@ -491,6 +497,8 @@ abstract class RustLibApi extends BaseApi {
     required String eventId,
   });
 
+  Future<GoalDto?> crateApiGoalsGetGoal({required String id});
+
   Future<HabitNudgeDto?> crateApiHabitNudgesGetHabitNudge({required String id});
 
   Future<HabitNudgeDto?> crateApiHabitNudgesGetHabitNudgeForPage({
@@ -661,6 +669,8 @@ abstract class RustLibApi extends BaseApi {
     required int limit,
   });
 
+  Future<List<GoalDto>> crateApiGoalsListCompletedGoals();
+
   Future<List<ConversationDto>> crateApiConversationsListConversations();
 
   Future<List<DailyEntryDto>> crateApiRecordsListDailyEntries({
@@ -749,6 +759,8 @@ abstract class RustLibApi extends BaseApi {
   Future<List<PageMarkDto>> crateApiPageMarksListPageMarks({
     required String conversationId,
   });
+
+  Future<List<GoalDto>> crateApiGoalsListPausedGoals();
 
   Future<List<PendingActionDto>> crateApiConversationsListPendingActions({
     required String conversationId,
@@ -841,6 +853,8 @@ abstract class RustLibApi extends BaseApi {
     required String conversationId,
   });
 
+  Future<void> crateApiGoalsPauseGoal({required String id});
+
   Future<int> crateApiHabitNudgesPendingHabitNudgeCount();
 
   Future<List<DueReminderDto>> crateApiTodosPopDueReminders({
@@ -895,7 +909,11 @@ abstract class RustLibApi extends BaseApi {
 
   Future<bool> crateApiSyncRepairProviderKeysMigratable();
 
-  Future<void> crateApiGoalsReactivateGoal({required String id});
+  Future<void> crateApiGoalsReactivateGoal({
+    required String id,
+    String? currentFocus,
+    String? blocker,
+  });
 
   Future<KnowledgeRevisionDto> crateApiKnowledgeWorkflowsReadArtifactVersion({
     required String slug,
@@ -1265,6 +1283,30 @@ abstract class RustLibApi extends BaseApi {
     required String id,
     required String content,
     required String phase,
+  });
+
+  Future<void> crateApiGoalsUpdateGoalFacets({
+    required String id,
+    String? why,
+    String? currentFocus,
+    String? blocker,
+    String? doneCriteria,
+  });
+
+  Future<void> crateApiGoalsUpdateGoalFocus({
+    required String id,
+    String? currentFocus,
+    String? blocker,
+  });
+
+  Future<void> crateApiGoalsUpdateGoalFull({
+    required String id,
+    required String content,
+    required String phase,
+    String? why,
+    String? currentFocus,
+    String? blocker,
+    String? doneCriteria,
   });
 
   Future<void> crateApiKnowledgeUpdateKnowledgeMetadata({
@@ -2025,6 +2067,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "clear_local_sync_identity", argNames: []);
 
   @override
+  Future<void> crateApiGoalsCompleteGoal({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire.wire__crate__api__goals__complete_goal(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsCompleteGoalConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsCompleteGoalConstMeta =>
+      const TaskConstMeta(debugName: "complete_goal", argNames: ["id"]);
+
+  @override
   Future<String> crateApiWikiComposePageReferenceSupplement({
     required List<String> slugs,
     required String request,
@@ -2413,20 +2477,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Future<GoalDto> crateApiGoalsCreateGoal({
     required String content,
     required String phase,
+    String? why,
+    String? currentFocus,
+    String? blocker,
+    String? doneCriteria,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(content);
           var arg1 = cst_encode_String(phase);
-          return wire.wire__crate__api__goals__create_goal(port_, arg0, arg1);
+          var arg2 = cst_encode_opt_String(why);
+          var arg3 = cst_encode_opt_String(currentFocus);
+          var arg4 = cst_encode_opt_String(blocker);
+          var arg5 = cst_encode_opt_String(doneCriteria);
+          return wire.wire__crate__api__goals__create_goal(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+            arg4,
+            arg5,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_goal_dto,
           decodeErrorData: dco_decode_AnyhowException,
         ),
         constMeta: kCrateApiGoalsCreateGoalConstMeta,
-        argValues: [content, phase],
+        argValues: [content, phase, why, currentFocus, blocker, doneCriteria],
         apiImpl: this,
       ),
     );
@@ -2434,7 +2514,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiGoalsCreateGoalConstMeta => const TaskConstMeta(
     debugName: "create_goal",
-    argNames: ["content", "phase"],
+    argNames: [
+      "content",
+      "phase",
+      "why",
+      "currentFocus",
+      "blocker",
+      "doneCriteria",
+    ],
   );
 
   @override
@@ -3945,6 +4032,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<GoalDto?> crateApiGoalsGetGoal({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire.wire__crate__api__goals__get_goal(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_opt_box_autoadd_goal_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsGetGoalConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsGetGoalConstMeta =>
+      const TaskConstMeta(debugName: "get_goal", argNames: ["id"]);
+
+  @override
   Future<HabitNudgeDto?> crateApiHabitNudgesGetHabitNudge({
     required String id,
   }) {
@@ -5287,6 +5396,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<GoalDto>> crateApiGoalsListCompletedGoals() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__goals__list_completed_goals(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_goal_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsListCompletedGoalsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsListCompletedGoalsConstMeta =>
+      const TaskConstMeta(debugName: "list_completed_goals", argNames: []);
+
+  @override
   Future<List<ConversationDto>> crateApiConversationsListConversations() {
     return handler.executeNormal(
       NormalTask(
@@ -5989,6 +6119,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "list_page_marks",
         argNames: ["conversationId"],
       );
+
+  @override
+  Future<List<GoalDto>> crateApiGoalsListPausedGoals() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__goals__list_paused_goals(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_goal_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsListPausedGoalsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsListPausedGoalsConstMeta =>
+      const TaskConstMeta(debugName: "list_paused_goals", argNames: []);
 
   @override
   Future<List<PendingActionDto>> crateApiConversationsListPendingActions({
@@ -6738,6 +6889,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiGoalsPauseGoal({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire.wire__crate__api__goals__pause_goal(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsPauseGoalConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsPauseGoalConstMeta =>
+      const TaskConstMeta(debugName: "pause_goal", argNames: ["id"]);
+
+  @override
   Future<int> crateApiHabitNudgesPendingHabitNudgeCount() {
     return handler.executeNormal(
       NormalTask(
@@ -7122,26 +7295,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "provider_keys_migratable", argNames: []);
 
   @override
-  Future<void> crateApiGoalsReactivateGoal({required String id}) {
+  Future<void> crateApiGoalsReactivateGoal({
+    required String id,
+    String? currentFocus,
+    String? blocker,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(id);
-          return wire.wire__crate__api__goals__reactivate_goal(port_, arg0);
+          var arg1 = cst_encode_opt_String(currentFocus);
+          var arg2 = cst_encode_opt_String(blocker);
+          return wire.wire__crate__api__goals__reactivate_goal(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_AnyhowException,
         ),
         constMeta: kCrateApiGoalsReactivateGoalConstMeta,
-        argValues: [id],
+        argValues: [id, currentFocus, blocker],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiGoalsReactivateGoalConstMeta =>
-      const TaskConstMeta(debugName: "reactivate_goal", argNames: ["id"]);
+      const TaskConstMeta(
+        debugName: "reactivate_goal",
+        argNames: ["id", "currentFocus", "blocker"],
+      );
 
   @override
   Future<KnowledgeRevisionDto> crateApiKnowledgeWorkflowsReadArtifactVersion({
@@ -9717,6 +9904,148 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiGoalsUpdateGoalFacets({
+    required String id,
+    String? why,
+    String? currentFocus,
+    String? blocker,
+    String? doneCriteria,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_opt_String(why);
+          var arg2 = cst_encode_opt_String(currentFocus);
+          var arg3 = cst_encode_opt_String(blocker);
+          var arg4 = cst_encode_opt_String(doneCriteria);
+          return wire.wire__crate__api__goals__update_goal_facets(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+            arg4,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsUpdateGoalFacetsConstMeta,
+        argValues: [id, why, currentFocus, blocker, doneCriteria],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsUpdateGoalFacetsConstMeta =>
+      const TaskConstMeta(
+        debugName: "update_goal_facets",
+        argNames: ["id", "why", "currentFocus", "blocker", "doneCriteria"],
+      );
+
+  @override
+  Future<void> crateApiGoalsUpdateGoalFocus({
+    required String id,
+    String? currentFocus,
+    String? blocker,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_opt_String(currentFocus);
+          var arg2 = cst_encode_opt_String(blocker);
+          return wire.wire__crate__api__goals__update_goal_focus(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsUpdateGoalFocusConstMeta,
+        argValues: [id, currentFocus, blocker],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsUpdateGoalFocusConstMeta =>
+      const TaskConstMeta(
+        debugName: "update_goal_focus",
+        argNames: ["id", "currentFocus", "blocker"],
+      );
+
+  @override
+  Future<void> crateApiGoalsUpdateGoalFull({
+    required String id,
+    required String content,
+    required String phase,
+    String? why,
+    String? currentFocus,
+    String? blocker,
+    String? doneCriteria,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_String(content);
+          var arg2 = cst_encode_String(phase);
+          var arg3 = cst_encode_opt_String(why);
+          var arg4 = cst_encode_opt_String(currentFocus);
+          var arg5 = cst_encode_opt_String(blocker);
+          var arg6 = cst_encode_opt_String(doneCriteria);
+          return wire.wire__crate__api__goals__update_goal_full(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+            arg4,
+            arg5,
+            arg6,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsUpdateGoalFullConstMeta,
+        argValues: [
+          id,
+          content,
+          phase,
+          why,
+          currentFocus,
+          blocker,
+          doneCriteria,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsUpdateGoalFullConstMeta =>
+      const TaskConstMeta(
+        debugName: "update_goal_full",
+        argNames: [
+          "id",
+          "content",
+          "phase",
+          "why",
+          "currentFocus",
+          "blocker",
+          "doneCriteria",
+        ],
+      );
+
+  @override
   Future<void> crateApiKnowledgeUpdateKnowledgeMetadata({
     required String slug,
     required String applicableWhen,
@@ -10367,6 +10696,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GoalDto dco_decode_box_autoadd_goal_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_goal_dto(raw);
+  }
+
+  @protected
   GuidanceDto dco_decode_box_autoadd_guidance_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_guidance_dto(raw);
@@ -10989,16 +11324,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   GoalDto dco_decode_goal_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
     return GoalDto(
       id: dco_decode_String(arr[0]),
       content: dco_decode_String(arr[1]),
       phase: dco_decode_String(arr[2]),
       status: dco_decode_String(arr[3]),
-      createdAt: dco_decode_String(arr[4]),
-      updatedAt: dco_decode_String(arr[5]),
-      supersededAt: dco_decode_opt_String(arr[6]),
+      why: dco_decode_opt_String(arr[4]),
+      currentFocus: dco_decode_opt_String(arr[5]),
+      blocker: dco_decode_opt_String(arr[6]),
+      doneCriteria: dco_decode_opt_String(arr[7]),
+      createdAt: dco_decode_String(arr[8]),
+      updatedAt: dco_decode_String(arr[9]),
+      supersededAt: dco_decode_opt_String(arr[10]),
     );
   }
 
@@ -12311,6 +12650,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GoalDto? dco_decode_opt_box_autoadd_goal_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_goal_dto(raw);
+  }
+
+  @protected
   GuidanceDto? dco_decode_opt_box_autoadd_guidance_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_guidance_dto(raw);
@@ -13480,6 +13825,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GoalDto sse_decode_box_autoadd_goal_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_goal_dto(deserializer));
+  }
+
+  @protected
   GuidanceDto sse_decode_box_autoadd_guidance_dto(
     SseDeserializer deserializer,
   ) {
@@ -14254,6 +14605,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_content = sse_decode_String(deserializer);
     var var_phase = sse_decode_String(deserializer);
     var var_status = sse_decode_String(deserializer);
+    var var_why = sse_decode_opt_String(deserializer);
+    var var_currentFocus = sse_decode_opt_String(deserializer);
+    var var_blocker = sse_decode_opt_String(deserializer);
+    var var_doneCriteria = sse_decode_opt_String(deserializer);
     var var_createdAt = sse_decode_String(deserializer);
     var var_updatedAt = sse_decode_String(deserializer);
     var var_supersededAt = sse_decode_opt_String(deserializer);
@@ -14262,6 +14617,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       content: var_content,
       phase: var_phase,
       status: var_status,
+      why: var_why,
+      currentFocus: var_currentFocus,
+      blocker: var_blocker,
+      doneCriteria: var_doneCriteria,
       createdAt: var_createdAt,
       updatedAt: var_updatedAt,
       supersededAt: var_supersededAt,
@@ -16379,6 +16738,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GoalDto? sse_decode_opt_box_autoadd_goal_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_goal_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   GuidanceDto? sse_decode_opt_box_autoadd_guidance_dto(
     SseDeserializer deserializer,
   ) {
@@ -17857,6 +18227,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_goal_dto(GoalDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_goal_dto(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_guidance_dto(
     GuidanceDto self,
     SseSerializer serializer,
@@ -18440,6 +18816,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.content, serializer);
     sse_encode_String(self.phase, serializer);
     sse_encode_String(self.status, serializer);
+    sse_encode_opt_String(self.why, serializer);
+    sse_encode_opt_String(self.currentFocus, serializer);
+    sse_encode_opt_String(self.blocker, serializer);
+    sse_encode_opt_String(self.doneCriteria, serializer);
     sse_encode_String(self.createdAt, serializer);
     sse_encode_String(self.updatedAt, serializer);
     sse_encode_opt_String(self.supersededAt, serializer);
@@ -20097,6 +20477,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_f_64(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_goal_dto(
+    GoalDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_goal_dto(self, serializer);
     }
   }
 

@@ -111,6 +111,7 @@ fn migrations_are_discovered_from_the_directory() {
             "62-wire-last-error",
             "63-relay-v3-review-f5",
             "64-drop-mail-snapshot",
+            "65-cognitive-goals",
         ],
         "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
     );
@@ -142,7 +143,7 @@ fn migration_applies_goals_table() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 64, "六十四条迁移跑完，user_version 应为 64");
+    assert_eq!(version, 65, "六十五条迁移跑完，user_version 应为 65");
     assert_eq!(
         latest_version().unwrap(),
         version,
@@ -470,7 +471,7 @@ fn cap_also_guards_the_reactivate_update_path() {
     for (id, phase) in [("a", "near"), ("b", "near"), ("c", "long")] {
         insert(&connection, id, phase, "active");
     }
-    insert(&connection, "d", "mid", "superseded");
+    insert(&connection, "d", "mid", "paused");
 
     let err = connection
         .execute("UPDATE goals SET status='active' WHERE id='d'", [])
@@ -508,7 +509,7 @@ fn archiving_frees_a_slot_but_keeps_history() {
     }
     connection
         .execute(
-            "UPDATE goals SET status='superseded', superseded_at='t1' WHERE id='a'",
+            "UPDATE goals SET status='paused', superseded_at='t1' WHERE id='a'",
             [],
         )
         .unwrap();
@@ -546,7 +547,7 @@ fn active_count(connection: &Connection) -> i64 {
 fn superseded_count(connection: &Connection) -> i64 {
     connection
         .query_row(
-            "SELECT COUNT(*) FROM goals WHERE status='superseded'",
+            "SELECT COUNT(*) FROM goals WHERE status='paused'",
             [],
             |row| row.get(0),
         )
@@ -633,4 +634,126 @@ fn v63_table_rebuilds_keep_blob_snapshots_and_rejection_audit() {
         rows, "mb-owner:3:3000|mb-repaired:1:-1",
         "重新配对后新信箱的第一封信不能继承旧信箱的拒绝次数与表态"
     );
+}
+
+/// 迁移 65：认知型目标扩展（切片字段 + 三态生命周期 + 活跃目标上限）
+#[test]
+fn v65_cognitive_goals_migration_keeps_data_and_updates_status() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    migrations()
+        .unwrap()
+        .to_version(&mut connection, 64)
+        .unwrap();
+
+    // 在 v64 老库插入活跃和已归档 (superseded) 目标
+    connection
+        .execute_batch(
+            "INSERT INTO goals(id, content, phase, status, created_at, updated_at, superseded_at)
+             VALUES('g-active', '老活跃目标', 'near', 'active', 't1', 't1', NULL);
+             INSERT INTO goals(id, content, phase, status, created_at, updated_at, superseded_at)
+             VALUES('g-archived', '老归档目标', 'long', 'superseded', 't0', 't1', 't1');",
+        )
+        .unwrap();
+
+    // 升级到最新版 (v65)
+    initialize(&mut connection).unwrap();
+
+    let version: i64 = connection
+        .query_row("PRAGMA main.user_version", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(version, 65);
+
+    // 验证原有的 superseded 状态已平滑变为 paused，且切片列为 NULL
+    let (status, why, focus, blocker, criteria): (
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ) = connection
+        .query_row(
+            "SELECT status, why, current_focus, blocker, done_criteria FROM goals WHERE id='g-archived'",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+        )
+        .unwrap();
+    assert_eq!(status, "paused");
+    assert!(why.is_none() && focus.is_none() && blocker.is_none() && criteria.is_none());
+
+    // 验证活跃目标仍为 active
+    let active_status: String = connection
+        .query_row(
+            "SELECT status FROM goals WHERE id='g-active'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(active_status, "active");
+
+    // 验证切片列可更新
+    connection
+        .execute(
+            "UPDATE goals SET why='核心价值', current_focus='推进切片', blocker='无', done_criteria='测试全绿' WHERE id='g-active'",
+            [],
+        )
+        .unwrap();
+    let (why, focus): (Option<String>, Option<String>) = connection
+        .query_row(
+            "SELECT why, current_focus FROM goals WHERE id='g-active'",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(why.as_deref(), Some("核心价值"));
+    assert_eq!(focus.as_deref(), Some("推进切片"));
+
+    // 验证 CHECK 约束：不允许写入 superseded，允许写入 completed
+    let err = connection.execute(
+        "INSERT INTO goals(id, content, phase, status, created_at, updated_at, superseded_at)
+         VALUES('g-invalid', '非法状态', 'near', 'superseded', 't2', 't2', 't2')",
+        [],
+    );
+    assert!(err.is_err(), "v65 库不能再写入 status='superseded'");
+
+    connection
+        .execute(
+            "INSERT INTO goals(id, content, phase, status, created_at, updated_at, superseded_at)
+             VALUES('g-completed', '已达成', 'mid', 'completed', 't2', 't2', 't2')",
+            [],
+        )
+        .unwrap();
+
+    // 验证活跃上限触发器（已有一条 g-active，再插入 2 条后到 3 条，第 4 条被拒绝）
+    connection
+        .execute(
+            "INSERT INTO goals(id, content, phase, status, created_at, updated_at)
+             VALUES('g-2', '目标2', 'near', 'active', 't2', 't2')",
+            [],
+        )
+        .unwrap();
+    connection
+        .execute(
+            "INSERT INTO goals(id, content, phase, status, created_at, updated_at)
+             VALUES('g-3', '目标3', 'mid', 'active', 't2', 't2')",
+            [],
+        )
+        .unwrap();
+
+    let err_insert = connection
+        .execute(
+            "INSERT INTO goals(id, content, phase, status, created_at, updated_at)
+             VALUES('g-4', '目标4', 'long', 'active', 't2', 't2')",
+            [],
+        )
+        .unwrap_err();
+    assert!(err_insert.to_string().contains(ACTIVE_GOAL_LIMIT_REACHED));
+
+    // 验证复活（UPDATE status='active'）也会受触发器拦截
+    let err_update = connection
+        .execute(
+            "UPDATE goals SET status='active' WHERE id='g-archived'",
+            [],
+        )
+        .unwrap_err();
+    assert!(err_update.to_string().contains(ACTIVE_GOAL_LIMIT_REACHED));
 }

@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1099571517;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 378038980;
 
 // Section: executor
 
@@ -627,6 +627,29 @@ fn wire__crate__api__sync__repair__clear_local_sync_identity_impl(
         },
     )
 }
+fn wire__crate__api__goals__complete_goal_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "complete_goal",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::complete_goal(api_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__wiki__compose_page_reference_supplement_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     slugs: impl CstDecode<Vec<String>>,
@@ -934,6 +957,10 @@ fn wire__crate__api__goals__create_goal_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     content: impl CstDecode<String>,
     phase: impl CstDecode<String>,
+    why: impl CstDecode<Option<String>>,
+    current_focus: impl CstDecode<Option<String>>,
+    blocker: impl CstDecode<Option<String>>,
+    done_criteria: impl CstDecode<Option<String>>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -944,10 +971,21 @@ fn wire__crate__api__goals__create_goal_impl(
         move || {
             let api_content = content.cst_decode();
             let api_phase = phase.cst_decode();
+            let api_why = why.cst_decode();
+            let api_current_focus = current_focus.cst_decode();
+            let api_blocker = blocker.cst_decode();
+            let api_done_criteria = done_criteria.cst_decode();
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::goals::create_goal(api_content, api_phase)?;
+                        let output_ok = crate::api::goals::create_goal(
+                            api_content,
+                            api_phase,
+                            api_why,
+                            api_current_focus,
+                            api_blocker,
+                            api_done_criteria,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2247,6 +2285,29 @@ fn wire__crate__api__review_flow__get_event_analysis_detail_impl(
         },
     )
 }
+fn wire__crate__api__goals__get_goal_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_goal",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::get_goal(api_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__habit_nudges__get_habit_nudge_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     id: impl CstDecode<String>,
@@ -3380,6 +3441,27 @@ fn wire__crate__api__chat_runs__list_chat_runs_impl(
         },
     )
 }
+fn wire__crate__api__goals__list_completed_goals_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_completed_goals",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::list_completed_goals()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__conversations__list_conversations_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -3962,6 +4044,27 @@ fn wire__crate__api__page_marks__list_page_marks_impl(
                     (move || {
                         let output_ok =
                             crate::api::page_marks::list_page_marks(api_conversation_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__goals__list_paused_goals_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_paused_goals",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::list_paused_goals()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4611,6 +4714,29 @@ fn wire__crate__api__chat_runs__pause_chat_input_queue_impl(
         },
     )
 }
+fn wire__crate__api__goals__pause_goal_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "pause_goal",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::pause_goal(api_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__habit_nudges__pending_habit_nudge_count_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -4930,6 +5056,8 @@ fn wire__crate__api__sync__repair__provider_keys_migratable_impl(
 fn wire__crate__api__goals__reactivate_goal_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     id: impl CstDecode<String>,
+    current_focus: impl CstDecode<Option<String>>,
+    blocker: impl CstDecode<Option<String>>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -4939,10 +5067,16 @@ fn wire__crate__api__goals__reactivate_goal_impl(
         },
         move || {
             let api_id = id.cst_decode();
+            let api_current_focus = current_focus.cst_decode();
+            let api_blocker = blocker.cst_decode();
             move |context| {
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::goals::reactivate_goal(api_id)?;
+                        let output_ok = crate::api::goals::reactivate_goal(
+                            api_id,
+                            api_current_focus,
+                            api_blocker,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -7107,6 +7241,117 @@ fn wire__crate__api__goals__update_goal_impl(
         },
     )
 }
+fn wire__crate__api__goals__update_goal_facets_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+    why: impl CstDecode<Option<String>>,
+    current_focus: impl CstDecode<Option<String>>,
+    blocker: impl CstDecode<Option<String>>,
+    done_criteria: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_goal_facets",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            let api_why = why.cst_decode();
+            let api_current_focus = current_focus.cst_decode();
+            let api_blocker = blocker.cst_decode();
+            let api_done_criteria = done_criteria.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::update_goal_facets(
+                            api_id,
+                            api_why,
+                            api_current_focus,
+                            api_blocker,
+                            api_done_criteria,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__goals__update_goal_focus_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+    current_focus: impl CstDecode<Option<String>>,
+    blocker: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_goal_focus",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            let api_current_focus = current_focus.cst_decode();
+            let api_blocker = blocker.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::update_goal_focus(
+                            api_id,
+                            api_current_focus,
+                            api_blocker,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__goals__update_goal_full_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+    content: impl CstDecode<String>,
+    phase: impl CstDecode<String>,
+    why: impl CstDecode<Option<String>>,
+    current_focus: impl CstDecode<Option<String>>,
+    blocker: impl CstDecode<Option<String>>,
+    done_criteria: impl CstDecode<Option<String>>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_goal_full",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            let api_content = content.cst_decode();
+            let api_phase = phase.cst_decode();
+            let api_why = why.cst_decode();
+            let api_current_focus = current_focus.cst_decode();
+            let api_blocker = blocker.cst_decode();
+            let api_done_criteria = done_criteria.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::update_goal_full(
+                            api_id,
+                            api_content,
+                            api_phase,
+                            api_why,
+                            api_current_focus,
+                            api_blocker,
+                            api_done_criteria,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__knowledge__update_knowledge_metadata_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     slug: impl CstDecode<String>,
@@ -8374,6 +8619,10 @@ impl SseDecode for crate::api::goals::GoalDto {
         let mut var_content = <String>::sse_decode(deserializer);
         let mut var_phase = <String>::sse_decode(deserializer);
         let mut var_status = <String>::sse_decode(deserializer);
+        let mut var_why = <Option<String>>::sse_decode(deserializer);
+        let mut var_currentFocus = <Option<String>>::sse_decode(deserializer);
+        let mut var_blocker = <Option<String>>::sse_decode(deserializer);
+        let mut var_doneCriteria = <Option<String>>::sse_decode(deserializer);
         let mut var_createdAt = <String>::sse_decode(deserializer);
         let mut var_updatedAt = <String>::sse_decode(deserializer);
         let mut var_supersededAt = <Option<String>>::sse_decode(deserializer);
@@ -8382,6 +8631,10 @@ impl SseDecode for crate::api::goals::GoalDto {
             content: var_content,
             phase: var_phase,
             status: var_status,
+            why: var_why,
+            current_focus: var_currentFocus,
+            blocker: var_blocker,
+            done_criteria: var_doneCriteria,
             created_at: var_createdAt,
             updated_at: var_updatedAt,
             superseded_at: var_supersededAt,
@@ -10497,6 +10750,17 @@ impl SseDecode for Option<f64> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<f64>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::goals::GoalDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::goals::GoalDto>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -12769,6 +13033,10 @@ impl flutter_rust_bridge::IntoDart for crate::api::goals::GoalDto {
             self.content.into_into_dart().into_dart(),
             self.phase.into_into_dart().into_dart(),
             self.status.into_into_dart().into_dart(),
+            self.why.into_into_dart().into_dart(),
+            self.current_focus.into_into_dart().into_dart(),
+            self.blocker.into_into_dart().into_dart(),
+            self.done_criteria.into_into_dart().into_dart(),
             self.created_at.into_into_dart().into_dart(),
             self.updated_at.into_into_dart().into_dart(),
             self.superseded_at.into_into_dart().into_dart(),
@@ -15653,6 +15921,10 @@ impl SseEncode for crate::api::goals::GoalDto {
         <String>::sse_encode(self.content, serializer);
         <String>::sse_encode(self.phase, serializer);
         <String>::sse_encode(self.status, serializer);
+        <Option<String>>::sse_encode(self.why, serializer);
+        <Option<String>>::sse_encode(self.current_focus, serializer);
+        <Option<String>>::sse_encode(self.blocker, serializer);
+        <Option<String>>::sse_encode(self.done_criteria, serializer);
         <String>::sse_encode(self.created_at, serializer);
         <String>::sse_encode(self.updated_at, serializer);
         <Option<String>>::sse_encode(self.superseded_at, serializer);
@@ -17108,6 +17380,16 @@ impl SseEncode for Option<f64> {
     }
 }
 
+impl SseEncode for Option<crate::api::goals::GoalDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::goals::GoalDto>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::api::analysis_schema::GuidanceDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -18126,6 +18408,13 @@ mod io {
             unsafe { *flutter_rust_bridge::for_generated::box_from_leak_ptr(self) }
         }
     }
+    impl CstDecode<crate::api::goals::GoalDto> for *mut wire_cst_goal_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::goals::GoalDto {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::goals::GoalDto>::cst_decode(*wrap).into()
+        }
+    }
     impl CstDecode<crate::api::analysis_schema::GuidanceDto> for *mut wire_cst_guidance_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::analysis_schema::GuidanceDto {
@@ -18676,6 +18965,10 @@ mod io {
                 content: self.content.cst_decode(),
                 phase: self.phase.cst_decode(),
                 status: self.status.cst_decode(),
+                why: self.why.cst_decode(),
+                current_focus: self.current_focus.cst_decode(),
+                blocker: self.blocker.cst_decode(),
+                done_criteria: self.done_criteria.cst_decode(),
                 created_at: self.created_at.cst_decode(),
                 updated_at: self.updated_at.cst_decode(),
                 superseded_at: self.superseded_at.cst_decode(),
@@ -21560,6 +21853,10 @@ mod io {
                 content: core::ptr::null_mut(),
                 phase: core::ptr::null_mut(),
                 status: core::ptr::null_mut(),
+                why: core::ptr::null_mut(),
+                current_focus: core::ptr::null_mut(),
+                blocker: core::ptr::null_mut(),
+                done_criteria: core::ptr::null_mut(),
                 created_at: core::ptr::null_mut(),
                 updated_at: core::ptr::null_mut(),
                 superseded_at: core::ptr::null_mut(),
@@ -23390,6 +23687,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__complete_goal(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__goals__complete_goal_impl(port_, id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__wiki__compose_page_reference_supplement(
         port_: i64,
         slugs: *mut wire_cst_list_String,
@@ -23520,8 +23825,20 @@ mod io {
         port_: i64,
         content: *mut wire_cst_list_prim_u_8_strict,
         phase: *mut wire_cst_list_prim_u_8_strict,
+        why: *mut wire_cst_list_prim_u_8_strict,
+        current_focus: *mut wire_cst_list_prim_u_8_strict,
+        blocker: *mut wire_cst_list_prim_u_8_strict,
+        done_criteria: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__goals__create_goal_impl(port_, content, phase)
+        wire__crate__api__goals__create_goal_impl(
+            port_,
+            content,
+            phase,
+            why,
+            current_focus,
+            blocker,
+            done_criteria,
+        )
     }
 
     #[unsafe(no_mangle)]
@@ -24004,6 +24321,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__get_goal(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__goals__get_goal_impl(port_, id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__habit_nudges__get_habit_nudge(
         port_: i64,
         id: *mut wire_cst_list_prim_u_8_strict,
@@ -24395,6 +24720,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__list_completed_goals(port_: i64) {
+        wire__crate__api__goals__list_completed_goals_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__conversations__list_conversations(
         port_: i64,
     ) {
@@ -24588,6 +24918,11 @@ mod io {
         conversation_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__page_marks__list_page_marks_impl(port_, conversation_id)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__list_paused_goals(port_: i64) {
+        wire__crate__api__goals__list_paused_goals_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -24808,6 +25143,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__pause_goal(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__goals__pause_goal_impl(port_, id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__habit_nudges__pending_habit_nudge_count(
         port_: i64,
     ) {
@@ -24926,8 +25269,10 @@ mod io {
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__reactivate_goal(
         port_: i64,
         id: *mut wire_cst_list_prim_u_8_strict,
+        current_focus: *mut wire_cst_list_prim_u_8_strict,
+        blocker: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__goals__reactivate_goal_impl(port_, id)
+        wire__crate__api__goals__reactivate_goal_impl(port_, id, current_focus, blocker)
     }
 
     #[unsafe(no_mangle)]
@@ -25765,6 +26110,58 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__update_goal_facets(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+        why: *mut wire_cst_list_prim_u_8_strict,
+        current_focus: *mut wire_cst_list_prim_u_8_strict,
+        blocker: *mut wire_cst_list_prim_u_8_strict,
+        done_criteria: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__goals__update_goal_facets_impl(
+            port_,
+            id,
+            why,
+            current_focus,
+            blocker,
+            done_criteria,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__update_goal_focus(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+        current_focus: *mut wire_cst_list_prim_u_8_strict,
+        blocker: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__goals__update_goal_focus_impl(port_, id, current_focus, blocker)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__update_goal_full(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+        content: *mut wire_cst_list_prim_u_8_strict,
+        phase: *mut wire_cst_list_prim_u_8_strict,
+        why: *mut wire_cst_list_prim_u_8_strict,
+        current_focus: *mut wire_cst_list_prim_u_8_strict,
+        blocker: *mut wire_cst_list_prim_u_8_strict,
+        done_criteria: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__goals__update_goal_full_impl(
+            port_,
+            id,
+            content,
+            phase,
+            why,
+            current_focus,
+            blocker,
+            done_criteria,
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__knowledge__update_knowledge_metadata(
         port_: i64,
         slug: *mut wire_cst_list_prim_u_8_strict,
@@ -25980,6 +26377,11 @@ mod io {
     #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_f_64(value: f64) -> *mut f64 {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(value)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_goal_dto() -> *mut wire_cst_goal_dto {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wire_cst_goal_dto::new_with_null_ptr())
     }
 
     #[unsafe(no_mangle)]
@@ -27570,6 +27972,10 @@ mod io {
         content: *mut wire_cst_list_prim_u_8_strict,
         phase: *mut wire_cst_list_prim_u_8_strict,
         status: *mut wire_cst_list_prim_u_8_strict,
+        why: *mut wire_cst_list_prim_u_8_strict,
+        current_focus: *mut wire_cst_list_prim_u_8_strict,
+        blocker: *mut wire_cst_list_prim_u_8_strict,
+        done_criteria: *mut wire_cst_list_prim_u_8_strict,
         created_at: *mut wire_cst_list_prim_u_8_strict,
         updated_at: *mut wire_cst_list_prim_u_8_strict,
         superseded_at: *mut wire_cst_list_prim_u_8_strict,
@@ -30033,8 +30439,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                7,
-                "Expected 7 elements, got {}",
+                11,
+                "Expected 11 elements, got {}",
                 self_.length()
             );
             crate::api::goals::GoalDto {
@@ -30042,9 +30448,13 @@ mod web {
                 content: self_.get(1).cst_decode(),
                 phase: self_.get(2).cst_decode(),
                 status: self_.get(3).cst_decode(),
-                created_at: self_.get(4).cst_decode(),
-                updated_at: self_.get(5).cst_decode(),
-                superseded_at: self_.get(6).cst_decode(),
+                why: self_.get(4).cst_decode(),
+                current_focus: self_.get(5).cst_decode(),
+                blocker: self_.get(6).cst_decode(),
+                done_criteria: self_.get(7).cst_decode(),
+                created_at: self_.get(8).cst_decode(),
+                updated_at: self_.get(9).cst_decode(),
+                superseded_at: self_.get(10).cst_decode(),
             }
         }
     }
@@ -33467,6 +33877,14 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__goals__complete_goal(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+    ) {
+        wire__crate__api__goals__complete_goal_impl(port_, id)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__wiki__compose_page_reference_supplement(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         slugs: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
@@ -33597,8 +34015,20 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
         content: String,
         phase: String,
+        why: Option<String>,
+        current_focus: Option<String>,
+        blocker: Option<String>,
+        done_criteria: Option<String>,
     ) {
-        wire__crate__api__goals__create_goal_impl(port_, content, phase)
+        wire__crate__api__goals__create_goal_impl(
+            port_,
+            content,
+            phase,
+            why,
+            current_focus,
+            blocker,
+            done_criteria,
+        )
     }
 
     #[wasm_bindgen]
@@ -34081,6 +34511,14 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__goals__get_goal(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+    ) {
+        wire__crate__api__goals__get_goal_impl(port_, id)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__habit_nudges__get_habit_nudge(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         id: String,
@@ -34480,6 +34918,13 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__goals__list_completed_goals(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__goals__list_completed_goals_impl(port_)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__conversations__list_conversations(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
@@ -34677,6 +35122,13 @@ mod web {
         conversation_id: String,
     ) {
         wire__crate__api__page_marks__list_page_marks_impl(port_, conversation_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__goals__list_paused_goals(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__goals__list_paused_goals_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -34903,6 +35355,14 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__goals__pause_goal(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+    ) {
+        wire__crate__api__goals__pause_goal_impl(port_, id)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__habit_nudges__pending_habit_nudge_count(
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
@@ -35021,8 +35481,10 @@ mod web {
     pub fn wire__crate__api__goals__reactivate_goal(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         id: String,
+        current_focus: Option<String>,
+        blocker: Option<String>,
     ) {
-        wire__crate__api__goals__reactivate_goal_impl(port_, id)
+        wire__crate__api__goals__reactivate_goal_impl(port_, id, current_focus, blocker)
     }
 
     #[wasm_bindgen]
@@ -35857,6 +36319,58 @@ mod web {
         phase: String,
     ) {
         wire__crate__api__goals__update_goal_impl(port_, id, content, phase)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__goals__update_goal_facets(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+        why: Option<String>,
+        current_focus: Option<String>,
+        blocker: Option<String>,
+        done_criteria: Option<String>,
+    ) {
+        wire__crate__api__goals__update_goal_facets_impl(
+            port_,
+            id,
+            why,
+            current_focus,
+            blocker,
+            done_criteria,
+        )
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__goals__update_goal_focus(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+        current_focus: Option<String>,
+        blocker: Option<String>,
+    ) {
+        wire__crate__api__goals__update_goal_focus_impl(port_, id, current_focus, blocker)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__goals__update_goal_full(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+        content: String,
+        phase: String,
+        why: Option<String>,
+        current_focus: Option<String>,
+        blocker: Option<String>,
+        done_criteria: Option<String>,
+    ) {
+        wire__crate__api__goals__update_goal_full_impl(
+            port_,
+            id,
+            content,
+            phase,
+            why,
+            current_focus,
+            blocker,
+            done_criteria,
+        )
     }
 
     #[wasm_bindgen]

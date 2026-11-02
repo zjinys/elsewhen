@@ -420,6 +420,14 @@ pub(crate) enum Record {
         content: String,
         phase: String,
         status: String,
+        #[serde(default)]
+        why: Option<String>,
+        #[serde(default)]
+        current_focus: Option<String>,
+        #[serde(default)]
+        blocker: Option<String>,
+        #[serde(default)]
+        done_criteria: Option<String>,
         created_at: String,
         updated_at: String,
         superseded_at: Option<String>,
@@ -519,7 +527,7 @@ pub(crate) const QUERIES: &[&str] = &[
     "SELECT rowid,json_object('kind','todo','id',id,'title',title,'status',status,'priority',priority,'due_at',due_at,'reminder',(reminder!=0),'related_event_id',related_event_id,'related_wiki_slug',related_wiki_slug,'note',note,'created_at',created_at,'updated_at',updated_at) FROM todos WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','habit_nudge','value',json_object('id',id,'page_slug',page_slug,'question',question,'done_label',done_label,'done_text',done_text,'missed_label',missed_label,'missed_text',missed_text,'weekdays',weekdays,'local_time',local_time,'enabled',json(CASE WHEN enabled=1 THEN 'true' ELSE 'false' END),'created_at',created_at,'updated_at',updated_at)) FROM habit_nudges WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','habit_page_link','id',id,'page_slug',page_slug,'nudge_id',nudge_id,'status',status,'source',source,'created_at',created_at,'updated_at',updated_at) FROM habit_page_links WHERE rowid>?1 ORDER BY rowid LIMIT 1",
-    "SELECT rowid,json_object('kind','goal','id',id,'content',content,'phase',phase,'status',status,'created_at',created_at,'updated_at',updated_at,'superseded_at',superseded_at) FROM goals WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','goal','id',id,'content',content,'phase',phase,'status',status,'why',why,'current_focus',current_focus,'blocker',blocker,'done_criteria',done_criteria,'created_at',created_at,'updated_at',updated_at,'superseded_at',superseded_at) FROM goals WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','rule','id',id,'content',content,'status',status,'created_at',created_at,'updated_at',updated_at,'conversation_id',conversation_id,'review_version',review_version,'essence',essence) FROM rules WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT h.rowid,json_object('kind','head','object_kind',h.object_kind,'object_id',h.object_id,'revision_id',h.revision_id,'deleted',json(CASE WHEN h.deleted=1 THEN 'true' ELSE 'false' END)) FROM sync_object_heads h WHERE h.rowid>?1 ORDER BY h.rowid LIMIT 1",
     "SELECT r.rowid,json_object('kind','known_revision','object_kind',r.object_kind,'object_id',r.object_id,'revision_id',r.revision_id) FROM sync_known_revisions r JOIN sync_object_heads h ON h.object_kind=r.object_kind AND h.object_id=r.object_id WHERE r.rowid>?1 ORDER BY r.rowid LIMIT 1",

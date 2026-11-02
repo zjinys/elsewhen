@@ -131,6 +131,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_box_autoadd_f_64(dynamic raw);
 
   @protected
+  GoalDto dco_decode_box_autoadd_goal_dto(dynamic raw);
+
+  @protected
   GuidanceDto dco_decode_box_autoadd_guidance_dto(dynamic raw);
 
   @protected
@@ -705,6 +708,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
 
   @protected
+  GoalDto? dco_decode_opt_box_autoadd_goal_dto(dynamic raw);
+
+  @protected
   GuidanceDto? dco_decode_opt_box_autoadd_guidance_dto(dynamic raw);
 
   @protected
@@ -983,6 +989,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
+
+  @protected
+  GoalDto sse_decode_box_autoadd_goal_dto(SseDeserializer deserializer);
 
   @protected
   GuidanceDto sse_decode_box_autoadd_guidance_dto(SseDeserializer deserializer);
@@ -1735,6 +1744,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  GoalDto? sse_decode_opt_box_autoadd_goal_dto(SseDeserializer deserializer);
+
+  @protected
   GuidanceDto? sse_decode_opt_box_autoadd_guidance_dto(
     SseDeserializer deserializer,
   );
@@ -2096,6 +2108,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ffi.Pointer<ffi.Double> cst_encode_box_autoadd_f_64(double raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return wire.cst_new_box_autoadd_f_64(cst_encode_f_64(raw));
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_goal_dto> cst_encode_box_autoadd_goal_dto(GoalDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_goal_dto();
+    cst_api_fill_to_wire_goal_dto(raw, ptr.ref);
+    return ptr;
   }
 
   @protected
@@ -3201,6 +3221,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_goal_dto> cst_encode_opt_box_autoadd_goal_dto(
+    GoalDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? ffi.nullptr : cst_encode_box_autoadd_goal_dto(raw);
+  }
+
+  @protected
   ffi.Pointer<wire_cst_guidance_dto> cst_encode_opt_box_autoadd_guidance_dto(
     GuidanceDto? raw,
   ) {
@@ -3454,6 +3482,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_event_analysis_detail_dto> wireObj,
   ) {
     cst_api_fill_to_wire_event_analysis_detail_dto(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_goal_dto(
+    GoalDto apiObj,
+    ffi.Pointer<wire_cst_goal_dto> wireObj,
+  ) {
+    cst_api_fill_to_wire_goal_dto(apiObj, wireObj.ref);
   }
 
   @protected
@@ -4008,6 +4044,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.content = cst_encode_String(apiObj.content);
     wireObj.phase = cst_encode_String(apiObj.phase);
     wireObj.status = cst_encode_String(apiObj.status);
+    wireObj.why = cst_encode_opt_String(apiObj.why);
+    wireObj.current_focus = cst_encode_opt_String(apiObj.currentFocus);
+    wireObj.blocker = cst_encode_opt_String(apiObj.blocker);
+    wireObj.done_criteria = cst_encode_opt_String(apiObj.doneCriteria);
     wireObj.created_at = cst_encode_String(apiObj.createdAt);
     wireObj.updated_at = cst_encode_String(apiObj.updatedAt);
     wireObj.superseded_at = cst_encode_opt_String(apiObj.supersededAt);
@@ -5498,6 +5538,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_goal_dto(GoalDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_guidance_dto(
     GuidanceDto self,
     SseSerializer serializer,
@@ -6458,6 +6501,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_goal_dto(
+    GoalDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_guidance_dto(
     GuidanceDto? self,
     SseSerializer serializer,
@@ -6823,6 +6872,29 @@ class RustLibWire implements BaseWire {
     ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName) lookup,
   ) : _lookup = lookup;
 
+  int __android_log_print(
+    int prio,
+    ffi.Pointer<ffi.Uint8> tag,
+    ffi.Pointer<ffi.Uint8> fmt,
+  ) {
+    return ___android_log_print(prio, tag, fmt);
+  }
+
+  late final ___android_log_printPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.Int32,
+            ffi.Pointer<ffi.Uint8>,
+            ffi.Pointer<ffi.Uint8>,
+          )
+        >
+      >('__android_log_print');
+  late final ___android_log_print = ___android_log_printPtr
+      .asFunction<
+        int Function(int, ffi.Pointer<ffi.Uint8>, ffi.Pointer<ffi.Uint8>)
+      >();
+
   ffi.Pointer<wire_cst_ai_provider_config_dto>
   cst_new_box_autoadd_ai_provider_config_dto() {
     return _cst_new_box_autoadd_ai_provider_config_dto();
@@ -6961,6 +7033,17 @@ class RustLibWire implements BaseWire {
       );
   late final _cst_new_box_autoadd_f_64 = _cst_new_box_autoadd_f_64Ptr
       .asFunction<ffi.Pointer<ffi.Double> Function(double)>();
+
+  ffi.Pointer<wire_cst_goal_dto> cst_new_box_autoadd_goal_dto() {
+    return _cst_new_box_autoadd_goal_dto();
+  }
+
+  late final _cst_new_box_autoadd_goal_dtoPtr =
+      _lookup<ffi.NativeFunction<ffi.Pointer<wire_cst_goal_dto> Function()>>(
+        'frbgen_elsewhen_ui_cst_new_box_autoadd_goal_dto',
+      );
+  late final _cst_new_box_autoadd_goal_dto = _cst_new_box_autoadd_goal_dtoPtr
+      .asFunction<ffi.Pointer<wire_cst_goal_dto> Function()>();
 
   ffi.Pointer<wire_cst_guidance_dto> cst_new_box_autoadd_guidance_dto() {
     return _cst_new_box_autoadd_guidance_dto();
@@ -9996,12 +10079,46 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__goals__complete_goal(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+  ) {
+    return _wire__crate__api__goals__complete_goal(port_, id);
+  }
+
+  late final _wire__crate__api__goals__complete_goalPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__goals__complete_goal');
+  late final _wire__crate__api__goals__complete_goal =
+      _wire__crate__api__goals__complete_goalPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__goals__create_goal(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> phase,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> why,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> current_focus,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> blocker,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> done_criteria,
   ) {
-    return _wire__crate__api__goals__create_goal(port_, content, phase);
+    return _wire__crate__api__goals__create_goal(
+      port_,
+      content,
+      phase,
+      why,
+      current_focus,
+      blocker,
+      done_criteria,
+    );
   }
 
   late final _wire__crate__api__goals__create_goalPtr =
@@ -10009,6 +10126,10 @@ class RustLibWire implements BaseWire {
         ffi.NativeFunction<
           ffi.Void Function(
             ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
@@ -10021,7 +10142,33 @@ class RustLibWire implements BaseWire {
               int,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             )
+          >();
+
+  void wire__crate__api__goals__get_goal(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+  ) {
+    return _wire__crate__api__goals__get_goal(port_, id);
+  }
+
+  late final _wire__crate__api__goals__get_goalPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__goals__get_goal');
+  late final _wire__crate__api__goals__get_goal =
+      _wire__crate__api__goals__get_goalPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
   void wire__crate__api__goals__list_active_goals(int port_) {
@@ -10048,11 +10195,64 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__goals__list_archived_goalsPtr
           .asFunction<void Function(int)>();
 
-  void wire__crate__api__goals__reactivate_goal(
+  void wire__crate__api__goals__list_completed_goals(int port_) {
+    return _wire__crate__api__goals__list_completed_goals(port_);
+  }
+
+  late final _wire__crate__api__goals__list_completed_goalsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__goals__list_completed_goals',
+      );
+  late final _wire__crate__api__goals__list_completed_goals =
+      _wire__crate__api__goals__list_completed_goalsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__goals__list_paused_goals(int port_) {
+    return _wire__crate__api__goals__list_paused_goals(port_);
+  }
+
+  late final _wire__crate__api__goals__list_paused_goalsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__goals__list_paused_goals',
+      );
+  late final _wire__crate__api__goals__list_paused_goals =
+      _wire__crate__api__goals__list_paused_goalsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__goals__pause_goal(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
   ) {
-    return _wire__crate__api__goals__reactivate_goal(port_, id);
+    return _wire__crate__api__goals__pause_goal(port_, id);
+  }
+
+  late final _wire__crate__api__goals__pause_goalPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__goals__pause_goal');
+  late final _wire__crate__api__goals__pause_goal =
+      _wire__crate__api__goals__pause_goalPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__goals__reactivate_goal(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> current_focus,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> blocker,
+  ) {
+    return _wire__crate__api__goals__reactivate_goal(
+      port_,
+      id,
+      current_focus,
+      blocker,
+    );
   }
 
   late final _wire__crate__api__goals__reactivate_goalPtr =
@@ -10061,13 +10261,20 @@ class RustLibWire implements BaseWire {
           ffi.Void Function(
             ffi.Int64,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
       >('frbgen_elsewhen_ui_wire__crate__api__goals__reactivate_goal');
   late final _wire__crate__api__goals__reactivate_goal =
       _wire__crate__api__goals__reactivate_goalPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
           >();
 
   void wire__crate__api__goals__update_goal(
@@ -10095,6 +10302,138 @@ class RustLibWire implements BaseWire {
           .asFunction<
             void Function(
               int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__goals__update_goal_facets(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> why,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> current_focus,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> blocker,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> done_criteria,
+  ) {
+    return _wire__crate__api__goals__update_goal_facets(
+      port_,
+      id,
+      why,
+      current_focus,
+      blocker,
+      done_criteria,
+    );
+  }
+
+  late final _wire__crate__api__goals__update_goal_facetsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__goals__update_goal_facets');
+  late final _wire__crate__api__goals__update_goal_facets =
+      _wire__crate__api__goals__update_goal_facetsPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__goals__update_goal_focus(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> current_focus,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> blocker,
+  ) {
+    return _wire__crate__api__goals__update_goal_focus(
+      port_,
+      id,
+      current_focus,
+      blocker,
+    );
+  }
+
+  late final _wire__crate__api__goals__update_goal_focusPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__goals__update_goal_focus');
+  late final _wire__crate__api__goals__update_goal_focus =
+      _wire__crate__api__goals__update_goal_focusPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__goals__update_goal_full(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> phase,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> why,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> current_focus,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> blocker,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> done_criteria,
+  ) {
+    return _wire__crate__api__goals__update_goal_full(
+      port_,
+      id,
+      content,
+      phase,
+      why,
+      current_focus,
+      blocker,
+      done_criteria,
+    );
+  }
+
+  late final _wire__crate__api__goals__update_goal_fullPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__goals__update_goal_full');
+  late final _wire__crate__api__goals__update_goal_full =
+      _wire__crate__api__goals__update_goal_fullPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
@@ -17429,6 +17768,14 @@ final class wire_cst_goal_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> status;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> why;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> current_focus;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> blocker;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> done_criteria;
+
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at;
@@ -17441,6 +17788,10 @@ final class wire_cst_goal_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> phase,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> why,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> current_focus,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> blocker,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> done_criteria,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> superseded_at,
@@ -17449,6 +17800,10 @@ final class wire_cst_goal_dto extends ffi.Struct {
     ..ref.content = content
     ..ref.phase = phase
     ..ref.status = status
+    ..ref.why = why
+    ..ref.current_focus = current_focus
+    ..ref.blocker = blocker
+    ..ref.done_criteria = done_criteria
     ..ref.created_at = created_at
     ..ref.updated_at = updated_at
     ..ref.superseded_at = superseded_at;

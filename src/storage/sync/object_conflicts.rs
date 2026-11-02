@@ -303,13 +303,30 @@ impl Store {
                     .execute("DELETE FROM sync_conflicts WHERE op_id=?1", [op_id])?;
             }
             (SyncMutation::GoalChanged { goal, .. }, true) => {
+                let status = if goal.status == "superseded" {
+                    "paused"
+                } else {
+                    goal.status.as_str()
+                };
                 self.connection.execute(
-                    "INSERT INTO goals(id,content,phase,status,created_at,updated_at,superseded_at) \
-                     VALUES(?1,?2,?3,?4,?5,?6,?7) \
+                    "INSERT INTO goals(id,content,phase,status,why,current_focus,blocker,done_criteria,created_at,updated_at,superseded_at) \
+                     VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11) \
                      ON CONFLICT(id) DO UPDATE SET content=excluded.content,phase=excluded.phase,status=excluded.status, \
+                     why=excluded.why,current_focus=excluded.current_focus,blocker=excluded.blocker,done_criteria=excluded.done_criteria, \
                      updated_at=excluded.updated_at,superseded_at=excluded.superseded_at",
-                    params![goal.id, goal.content, goal.phase, goal.status,
-                            goal.created_at, goal.updated_at, goal.superseded_at],
+                    params![
+                        goal.id,
+                        goal.content,
+                        goal.phase,
+                        status,
+                        goal.why,
+                        goal.current_focus,
+                        goal.blocker,
+                        goal.done_criteria,
+                        goal.created_at,
+                        goal.updated_at,
+                        goal.superseded_at
+                    ],
                 )?;
                 self.sync_set_head("goal", &goal.id, &op.op_id, false)?;
                 self.connection
