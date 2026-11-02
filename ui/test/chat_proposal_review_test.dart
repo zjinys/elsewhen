@@ -237,7 +237,7 @@ void main() {
     tester,
   ) async {
     final repo = ReviewRepo()
-      ..receiptResult = ('数据行\n' * 60) + 'TAILMARKER';
+      ..receiptResult = '${'数据行\n' * 60}TAILMARKER';
     await mount(
       tester,
       repo,
@@ -270,5 +270,62 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('回执 A'), findsOneWidget);
     expect(find.textContaining('展开完整回执'), findsNothing);
+  });
+
+  testWidgets('create_goal proposal renders facets card and supports editing', (
+    tester,
+  ) async {
+    final repo = ReviewRepo();
+    final goalProposal = api.ChatProposalDto(
+      kind: 'action',
+      id: 'goal-p1',
+      conversationId: 'conversation',
+      action: 'create_goal',
+      argsJson: jsonEncode({
+        'content': '发布 Elsewhen 1.0',
+        'phase': 'near',
+        'why': '验证核心认知闭环',
+        'current_focus': '攻克多端同步快照收敛',
+        'blocker': '真机证书配置复杂',
+        'done_criteria': '多端测试全绿通过',
+      }),
+      version: 1,
+      createdAt: '2026-11-02T10:00:00Z',
+      approvalToken: 'goal-p1-v1',
+      targetBasisJson: '[]',
+    );
+
+    await mount(
+      tester,
+      repo,
+      ChatProposalDetailDialog(proposal: goalProposal),
+    );
+
+    // 验证切片卡片结构化呈现
+    expect(find.text('发布 Elsewhen 1.0'), findsOneWidget);
+    expect(find.text('近期目标'), findsOneWidget);
+    expect(find.textContaining('攻克多端同步快照收敛'), findsOneWidget);
+    expect(find.textContaining('真机证书配置复杂'), findsOneWidget);
+    expect(find.textContaining('验证核心认知闭环'), findsOneWidget);
+    expect(find.textContaining('多端测试全绿通过'), findsOneWidget);
+
+    // 点击「编辑」
+    await tester.tap(find.text('编辑'));
+    await tester.pumpAndSettle();
+
+    // 验证可编辑切片字段输入框存在
+    expect(find.widgetWithText(TextField, '攻克多端同步快照收敛'), findsOneWidget);
+    expect(find.text('当前 1~2 周启动抓手'), findsOneWidget);
+    expect(find.text('目标愿景'), findsOneWidget);
+
+    // 修改抓手
+    await tester.enterText(
+      find.widgetWithText(TextField, '攻克多端同步快照收敛'),
+      '跑通 Android 真机自同步',
+    );
+    await tester.tap(find.text('保存修改，不执行'));
+    await tester.pumpAndSettle();
+
+    expect(repo.edits.single['current_focus'], '跑通 Android 真机自同步');
   });
 }

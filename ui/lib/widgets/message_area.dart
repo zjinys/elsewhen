@@ -285,15 +285,13 @@ void openGoalDialog(BuildContext context) {
         child: const SizedBox(
           width: 560,
           height: 560,
-          // 目标条数上限 3，弹窗不会过高；仍包一层滚动以容纳历史列表。
-          child: SingleChildScrollView(child: GoalListView()),
+          child: GoalListView(),
         ),
       ),
     ),
     sheetBuilder: (sheetContext) => _PanelSheet(
       title: '目标',
-      // 目标条数上限 3，面板不会过高；仍包一层滚动以容纳历史列表。
-      builder: (context) => const SingleChildScrollView(child: GoalListView()),
+      builder: (context) => const GoalListView(),
     ),
   );
 }

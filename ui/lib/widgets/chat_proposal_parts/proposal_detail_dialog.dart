@@ -62,6 +62,8 @@ class _ChatProposalDetailDialogState
     'save_wiki_revision' => ['title', 'content_md', 'change_note'],
     'rename_wiki_page' => ['new_title'],
     'record_event' => ['raw_text'],
+    'create_goal' => ['content', 'phase', 'why', 'current_focus', 'blocker', 'done_criteria'],
+    'update_goal_facets' => ['why', 'current_focus', 'blocker', 'done_criteria'],
     _ => [],
   };
 
@@ -74,7 +76,10 @@ class _ChatProposalDetailDialogState
     _controllers.clear();
     for (final field in _editableFields) {
       _controllers[field] = TextEditingController(
-        text: args[field]?.toString() ?? (field == 'priority' ? 'normal' : ''),
+        text: args[field]?.toString() ??
+            (field == 'priority'
+                ? 'normal'
+                : (field == 'phase' ? 'near' : '')),
       );
     }
     setState(() {
@@ -88,7 +93,12 @@ class _ChatProposalDetailDialogState
     final args = _args(_proposal.argsJson)!;
     for (final entry in _controllers.entries) {
       final text = entry.value.text;
-      if ((entry.key == 'due_at' || entry.key == 'note') &&
+      if ((entry.key == 'due_at' ||
+              entry.key == 'note' ||
+              entry.key == 'why' ||
+              entry.key == 'current_focus' ||
+              entry.key == 'blocker' ||
+              entry.key == 'done_criteria') &&
           text.trim().isEmpty) {
         args.remove(entry.key);
       } else {
@@ -218,22 +228,34 @@ class _ChatProposalDetailDialogState
             key: ValueKey(entry.key),
             controller: entry.value,
             enabled: !_busy,
-            minLines: entry.key == 'content_md' || entry.key == 'content'
-                ? 5
+            minLines: entry.key == 'content_md' ||
+                    entry.key == 'content' ||
+                    entry.key == 'why' ||
+                    entry.key == 'current_focus' ||
+                    entry.key == 'blocker' ||
+                    entry.key == 'done_criteria'
+                ? 3
                 : 1,
             maxLines: null,
             decoration: InputDecoration(
               labelText:
-                  const {
+                  {
                     'title': '标题',
                     'content_md': '正文',
-                    'content': '规则内容',
+                    'content': _proposal.action == 'create_goal'
+                        ? '目标愿景'
+                        : '规则内容',
                     'raw_text': '记录内容',
                     'note': '备注',
                     'due_at': '截止时间（ISO 8601，可留空）',
                     'priority': '优先级（low/normal/high）',
                     'change_note': '修改说明',
                     'new_title': '新标题',
+                    'phase': '周期阶段（near/mid/long）',
+                    'why': '为什么做 / 核心动力',
+                    'current_focus': '当前 1~2 周启动抓手',
+                    'blocker': '已知卡点 / 困难预判',
+                    'done_criteria': '完成判据 / 验收标准',
                   }[entry.key] ??
                   entry.key,
             ),

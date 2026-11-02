@@ -16,6 +16,10 @@ api.GoalDto _dto({
   required String content,
   String phase = 'near',
   String status = 'active',
+  String? why,
+  String? currentFocus,
+  String? blocker,
+  String? doneCriteria,
   String? supersededAt,
 }) {
   return api.GoalDto(
@@ -23,20 +27,43 @@ api.GoalDto _dto({
     content: content,
     phase: phase,
     status: status,
+    why: why,
+    currentFocus: currentFocus,
+    blocker: blocker,
+    doneCriteria: doneCriteria,
     createdAt: '2026-09-28T10:00:00Z',
     updatedAt: '2026-09-28T10:00:00Z',
     supersededAt: supersededAt,
   );
 }
 
-Goal _goal(String id, String content, {String phase = 'near'}) =>
-    Goal.fromDto(_dto(id: id, content: content, phase: phase));
+Goal _goal(
+  String id,
+  String content, {
+  String phase = 'near',
+  String? why,
+  String? currentFocus,
+  String? blocker,
+  String? doneCriteria,
+}) => Goal.fromDto(_dto(
+  id: id,
+  content: content,
+  phase: phase,
+  why: why,
+  currentFocus: currentFocus,
+  blocker: blocker,
+  doneCriteria: doneCriteria,
+));
 
 Widget _panel({List<Goal> active = const [], List<Goal> archived = const []}) {
   return ProviderScope(
     overrides: [
       activeGoalsProvider.overrideWith((ref) async => active),
       archivedGoalsProvider.overrideWith((ref) async => archived),
+      pausedGoalsProvider.overrideWith((ref) async =>
+          archived.where((g) => g.status != GoalStatus.completed).toList()),
+      completedGoalsProvider.overrideWith((ref) async =>
+          archived.where((g) => g.status == GoalStatus.completed).toList()),
     ],
     child: const MaterialApp(home: Scaffold(body: GoalListView())),
   );
@@ -135,6 +162,115 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('历史归档'), findsNothing);
     });
+
+    testWidgets('活跃目标高亮呈现抓手、卡点与动力判据切片', (tester) async {
+      await tester.pumpWidget(
+        _panel(
+          active: [
+            _goal(
+              'g1',
+              '发布 Elsewhen 1.0',
+              phase: 'near',
+              why: '验证个人认知系统闭环',
+              currentFocus: '攻克多端同步快照收敛',
+              blocker: '网络环境证书配置繁琐',
+              doneCriteria: '双端自动化测试全绿',
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('发布 Elsewhen 1.0'), findsOneWidget);
+      expect(find.textContaining('攻克多端同步快照收敛'), findsOneWidget);
+      expect(find.textContaining('网络环境证书配置繁琐'), findsOneWidget);
+      expect(find.textContaining('验证个人认知系统闭环'), findsOneWidget);
+      expect(find.textContaining('双端自动化测试全绿'), findsOneWidget);
+    });
+
+    testWidgets('点击滚动抓手弹出编辑抓手与卡点弹窗', (tester) async {
+      await tester.pumpWidget(
+        _panel(
+          active: [
+            _goal(
+              'g1',
+              '发布 Elsewhen 1.0',
+              currentFocus: '首发切片 A',
+              blocker: '卡点 B',
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 点击抓手区域弹出滚动抓手对话框
+      await tester.tap(find.textContaining('首发切片 A'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('滚动抓手 · 发布 Elsewhen 1.0'), findsOneWidget);
+      expect(find.widgetWithText(TextField, '首发切片 A'), findsOneWidget);
+      expect(find.widgetWithText(TextField, '卡点 B'), findsOneWidget);
+      expect(find.text('更新抓手'), findsOneWidget);
+    });
+
+    testWidgets('历史归档区分已达成与已暂停，读档回显动力回顾', (tester) async {
+      final pausedGoal = Goal.fromDto(
+        _dto(
+          id: 'g-paused',
+          content: '学法语',
+          status: 'paused',
+          why: '想去巴黎旅行交流',
+          currentFocus: '背完 500 个基础词汇',
+          blocker: '缺少日常发音纠正环境',
+          supersededAt: '2026-10-01T12:00:00Z',
+        ),
+      );
+      final completedGoal = Goal.fromDto(
+        _dto(
+          id: 'g-done',
+          content: '考过驾照',
+          status: 'completed',
+          why: '方便自驾出游',
+          doneCriteria: '科目四通过并拿本',
+          supersededAt: '2026-09-15T12:00:00Z',
+        ),
+      );
+
+      await tester.pumpWidget(
+        _panel(
+          active: [_goal('g1', '主线任务')],
+          archived: [pausedGoal, completedGoal],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 默认在「暂停搁置」Tab
+      expect(find.text('学法语'), findsOneWidget);
+      expect(find.textContaining('背完 500 个基础词汇'), findsOneWidget);
+      expect(find.text('考过驾照'), findsNothing);
+
+      // 切换到「已达成」Tab
+      await tester.tap(find.textContaining('已达成 (1)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('考过驾照'), findsOneWidget);
+      expect(find.textContaining('科目四通过并拿本'), findsOneWidget);
+      expect(find.text('学法语'), findsNothing);
+
+      // 切回「暂停搁置」Tab 并点击「重新激活」
+      await tester.tap(find.textContaining('暂停搁置 (1)'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('重新激活'));
+      await tester.pumpAndSettle();
+
+      // 验证唤醒弹窗回显历史动力与抓手
+      expect(find.text('读档唤醒 · 学法语'), findsOneWidget);
+      expect(find.textContaining('💡 核心动力回顾：想去巴黎旅行交流'), findsOneWidget);
+      expect(find.widgetWithText(TextField, '背完 500 个基础词汇'), findsOneWidget);
+      expect(find.widgetWithText(TextField, '缺少日常发音纠正环境'), findsOneWidget);
+      expect(find.text('确认唤醒'), findsOneWidget);
+    });
   });
 
   group('「今天」栏目标入口', () {
@@ -155,6 +291,8 @@ void main() {
             messagesProvider.overrideWith((ref) async => []),
             activeGoalsProvider.overrideWith((ref) async => active),
             archivedGoalsProvider.overrideWith((ref) async => const []),
+            pausedGoalsProvider.overrideWith((ref) async => const []),
+            completedGoalsProvider.overrideWith((ref) async => const []),
           ],
           child: const MaterialApp(home: Scaffold(body: MessageArea())),
         ),

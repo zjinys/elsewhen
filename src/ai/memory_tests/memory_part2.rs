@@ -29,7 +29,7 @@ fn system_prompt_states_no_goals_when_empty() {
     let (store, conversation_id, path) = setup_store();
     let prompt = system_prompt_of(&store, &conversation_id);
     assert!(
-        prompt.contains("尚未设定任何目标"),
+        prompt.contains("尚未设定任何活跃目标") || prompt.contains("尚未设定任何目标"),
         "空态应明说无目标，不静默省略：\n{prompt}"
     );
     let _ = std::fs::remove_file(path);
@@ -69,15 +69,18 @@ fn system_prompt_injects_active_goals_with_phase_labels() {
         .unwrap();
 
     let prompt = system_prompt_of(&store, &conversation_id);
-    assert!(prompt.contains("[近期] 三个月内发 1.0"), "实际:\n{prompt}");
-    assert!(prompt.contains("[长远] 三年内决策有据"), "实际:\n{prompt}");
+    assert!(
+        prompt.contains("[近期][ID:") && prompt.contains("三个月内发 1.0"),
+        "实际:\n{prompt}"
+    );
+    assert!(
+        prompt.contains("[长远][ID:") && prompt.contains("三年内决策有据"),
+        "实际:\n{prompt}"
+    );
     let _ = std::fs::remove_file(path);
 }
 
-/// 目标段必须带反向护栏：只作背景，不评判偏离。
-///
-/// 这条护栏是需求里的硬约束，不是措辞偏好——没有它，对话里每轮都会拿用户
-/// 的话去比目标，偏差检测就变成审计。
+/// 目标段必须带反向护栏：防烦防说教，不强拉目标。
 #[test]
 fn goal_block_carries_guards_against_nagging() {
     use crate::storage::GoalPhase;
@@ -85,13 +88,33 @@ fn goal_block_carries_guards_against_nagging() {
     store.create_goal("上线 v1", GoalPhase::Near).unwrap();
     let prompt = system_prompt_of(&store, &conversation_id);
     assert!(
-        prompt.contains("不要评判用户是否偏离目标"),
-        "缺少不评判偏离的护栏：\n{prompt}"
+        prompt.contains("不生硬说教或强行把话题往目标上拽"),
+        "缺少不强行拉扯目标的护栏：\n{prompt}"
     );
-    assert!(
-        prompt.contains("不要把对话引向目标"),
-        "缺少不把对话引向目标的护栏：\n{prompt}"
-    );
+    let _ = std::fs::remove_file(path);
+}
+
+/// 目标认知切片（why, focus, blocker, done）正确注入到战略背景中。
+#[test]
+fn goal_block_injects_cognitive_facets() {
+    use crate::storage::GoalPhase;
+    let (store, conversation_id, path) = setup_store();
+    store
+        .create_goal_with_facets(
+            "跑通多端同步",
+            GoalPhase::Near,
+            Some("实现无感互联"),
+            Some("攻克快照收敛"),
+            Some("弱网重放冲突"),
+            Some("三端冒烟通过"),
+        )
+        .unwrap();
+    let prompt = system_prompt_of(&store, &conversation_id);
+    assert!(prompt.contains("跑通多端同步"), "应包含目标内容:\n{prompt}");
+    assert!(prompt.contains("核心动力：实现无感互联"), "应包含核心动力:\n{prompt}");
+    assert!(prompt.contains("当前抓手：攻克快照收敛"), "应包含当前抓手:\n{prompt}");
+    assert!(prompt.contains("已知卡点：弱网重放冲突"), "应包含已知卡点:\n{prompt}");
+    assert!(prompt.contains("完成判据：三端冒烟通过"), "应包含完成判据:\n{prompt}");
     let _ = std::fs::remove_file(path);
 }
 

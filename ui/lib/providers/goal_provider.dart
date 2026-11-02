@@ -9,8 +9,20 @@ final activeGoalsProvider = FutureProvider<List<Goal>>((ref) async {
   return await bridge.listActiveGoals();
 });
 
-/// 已归档目标（历史）
+/// 已归档目标（历史所有非活跃，含暂停与达成）
 final archivedGoalsProvider = FutureProvider<List<Goal>>((ref) async {
   final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
   return await bridge.listArchivedGoals();
+});
+
+/// 暂停搁置的目标（可随时唤醒复活）
+final pausedGoalsProvider = FutureProvider<List<Goal>>((ref) async {
+  final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+  return await bridge.listPausedGoals();
+});
+
+/// 已达成的目标（成就勋章）
+final completedGoalsProvider = FutureProvider<List<Goal>>((ref) async {
+  final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+  return await bridge.listCompletedGoals();
 });

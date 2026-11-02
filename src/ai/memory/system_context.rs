@@ -77,23 +77,51 @@ pub(crate) fn build_system_context(
             OmissionPolicy::Required,
         ),
     );
-    // 注入活跃目标（FR-PES-005-02）。
+    // 注入活跃目标（FR-PES-005-02 / G2 认知切片与战略背景）。
     //
-    // 与个人规则库同属「用户自述的长期上下文」，但用法相反：规则是行为约束，
-    // 要 AI 逐条对照检查；目标是意图背景，只在话题相关时可用。因此这里的措辞
-    // 刻意带反向约束——不要求 AI 判断用户是否偏离目标。偏差检测是后台周期任务
-    // 的职责（带「不重复 / 宁缺毋滥」纪律），若对话里也开始评判，同一件事会被做
-    // 两遍，且对话里那遍更频繁，会把记录变成被审计。
+    // 与个人规则库同属「用户自述的长期上下文」，但用法不同：规则是行为约束，
+    // 要逐条对照检查；目标是用户的战略意图与长程追求。
+    // 日常对话保持自然专注，不生硬说教或强行把话题往目标上拽；当用户探讨相关问题、表达迷茫、面临取舍或
+    // 遇到卡点时，主动结合「当前抓手」与「已知卡点」提供深度解题与认知支持，协助
+    // 用户将注意力收敛到关键抓手上。
     let active_goals = store.list_active_goals()?;
     if active_goals.is_empty() {
-        prompt.push_str("\n\n用户当前尚未设定任何目标。");
+        prompt.push_str("\n\n用户当前尚未设定任何活跃目标。若用户表达长远愿望或感到迷茫时，可适时引导其通过结构化立项梳理出核心目标与当前抓手。");
     } else {
         prompt.push_str(
-            "\n\n用户当前的目标（仅作为理解其意图的背景）。除非与当前话题直接相关，不要提及这些目标；\
-             不要评判用户是否偏离目标，也不要把对话引向目标。\n",
+            "\n\n用户当前设定的核心目标（作为理解其长远意图与近期重心的战略背景）：\n\
+             准则：\n\
+             1. 日常闲聊或独立具体问题时保持自然专注，不生硬说教或强行把话题往目标上拽；\n\
+             2. 当用户探讨相关话题、表达迷茫、面临优先级取舍或遇到困难时，主动结合其「当前抓手」与「已知卡点」，提供深度解题与认知支持；\n\
+             3. 协助用户将大目标拆解收敛到近期的当前抓手上；如用户取得进展或调整重心，可调用工具协助更新抓手或提议立项。\n",
         );
         for goal in &active_goals {
-            prompt.push_str(&format!("- [{}] {}\n", goal.phase.label(), goal.content));
+            prompt.push_str(&format!(
+                "- [{}][ID:{}] {}\n",
+                goal.phase.label(),
+                goal.id,
+                goal.content
+            ));
+            if let Some(why) = &goal.why {
+                if !why.trim().is_empty() {
+                    prompt.push_str(&format!("  · 核心动力：{}\n", why.trim()));
+                }
+            }
+            if let Some(focus) = &goal.current_focus {
+                if !focus.trim().is_empty() {
+                    prompt.push_str(&format!("  · 当前抓手：{}\n", focus.trim()));
+                }
+            }
+            if let Some(blocker) = &goal.blocker {
+                if !blocker.trim().is_empty() {
+                    prompt.push_str(&format!("  · 已知卡点：{}\n", blocker.trim()));
+                }
+            }
+            if let Some(done) = &goal.done_criteria {
+                if !done.trim().is_empty() {
+                    prompt.push_str(&format!("  · 完成判据：{}\n", done.trim()));
+                }
+            }
         }
     }
 

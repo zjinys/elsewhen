@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/api.dart' as api;
 import '../providers/conversation_provider.dart';
+import '../providers/goal_provider.dart';
 import '../providers/todo_provider.dart';
 import '../providers/wiki_provider.dart';
 import 'markdown_view.dart';
@@ -29,6 +30,8 @@ String _actionLabel(String action) =>
       'import_directory_as_project': '导入项目摘要',
       'run_skill_script': '执行技能脚本',
       'mcp_tool_call': 'MCP 工具调用',
+      'create_goal': '设立认知目标',
+      'update_goal_facets': '更新目标切片',
     }[action] ??
     action;
 

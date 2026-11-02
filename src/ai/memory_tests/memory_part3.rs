@@ -25,7 +25,7 @@ fn goals_and_rules_use_distinct_instructions() {
     // 用锚点取目标段，不按字节偏移回切：提示词以中文为主，按字节切会切坏
     // UTF-8 边界（`floor_char_boundary` 需 nightly，本仓库跑 stable）。
     let goal_block = prompt
-        .split("用户当前的目标（仅作为理解其意图的背景）")
+        .split("用户当前设定的核心目标")
         .nth(1)
         .expect("目标段锚点应存在")
         .split('[')

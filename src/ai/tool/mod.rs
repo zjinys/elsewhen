@@ -11,6 +11,7 @@ use anyhow::Result;
 
 use self::dispatch::user_skills_roster;
 use self::dispatch::{ImportDirectoryFilesTool, ImportDirectoryProjectTool};
+use self::goal_tools::{CreateGoalTool, ListGoalsTool, UpdateGoalFacetsTool};
 use self::query_tools::ListEventsByDateTool;
 use self::query_tools::{ArchiveConversationsByTitleTool, ImportUrlToWikiTool, RenameWikiPageTool};
 use self::read_tools::{
@@ -160,6 +161,18 @@ pub const BUILTIN_SKILLS: &[SkillDefinition] = &[
             - occurred_at 可缺省（默认现在），用户提到过去时间时转换成 ISO 8601。",
         tools: &["record_event"],
     },
+    SkillDefinition {
+        id: "goal-management",
+        title: "目标管理",
+        tags: &["目标", "立项", "愿景", "抓手", "卡点", "对齐"],
+        brief: "查询目标列表、提议设立新目标或更新认知切片（抓手/卡点/动力）",
+        instructions: "使用要点：\n\
+            - 活跃目标上限严格为 3 条。活跃目标已常驻在系统提示词中；list_goals 可查暂停或已达成目标。\n\
+            - create_goal 与 update_goal_facets 均为草拟待确认制，需用户在审阅卡确认后真正落库。\n\
+            - 立项时协助用户提炼愿景、核心动力(why)、近1~2周首发启动切片(current_focus)、已知卡点(blocker)与完成判据(done_criteria)。\n\
+            - 目标推进或卡点化解时，使用 update_goal_facets 滚动更新抓手或记录卡点，不要频繁重建目标。",
+        tools: &["list_goals", "create_goal", "update_goal_facets"],
+    },
 ];
 
 /// 工具执行结果（回喂给 AI 的消息）
@@ -304,6 +317,9 @@ impl ToolRegistry {
             Box::new(ImportDirectoryFilesTool),
             Box::new(SaveWikiRevisionTool),
             Box::new(skill_script::RunSkillScriptTool),
+            Box::new(ListGoalsTool),
+            Box::new(CreateGoalTool),
+            Box::new(UpdateGoalFacetsTool),
         ]
     }
 }
@@ -617,6 +633,7 @@ pub(crate) use read_tools::html_to_text;
 pub use revision_tools::execute_pending_action;
 
 pub(crate) mod dispatch;
+pub(crate) mod goal_tools;
 pub(crate) mod query_tools;
 pub(crate) mod read_tools;
 pub(crate) mod revision_tools;

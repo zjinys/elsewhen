@@ -78,12 +78,6 @@ class _ChatProposalReviewDialogState
     });
   }
 
-  void _closeDetail() => setState(() {
-    _viewing = null;
-    _viewingBatch = false;
-    _viewingReceipt = null;
-  });
-
   void _reviewReceipt(api.ChatDecisionDto receipt) => setState(() {
     _viewingReceipt = receipt;
     _viewing = null;
@@ -101,6 +95,10 @@ class _ChatProposalReviewDialogState
     ref.invalidate(todosProvider);
     ref.invalidate(wikiPagesProvider);
     ref.invalidate(conversationsProvider);
+    ref.invalidate(activeGoalsProvider);
+    ref.invalidate(archivedGoalsProvider);
+    ref.invalidate(pausedGoalsProvider);
+    ref.invalidate(completedGoalsProvider);
     ref.invalidate(_hasPendingProvider(widget.conversationId));
     await _load();
   }
@@ -326,7 +324,7 @@ class _ChatProposalReviewDialogState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${args?['title'] ?? args?['content'] ?? _actionLabel(proposal.action)}',
+                      '${args?['title'] ?? args?['content'] ?? (proposal.action == 'update_goal_facets' ? '更新目标切片 (ID: ${args?['id']})' : _actionLabel(proposal.action))}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(
@@ -433,33 +431,221 @@ class _ProposalContent extends StatelessWidget {
     if (args == null) {
       return SelectableText('提议格式异常，不能接受；可以拒绝并重新草拟。\n$argsJson');
     }
+
+    final hasGoalFacets = args.containsKey('why') ||
+        args.containsKey('current_focus') ||
+        args.containsKey('blocker') ||
+        args.containsKey('done_criteria') ||
+        args.containsKey('phase');
+
     final body = args['content_md'] ?? args['content'] ?? args['raw_text'];
     final rest = Map<String, dynamic>.from(args)
       ..remove('title')
       ..remove('content_md')
       ..remove('content')
       ..remove('raw_text');
+
+    if (hasGoalFacets) {
+      rest.remove('phase');
+      rest.remove('why');
+      rest.remove('current_focus');
+      rest.remove('blocker');
+      rest.remove('done_criteria');
+      rest.remove('id');
+    }
+
+    final theme = Theme.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (args['title'] != null)
           SelectableText(
             '${args['title']}',
-            style: Theme.of(context).textTheme.titleMedium,
+            style: theme.textTheme.titleMedium,
           ),
-        // 正文按 markdown 渲染（知识页/规则/记录多为 md），不再用纯文本
-        if (body != null) MarkdownView(markdown: '$body'),
+        if (args['content'] != null && hasGoalFacets)
+          SelectableText(
+            '${args['content']}',
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+        if (body != null && !hasGoalFacets) MarkdownView(markdown: '$body'),
+        if (hasGoalFacets) ...[
+          const SizedBox(height: 8),
+          _GoalFacetsCard(args: args),
+        ],
         if (rest.isNotEmpty) ...[
           const SizedBox(height: 12),
           ExpansionTile(
             title: const Text('参数与来源'),
-            initiallyExpanded: body == null,
+            initiallyExpanded: body == null && !hasGoalFacets,
             children: [
               SelectableText(const JsonEncoder.withIndent('  ').convert(rest)),
             ],
           ),
         ],
       ],
+    );
+  }
+}
+
+class _GoalFacetsCard extends StatelessWidget {
+  const _GoalFacetsCard({required this.args});
+  final Map<String, dynamic> args;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final phase = args['phase']?.toString();
+    final why = args['why']?.toString().trim();
+    final focus = args['current_focus']?.toString().trim();
+    final blocker = args['blocker']?.toString().trim();
+    final done = args['done_criteria']?.toString().trim();
+    final id = args['id']?.toString();
+
+    String phaseLabel(String? p) => switch (p) {
+      'mid' => '中期目标',
+      'long' => '长远目标',
+      _ => '近期目标',
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (phase != null || id != null)
+            Row(
+              children: [
+                if (phase != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      phaseLabel(phase),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                if (id != null) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    '目标 ID: $id',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          if (focus != null && focus.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('📍 ', style: TextStyle(fontSize: 13)),
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      style: theme.textTheme.bodyMedium,
+                      children: [
+                        const TextSpan(
+                          text: '当前抓手：',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        TextSpan(text: focus),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (blocker != null && blocker.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('🚧 ', style: TextStyle(fontSize: 13)),
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      style: theme.textTheme.bodyMedium,
+                      children: [
+                        TextSpan(
+                          text: '已知卡点：',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.error,
+                          ),
+                        ),
+                        TextSpan(text: blocker),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (why != null && why.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('💡 ', style: TextStyle(fontSize: 13)),
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      style: theme.textTheme.bodyMedium,
+                      children: [
+                        const TextSpan(
+                          text: '核心动力：',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        TextSpan(text: why),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (done != null && done.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('🎯 ', style: TextStyle(fontSize: 13)),
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      style: theme.textTheme.bodyMedium,
+                      children: [
+                        const TextSpan(
+                          text: '完成判据：',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        TextSpan(text: done),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

@@ -253,6 +253,67 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
             let due = due_at.map(|d| format!("，截止 {d}")).unwrap_or_default();
             Ok(format!("已创建待办「{}」{due}。", t.title))
         }
+        "create_goal" => {
+            let content = arg_str(&args, "content")?;
+            let phase_str = arg_str_opt(&args, "phase").unwrap_or_else(|| "near".to_string());
+            let phase = match phase_str.as_str() {
+                "mid" => crate::storage::GoalPhase::Mid,
+                "long" => crate::storage::GoalPhase::Long,
+                _ => crate::storage::GoalPhase::Near,
+            };
+            let why = arg_str_opt(&args, "why");
+            let current_focus = arg_str_opt(&args, "current_focus");
+            let blocker = arg_str_opt(&args, "blocker");
+            let done_criteria = arg_str_opt(&args, "done_criteria");
+
+            let goal = store.create_goal_with_facets(
+                &content,
+                phase,
+                why.as_deref(),
+                current_focus.as_deref(),
+                blocker.as_deref(),
+                done_criteria.as_deref(),
+            )?;
+            let focus_desc = goal
+                .current_focus
+                .as_deref()
+                .map(|f| format!("，当前抓手：{f}"))
+                .unwrap_or_default();
+            Ok(format!(
+                "已成功设立目标「{}」[{}]{focus_desc}。",
+                goal.content,
+                goal.phase.label()
+            ))
+        }
+        "update_goal_facets" => {
+            let goal_id = arg_str(&args, "goal_id")?;
+            let existing = store
+                .get_goal(&goal_id)?
+                .ok_or_else(|| anyhow::anyhow!("未找到 ID 为 {goal_id} 的目标"))?;
+
+            let why = arg_str_opt(&args, "why").or(existing.why.clone());
+            let current_focus =
+                arg_str_opt(&args, "current_focus").or(existing.current_focus.clone());
+            let blocker = arg_str_opt(&args, "blocker").or(existing.blocker.clone());
+            let done_criteria =
+                arg_str_opt(&args, "done_criteria").or(existing.done_criteria.clone());
+
+            store.update_goal_facets(
+                &goal_id,
+                why.as_deref(),
+                current_focus.as_deref(),
+                blocker.as_deref(),
+                done_criteria.as_deref(),
+            )?;
+            let focus_desc = current_focus
+                .as_deref()
+                .map(|f| format!("，当前抓手：{f}"))
+                .unwrap_or_default();
+            Ok(format!(
+                "已更新目标「{}」的认知切片{focus_desc}。",
+                existing.content
+            ))
+        }
         "propose_people_relations" => {
             crate::wiki::apply_people_relations(&args, store, &pa.conversation_id)
         }
