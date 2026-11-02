@@ -2,7 +2,7 @@
 
 Status: adopted（2026-10-15 收尾记账）——本文迁移层/goals 表/prompt 注入已实现（见文末「实施进展」）；剩余尾巴（-04 偏差检测、-05 可观察性）的实施进度由下方 roadmap 承载。
 
-实施路线：[回顾与目标偏差 Roadmap](../../../roadmap/2026-10-15-review-and-goal-deviation-roadmap.md)
+实施路线：[回顾与目标偏差 Roadmap](../../../roadmap/2026-10-15-review-and-goal-deviation-roadmap.md)，进一步深化与重构见 [认知型目标与长程航向对齐 Roadmap](../../../roadmap/2026-11-02-cognitive-goals-and-long-term-alignment-roadmap.md)
 
 关联需求：[FR-PES-005 目标与偏差检测](../../../requirements/product/FR-PES-005-目标与偏差检测.md)
 
