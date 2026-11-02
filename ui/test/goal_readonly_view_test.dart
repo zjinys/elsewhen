@@ -1,10 +1,13 @@
 import 'package:elsewhen_ui/bridge/api.dart' as api;
+import 'package:elsewhen_ui/models/conversation.dart';
 import 'package:elsewhen_ui/models/goal.dart';
+import 'package:elsewhen_ui/providers/conversation_provider.dart';
 import 'package:elsewhen_ui/providers/goal_provider.dart';
 import 'package:elsewhen_ui/providers/state_holder.dart';
 import 'package:elsewhen_ui/providers/wiki_provider.dart';
 import 'package:elsewhen_ui/widgets/goal_view.dart';
 import 'package:elsewhen_ui/widgets/left_sidebar.dart';
+import 'package:elsewhen_ui/widgets/message_area.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -63,31 +66,47 @@ Widget _goalDomain({
   List<Goal> paused = const [],
   List<Goal> completed = const [],
   bool atGoalTab = false,
+  Widget? extraChild,
 }) {
   return ProviderScope(
     overrides: [
       if (atGoalTab)
         sidebarTabProvider.overrideWith(() => StateHolder(SidebarTab.goal)),
       activeGoalsProvider.overrideWith((ref) async => active),
-      archivedGoalsProvider.overrideWith(
-          (ref) async => [...paused, ...completed]),
+      archivedGoalsProvider.overrideWith((ref) async => [...paused, ...completed]),
       pausedGoalsProvider.overrideWith((ref) async => paused),
       completedGoalsProvider.overrideWith((ref) async => completed),
+      if (atGoalTab)
+        conversationsProvider.overrideWith((ref) async => [
+              Conversation(
+                id: 'conv-main',
+                title: '主对话流',
+                tag: 'diary',
+                createdAt: DateTime(2026),
+                updatedAt: DateTime(2026),
+                messageCount: 0,
+              ),
+            ]),
     ],
     child: MaterialApp(
       home: Scaffold(
-        body: Row(
+        body: Stack(
           children: [
-            SizedBox(
-              width: 280,
-              child: LeftSidebar(),
+            Row(
+              children: [
+                SizedBox(
+                  width: 280,
+                  child: LeftSidebar(),
+                ),
+                const Expanded(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: GoalListView(readOnly: true),
+                  ),
+                ),
+              ],
             ),
-            const Expanded(
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: GoalListView(readOnly: true),
-              ),
-            ),
+            ?extraChild,
           ],
         ),
       ),
@@ -169,6 +188,63 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('还没有设定目标'), findsOneWidget);
+    });
+  });
+
+  group('AI 共同立项入口（目标页）', () {
+    testWidgets('点击后预填对话草稿并切回对话 tab，不自动发送', (tester) async {
+      useWideSidebar(tester);
+      SidebarTab? capturedTab;
+      String? capturedDraft;
+      await tester.pumpWidget(_goalDomain(
+        atGoalTab: true,
+        active: [
+          _goal('g1', '发布 Elsewhen 1.0', currentFocus: '攻兡多端同步快照收敛'),
+        ],
+        extraChild: Consumer(builder: (context, ref, _) {
+          capturedTab = ref.watch(sidebarTabProvider);
+          capturedDraft = ref.watch(goalCompassChatDraftProvider('conv-main'));
+          // 预热会话列表：startGoalCoAuthor 同步读 .value，未加载时会走
+          // 「无会话」分支（真实应用中对话页/侧栏早已 watch 过它）。
+          ref.watch(conversationsProvider);
+          return const SizedBox.shrink();
+        }),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(capturedTab, SidebarTab.goal);
+      expect(capturedDraft, isNull);
+
+      await tester.tap(find.text('和 AI 拆解 / 立新目标'));
+      await tester.pumpAndSettle();
+
+      // 切回对话 tab，且种子写入对话草稿（输入框监听后预填，不自动发送）
+      expect(capturedTab, SidebarTab.conversation);
+      expect(capturedDraft, isNotNull);
+      expect(capturedDraft, contains('发布 Elsewhen 1.0'));
+      expect(capturedDraft, contains('攻兡多端同步快照收敛'));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('活跃 3 条时禁用共同立项入口', (tester) async {
+      useWideSidebar(tester);
+      await tester.pumpWidget(_goalDomain(
+        atGoalTab: true,
+        active: [
+          _goal('g1', '目标一'),
+          _goal('g2', '目标二'),
+          _goal('g3', '目标三'),
+        ],
+      ));
+      await tester.pumpAndSettle();
+
+      final btn = tester.widget<TextButton>(
+        find.ancestor(
+          of: find.text('和 AI 拆解 / 立新目标'),
+          matching: find.byType(TextButton),
+        ),
+      );
+      expect(btn.onPressed, isNull);
     });
   });
 }

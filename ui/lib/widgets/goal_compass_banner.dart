@@ -3,11 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/rust_bridge_repository.dart';
 import '../models/goal.dart';
-import '../providers/conversation_provider.dart';
 import '../providers/goal_provider.dart';
 import '../theme/app_theme.dart';
 import 'goal_view.dart';
-import 'message_area.dart';
 
 /// 航向偏离校准横幅（挂在 MessageArea 状态栏下方，与 ReminderBanner 并列）。
 /// 当 3~5 天滑动窗口检测到活跃目标抓手停滞且精力分散时呈现。
@@ -181,24 +179,9 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
 
     onBeforeDiscuss?.call();
 
-    String? convId = ref.read(selectedConversationIdProvider);
-    if (convId == null) {
-      final convs = ref.read(conversationsProvider).value;
-      final main = convs?.firstOrNull;
-      if (main != null) {
-        ref.read(selectedConversationIdProvider.notifier).set(main.id);
-        convId = main.id;
-      }
-    }
-    if (convId != null) {
-      ref.read(goalCompassChatDraftProvider(convId).notifier).set(seed);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('已将目标与抓手上下文带入输入框'),
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 2),
-        ),
-      );
+    final ok = startGoalCoAuthor(ref, seed);
+    if (ok) {
+      showGoalCoAuthorToast(context);
     } else {
       // 无任何会话可落入时不静默吞掉动作：明确告知失败与替代路径。
       ScaffoldMessenger.of(context).showSnackBar(

@@ -3,12 +3,55 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/rust_bridge_repository.dart';
 import '../models/goal.dart';
+import '../providers/conversation_provider.dart';
 import '../providers/goal_provider.dart';
+import '../providers/wiki_provider.dart';
 import '../theme/app_theme.dart';
 import 'goal_compass_banner.dart';
+// goalCompassChatDraftProvider / MessageArea 输入预填机制定义在此文件。
+import 'message_area.dart';
 
 /// 活跃目标上限，与后端 `MAX_ACTIVE_GOALS` 及数据库触发器一致。
 const int maxActiveGoals = 3;
+
+/// 目标域「AI 共同立项 / 共同分解」统一入口：把指令预填到对话输入框并
+/// 切回对话 tab，**绝不自动发送**——用户可改可发（与 compass「聚焦讨论」、
+/// 习惯问候预填同一纪律）。实际分解由 AI 走 create_goal /
+/// update_goal_facets 的 WriteConfirm 提议卡完成，抓手永远由用户确认才落库。
+///
+/// 返回 false 表示当前没有任何可用会话（含会话列表尚未加载），调用方
+/// 应提示用户先去对话页；true 表示已预填并切换成功。
+bool startGoalCoAuthor(
+  WidgetRef ref,
+  String seed, {
+  void Function()? onSwitched,
+}) {
+  String? convId = ref.read(selectedConversationIdProvider);
+  if (convId == null) {
+    final convs = ref.read(conversationsProvider).value;
+    final main = convs?.firstOrNull;
+    if (main != null) {
+      ref.read(selectedConversationIdProvider.notifier).set(main.id);
+      convId = main.id;
+    }
+  }
+  if (convId == null) return false;
+  ref.read(goalCompassChatDraftProvider(convId).notifier).set(seed);
+  ref.read(sidebarTabProvider.notifier).set(SidebarTab.conversation);
+  onSwitched?.call();
+  return true;
+}
+
+/// 目标域「AI 共同立项 / 共同分解」的 Toast 文案。
+void showGoalCoAuthorToast(BuildContext context) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('已带目标上下文到对话输入框，确认或修改后发送即可共同拆解'),
+      behavior: SnackBarBehavior.floating,
+      duration: Duration(seconds: 3),
+    ),
+  );
+}
 
 /// 历史归档视图子分类
 enum _ArchivedTab {
@@ -103,6 +146,26 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  /// 「和 AI 拆解 / 立新目标」：预填对话草稿并切回对话 tab。
+  /// 提及当前活跃目标作为上下文，AI 会看到 system_context 里的
+  /// 完整切片并走提议卡确认，这里不做任何直接写库。
+  void _startCoAuthor(int activeCount) {
+    final activeAsync = ref.read(activeGoalsProvider);
+    final goals = activeAsync.value ?? const <Goal>[];
+    final goalBrief = goals.isEmpty
+        ? '目前还没有活跃目标。'
+        : '当前活跃目标：${goals.map((g) => '「${g.content}」（抓手：${g.currentFocus ?? "未设定"}）').join('、')}。';
+    final seed = activeCount == 0
+        ? '我想立一个新的长程目标。请用几个设问帮我明确：为什么做、什么算完成、近 1~2 周的第一启动抓手是什么、可能卡在哪。$goalBrief'
+        : '帮我看看这些目标的推进情况：哪个抓手该滚动到下一个切片了？或者帮我共同规划一个新的目标。$goalBrief';
+    final ok = startGoalCoAuthor(ref, seed);
+    if (!ok) {
+      _toast('暂无可用会话，请先在对话页新建会话后再试');
+      return;
+    }
+    if (mounted) showGoalCoAuthorToast(context);
   }
 
   Future<void> _pause(Goal goal) async {
@@ -269,11 +332,37 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
           const SizedBox(height: 3),
           Text(
             widget.readOnly
-                ? '活跃目标上限严格控制在 $maxActiveGoals 个以内。在对话流中打开目标面板即可滚动抓手、达成或读档唤醒。'
+                ? '活跃目标上限严格控制在 $maxActiveGoals 个以内。滚动抓手、达成或读档唤醒在对话面板中操作。'
                 : '活跃目标上限严格控制在 $maxActiveGoals 个以内，守恒注意力。通过滚动抓手持续向前推进。',
             style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
+          // AI 共同立项入口（两种形态都可用）：预填对话草稿并切回对话 tab，
+          // 实际落库仍走 create_goal / update_goal_facets 的 WriteConfirm
+          // 提议卡，不绕过确认机制。
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: activeCount >= maxActiveGoals
+                  ? null
+                  : () => _startCoAuthor(activeCount),
+              icon: const Icon(Icons.auto_awesome, size: 14),
+              label: Text(
+                activeCount == 0
+                    ? '和 AI 聊聊，共同立一个目标'
+                    : '和 AI 拆解 / 立新目标',
+                style: const TextStyle(fontSize: 11.5),
+              ),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 2,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
           if (!widget.readOnly && nudge != null)
             GoalCompassNudgeCard(nudge: nudge),
           _buildActiveSection(activeAsync),
