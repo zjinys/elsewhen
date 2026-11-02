@@ -292,6 +292,31 @@ fn failure_notice_quotes_request_and_admits_unfulfilled_promise() {
     let _ = std::fs::remove_file(path);
 }
 
+/// 事故 2026-11-02：用户回复「保存」（确认词）后生成失败，兑底消息
+/// 却点名上一个问题让用户「说继续」——确认词失败必须说「保存没生效」。
+#[test]
+fn confirmation_failure_says_save_not_applied_not_question_pending() {
+    let (store, path) = temporary_database();
+    let conv = store.create_conversation(Some("test"), None).unwrap();
+    for (role, text) in [
+        ("user", "优化我的三阶段目标"),
+        ("assistant", "优化好了。说「保存」我就会草拟页面供你确认。"),
+        ("user", "保存"),
+    ] {
+        store.send_message(&conv, role, text, None).unwrap();
+    }
+    let notice = failure_notice(&store, &conv, "生成没有产出可用答复").unwrap();
+    assert!(notice.contains("「保存」"));
+    assert!(notice.contains("没有生效"));
+    assert!(notice.contains("优化我的三阶段目标"));
+    assert!(notice.contains("再说一次「保存」"));
+    // 不能套「问题还挂着说继续」的模板误导用户
+    assert!(!notice.contains("说「继续」"));
+    assert!(!notice.contains("这一轮还没有完成"));
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}
+
 #[test]
 fn followup_full_request_reaches_http_provider_after_memory_compression() {
     use std::io::{BufRead, Read, Write};

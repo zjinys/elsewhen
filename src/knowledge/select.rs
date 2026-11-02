@@ -290,7 +290,15 @@ fn citation_for_page_inner(
     event_ids.truncate(8);
     // Unattributed generated prose is not evidence. Explicit directory reports
     // retain their file:// origin without importing an entire directory.
-    if snapshots.is_empty() && event_ids.is_empty() && page.source_url.is_none() {
+    // kind=topic 豁免：主题页的合法产出路径（save_topic_page 用户确认框、
+    // save_knowledge_draft 用户审阅确认、organization 确认批次）都以用户
+    // 把关收尾，本身就是个人知识的载体；事故 2026-11-02（「存为主题」页
+    // 无法被派生依赖）表明无来源 topic 页被散文守卫误伤，派生链全断。
+    if snapshots.is_empty()
+        && event_ids.is_empty()
+        && page.source_url.is_none()
+        && page.kind != "topic"
+    {
         return Ok(None);
     }
     let metadata = store.knowledge_metadata(&page.slug)?;

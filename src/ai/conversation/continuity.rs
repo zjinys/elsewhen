@@ -264,7 +264,10 @@ fn pending_notice(pending: &[crate::storage::PendingAction]) -> Option<String> {
 /// 最近的未交付请求：若最新一条用户输入本身是新请求就取它（点名的是「现在
 ///这个问题」）；若是追问/确认，则回到造成它的那个原请求，并检查其后的助手
 ///消息是否只留下了预告（promised）。与 FollowUp::load 同一扫描口径。
-fn pending_request(store: &Store, conversation_id: &str) -> Result<Option<(String, bool)>> {
+/// 返回 `was_confirmation`：最新输入是确认词（如「保存」）——失败说明
+/// 必须说「确认的保存没有生效」，不能套「问题还挂着说继续」的模板
+/// （2026-11-02 事故：用户回复「保存」，兑底消息却点名上一个问题让他说继续）。
+fn pending_request(store: &Store, conversation_id: &str) -> Result<Option<(String, bool, bool)>> {
     let messages = store.list_messages(conversation_id)?;
     let Some(latest) = messages.iter().rposition(|m| m.role == "user") else {
         return Ok(None);
@@ -275,6 +278,7 @@ fn pending_request(store: &Store, conversation_id: &str) -> Result<Option<(Strin
     }
     if is_progress_question(&latest_text) || super::is_confirmation(&latest_text) {
         // 追问/确认不是新任务：回到造成它的那个原请求。
+        let was_confirmation = super::is_confirmation(&latest_text);
         let Some(request_index) = messages[..latest].iter().rposition(|m| {
             m.role == "user"
                 && !is_progress_question(&m.content)
@@ -288,9 +292,13 @@ fn pending_request(store: &Store, conversation_id: &str) -> Result<Option<(Strin
         let promised = messages[request_index + 1..latest]
             .iter()
             .any(|m| m.role == "assistant" && future_promise_detected(&m.content));
-        return Ok(Some((messages[request_index].content.clone(), promised)));
+        return Ok(Some((
+            messages[request_index].content.clone(),
+            promised,
+            was_confirmation,
+        )));
     }
-    Ok(Some((latest_text, false)))
+    Ok(Some((latest_text, false, false)))
 }
 
 /// 诚实的失败消息（2026-10-18 事故 P1-A/P1-B）。点名原请求、给出失败原因，
@@ -306,7 +314,7 @@ pub(super) fn failure_reply(
     // 不算顶包；只剩没生成的补充说明，不能反过来说「还没完成」。
     if let Some(summary) = confirmed_write_summary(context) {
         let request = pending_request(store, conversation_id)?
-            .map(|(r, _)| r)
+            .map(|(r, _, _)| r)
             .or_else(|| {
                 context
                     .iter()
@@ -327,10 +335,13 @@ pub(super) fn failure_reply(
         }
         return Ok(parts.join("\n\n"));
     }
-    let (mut request, mut promised) = match pending_request(store, conversation_id)? {
-        Some((request, promised)) => (Some(request), promised),
-        None => (None, false),
-    };
+    let (mut request, mut promised, was_confirmation) =
+        match pending_request(store, conversation_id)? {
+            Some((request, promised, was_confirmation)) => {
+                (Some(request), promised, was_confirmation)
+            }
+            None => (None, false, false),
+        };
     // 库里还没有本轮输入时（测试/边缘路径），退回 context 的最新用户消息。
     let context_request = context
         .iter()
@@ -348,13 +359,23 @@ pub(super) fn failure_reply(
     }
     match request {
         Some(request) => {
-            let task = format!("关于你刚才的要求「{}」", excerpt(&request, 120));
-            let promised_line = if promised {
-                "另外，我之前说过要接着处理这件事，这次同样没有做到；它还挂着，不会被当作已完成。"
+            if was_confirmation && !promised {
+                // 确认词失败且此前无预告：措辞贴着「确认的操作没生效」走，
+                // 不套「问题还挂着说继续」的模板（2026-11-02 事故）。
+                // 若此前有预告（promised），仍走下方模板承认没做到。
+                parts.push(format!(
+                    "你刚才确认的「保存」这一轮没有生效：{reason}。要保存的内容（关于「{}」）还在对话里，再说一次「保存」即可重试。",
+                    excerpt(&request, 100)
+                ));
             } else {
-                ""
-            };
-            parts.push(format!("{task}，这一轮还没有完成：{reason}{promised_line}"));
+                let task = format!("关于你刚才的要求「{}」", excerpt(&request, 120));
+                let promised_line = if promised {
+                    "另外，我之前说过要接着处理这件事，这次同样没有做到；它还挂着，不会被当作已完成。"
+                } else {
+                    ""
+                };
+                parts.push(format!("{task}，这一轮还没有完成：{reason}{promised_line}"));
+            }
         }
         None => parts.push(format!("这一轮还没有完成：{reason}")),
     }
@@ -362,9 +383,11 @@ pub(super) fn failure_reply(
     {
         parts.push(notice);
     }
-    parts.push(
-        "现在还没有交付可用结果；原要求仍保留在这段对话里，说「继续」或换个问法即可。".into(),
-    );
+    if !was_confirmation || promised {
+        parts.push(
+            "现在还没有交付可用结果；原要求仍保留在这段对话里，说「继续」或换个问法即可。".into(),
+        );
+    }
     Ok(parts.join("\n\n"))
 }
 
