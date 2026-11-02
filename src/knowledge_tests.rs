@@ -6,7 +6,7 @@ use crate::ai::{
 use crate::{
     event::NewEvent,
     knowledge::*,
-    storage::{ContentPolicy, Store, WikiPageDraft},
+    storage::{ContentPolicy, PendingAction, Store, WikiPageDraft},
 };
 use anyhow::Result;
 

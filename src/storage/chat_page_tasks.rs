@@ -222,13 +222,18 @@ pub(crate) fn bind_proposal_materials(
         snapshots.len() <= 8,
         "成果来源超出 8 份原料，请拆分对照任务"
     );
-    let bases = crate::knowledge::dependencies::capture(
-        store,
-        &materials
-            .iter()
-            .map(|page| page.slug.clone())
-            .collect::<Vec<_>>(),
-    )?;
+    // 逐页用派生降级通道：材料页可能是无来源的自由主题/用户粘贴页
+    // （事故 2026-11-02：严格 capture 的引用核验拒收，提案永远执行不了），
+    // 无依据 → 不建依赖边；有来源但失效/归档/待复核 → 仍然拒绝。
+    let mut bases = Vec::new();
+    for material in materials {
+        for basis in crate::knowledge::dependencies::capture_for_derivative(store, &material.slug)?
+        {
+            if !bases.iter().any(|b: &crate::knowledge::dependencies::Basis| b.page_id == basis.page_id) {
+                bases.push(basis);
+            }
+        }
+    }
     store.bind_page_sources(&artifact.id, &snapshots)?;
     crate::knowledge::dependencies::bind(store, &artifact.id, &bases)?;
     store.connection.execute(

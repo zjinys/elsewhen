@@ -131,6 +131,34 @@ pub(crate) fn save_draft(store: &Store, draft: &WikiPageDraft, args: &Value) -> 
             .collect::<Vec<_>>(),
     )?;
     super::dependencies::bind(store, &page.id, &bases)?;
+    // 派生挂靠（parent_slug）：与 create_derivative_with_generation 同一写法，
+    // 依赖捕获走降级通道（父页可能是无来源的自由主题页，事故 2026-11-02）。
+    if let Some(parent_slug) = args["parent_slug"].as_str().filter(|s| !s.trim().is_empty()) {
+        let parent = store
+            .get_wiki_page(parent_slug.trim())?
+            .with_context(|| format!("挂靠的父页不存在：{parent_slug}"))?;
+        ensure!(
+            parent.id != page.id,
+            "不能把页面挂靠到它自己下面"
+        );
+        store.connection.execute(
+            "UPDATE wiki_pages SET based_on=?1 WHERE id=?2",
+            params![parent.slug, page.id],
+        )?;
+        store.connection.execute(
+            "INSERT INTO knowledge_artifact_versions(page_id,parent_id,content_type,version,created_at)
+             SELECT ?1,?2,?3,COALESCE(MAX(version),0)+1,?4 FROM knowledge_artifact_versions
+             WHERE parent_id=?2",
+            params![
+                page.id,
+                parent.id,
+                page.kind,
+                page.created_at
+            ],
+        )?;
+        let parent_bases = super::dependencies::capture_for_derivative(store, &parent.slug)?;
+        super::dependencies::bind(store, &page.id, &parent_bases)?;
+    }
     store.confirm_authored_metadata_in_tx(&page.id, applicable, "reference")?;
     store.append_wiki_log(&format!(
         "确认对话知识：{}，{} 份原料，{} 个事件",

@@ -92,6 +92,41 @@ pub(crate) fn capture(store: &Store, slugs: &[String]) -> Result<Vec<Basis>> {
     Ok(out)
 }
 
+/// 派生物专用：上游无引用依据（自由主题/用户粘贴文本页）时允许降级为
+/// 不建依赖边，仅靠 `based_on` 字段保留追溯；但上游失效/归档/待复核
+/// 仍然拒绝。事故 2026-11-02：无来源「存为主题」页被 capture 的引用
+/// 核验拒收，派生物永远建不成，而引用契约（keeps_free_notes_unattributed）
+/// 不允许从引用侧放行 —— 对称的解法在派生侧：无依据 ≠ 失效，只是
+/// 派生物自身也降为无核验依据（它本来就带 generation provenance + 用户审阅）。
+pub(crate) fn capture_for_derivative(store: &Store, slug: &str) -> Result<Vec<Basis>> {
+    let p = store.get_wiki_page(slug)?.context("上游知识页不存在")?;
+    if !store.source_history(slug)?.is_empty() {
+        return Ok(Vec::new());
+    }
+    ensure!(!stale(store, &p.id)?, "上游知识仍待复核，请先处理上游页面");
+    ensure!(
+        p.status != "archived" && p.opinion.as_deref() != Some("reject"),
+        "上游页已归档或被否定，不能创建派生产物"
+    );
+    // 只有失效类原因（来源不可用/过期）才拒绝；纯粹无来源则降级。
+    match crate::knowledge::citation_for_page(store, &p, "依赖核验".into(), 100)? {
+        Some(_) => Ok(vec![Basis {
+            page_id: p.id.clone(),
+            hash: basis(store, &p)?,
+        }]),
+        None => {
+            let attributable = !p.source_event_ids.is_empty()
+                || p.source_url.is_some()
+                || !store.page_source_snapshots(slug)?.is_empty();
+            if attributable {
+                // 有来源但被判定不可引用（快照过期/事件不可记录等）＝真失效。
+                anyhow::bail!("上游知识已失效，请先修复其依据");
+            }
+            Ok(Vec::new())
+        }
+    }
+}
+
 pub(crate) fn validate(store: &Store, bases: &[Basis]) -> Result<()> {
     for b in bases {
         let p = page_by_id(store, &b.page_id)?;

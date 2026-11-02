@@ -118,10 +118,16 @@ pub fn adopt(store: &Store, slug: &str, revision: &str, adopt: bool) -> Result<(
                 && !super::dependencies::stale(store, &p.id)?,
             "产物已失效或待复核，不能采用"
         );
+        let has_sources = !p.source_event_ids.is_empty()
+            || p.source_url.is_some()
+            || !store.page_source_snapshots(&p.slug)?.is_empty();
         ensure!(
             // 孵化闸门豁免：闭环是「讨论 - 采用派生稿 - 纳入」，若采用
             // 核对按默认通道拦孵化页，ENDORSE 的前置条件永远无法满足。
-            super::citation_for_page_explicit(store, &p, "采用前核对".into(), 100)?.is_some(),
+            // 无依据派生物（上游本身是自由主题/用户粘贴页，事故 2026-11-02）
+            // 没有可失效的来源，跳过引用核对，失效状态已由上面的 stale/归档检查覆盖。
+            !has_sources
+                || super::citation_for_page_explicit(store, &p, "采用前核对".into(), 100)?.is_some(),
             "产物来源已失效，请先复核"
         );
         let latest:String=store.connection.query_row("SELECT id FROM wiki_revisions WHERE page_id=?1 ORDER BY created_at DESC,rowid DESC LIMIT 1",[&p.id],|r|r.get(0))?;

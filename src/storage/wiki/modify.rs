@@ -84,7 +84,7 @@ impl Store {
             .map(|s| s.id)
             .collect::<Vec<_>>();
         self.bind_page_sources(&id, &snapshots)?;
-        let bases = crate::knowledge::dependencies::capture(self, &[base.slug.clone()])?;
+        let bases = crate::knowledge::dependencies::capture_for_derivative(self, &base.slug)?;
         crate::knowledge::dependencies::bind(self, &id, &bases)?;
         self.connection.execute(
             "UPDATE wiki_pages SET source_event_ids=?1,evidence_count=?2 WHERE id=?3",

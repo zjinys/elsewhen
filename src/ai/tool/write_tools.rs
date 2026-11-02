@@ -71,7 +71,7 @@ impl Tool for SaveKnowledgeDraftTool {
         "save_knowledge_draft"
     }
     fn description(&self) -> &'static str {
-        "把对话中的知识草拟成页面，用户确认后保存。保存有引用的回答时，source_slugs 填实际采用且已提供的知识页面，applicable_when 写适用条件；系统固定来源版本，确认时再校验。无依据笔记可以保存但不能伪造来源。同名页不覆盖，改用 save_wiki_revision。"
+        "把对话中的知识草拟成页面，用户确认后保存。保存有引用的回答时，source_slugs 填实际采用且已提供的知识页面，applicable_when 写适用条件；系统固定来源版本，确认时再校验。从某个已有知识页（如页面聊天里的当前页）派生新页时，改用 parent_slug 填该页 slug，确认后作为派生产物挂在父页下。无依据笔记可以保存但不能伪造来源。同名页不覆盖，改用 save_wiki_revision。"
     }
     fn parameters_schema(&self) -> Value {
         json!({
@@ -82,6 +82,7 @@ impl Tool for SaveKnowledgeDraftTool {
                 "kind":{"type":"string","description":"页面类型，可选，默认 topic。已知类型：topic/source/insight/principle/method/case/relationship/decision/habit/project"},
                 "tags":{"type":"array","items":{"type":"string"},"description":"标签数组，可选"},
                 "source_slugs":{"type":"array","items":{"type":"string"},"description":"实际采用的已检索页面标识，最多 8 项；不填无关来源"},
+                "parent_slug":{"type":"string","description":"从某个已有知识页派生时填该页 slug（如页面聊天里草拟就填当前页），确认后作为派生产物挂在父页下；不能与 source_slugs 同时使用"},
                 "applicable_when":{"type":"string","description":"适用条件，保存有依据的方法/案例/规律时必填，最多 600 字"}
             },
             "required":["title","content_md"],
@@ -111,12 +112,22 @@ impl Tool for SaveKnowledgeDraftTool {
             ));
         }
         let kind = arg_str_opt(args, "kind").unwrap_or_else(|| "topic".to_string());
-        let evidence = crate::knowledge::authoring::draft_sources(
-            ctx.store,
-            ctx.conversation_id,
-            args,
-            ctx.knowledge_candidates,
-        )?;
+        let parent_slug = arg_str_opt(args, "parent_slug");
+        anyhow::ensure!(
+            parent_slug.is_none() || !args.get("source_slugs").is_some_and(|v| !v.is_null()),
+            "parent_slug 与 source_slugs 不能同时使用：派生挂靠和来源引用二选一"
+        );
+        let evidence = if parent_slug.is_some() {
+            // 派生挂靠不追证据：派生信任来自父页 + 用户审阅（同 create_derivative 降级语义）。
+            Vec::new()
+        } else {
+            crate::knowledge::authoring::draft_sources(
+                ctx.store,
+                ctx.conversation_id,
+                args,
+                ctx.knowledge_candidates,
+            )?
+        };
         let applicable = arg_str_opt(args, "applicable_when").unwrap_or_default();
         anyhow::ensure!(applicable.chars().count() <= 600, "适用条件最多 600 字");
         anyhow::ensure!(
@@ -141,6 +152,7 @@ impl Tool for SaveKnowledgeDraftTool {
             "tags": tags,
             "verified_evidence": evidence,
             "applicable_when": applicable,
+            "parent_slug": parent_slug,
         });
         store_create_pending(
             ctx.store,

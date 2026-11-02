@@ -300,3 +300,248 @@ fn synthetic_wiki_scale() {
     let retrieval_ms = start.elapsed().as_millis();
     eprintln!("scale pages={n},chars_per_page={},db_bytes={},queue_ms={queue_ms},first_page_ms={first_ms},search_ms={search_ms},missing_ms={missing_ms},deep_ms={deep_ms},retrieval_ms={retrieval_ms}",text.chars().count(),std::fs::metadata(&db.path).unwrap().len());
 }
+
+#[test]
+fn derivative_of_unattributed_topic_degrades_to_no_dependency_but_fails_when_stale() {
+    // 事故 2026-11-02：「存为主题」创建的无来源 topic 页无法被派生依赖
+    // （capture 的引用核验拒收），用户在页面聊天草拟派生产物后确认执行
+    // 报「上游知识已失效」。无依据 ≠ 失效：派生侧降级为不建依赖边，
+    // 保留 based_on 追溯；失效类原因仍然拒绝。
+    let db = Db::new();
+    let s = &db.store;
+    let topic = s
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                slug: "topic-15e2de08".into(),
+                kind: "topic".into(),
+                title: "一个女装换装的应用".into(),
+                summary: "用户粘贴的主题页".into(),
+                content_md: "应用背景与定位正文".into(),
+                tags: vec!["topic".into()],
+                source_event_ids: vec![],
+                status: "active".into(),
+                reason: "用户粘贴文本导入".into(),
+                source_url: None,
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap()
+        .page;
+    // 无来源 topic 页依旧不可作引用依据（引用契约不变）。
+    assert!(citation_for_page(s, &topic, "test".into(), 100)
+        .unwrap()
+        .is_none());
+    // 但派生物可以创建，且降级为无依赖边。
+    let derivative = s
+        .create_derivative_with_generation(
+            &topic.slug,
+            "抖音文案",
+            "宣传计划",
+            "系列文案正文",
+            "草拟测试",
+            None,
+        )
+        .unwrap();
+    assert_eq!(derivative.based_on.as_deref(), Some(topic.slug.as_str()));
+    let edges: i64 = s
+        .connection
+        .query_row(
+            "SELECT COUNT(*) FROM knowledge_dependencies WHERE page_id=?1",
+            [&derivative.id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(edges, 0, "无依据上游应降级为不建依赖边");
+    // 派生物自身无来源，采用时应跳过引用核对（失效由 stale/归档检查覆盖）。
+    let revision: String = s
+        .connection
+        .query_row(
+            "SELECT id FROM wiki_revisions WHERE page_id=?1 ORDER BY created_at DESC,rowid DESC LIMIT 1",
+            [&derivative.id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    workflows::adopt(s, &derivative.slug, &revision, true).unwrap();
+    // 对照：归档上游仍然拒绝派生。
+    s.connection
+        .execute(
+            "UPDATE wiki_pages SET status='archived' WHERE id=?1",
+            [&topic.id],
+        )
+        .unwrap();
+    assert!(s
+        .create_derivative_with_generation(
+            &topic.slug,
+            "抖音文案",
+            "第二条",
+            "正文",
+            "草拟测试",
+            None,
+        )
+        .is_err());
+}
+
+#[test]
+fn save_wiki_revision_derivative_executes_on_unattributed_topic() {
+    // 端到端回归（事故 2026-11-02 提案 4d173751）：页面聊天草拟派生产物 →
+    let db = Db::new();
+    let s = &db.store;
+    let topic = s
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                slug: "topic-15e2de08".into(),
+                kind: "topic".into(),
+                title: "一个女装换装的应用".into(),
+                summary: "x".into(),
+                content_md: "应用正文".into(),
+                tags: vec!["topic".into()],
+                source_event_ids: vec![],
+                status: "active".into(),
+                reason: "用户粘贴文本导入".into(),
+                source_url: None,
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap()
+        .page;
+    let conv = s.create_conversation(Some("t"), None).unwrap();
+    let basis = crate::knowledge::authoring::revision_basis(s, &topic).unwrap();
+    let args = serde_json::json!({
+        "slug": topic.slug,
+        "title": "nvzhuang 抖音宣传系列·文案与素材计划",
+        "content_md": "## 文案\n正文",
+        "change_note": "草拟抖音宣传系列文案与素材清单",
+        "save_as": "derivative",
+        "content_type": "抖音文案",
+        "base_hash": crate::storage::knowledge::content_hash("应用正文"),
+        "revision_basis": basis,
+        "page_task": {
+            "kind": "local_question",
+            "pages": [{
+                "slug": topic.slug,
+                "revision": basis,
+            }],
+        },
+    });
+    let pa = PendingAction {
+        id: "test-1".into(),
+        conversation_id: conv,
+        action: "save_wiki_revision".into(),
+        args_json: args.to_string(),
+        created_at: "2026-01-01T00:00:00Z".into(),
+    };
+    let result = crate::ai::tool::execute_pending_action(s, &pa);
+    match &result {
+        Ok(msg) => println!("SUCCESS: {msg}"),
+        Err(e) => panic!("REPLAY FAILED: {e:#}"),
+    }
+}
+
+#[test]
+fn knowledge_draft_with_parent_slug_attaches_as_derivative() {
+    // 事故 2026-11-02 §7：页面聊天草拟的知识页应能挂靠到父页（based_on + artifact_versions）
+    let db = Db::new();
+    let s = &db.store;
+    let parent = s
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                slug: "topic-15e2de08".into(),
+                kind: "topic".into(),
+                title: "一个女装换装的应用".into(),
+                summary: "x".into(),
+                content_md: "应用正文".into(),
+                tags: vec!["topic".into()],
+                source_event_ids: vec![],
+                status: "active".into(),
+                reason: "用户粘贴文本导入".into(),
+                source_url: None,
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap()
+        .page;
+    let draft = WikiPageDraft {
+        slug: "kb-nvzhuang-test-12345678".into(),
+        kind: "method".into(),
+        title: "nvzhuang 抖音宣传系列·文案与素材计划".into(),
+        summary: "文案".into(),
+        content_md: "## 文案\n正文".into(),
+        tags: vec!["method".into()],
+        source_event_ids: vec![],
+        status: "active".into(),
+        reason: "由 AI 工具草拟、用户确认后保存".into(),
+        source_url: None,
+    };
+    let args = serde_json::json!({ "parent_slug": parent.slug });
+    let page = crate::knowledge::authoring::save_draft(s, &draft, &args).unwrap();
+    assert_eq!(page.based_on.as_deref(), Some("topic-15e2de08"));
+    let n: i64 = s
+        .connection
+        .query_row(
+            "SELECT COUNT(*) FROM knowledge_artifact_versions WHERE page_id=?1 AND parent_id=?2",
+            [&page.id, &parent.id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(n, 1);
+    // 父页详情产物版本查询能返回
+    let listed = crate::knowledge::workflows::versions(s, &parent.slug, 0).unwrap();
+    assert!(listed.iter().any(|v| v.slug == page.slug));
+}
+
+#[test]
+fn knowledge_draft_parent_slug_end_to_end_via_pending_action() {
+    use crate::storage::PendingAction;
+    let db = Db::new();
+    let s = &db.store;
+    let parent = s
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                slug: "topic-15e2de08".into(),
+                kind: "topic".into(),
+                title: "一个女装换装的应用".into(),
+                summary: "x".into(),
+                content_md: "应用正文".into(),
+                tags: vec!["topic".into()],
+                source_event_ids: vec![],
+                status: "active".into(),
+                reason: "用户粘贴文本导入".into(),
+                source_url: None,
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap()
+        .page;
+    let conv = s.create_conversation(Some("t"), None).unwrap();
+    let args = serde_json::json!({
+        "title": "nvzhuang 部署手册·派生测试",
+        "content_md": "## 部署\n三步",
+        "kind": "method",
+        "tags": ["nvzhuang"],
+        "verified_evidence": [],
+        "applicable_when": "",
+        "parent_slug": parent.slug,
+    });
+    let pa = PendingAction {
+        id: "test-parent-1".into(),
+        conversation_id: conv.clone(),
+        action: "save_knowledge_draft".into(),
+        args_json: args.to_string(),
+        created_at: "2026-01-01T00:00:00Z".into(),
+    };
+    let msg = crate::ai::tool::execute_pending_action(s, &pa).unwrap();
+    println!("EXEC: {msg}");
+    let page = s.find_wiki_page_by_title("nvzhuang 部署手册·派生测试").unwrap().unwrap();
+    assert_eq!(page.based_on.as_deref(), Some("topic-15e2de08"));
+    // 父页不存在 → 拒绝且不落库
+    let bad = serde_json::json!({ "title":"孤儿页测试","content_md":"x","parent_slug":"no-such-page" });
+    let pa2 = PendingAction {
+        id: "test-parent-2".into(),
+        conversation_id: conv,
+        action: "save_knowledge_draft".into(),
+        args_json: bad.to_string(),
+        created_at: "2026-01-01T00:00:00Z".into(),
+    };
+    assert!(crate::ai::tool::execute_pending_action(s, &pa2).is_err());
+    assert!(s.find_wiki_page_by_title("孤儿页测试").unwrap().is_none());
+}
