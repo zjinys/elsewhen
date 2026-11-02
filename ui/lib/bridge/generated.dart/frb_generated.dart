@@ -113,7 +113,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 378038980;
+  int get rustContentHash => 389173234;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -378,6 +378,8 @@ abstract class RustLibApi extends BaseApi {
     required String entryId,
   });
 
+  Future<void> crateApiGoalsDismissCompassNudge({required String id});
+
   Future<void> crateApiReviewReportStoreDismissDeviation({
     required String reportId,
     required int index,
@@ -453,6 +455,8 @@ abstract class RustLibApi extends BaseApi {
     String? memoryType,
     int? memoryWindowSize,
   });
+
+  Future<GoalCompassNudgeDto?> crateApiGoalsGetActiveCompassNudge();
 
   Future<String?> crateApiProviderConfigGetAiProvider();
 
@@ -920,6 +924,8 @@ abstract class RustLibApi extends BaseApi {
     String? revisionId,
   });
 
+  Future<void> crateApiGoalsRealignCompassNudge({required String id});
+
   Future<bool> crateApiReviewFlowReanalyzeEvent({required String eventId});
 
   Future<String> crateApiKnowledgeReconsolidateKnowledgePage({
@@ -1244,6 +1250,8 @@ abstract class RustLibApi extends BaseApi {
   Future<String> crateApiWebSearchTestProxyConnection({
     required String proxyUrl,
   });
+
+  Future<GoalCompassNudgeDto?> crateApiGoalsTickGoalCompass();
 
   Future<HabitNudgeTickDto> crateApiHabitNudgesTickHabitNudges();
 
@@ -3142,6 +3150,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiGoalsDismissCompassNudge({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire.wire__crate__api__goals__dismiss_compass_nudge(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsDismissCompassNudgeConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsDismissCompassNudgeConstMeta =>
+      const TaskConstMeta(debugName: "dismiss_compass_nudge", argNames: ["id"]);
+
+  @override
   Future<void> crateApiReviewReportStoreDismissDeviation({
     required String reportId,
     required int index,
@@ -3694,6 +3727,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           "memoryWindowSize",
         ],
       );
+
+  @override
+  Future<GoalCompassNudgeDto?> crateApiGoalsGetActiveCompassNudge() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__goals__get_active_compass_nudge(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_opt_box_autoadd_goal_compass_nudge_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsGetActiveCompassNudgeConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsGetActiveCompassNudgeConstMeta =>
+      const TaskConstMeta(debugName: "get_active_compass_nudge", argNames: []);
 
   @override
   Future<String?> crateApiProviderConfigGetAiProvider() {
@@ -7365,6 +7419,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiGoalsRealignCompassNudge({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire.wire__crate__api__goals__realign_compass_nudge(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsRealignCompassNudgeConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsRealignCompassNudgeConstMeta =>
+      const TaskConstMeta(debugName: "realign_compass_nudge", argNames: ["id"]);
+
+  @override
   Future<bool> crateApiReviewFlowReanalyzeEvent({required String eventId}) {
     return handler.executeNormal(
       NormalTask(
@@ -9576,6 +9655,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<GoalCompassNudgeDto?> crateApiGoalsTickGoalCompass() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__goals__tick_goal_compass(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_opt_box_autoadd_goal_compass_nudge_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsTickGoalCompassConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsTickGoalCompassConstMeta =>
+      const TaskConstMeta(debugName: "tick_goal_compass", argNames: []);
+
+  @override
   Future<HabitNudgeTickDto> crateApiHabitNudgesTickHabitNudges() {
     return handler.executeNormal(
       NormalTask(
@@ -10696,6 +10796,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GoalCompassNudgeDto dco_decode_box_autoadd_goal_compass_nudge_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_goal_compass_nudge_dto(raw);
+  }
+
+  @protected
   GoalDto dco_decode_box_autoadd_goal_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_goal_dto(raw);
@@ -11318,6 +11426,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   double dco_decode_f_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as double;
+  }
+
+  @protected
+  GoalCompassNudgeDto dco_decode_goal_compass_nudge_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return GoalCompassNudgeDto(
+      id: dco_decode_String(arr[0]),
+      goalId: dco_decode_String(arr[1]),
+      goalContent: dco_decode_String(arr[2]),
+      currentFocus: dco_decode_String(arr[3]),
+      stalledDays: dco_decode_i_64(arr[4]),
+      recentTopics: dco_decode_String(arr[5]),
+      status: dco_decode_String(arr[6]),
+      createdAt: dco_decode_String(arr[7]),
+      dismissedUntil: dco_decode_opt_String(arr[8]),
+    );
   }
 
   @protected
@@ -12650,6 +12777,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GoalCompassNudgeDto? dco_decode_opt_box_autoadd_goal_compass_nudge_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_goal_compass_nudge_dto(raw);
+  }
+
+  @protected
   GoalDto? dco_decode_opt_box_autoadd_goal_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_goal_dto(raw);
@@ -13825,6 +13962,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GoalCompassNudgeDto sse_decode_box_autoadd_goal_compass_nudge_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_goal_compass_nudge_dto(deserializer));
+  }
+
+  @protected
   GoalDto sse_decode_box_autoadd_goal_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_goal_dto(deserializer));
@@ -14596,6 +14741,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   double sse_decode_f_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getFloat64();
+  }
+
+  @protected
+  GoalCompassNudgeDto sse_decode_goal_compass_nudge_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_goalId = sse_decode_String(deserializer);
+    var var_goalContent = sse_decode_String(deserializer);
+    var var_currentFocus = sse_decode_String(deserializer);
+    var var_stalledDays = sse_decode_i_64(deserializer);
+    var var_recentTopics = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    var var_dismissedUntil = sse_decode_opt_String(deserializer);
+    return GoalCompassNudgeDto(
+      id: var_id,
+      goalId: var_goalId,
+      goalContent: var_goalContent,
+      currentFocus: var_currentFocus,
+      stalledDays: var_stalledDays,
+      recentTopics: var_recentTopics,
+      status: var_status,
+      createdAt: var_createdAt,
+      dismissedUntil: var_dismissedUntil,
+    );
   }
 
   @protected
@@ -16738,6 +16910,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GoalCompassNudgeDto? sse_decode_opt_box_autoadd_goal_compass_nudge_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_goal_compass_nudge_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   GoalDto? sse_decode_opt_box_autoadd_goal_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -18227,6 +18412,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_goal_compass_nudge_dto(
+    GoalCompassNudgeDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_goal_compass_nudge_dto(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_goal_dto(GoalDto self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_goal_dto(self, serializer);
@@ -18807,6 +19001,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_f_64(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putFloat64(self);
+  }
+
+  @protected
+  void sse_encode_goal_compass_nudge_dto(
+    GoalCompassNudgeDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.goalId, serializer);
+    sse_encode_String(self.goalContent, serializer);
+    sse_encode_String(self.currentFocus, serializer);
+    sse_encode_i_64(self.stalledDays, serializer);
+    sse_encode_String(self.recentTopics, serializer);
+    sse_encode_String(self.status, serializer);
+    sse_encode_String(self.createdAt, serializer);
+    sse_encode_opt_String(self.dismissedUntil, serializer);
   }
 
   @protected
@@ -20477,6 +20688,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_f_64(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_goal_compass_nudge_dto(
+    GoalCompassNudgeDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_goal_compass_nudge_dto(self, serializer);
     }
   }
 

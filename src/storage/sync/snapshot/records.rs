@@ -173,6 +173,8 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     // 周期报告与偏差检测（R3）：管道产物，本机回顾状态不跨设备复制
     // （report/stats 本地可重算，偏差与已读是本机体验状态）。
     ("deviation_reports", "local-knowledge-pipeline"),
+    // 目标航向偏离检测提醒（Phase G4）：本地 worker 评估与退避交互产物，不跨设备同步。
+    ("goal_compass_nudges", "local-goal-compass-nudges"),
     ("knowledge_artifact_versions", "local-knowledge-pipeline"),
     ("knowledge_background_runs", "local-knowledge-pipeline"),
     ("knowledge_dependencies", "local-knowledge-pipeline"),

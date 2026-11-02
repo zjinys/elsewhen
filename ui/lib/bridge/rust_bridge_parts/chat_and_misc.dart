@@ -64,17 +64,6 @@ extension RepoChatAndMisc on RustBridgeRepository {
     required GoalPhase phase,
   }) => api.updateGoal(id: id, content: content, phase: phase.wire);
 
-  /// 滚动更新目标抓手与卡点（最常用的轻量认知更新操作）
-  Future<void> updateGoalFocus({
-    required String id,
-    String? currentFocus,
-    String? blocker,
-  }) => api.updateGoalFocus(
-        id: id,
-        currentFocus: currentFocus,
-        blocker: blocker,
-      );
-
   /// 更新目标的所有认知切片字段
   Future<void> updateGoalFacets({
     required String id,

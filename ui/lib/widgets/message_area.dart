@@ -12,6 +12,7 @@ import 'page_mark_review.dart';
 import 'chat_proposal_review.dart';
 import 'chat_run_status.dart';
 import 'chat_input_queue.dart';
+import 'goal_compass_banner.dart';
 import '../providers/chat_run_provider.dart';
 import '../bridge/api.dart'
     show ChatInputMode, HabitNudgeInputDto, HabitNudgeStateDto;
@@ -73,6 +74,13 @@ final saveTopicDraftProvider = NotifierProvider.autoDispose
 /// 习惯问候卡「聊聊」预填指令：问候卡写入这里，_MessageInput 监听后填入
 /// 输入框并聚焦，不直接发送（用户可改可发），机制与 saveTopicDraftProvider 相同。
 final habitChatDraftProvider = NotifierProvider.autoDispose
+    .family<StateHolder<String?>, String?, String>(
+      (conversationId) => StateHolder<String?>(null),
+    );
+
+/// 航向偏离校准「聚焦讨论」预填指令：校准卡/横幅写入这里，_MessageInput 监听后填入
+/// 输入框并聚焦，不直接发送（用户可改可发）。
+final goalCompassChatDraftProvider = NotifierProvider.autoDispose
     .family<StateHolder<String?>, String?, String>(
       (conversationId) => StateHolder<String?>(null),
     );
@@ -422,6 +430,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
               : null,
         ),
         const ReminderBanner(),
+        const GoalCompassNudgeBanner(),
         if (showSearch) _buildSearchBar(messagesAsync.value ?? const []),
         _PendingRelationsBanner(),
         // Messages list

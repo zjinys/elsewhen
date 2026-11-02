@@ -20,6 +20,7 @@ import '../widgets/companion_revisit_hint.dart';
 import '../widgets/sync_backlog_banner.dart';
 import '../widgets/glass.dart';
 import '../widgets/review_view.dart';
+import '../widgets/goal_view.dart';
 import '../widgets/chat_proposal_review.dart';
 import '../widgets/sync_workspace.dart';
 import '../bridge/rust_bridge_repository.dart';
@@ -75,9 +76,9 @@ class MainScreen extends ConsumerWidget {
                   ? (tab == SidebarTab.conversation
                         // 对话：高频「今天」操作行（目标/待办/创建主题/搜索）。
                         ? const [TodayTitleBarActions()]
-                        // 知识库/回顾/同步：顶栏放「对话/知识」快速导航按钮
+                        // 知识库/回顾/同步/目标：顶栏放「对话/知识」快速导航按钮
                         //（当前 tab 高亮），免开抽屉切回主 tab；抽屉保留，
-                        // 里面的最近页面/回顾日期/同步仪表导航不变。
+                        // 里面的最近页面/回顾日期/同步仪表/目标摘要导航不变。
                         : tab == SidebarTab.wiki
                         ? const [_WikiTabTitleBarActions()]
                         : const [_TabNavTitleBarActions()])
@@ -176,6 +177,12 @@ class MainScreen extends ConsumerWidget {
                                 );
                               },
                             ),
+                          ),
+                          // 目标总览（一级入口）：只读工作台，写操作仍在
+                          // 对话流/弹窗面板（GoalListView.readOnly 注释）。
+                          SidebarTab.goal => const Align(
+                            alignment: Alignment.topCenter,
+                            child: GoalListView(readOnly: true),
                           ),
                         },
                       ),

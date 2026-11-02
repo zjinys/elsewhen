@@ -99,6 +99,20 @@ pub struct Goal {
     pub superseded_at: Option<String>,
 }
 
+/// 航向偏离校准提醒（Compass Nudge，FR-PES-005-04）
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GoalCompassNudge {
+    pub id: String,
+    pub goal_id: String,
+    pub goal_content: String,
+    pub current_focus: String,
+    pub stalled_days: i64,
+    pub recent_topics: String,
+    pub status: String, // "pending" | "dismissed" | "realigned"
+    pub created_at: String,
+    pub dismissed_until: Option<String>,
+}
+
 /// 触发器用 `RAISE(ABORT, 'active_goal_limit_reached')` 拒绝写入，原样冒泡会把
 /// 那串下划线标识送到界面上，这里换成能直接展示给用户的话。
 fn map_write_error(error: SqliteError) -> anyhow::Error {
@@ -311,6 +325,13 @@ impl Store {
         if changed == 0 {
             anyhow::bail!("目标不存在: {id}");
         }
+        // 抓手已更新 → 该目标的 pending 航向校准卡片即告过时：同事务内
+        // 标记 realigned，避免横幅在工作台滚动抓手后仍永久展示旧抓手/
+        // 旧停滞天数（P1：evaluate_goal_compass 首步直接返回现存卡片）。
+        self.connection.execute(
+            "UPDATE goal_compass_nudges SET status='realigned' WHERE goal_id=?1 AND status='pending'",
+            params![id],
+        )?;
         self.sync_record_goal(id)?;
         if let Some(tx) = tx {
             tx.commit()?;
@@ -346,6 +367,12 @@ impl Store {
         if changed == 0 {
             anyhow::bail!("目标不存在: {id}");
         }
+        // 与 update_goal_focus 同理：认知切片（含 current_focus）更新后，
+        // pending 偏离卡片的展示内容即告过时，同事务内校准消除。
+        self.connection.execute(
+            "UPDATE goal_compass_nudges SET status='realigned' WHERE goal_id=?1 AND status='pending'",
+            params![id],
+        )?;
         self.sync_record_goal(id)?;
         if let Some(tx) = tx {
             tx.commit()?;
@@ -389,6 +416,11 @@ impl Store {
         if changed == 0 {
             anyhow::bail!("目标不存在: {id}");
         }
+        // 同上：full 更新也可能改写 current_focus，pending 卡片随之过时。
+        self.connection.execute(
+            "UPDATE goal_compass_nudges SET status='realigned' WHERE goal_id=?1 AND status='pending'",
+            params![id],
+        )?;
         self.sync_record_goal(id)?;
         if let Some(tx) = tx {
             tx.commit()?;
@@ -488,6 +520,108 @@ impl Store {
             tx.commit()?;
         }
         Ok(())
+    }
+
+    /// 插入一条航向校准提醒（纯本地衍生衍生提醒，不走 CRDT 同步）。
+    pub fn insert_compass_nudge(&self, nudge: &GoalCompassNudge) -> Result<()> {
+        self.connection.execute(
+            "INSERT INTO goal_compass_nudges(
+                id, goal_id, goal_content, current_focus, stalled_days,
+                recent_topics, status, created_at, dismissed_until
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                nudge.id,
+                nudge.goal_id,
+                nudge.goal_content,
+                nudge.current_focus,
+                nudge.stalled_days,
+                nudge.recent_topics,
+                nudge.status,
+                nudge.created_at,
+                nudge.dismissed_until,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// 获取当前生效中的最新一条航向校准提醒。
+    /// 若关联目标已不再处于 active 状态，或当前仍在退避期内，返回 None。
+    pub fn get_active_compass_nudge(&self) -> Result<Option<GoalCompassNudge>> {
+        let now = chrono::Utc::now().to_rfc3339();
+        let mut stmt = self.connection.prepare(
+            "SELECT n.id, n.goal_id, n.goal_content, n.current_focus, n.stalled_days,
+                    n.recent_topics, n.status, n.created_at, n.dismissed_until
+             FROM goal_compass_nudges n
+             JOIN goals g ON n.goal_id = g.id
+             WHERE n.status = 'pending'
+               AND g.status = 'active'
+               AND (n.dismissed_until IS NULL OR n.dismissed_until <= ?1)
+             ORDER BY n.created_at DESC
+             LIMIT 1",
+        )?;
+        let mut rows = stmt.query_map(params![now], |row| {
+            Ok(GoalCompassNudge {
+                id: row.get(0)?,
+                goal_id: row.get(1)?,
+                goal_content: row.get(2)?,
+                current_focus: row.get(3)?,
+                stalled_days: row.get(4)?,
+                recent_topics: row.get(5)?,
+                status: row.get(6)?,
+                created_at: row.get(7)?,
+                dismissed_until: row.get(8)?,
+            })
+        })?;
+        if let Some(res) = rows.next() {
+            Ok(Some(res?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// 标记暂不打扰，设定静默退避天数（通常为 7 天）。
+    pub fn dismiss_compass_nudge(&self, id: &str, dismiss_days: i64) -> Result<()> {
+        let now = chrono::Utc::now();
+        let until = (now + chrono::Duration::days(dismiss_days)).to_rfc3339();
+        let changed = self.connection.execute(
+            "UPDATE goal_compass_nudges SET status='dismissed', dismissed_until=?2 WHERE id=?1",
+            params![id, until],
+        )?;
+        if changed == 0 {
+            anyhow::bail!("航向校准提醒不存在或已处理: {id}");
+        }
+        Ok(())
+    }
+
+    /// 标记为已完成航向校准（例如用户更新了抓手或聚焦攻克卡点）。
+    pub fn realign_compass_nudge(&self, id: &str) -> Result<()> {
+        self.connection.execute(
+            "UPDATE goal_compass_nudges SET status='realigned' WHERE id=?1",
+            params![id],
+        )?;
+        Ok(())
+    }
+
+    /// 检查指定目标在最近 within_days 内是否已有提醒，或者是否处于暂不打扰退避期。
+    pub fn has_recent_compass_nudge_for_goal(
+        &self,
+        goal_id: &str,
+        within_days: i64,
+    ) -> Result<bool> {
+        let now = chrono::Utc::now();
+        let threshold = (now - chrono::Duration::days(within_days)).to_rfc3339();
+        let now_str = now.to_rfc3339();
+        let count: i64 = self.connection.query_row(
+            "SELECT count(*) FROM goal_compass_nudges
+             WHERE goal_id = ?1
+               AND (
+                 created_at >= ?2
+                 OR (dismissed_until IS NOT NULL AND dismissed_until > ?3)
+               )",
+            params![goal_id, threshold, now_str],
+            |row| row.get(0),
+        )?;
+        Ok(count > 0)
     }
 }
 
@@ -759,5 +893,91 @@ mod tests {
         assert!(store.store.pause_goal("nope").is_err());
         assert!(store.store.complete_goal("nope").is_err());
         assert!(store.store.reactivate_goal("nope").is_err());
+    }
+
+    #[test]
+    fn compass_nudge_lifecycle_and_dismiss_backoff() {
+        let store = store();
+        let g = store
+            .store
+            .create_goal_with_facets(
+                "攻克多端同步",
+                GoalPhase::Near,
+                Some("保障数据安全"),
+                Some("排查快照分片停滞"),
+                None,
+                None,
+            )
+            .unwrap();
+
+        // 初始无 nudge
+        assert!(store.store.get_active_compass_nudge().unwrap().is_none());
+        assert!(
+            !store
+                .store
+                .has_recent_compass_nudge_for_goal(&g.id, 7)
+                .unwrap()
+        );
+
+        let nudge = GoalCompassNudge {
+            id: "nudge-1".to_string(),
+            goal_id: g.id.clone(),
+            goal_content: g.content.clone(),
+            current_focus: g.current_focus.clone().unwrap(),
+            stalled_days: 4,
+            recent_topics: "报销, 闲聊, 整理书架".to_string(),
+            status: "pending".to_string(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+            dismissed_until: None,
+        };
+        store.store.insert_compass_nudge(&nudge).unwrap();
+
+        // 查询到待对齐卡片
+        let active_nudge = store.store.get_active_compass_nudge().unwrap().unwrap();
+        assert_eq!(active_nudge.id, "nudge-1");
+        assert_eq!(active_nudge.goal_id, g.id);
+        assert_eq!(active_nudge.stalled_days, 4);
+        assert!(
+            store
+                .store
+                .has_recent_compass_nudge_for_goal(&g.id, 7)
+                .unwrap()
+        );
+
+        // 用户点击暂不打扰（静默 7 天）
+        store
+            .store
+            .dismiss_compass_nudge(&active_nudge.id, 7)
+            .unwrap();
+        assert!(store.store.get_active_compass_nudge().unwrap().is_none());
+        assert!(
+            store
+                .store
+                .has_recent_compass_nudge_for_goal(&g.id, 7)
+                .unwrap()
+        );
+
+        // 插入第二条 pending nudge 验证已完成/已暂停的目标会被关联过滤
+        let g2 = store
+            .store
+            .create_goal_with_facets("目标2", GoalPhase::Mid, None, Some("抓手2"), None, None)
+            .unwrap();
+        let nudge2 = GoalCompassNudge {
+            id: "nudge-2".to_string(),
+            goal_id: g2.id.clone(),
+            goal_content: g2.content.clone(),
+            current_focus: "抓手2".to_string(),
+            stalled_days: 5,
+            recent_topics: "修车".to_string(),
+            status: "pending".to_string(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+            dismissed_until: None,
+        };
+        store.store.insert_compass_nudge(&nudge2).unwrap();
+        assert!(store.store.get_active_compass_nudge().unwrap().is_some());
+
+        // 当 g2 达成后，其 nudge 自动不再作为 active 展示
+        store.store.complete_goal(&g2.id).unwrap();
+        assert!(store.store.get_active_compass_nudge().unwrap().is_none());
     }
 }

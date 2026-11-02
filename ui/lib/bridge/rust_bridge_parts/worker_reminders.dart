@@ -165,6 +165,25 @@ extension RepoWorkerReminders on RustBridgeRepository {
   Future<void> setTodoReminder(String id, bool reminder) =>
       api.setTodoReminder(id: id, reminder: reminder);
 
+  // ── 航向偏离校准（Compass Nudge，FR-PES-005-04）────────────────
+
+  Future<void> _tickGoalCompass() async {
+    try {
+      final dto = await api.tickGoalCompass();
+      if (_disposed) return;
+      final nudge = dto == null ? null : GoalCompassNudge.fromDto(dto);
+      // GoalCompassNudge 未覆写 ==，直接赋值会令监听者每拍无谓 rebuild；
+      // 同 id（现存卡片未变）时跳过写入。
+      final current = activeCompassNudge.value;
+      if (nudge?.id != current?.id) {
+        activeCompassNudge.value = nudge;
+      }
+    } catch (e) {
+      // 故障隔离：校准评估失败只记日志，绝不带崩其他流程。
+      debugPrint('goal compass tick failed: $e');
+    }
+  }
+
   // ── 习惯主动问候 ────────────────────────────────────────────────
 
   Future<void> _tickHabitNudges() async {

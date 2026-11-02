@@ -133,6 +133,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_box_autoadd_f_64(dynamic raw);
 
   @protected
+  GoalCompassNudgeDto dco_decode_box_autoadd_goal_compass_nudge_dto(
+    dynamic raw,
+  );
+
+  @protected
   GoalDto dco_decode_box_autoadd_goal_dto(dynamic raw);
 
   @protected
@@ -280,6 +285,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double dco_decode_f_64(dynamic raw);
+
+  @protected
+  GoalCompassNudgeDto dco_decode_goal_compass_nudge_dto(dynamic raw);
 
   @protected
   GoalDto dco_decode_goal_dto(dynamic raw);
@@ -710,6 +718,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
 
   @protected
+  GoalCompassNudgeDto? dco_decode_opt_box_autoadd_goal_compass_nudge_dto(
+    dynamic raw,
+  );
+
+  @protected
   GoalDto? dco_decode_opt_box_autoadd_goal_dto(dynamic raw);
 
   @protected
@@ -993,6 +1006,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  GoalCompassNudgeDto sse_decode_box_autoadd_goal_compass_nudge_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   GoalDto sse_decode_box_autoadd_goal_dto(SseDeserializer deserializer);
 
   @protected
@@ -1178,6 +1196,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double sse_decode_f_64(SseDeserializer deserializer);
+
+  @protected
+  GoalCompassNudgeDto sse_decode_goal_compass_nudge_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   GoalDto sse_decode_goal_dto(SseDeserializer deserializer);
@@ -1746,6 +1769,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  GoalCompassNudgeDto? sse_decode_opt_box_autoadd_goal_compass_nudge_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   GoalDto? sse_decode_opt_box_autoadd_goal_dto(SseDeserializer deserializer);
 
   @protected
@@ -2170,6 +2198,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double cst_encode_box_autoadd_f_64(double raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_f_64(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_goal_compass_nudge_dto(GoalCompassNudgeDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_goal_compass_nudge_dto(raw);
   }
 
   @protected
@@ -2692,6 +2726,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.recordedAt),
       cst_encode_String(raw.source),
       cst_encode_String(raw.status),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_goal_compass_nudge_dto(GoalCompassNudgeDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.goalId),
+      cst_encode_String(raw.goalContent),
+      cst_encode_String(raw.currentFocus),
+      cst_encode_i_64(raw.stalledDays),
+      cst_encode_String(raw.recentTopics),
+      cst_encode_String(raw.status),
+      cst_encode_String(raw.createdAt),
+      cst_encode_opt_String(raw.dismissedUntil),
     ].jsify()!;
   }
 
@@ -3872,6 +3922,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny? cst_encode_opt_box_autoadd_goal_compass_nudge_dto(
+    GoalCompassNudgeDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? null
+        : cst_encode_box_autoadd_goal_compass_nudge_dto(raw);
+  }
+
+  @protected
   JSAny? cst_encode_opt_box_autoadd_goal_dto(GoalDto? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_goal_dto(raw);
@@ -4786,6 +4846,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_goal_compass_nudge_dto(
+    GoalCompassNudgeDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_goal_dto(GoalDto self, SseSerializer serializer);
 
   @protected
@@ -5039,6 +5105,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_goal_compass_nudge_dto(
+    GoalCompassNudgeDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_goal_dto(GoalDto self, SseSerializer serializer);
@@ -5747,6 +5819,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_goal_compass_nudge_dto(
+    GoalCompassNudgeDto? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_goal_dto(
@@ -6620,6 +6698,11 @@ class RustLibWire implements BaseWire {
     entry_id,
   );
 
+  void wire__crate__api__goals__dismiss_compass_nudge(
+    NativePortType port_,
+    String id,
+  ) => wasmModule.wire__crate__api__goals__dismiss_compass_nudge(port_, id);
+
   void wire__crate__api__review_report__store__dismiss_deviation(
     NativePortType port_,
     String report_id,
@@ -6772,6 +6855,10 @@ class RustLibWire implements BaseWire {
     memory_type,
     memory_window_size,
   );
+
+  void wire__crate__api__goals__get_active_compass_nudge(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__goals__get_active_compass_nudge(port_);
 
   void wire__crate__api__provider_config__get_ai_provider(
     NativePortType port_,
@@ -7690,6 +7777,11 @@ class RustLibWire implements BaseWire {
     revision_id,
   );
 
+  void wire__crate__api__goals__realign_compass_nudge(
+    NativePortType port_,
+    String id,
+  ) => wasmModule.wire__crate__api__goals__realign_compass_nudge(port_, id);
+
   void wire__crate__api__review_flow__reanalyze_event(
     NativePortType port_,
     String event_id,
@@ -8363,6 +8455,9 @@ class RustLibWire implements BaseWire {
     proxy_url,
   );
 
+  void wire__crate__api__goals__tick_goal_compass(NativePortType port_) =>
+      wasmModule.wire__crate__api__goals__tick_goal_compass(port_);
+
   void wire__crate__api__habit_nudges__tick_habit_nudges(
     NativePortType port_,
   ) => wasmModule.wire__crate__api__habit_nudges__tick_habit_nudges(port_);
@@ -8967,6 +9062,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String entry_id,
   );
 
+  external void wire__crate__api__goals__dismiss_compass_nudge(
+    NativePortType port_,
+    String id,
+  );
+
   external void wire__crate__api__review_report__store__dismiss_deviation(
     NativePortType port_,
     String report_id,
@@ -9066,6 +9166,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? provider_type,
     String? memory_type,
     int? memory_window_size,
+  );
+
+  external void wire__crate__api__goals__get_active_compass_nudge(
+    NativePortType port_,
   );
 
   external void wire__crate__api__provider_config__get_ai_provider(
@@ -9714,6 +9818,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? revision_id,
   );
 
+  external void wire__crate__api__goals__realign_compass_nudge(
+    NativePortType port_,
+    String id,
+  );
+
   external void wire__crate__api__review_flow__reanalyze_event(
     NativePortType port_,
     String event_id,
@@ -10129,6 +10238,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__web_search__test_proxy_connection(
     NativePortType port_,
     String proxy_url,
+  );
+
+  external void wire__crate__api__goals__tick_goal_compass(
+    NativePortType port_,
   );
 
   external void wire__crate__api__habit_nudges__tick_habit_nudges(

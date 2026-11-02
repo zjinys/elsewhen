@@ -112,6 +112,7 @@ fn migrations_are_discovered_from_the_directory() {
             "63-relay-v3-review-f5",
             "64-drop-mail-snapshot",
             "65-cognitive-goals",
+            "66-goal-compass-nudges",
         ],
         "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
     );
@@ -143,7 +144,7 @@ fn migration_applies_goals_table() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 65, "六十五条迁移跑完，user_version 应为 65");
+    assert_eq!(version, 66, "六十六条迁移跑完，user_version 应为 66");
     assert_eq!(
         latest_version().unwrap(),
         version,
@@ -661,7 +662,7 @@ fn v65_cognitive_goals_migration_keeps_data_and_updates_status() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 65);
+    assert_eq!(version, 66);
 
     // 验证原有的 superseded 状态已平滑变为 paused，且切片列为 NULL
     let (status, why, focus, blocker, criteria): (
@@ -756,4 +757,41 @@ fn v65_cognitive_goals_migration_keeps_data_and_updates_status() {
         )
         .unwrap_err();
     assert!(err_update.to_string().contains(ACTIVE_GOAL_LIMIT_REACHED));
+}
+
+#[test]
+fn v66_goal_compass_nudges_table_created() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    initialize(&mut connection).unwrap();
+
+    let version: i64 = connection
+        .query_row("PRAGMA main.user_version", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(version, 66);
+
+    // 插入活跃目标和关联 nudge
+    connection
+        .execute(
+            "INSERT INTO goals(id, content, phase, status, created_at, updated_at)
+             VALUES('g-1', '测试目标', 'near', 'active', 't0', 't0')",
+            [],
+        )
+        .unwrap();
+
+    connection
+        .execute(
+            "INSERT INTO goal_compass_nudges(id, goal_id, goal_content, current_focus, stalled_days, recent_topics, status, created_at)
+             VALUES('n-1', 'g-1', '测试目标', '首要抓手', 4, '琐事 A, 琐事 B', 'pending', 't1')",
+            [],
+        )
+        .unwrap();
+
+    let count: i64 = connection
+        .query_row(
+            "SELECT count(*) FROM goal_compass_nudges WHERE status='pending'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(count, 1);
 }

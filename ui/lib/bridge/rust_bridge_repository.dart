@@ -59,6 +59,10 @@ class RustBridgeRepository implements StorageRepository {
   bool _housekeepingRunning = false;
   Timer? _analysisTimer;
 
+  /// 航向校准降频计数：3~5 天尺度检测器每 12 拍（≈60s）评一次。
+  int _compassTickCounter = 0;
+  static const int _compassTickEvery = 12;
+
   /// 后台 worker 的失败分类与退避（终态不重试，见 [BackgroundFailurePolicy]）。
   final BackgroundFailurePolicy _failurePolicy = BackgroundFailurePolicy();
 
@@ -174,6 +178,12 @@ class RustBridgeRepository implements StorageRepository {
         try {
           await _tickDueReminders();
           await _tickHabitNudges();
+          // 航向校准检测器工作在 3~5 天尺度，无需跟 5s 拍：降频至分钟级
+          // （每 12 拍 ≈ 60s），失败隔离与响应路径不变。
+          _compassTickCounter++;
+          if (_compassTickCounter % _compassTickEvery == 0) {
+            await _tickGoalCompass();
+          }
         } finally {
           _housekeepingRunning = false;
         }
@@ -190,6 +200,7 @@ class RustBridgeRepository implements StorageRepository {
     });
     await _tickDueReminders();
     await _tickHabitNudges();
+    await _tickGoalCompass();
     _wakeAnalysisWorker();
   }
 
@@ -401,6 +412,10 @@ class RustBridgeRepository implements StorageRepository {
 
   /// 到期提醒广播（UI 订阅弹出）。只进不出：tick 只负责发现+记录 fire+广播，
   /// 确认/推迟由 UI 动作走独立 API（见 confirmReminder/snoozeReminder）。
+  /// 航向偏离校准提醒（Compass Nudge，FR-PES-005-04）。
+  final ValueNotifier<GoalCompassNudge?> activeCompassNudge =
+      ValueNotifier<GoalCompassNudge?>(null);
+
   final ValueNotifier<List<api.DueReminderDto>> dueReminders =
       ValueNotifier<List<api.DueReminderDto>>(const []);
 
@@ -573,6 +588,35 @@ class RustBridgeRepository implements StorageRepository {
   Future<Conversation> ensureWikiPageChat(String pageSlug) async {
     final dto = await api.ensureWikiPageChat(pageSlug: pageSlug);
     return _fromConversationDto(dto);
+  }
+
+  // ── 目标航向与认知切片虚分派方法（支持测试 Fake 覆写）──
+
+  /// 滚动更新目标抓手与卡点（最常用的轻量认知更新操作）
+  Future<void> updateGoalFocus({
+    required String id,
+    String? currentFocus,
+    String? blocker,
+  }) => api.updateGoalFocus(
+        id: id,
+        currentFocus: currentFocus,
+        blocker: blocker,
+      );
+
+  /// 暂不打扰航向校准提醒（静默退避 7 天）
+  Future<void> dismissCompassNudge(String id) async {
+    await api.dismissCompassNudge(id: id);
+    if (activeCompassNudge.value?.id == id) {
+      activeCompassNudge.value = null;
+    }
+  }
+
+  /// 标记校准完成（已重新校准/调整抓手）
+  Future<void> realignCompassNudge(String id) async {
+    await api.realignCompassNudge(id: id);
+    if (activeCompassNudge.value?.id == id) {
+      activeCompassNudge.value = null;
+    }
   }
 }
 

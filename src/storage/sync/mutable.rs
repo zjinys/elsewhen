@@ -550,13 +550,12 @@ impl Store {
                 .optional()?;
             let turning_active = current.as_deref() != Some("active");
             if turning_active {
-                let (count, exists): (i64, bool) = self.connection.query_row(
+                let (count, _): (i64, bool) = self.connection.query_row(
                     "SELECT (SELECT COUNT(*) FROM goals WHERE status='active'), \
                      EXISTS(SELECT 1 FROM goals WHERE id=?1)",
                     [&goal.id],
                     |r| Ok((r.get(0)?, r.get(1)?)),
                 )?;
-                let _ = exists;
                 if count >= MAX_ACTIVE_GOALS {
                     return Ok(Apply::Conflict {
                         kind: "goal",

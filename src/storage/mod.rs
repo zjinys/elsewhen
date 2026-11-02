@@ -83,7 +83,7 @@ pub use digest::{
     DIGEST_FAILED_COOLDOWN_SECS, DIGEST_MAX_ATTEMPTS, DIGEST_SETTLE_SECS, DIGEST_VERSION,
     DigestBatch, DigestBatchOutcome, DigestJobRow, DigestJobStats, DigestRunRow,
 };
-pub use goals::{Goal, GoalPhase, GoalStatus, MAX_ACTIVE_GOALS};
+pub use goals::{Goal, GoalCompassNudge, GoalPhase, GoalStatus, MAX_ACTIVE_GOALS};
 pub use knowledge::{
     KnowledgeIssue, KnowledgeMetadata, KnowledgeProposal, RejectedSourceRow, SourceSnapshot,
 };

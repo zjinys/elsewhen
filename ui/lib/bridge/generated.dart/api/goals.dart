@@ -7,8 +7,8 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `parse_phase`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`
+// These functions are ignored because they are not marked as `pub`: `evaluate_goal_compass`, `matches_text`, `parse_phase`, `summarize_recent_topics`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`
 
 /// 列出全部活跃目标（最多 3 条，按近期→中期→长远排序）
 Future<List<GoalDto>> listActiveGoals() =>
@@ -127,6 +127,74 @@ Future<void> reactivateGoal({
   currentFocus: currentFocus,
   blocker: blocker,
 );
+
+/// 获取当前生效中的航向校准卡片（若无则返回 None）
+Future<GoalCompassNudgeDto?> getActiveCompassNudge() =>
+    RustLib.instance.api.crateApiGoalsGetActiveCompassNudge();
+
+/// 后台 worker 定时调用：执行长程偏离检测评估
+Future<GoalCompassNudgeDto?> tickGoalCompass() =>
+    RustLib.instance.api.crateApiGoalsTickGoalCompass();
+
+/// 用户点击「处理急事，暂不打扰」：静默退避 7 天
+Future<void> dismissCompassNudge({required String id}) =>
+    RustLib.instance.api.crateApiGoalsDismissCompassNudge(id: id);
+
+/// 航向已校准（例如用户点击了「聚焦攻克卡点」或「更新当前抓手」）
+Future<void> realignCompassNudge({required String id}) =>
+    RustLib.instance.api.crateApiGoalsRealignCompassNudge(id: id);
+
+/// 航向偏离校准提醒 DTO（Compass Nudge，FR-PES-005-04）
+class GoalCompassNudgeDto {
+  final String id;
+  final String goalId;
+  final String goalContent;
+  final String currentFocus;
+  final PlatformInt64 stalledDays;
+  final String recentTopics;
+  final String status;
+  final String createdAt;
+  final String? dismissedUntil;
+
+  const GoalCompassNudgeDto({
+    required this.id,
+    required this.goalId,
+    required this.goalContent,
+    required this.currentFocus,
+    required this.stalledDays,
+    required this.recentTopics,
+    required this.status,
+    required this.createdAt,
+    this.dismissedUntil,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      goalId.hashCode ^
+      goalContent.hashCode ^
+      currentFocus.hashCode ^
+      stalledDays.hashCode ^
+      recentTopics.hashCode ^
+      status.hashCode ^
+      createdAt.hashCode ^
+      dismissedUntil.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GoalCompassNudgeDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          goalId == other.goalId &&
+          goalContent == other.goalContent &&
+          currentFocus == other.currentFocus &&
+          stalledDays == other.stalledDays &&
+          recentTopics == other.recentTopics &&
+          status == other.status &&
+          createdAt == other.createdAt &&
+          dismissedUntil == other.dismissedUntil;
+}
 
 /// 目标 DTO
 class GoalDto {

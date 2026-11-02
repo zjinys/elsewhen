@@ -337,6 +337,17 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
           ref.read(habitChatDraftProvider(selectedId).notifier).set(null);
         }
       });
+      // 航向偏离校准「聚焦讨论」预填：填入输入框并聚焦，绝不自动发送。
+      ref.listen(goalCompassChatDraftProvider(selectedId), (prev, next) {
+        if (next != null) {
+          _controller.text = next;
+          _controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: next.length),
+          );
+          _focusNode.requestFocus();
+          ref.read(goalCompassChatDraftProvider(selectedId).notifier).set(null);
+        }
+      });
     }
     final durableBusy =
         selectedId != null &&

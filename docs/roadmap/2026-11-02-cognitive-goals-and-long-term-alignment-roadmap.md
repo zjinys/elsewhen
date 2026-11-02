@@ -30,9 +30,9 @@
 |---|---|---|---|---|
 | **Phase 0** | **G0** | 规范与模型契约冻结 | 认知型目标 4 切片与 3 态状态机定义 | **已完成** |
 | **Phase 1** | **G1** | 存储层迁移与同步协议演进 | migration 65、`Store` CRUD、`GoalRecord` 扩展、FRB 门面与 Dart 适配 | **已完成**（commit / v65 测试与 goal_model_test 全绿） |
-| **Phase 2** | **G2** | AI 上下文重构与对话式立项 | 废除禁言护栏、注入抓手与卡点、Co-authoring 引导 | 进行中 |
-| **Phase 3** | **G3** | Flutter UI 工作台与读档交互 | 卡片式目标板、抓手快捷推进、达成/暂停分流、读档复活 | 依赖 G1 |
-| **Phase 4** | **G4** | 3~5 天航向对齐检测与校准卡片 | 滑动窗口脱靶计算、航向校准卡片、三向响应闭环 | 依赖 G2, G3 |
+| **Phase 2** | **G2** | AI 上下文重构与对话式立项 | 废除禁言护栏、注入抓手与卡点、Co-authoring 引导 | **已完成**（commit `4bfd5c5`，system_context 战略背景注入 + goal_tools 提议机制，chat_proposal_review_test 全绿） |
+| **Phase 3** | **G3** | Flutter UI 工作台与读档交互 | 卡片式目标板、抓手快捷推进、达成/暂停分流、读档复活 | **已完成**（commit `4bfd5c5`，goal_view 卡片化 + goal_view_test 13 测全绿） |
+| **Phase 4** | **G4** | 3~5 天航向对齐检测与校准卡片 | 滑动窗口脱靶计算、航向校准卡片、三向响应闭环 | **已完成**（migration 66 + 判定引擎 + Banner/Card + P1 修复，见下） |
 
 ---
 
@@ -107,9 +107,19 @@
   - 允许直接修改或确认当前的启动抓手，无缝接盘，避免“重新立志”的挫败感。
 - 若名额已满（3/3），友好提示：“当前已有 3 个活跃目标。请先暂停或完成一个，再腾出精力唤醒此目标。”
 
+> **追加交付（2026-11-02）：左侧导航「目标」只读总览。** `SidebarTab` 新增 `goal` 域，footer 一级入口（宽栏/窄轨/移动抽屉共用），主区挂载 `GoalListView(readOnly: true)` 只读渲染（隐藏新增表单/操作按钮/校准卡片）；左栏配活跃目标导航摘要（计数 + 愿景/抓手速览）。写操作仍以对话流/弹窗面板为单一入口。测试：`goal_readonly_view_test.dart` 3 测全绿。
+
 ---
 
 ### G4 — 3~5 天长程偏离检测与航向校准
+
+> **交付记录（2026-11-02）：**
+> - Migration 66（`migrations/66-goal-compass-nudges/`）：`goal_compass_nudges` 表 + 状态机（pending/dismissed/realigned），快照守卫显式排除（`local-goal-compass-nudges` 域，纯本地不跨设备同步）；
+> - 判定引擎 `evaluate_goal_compass`（`src/api/goals.rs`）：96h 滑动窗口、活跃度守卫（事件≥5 或对话≥3）、标点拆分 + 3/4-gram 保守匹配、停滞≥3 天、单目标 7 天频控；
+> - 呈现：`GoalCompassNudgeBanner`（消息区顶部横幅）+ `GoalCompassNudgeCard`（目标工作台卡片），三向响应闭环（聚焦攻克 / 更新抓手 / 暂不打扰 7 天退避）；
+> - Worker 接入：compass tick 降频至分钟级（3~5 天尺度检测器无需 5s 节奏）；
+> - **P1 修复：** `update_goal_focus` / `update_goal_facets` / `update_goal_full` 三条写路径均在同一事务内将 pending 校准卡片置 `realigned`（旧实现仅横幅按钮路径校准，工作台滚动抓手后旧卡片永久残留）；
+> - 验证：`cargo test compass` 5 测全绿（含 P1 回归 `rolling_focus_updates_realign_pending_compass_nudge`）；`fvm flutter test` 全量 502+ 全绿。
 
 #### 1. 判定引擎（滑动窗口算法）
 由后台 worker 周期性评估（如每日回顾或闲置 tick）：

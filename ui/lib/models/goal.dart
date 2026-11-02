@@ -116,3 +116,45 @@ class Goal {
   bool get isPaused => status == GoalStatus.paused;
   bool get isCompleted => status == GoalStatus.completed;
 }
+
+/// 航向偏离校准提醒（Compass Nudge，FR-PES-005-04）
+class GoalCompassNudge {
+  final String id;
+  final String goalId;
+  final String goalContent;
+  final String currentFocus;
+  final int stalledDays;
+  final String recentTopics;
+  final String status;
+  final DateTime createdAt;
+  final DateTime? dismissedUntil;
+
+  const GoalCompassNudge({
+    required this.id,
+    required this.goalId,
+    required this.goalContent,
+    required this.currentFocus,
+    required this.stalledDays,
+    required this.recentTopics,
+    required this.status,
+    required this.createdAt,
+    this.dismissedUntil,
+  });
+
+  factory GoalCompassNudge.fromDto(api.GoalCompassNudgeDto dto) {
+    return GoalCompassNudge(
+      id: dto.id,
+      goalId: dto.goalId,
+      goalContent: dto.goalContent,
+      currentFocus: dto.currentFocus,
+      stalledDays: dto.stalledDays.toInt(),
+      recentTopics: dto.recentTopics,
+      status: dto.status,
+      createdAt: DateTime.parse(dto.createdAt).toLocal(),
+      dismissedUntil: dto.dismissedUntil == null
+          ? null
+          : DateTime.parse(dto.dismissedUntil!).toLocal(),
+    );
+  }
+}
+

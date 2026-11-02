@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 378038980;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 389173234;
 
 // Section: executor
 
@@ -1538,6 +1538,29 @@ fn wire__crate__api__sync__join__discard_sync_join_staging_impl(
         },
     )
 }
+fn wire__crate__api__goals__dismiss_compass_nudge_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "dismiss_compass_nudge",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::dismiss_compass_nudge(api_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__review_report__store__dismiss_deviation_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     report_id: impl CstDecode<String>,
@@ -1995,6 +2018,27 @@ fn wire__crate__api__conversations__generate_reply_impl(
                             api_memory_type,
                             api_memory_window_size,
                         )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__goals__get_active_compass_nudge_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_active_compass_nudge",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::get_active_compass_nudge()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -5112,6 +5156,29 @@ fn wire__crate__api__knowledge_workflows__read_artifact_version_impl(
         },
     )
 }
+fn wire__crate__api__goals__realign_compass_nudge_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "realign_compass_nudge",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_id = id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::realign_compass_nudge(api_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__review_flow__reanalyze_event_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     event_id: impl CstDecode<String>,
@@ -6958,6 +7025,27 @@ fn wire__crate__api__web_search__test_proxy_connection_impl(
         },
     )
 }
+fn wire__crate__api__goals__tick_goal_compass_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "tick_goal_compass",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::tick_goal_compass()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__habit_nudges__tick_habit_nudges_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -8609,6 +8697,32 @@ impl SseDecode for f64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_f64::<NativeEndian>().unwrap()
+    }
+}
+
+impl SseDecode for crate::api::goals::GoalCompassNudgeDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_goalId = <String>::sse_decode(deserializer);
+        let mut var_goalContent = <String>::sse_decode(deserializer);
+        let mut var_currentFocus = <String>::sse_decode(deserializer);
+        let mut var_stalledDays = <i64>::sse_decode(deserializer);
+        let mut var_recentTopics = <String>::sse_decode(deserializer);
+        let mut var_status = <String>::sse_decode(deserializer);
+        let mut var_createdAt = <String>::sse_decode(deserializer);
+        let mut var_dismissedUntil = <Option<String>>::sse_decode(deserializer);
+        return crate::api::goals::GoalCompassNudgeDto {
+            id: var_id,
+            goal_id: var_goalId,
+            goal_content: var_goalContent,
+            current_focus: var_currentFocus,
+            stalled_days: var_stalledDays,
+            recent_topics: var_recentTopics,
+            status: var_status,
+            created_at: var_createdAt,
+            dismissed_until: var_dismissedUntil,
+        };
     }
 }
 
@@ -10750,6 +10864,19 @@ impl SseDecode for Option<f64> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<f64>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::goals::GoalCompassNudgeDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::goals::GoalCompassNudgeDto>::sse_decode(
+                deserializer,
+            ));
         } else {
             return None;
         }
@@ -13022,6 +13149,34 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::review_flow::EventSummaryDto>
     for crate::api::review_flow::EventSummaryDto
 {
     fn into_into_dart(self) -> crate::api::review_flow::EventSummaryDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::goals::GoalCompassNudgeDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.goal_id.into_into_dart().into_dart(),
+            self.goal_content.into_into_dart().into_dart(),
+            self.current_focus.into_into_dart().into_dart(),
+            self.stalled_days.into_into_dart().into_dart(),
+            self.recent_topics.into_into_dart().into_dart(),
+            self.status.into_into_dart().into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+            self.dismissed_until.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::goals::GoalCompassNudgeDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::goals::GoalCompassNudgeDto>
+    for crate::api::goals::GoalCompassNudgeDto
+{
+    fn into_into_dart(self) -> crate::api::goals::GoalCompassNudgeDto {
         self
     }
 }
@@ -15914,6 +16069,21 @@ impl SseEncode for f64 {
     }
 }
 
+impl SseEncode for crate::api::goals::GoalCompassNudgeDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.goal_id, serializer);
+        <String>::sse_encode(self.goal_content, serializer);
+        <String>::sse_encode(self.current_focus, serializer);
+        <i64>::sse_encode(self.stalled_days, serializer);
+        <String>::sse_encode(self.recent_topics, serializer);
+        <String>::sse_encode(self.status, serializer);
+        <String>::sse_encode(self.created_at, serializer);
+        <Option<String>>::sse_encode(self.dismissed_until, serializer);
+    }
+}
+
 impl SseEncode for crate::api::goals::GoalDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -17380,6 +17550,16 @@ impl SseEncode for Option<f64> {
     }
 }
 
+impl SseEncode for Option<crate::api::goals::GoalCompassNudgeDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::goals::GoalCompassNudgeDto>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::api::goals::GoalDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -18408,6 +18588,13 @@ mod io {
             unsafe { *flutter_rust_bridge::for_generated::box_from_leak_ptr(self) }
         }
     }
+    impl CstDecode<crate::api::goals::GoalCompassNudgeDto> for *mut wire_cst_goal_compass_nudge_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::goals::GoalCompassNudgeDto {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::goals::GoalCompassNudgeDto>::cst_decode(*wrap).into()
+        }
+    }
     impl CstDecode<crate::api::goals::GoalDto> for *mut wire_cst_goal_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::goals::GoalDto {
@@ -18954,6 +19141,22 @@ mod io {
                 recorded_at: self.recorded_at.cst_decode(),
                 source: self.source.cst_decode(),
                 status: self.status.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::goals::GoalCompassNudgeDto> for wire_cst_goal_compass_nudge_dto {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::goals::GoalCompassNudgeDto {
+            crate::api::goals::GoalCompassNudgeDto {
+                id: self.id.cst_decode(),
+                goal_id: self.goal_id.cst_decode(),
+                goal_content: self.goal_content.cst_decode(),
+                current_focus: self.current_focus.cst_decode(),
+                stalled_days: self.stalled_days.cst_decode(),
+                recent_topics: self.recent_topics.cst_decode(),
+                status: self.status.cst_decode(),
+                created_at: self.created_at.cst_decode(),
+                dismissed_until: self.dismissed_until.cst_decode(),
             }
         }
     }
@@ -21846,6 +22049,26 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_goal_compass_nudge_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+                goal_id: core::ptr::null_mut(),
+                goal_content: core::ptr::null_mut(),
+                current_focus: core::ptr::null_mut(),
+                stalled_days: Default::default(),
+                recent_topics: core::ptr::null_mut(),
+                status: core::ptr::null_mut(),
+                created_at: core::ptr::null_mut(),
+                dismissed_until: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_goal_compass_nudge_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_goal_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -24050,6 +24273,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__dismiss_compass_nudge(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__goals__dismiss_compass_nudge_impl(port_, id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_report__store__dismiss_deviation(
         port_: i64,
         report_id: *mut wire_cst_list_prim_u_8_strict,
@@ -24218,6 +24449,13 @@ mod io {
             memory_type,
             memory_window_size,
         )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__get_active_compass_nudge(
+        port_: i64,
+    ) {
+        wire__crate__api__goals__get_active_compass_nudge_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -25285,6 +25523,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__realign_compass_nudge(
+        port_: i64,
+        id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__goals__realign_compass_nudge_impl(port_, id)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__review_flow__reanalyze_event(
         port_: i64,
         event_id: *mut wire_cst_list_prim_u_8_strict,
@@ -26013,6 +26259,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__tick_goal_compass(port_: i64) {
+        wire__crate__api__goals__tick_goal_compass_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__habit_nudges__tick_habit_nudges(
         port_: i64,
     ) {
@@ -26377,6 +26628,14 @@ mod io {
     #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_f_64(value: f64) -> *mut f64 {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(value)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_goal_compass_nudge_dto()
+    -> *mut wire_cst_goal_compass_nudge_dto {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_goal_compass_nudge_dto::new_with_null_ptr(),
+        )
     }
 
     #[unsafe(no_mangle)]
@@ -27964,6 +28223,19 @@ mod io {
         recorded_at: *mut wire_cst_list_prim_u_8_strict,
         source: *mut wire_cst_list_prim_u_8_strict,
         status: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_goal_compass_nudge_dto {
+        id: *mut wire_cst_list_prim_u_8_strict,
+        goal_id: *mut wire_cst_list_prim_u_8_strict,
+        goal_content: *mut wire_cst_list_prim_u_8_strict,
+        current_focus: *mut wire_cst_list_prim_u_8_strict,
+        stalled_days: i64,
+        recent_topics: *mut wire_cst_list_prim_u_8_strict,
+        status: *mut wire_cst_list_prim_u_8_strict,
+        created_at: *mut wire_cst_list_prim_u_8_strict,
+        dismissed_until: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -30426,6 +30698,33 @@ mod web {
                 recorded_at: self_.get(2).cst_decode(),
                 source: self_.get(3).cst_decode(),
                 status: self_.get(4).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::goals::GoalCompassNudgeDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::goals::GoalCompassNudgeDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                9,
+                "Expected 9 elements, got {}",
+                self_.length()
+            );
+            crate::api::goals::GoalCompassNudgeDto {
+                id: self_.get(0).cst_decode(),
+                goal_id: self_.get(1).cst_decode(),
+                goal_content: self_.get(2).cst_decode(),
+                current_focus: self_.get(3).cst_decode(),
+                stalled_days: self_.get(4).cst_decode(),
+                recent_topics: self_.get(5).cst_decode(),
+                status: self_.get(6).cst_decode(),
+                created_at: self_.get(7).cst_decode(),
+                dismissed_until: self_.get(8).cst_decode(),
             }
         }
     }
@@ -34240,6 +34539,14 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__goals__dismiss_compass_nudge(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+    ) {
+        wire__crate__api__goals__dismiss_compass_nudge_impl(port_, id)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__review_report__store__dismiss_deviation(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         report_id: String,
@@ -34408,6 +34715,13 @@ mod web {
             memory_type,
             memory_window_size,
         )
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__goals__get_active_compass_nudge(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__goals__get_active_compass_nudge_impl(port_)
     }
 
     #[wasm_bindgen]
@@ -35497,6 +35811,14 @@ mod web {
     }
 
     #[wasm_bindgen]
+    pub fn wire__crate__api__goals__realign_compass_nudge(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        id: String,
+    ) {
+        wire__crate__api__goals__realign_compass_nudge_impl(port_, id)
+    }
+
+    #[wasm_bindgen]
     pub fn wire__crate__api__review_flow__reanalyze_event(
         port_: flutter_rust_bridge::for_generated::MessagePort,
         event_id: String,
@@ -36222,6 +36544,13 @@ mod web {
         proxy_url: String,
     ) {
         wire__crate__api__web_search__test_proxy_connection_impl(port_, proxy_url)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__goals__tick_goal_compass(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__goals__tick_goal_compass_impl(port_)
     }
 
     #[wasm_bindgen]

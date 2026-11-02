@@ -5,6 +5,7 @@ import '../bridge/rust_bridge_repository.dart';
 import '../models/goal.dart';
 import '../providers/goal_provider.dart';
 import '../theme/app_theme.dart';
+import 'goal_compass_banner.dart';
 
 /// 活跃目标上限，与后端 `MAX_ACTIVE_GOALS` 及数据库触发器一致。
 const int maxActiveGoals = 3;
@@ -17,8 +18,16 @@ enum _ArchivedTab {
 
 /// 目标管理面板（FR-PES-005-01 / Roadmap Phase G3）：
 /// 认知型目标工作台（切片化卡片、滚动抓手、三态流转与无缝读档复活）。
+///
+/// [readOnly]：左侧导航「目标」域主区用的只读总览——隐藏新增表单、
+/// 各卡片的操作按钮与航向校准卡片，只保留切片内容的浏览呈现。
+/// 写操作仍以对话流/弹窗面板（GoalListView 可编辑版）为单一入口，
+/// 避免同一功能两处入口语义漂移。
 class GoalListView extends ConsumerStatefulWidget {
-  const GoalListView({super.key});
+  const GoalListView({super.key, this.readOnly = false});
+
+  /// 只读总览模式：供左侧导航「目标」域主区使用，隐藏写操作入口。
+  final bool readOnly;
 
   @override
   ConsumerState<GoalListView> createState() => _GoalListViewState();
@@ -58,6 +67,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
     ref.invalidate(archivedGoalsProvider);
     ref.invalidate(pausedGoalsProvider);
     ref.invalidate(completedGoalsProvider);
+    ref.invalidate(activeCompassNudgeProvider);
   }
 
   Future<void> _add() async {
@@ -96,6 +106,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
   }
 
   Future<void> _pause(Goal goal) async {
+    if (widget.readOnly) return;
     final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
     try {
       await repo.pauseGoal(goal.id);
@@ -107,6 +118,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
   }
 
   Future<void> _complete(Goal goal) async {
+    if (widget.readOnly) return;
     final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
     try {
       await repo.completeGoal(goal.id);
@@ -118,9 +130,10 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
   }
 
   Future<void> _rollFocus(Goal goal) async {
+    if (widget.readOnly) return;
     final result = await showDialog<({String? focus, String? blocker})>(
       context: context,
-      builder: (_) => _GoalRollFocusDialog(goal: goal),
+      builder: (_) => GoalRollFocusDialog.forGoal(goal),
     );
     if (result == null) return;
     final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
@@ -138,6 +151,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
   }
 
   Future<void> _editFull(Goal goal) async {
+    if (widget.readOnly) return;
     final result = await showDialog<
         ({
           String content,
@@ -170,6 +184,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
   }
 
   Future<void> _reactivate(Goal goal, int activeCount) async {
+    if (widget.readOnly) return;
     if (activeCount >= maxActiveGoals) {
       _toast('当前已有 $maxActiveGoals 个活跃目标（精力上限）。请先暂停或达成一个，再腾出精力唤醒此目标。');
       return;
@@ -198,6 +213,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
     final activeAsync = ref.watch(activeGoalsProvider);
     final pausedAsync = ref.watch(pausedGoalsProvider);
     final completedAsync = ref.watch(completedGoalsProvider);
+    final nudge = ref.watch(activeCompassNudgeProvider);
     final activeCount = activeAsync.value?.length ?? 0;
 
     return SingleChildScrollView(
@@ -240,24 +256,31 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
                 ),
               ),
               const Spacer(),
-              IconButton(
-                tooltip: '关闭',
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.close, size: 18),
-                color: AppTheme.textSecondary,
-                onPressed: () => Navigator.of(context).maybePop(),
-              ),
+              if (!widget.readOnly)
+                IconButton(
+                  tooltip: '关闭',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.close, size: 18),
+                  color: AppTheme.textSecondary,
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
             ],
           ),
           const SizedBox(height: 3),
           Text(
-            '活跃目标上限严格控制在 $maxActiveGoals 个以内，守恒注意力。通过滚动抓手持续向前推进。',
+            widget.readOnly
+                ? '活跃目标上限严格控制在 $maxActiveGoals 个以内。在对话流中打开目标面板即可滚动抓手、达成或读档唤醒。'
+                : '活跃目标上限严格控制在 $maxActiveGoals 个以内，守恒注意力。通过滚动抓手持续向前推进。',
             style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
           ),
           const SizedBox(height: 14),
+          if (!widget.readOnly && nudge != null)
+            GoalCompassNudgeCard(nudge: nudge),
           _buildActiveSection(activeAsync),
-          const SizedBox(height: 16),
-          _buildAddForm(activeCount),
+          if (!widget.readOnly) ...[
+            const SizedBox(height: 16),
+            _buildAddForm(activeCount),
+          ],
           _buildHistorySection(pausedAsync, completedAsync, activeCount),
         ],
       ),
@@ -315,6 +338,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
             for (final goal in goals)
               _ActiveGoalCard(
                 goal: goal,
+                readOnly: widget.readOnly,
                 onRollFocus: () => _rollFocus(goal),
                 onEditFull: () => _editFull(goal),
                 onPause: () => _pause(goal),
@@ -493,26 +517,28 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
               ),
             ),
             const Spacer(),
-            SegmentedButton<_ArchivedTab>(
-              segments: [
-                ButtonSegment(
-                  value: _ArchivedTab.paused,
-                  label: Text('暂停搁置 (${pausedGoals.length})'),
-                  icon: const Icon(Icons.pause_circle_outline, size: 14),
+            Flexible(
+              child: SegmentedButton<_ArchivedTab>(
+                segments: [
+                  ButtonSegment(
+                    value: _ArchivedTab.paused,
+                    label: Text('暂停搁置 (${pausedGoals.length})'),
+                    icon: const Icon(Icons.pause_circle_outline, size: 14),
+                  ),
+                  ButtonSegment(
+                    value: _ArchivedTab.completed,
+                    label: Text('已达成 (${completedGoals.length})'),
+                    icon: const Icon(Icons.emoji_events_outlined, size: 14),
+                  ),
+                ],
+                selected: {_archivedTab},
+                onSelectionChanged: (set) {
+                  setState(() => _archivedTab = set.first);
+                },
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 11)),
                 ),
-                ButtonSegment(
-                  value: _ArchivedTab.completed,
-                  label: Text('已达成 (${completedGoals.length})'),
-                  icon: const Icon(Icons.emoji_events_outlined, size: 14),
-                ),
-              ],
-              selected: {_archivedTab},
-              onSelectionChanged: (set) {
-                setState(() => _archivedTab = set.first);
-              },
-              style: const ButtonStyle(
-                visualDensity: VisualDensity.compact,
-                textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 11)),
               ),
             ),
           ],
@@ -543,6 +569,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
         for (final goal in goals)
           _PausedGoalTile(
             goal: goal,
+            readOnly: widget.readOnly,
             onReactivate: () => _reactivate(goal, activeCount),
           ),
       ],
@@ -566,6 +593,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
         for (final goal in goals)
           _CompletedGoalTile(
             goal: goal,
+            readOnly: widget.readOnly,
             onReopen: () => _reactivate(goal, activeCount),
           ),
       ],
@@ -581,6 +609,7 @@ class _ActiveGoalCard extends StatelessWidget {
     required this.onEditFull,
     required this.onPause,
     required this.onComplete,
+    this.readOnly = false,
   });
 
   final Goal goal;
@@ -588,6 +617,9 @@ class _ActiveGoalCard extends StatelessWidget {
   final VoidCallback onEditFull;
   final VoidCallback onPause;
   final VoidCallback onComplete;
+
+  /// 只读总览模式：隐藏滚动抓手按钮与操作菜单。
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -639,14 +671,16 @@ class _ActiveGoalCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                IconButton(
-                  tooltip: '滚动抓手',
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.tune_outlined, size: 16),
-                  color: AppTheme.accentPrimary,
-                  onPressed: onRollFocus,
-                ),
-                PopupMenuButton<String>(
+                if (!readOnly)
+                  IconButton(
+                    tooltip: '滚动抓手',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.tune_outlined, size: 16),
+                    color: AppTheme.accentPrimary,
+                    onPressed: onRollFocus,
+                  ),
+                if (!readOnly)
+                  PopupMenuButton<String>(
                   tooltip: '更多操作',
                   icon: const Icon(Icons.more_horiz, size: 16),
                   color: AppTheme.surface2,
@@ -722,7 +756,7 @@ class _ActiveGoalCard extends StatelessWidget {
               children: [
                 // 抓手条
                 InkWell(
-                  onTap: onRollFocus,
+                  onTap: readOnly ? null : onRollFocus,
                   borderRadius: BorderRadius.circular(6),
                   child: Container(
                     width: double.infinity,
@@ -769,7 +803,9 @@ class _ActiveGoalCard extends StatelessWidget {
                         Icon(
                           Icons.edit_outlined,
                           size: 13,
-                          color: AppTheme.textTertiary,
+                          color: readOnly
+                              ? Colors.transparent
+                              : AppTheme.textTertiary,
                         ),
                       ],
                     ),
@@ -859,10 +895,14 @@ class _PausedGoalTile extends StatelessWidget {
   const _PausedGoalTile({
     required this.goal,
     required this.onReactivate,
+    this.readOnly = false,
   });
 
   final Goal goal;
   final VoidCallback onReactivate;
+
+  /// 只读总览模式：隐藏重新激活按钮。
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -902,19 +942,20 @@ class _PausedGoalTile extends StatelessWidget {
                   ),
                 ),
               ),
-              Tooltip(
-                message: '复活（需有名额）',
-                child: FilledButton.tonalIcon(
-                  onPressed: onReactivate,
-                  icon: const Icon(Icons.play_arrow_outlined, size: 15),
-                  label: const Text('重新激活'),
-                  style: FilledButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    textStyle: const TextStyle(fontSize: 11.5),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+              if (!readOnly)
+                Tooltip(
+                  message: '复活（需有名额）',
+                  child: FilledButton.tonalIcon(
+                    onPressed: onReactivate,
+                    icon: const Icon(Icons.play_arrow_outlined, size: 15),
+                    label: const Text('重新激活'),
+                    style: FilledButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      textStyle: const TextStyle(fontSize: 11.5),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           if (focus != null && focus.isNotEmpty) ...[
@@ -949,10 +990,14 @@ class _CompletedGoalTile extends StatelessWidget {
   const _CompletedGoalTile({
     required this.goal,
     required this.onReopen,
+    this.readOnly = false,
   });
 
   final Goal goal;
   final VoidCallback onReopen;
+
+  /// 只读总览模式：隐藏重新激活按钮。
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -994,13 +1039,14 @@ class _CompletedGoalTile extends StatelessWidget {
                 '达成于 $dateStr',
                 style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
               ),
-              IconButton(
-                tooltip: '重新激活为此目标',
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.refresh, size: 15),
-                color: AppTheme.textTertiary,
-                onPressed: onReopen,
-              ),
+              if (!readOnly)
+                IconButton(
+                  tooltip: '重新激活为此目标',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.refresh, size: 15),
+                  color: AppTheme.textTertiary,
+                  onPressed: onReopen,
+                ),
             ],
           ),
           if (done != null && done.isNotEmpty) ...[
@@ -1024,20 +1070,39 @@ class _CompletedGoalTile extends StatelessWidget {
 }
 
 /// 滚动抓手与卡点对话框（最常用的轻量认知更新）
-class _GoalRollFocusDialog extends StatefulWidget {
-  const _GoalRollFocusDialog({required this.goal});
-  final Goal goal;
+class GoalRollFocusDialog extends StatefulWidget {
+  const GoalRollFocusDialog({
+    super.key,
+    required this.goalId,
+    required this.goalContent,
+    this.initialFocus,
+    this.initialBlocker,
+  });
+
+  factory GoalRollFocusDialog.forGoal(Goal goal) {
+    return GoalRollFocusDialog(
+      goalId: goal.id,
+      goalContent: goal.content,
+      initialFocus: goal.currentFocus,
+      initialBlocker: goal.blocker,
+    );
+  }
+
+  final String goalId;
+  final String goalContent;
+  final String? initialFocus;
+  final String? initialBlocker;
 
   @override
-  State<_GoalRollFocusDialog> createState() => _GoalRollFocusDialogState();
+  State<GoalRollFocusDialog> createState() => _GoalRollFocusDialogState();
 }
 
-class _GoalRollFocusDialogState extends State<_GoalRollFocusDialog> {
+class _GoalRollFocusDialogState extends State<GoalRollFocusDialog> {
   late final TextEditingController _focusController = TextEditingController(
-    text: widget.goal.currentFocus ?? '',
+    text: widget.initialFocus ?? '',
   );
   late final TextEditingController _blockerController = TextEditingController(
-    text: widget.goal.blocker ?? '',
+    text: widget.initialBlocker ?? '',
   );
 
   @override
@@ -1050,7 +1115,7 @@ class _GoalRollFocusDialogState extends State<_GoalRollFocusDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('滚动抓手 · ${widget.goal.content}'),
+      title: Text('滚动抓手 · ${widget.goalContent}'),
       content: SizedBox(
         width: 480,
         child: Column(

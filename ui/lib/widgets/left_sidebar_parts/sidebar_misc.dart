@@ -217,3 +217,116 @@ class _RejectedSourcesTileState extends ConsumerState<_RejectedSourcesTile> {
     );
   }
 }
+
+/// 目标页左栏：活跃目标导航摘要（只读）。
+///
+/// 展示最多 3 条活跃目标的愿景名与当前抓手切片，作为进入目标域后的
+/// 「正在推进什么」速览；管理动作（滚动抓手/达成/暂停/唤醒）不在这里，
+/// 与主区只读总览同一纪律：写操作以对话流/弹窗面板为单一入口。
+/// 点击一条目标暂无二级详情页，不做无动作的假入口。
+class _GoalNavSummary extends ConsumerWidget {
+  const _GoalNavSummary();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activeAsync = ref.watch(activeGoalsProvider);
+    return activeAsync.when(
+      loading: () => const SizedBox.expand(),
+      error: (e, _) => Center(
+        child: Text(
+          '目标加载失败',
+          style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+        ),
+      ),
+      data: (goals) {
+        if (goals.isEmpty) {
+          return const _EmptyState(
+            icon: Icons.flag_outlined,
+            message: '还没有设定目标\n在对话面板中设立 1~3 个长程愿景',
+          );
+        }
+        return ListView(
+          padding: const EdgeInsets.symmetric(vertical: AppTheme.space2),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text(
+                '活跃目标 ${goals.length} / 3',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.4,
+                  color: AppTheme.textTertiary,
+                ),
+              ),
+            ),
+            for (final Goal goal in goals) _GoalNavCard(goal: goal),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// 单条活跃目标的左栏摘要卡片。
+class _GoalNavCard extends StatelessWidget {
+  const _GoalNavCard({required this.goal});
+
+  final Goal goal;
+
+  @override
+  Widget build(BuildContext context) {
+    final focus = goal.currentFocus?.trim() ?? '';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppTheme.surface2,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+          border: Border.all(color: AppTheme.surface3.withValues(alpha: 0.6)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  goal.phase.label,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.accentPrimary,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    goal.content,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (focus.isNotEmpty) ...[
+              const SizedBox(height: 3),
+              Text(
+                '📍 $focus',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
