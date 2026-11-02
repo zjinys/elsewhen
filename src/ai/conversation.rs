@@ -16,8 +16,8 @@ use crate::storage::Store;
 /// 调试日志宏（ELSEWHEN_DEBUG 开启才输出）。这些日志每轮对话都会触发（含工具结果摘录与 provider 错误串，可能带个人数据）。
 macro_rules! debug_eprintln {
     ($($arg:tt)*) => {
-        if std::env::var("ELSEWHEN_DEBUG").is_ok() {
-            eprintln!($($arg)*);
+        if $crate::logging::debug_enabled() {
+            $crate::logging::log_debug(&format!($($arg)*));
         }
     };
 }

@@ -7,6 +7,7 @@ pub mod ai;
 pub mod config;
 pub mod event;
 pub mod fonts;
+pub mod logging;
 pub(crate) mod http_proxy;
 pub mod knowledge;
 mod knowledge_background;

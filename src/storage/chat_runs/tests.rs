@@ -578,3 +578,80 @@ fn request_budget_event_records_pruned_tool_results() {
     assert_eq!(still, Some(0));
     f.clean();
 }
+
+#[test]
+fn throttled_renew_skips_write_while_lease_is_fresh() {
+    let f = Fixture::new();
+    let run = f.run();
+    let lease_before: String = f
+        .store
+        .connection
+        .query_row("SELECT lease_until FROM chat_runs WHERE id=?1", [&run.id], |r| r.get(0))
+        .unwrap();
+    // 租约刚创建（5 分钟寿命，剩余远超 4 分钟阈值）：节流续租必须是 no-op。
+    assert!(f.store.renew_chat_run_if_due(&run.id, "owner").unwrap());
+    let lease_after: String = f
+        .store
+        .connection
+        .query_row("SELECT lease_until FROM chat_runs WHERE id=?1", [&run.id], |r| r.get(0))
+        .unwrap();
+    assert_eq!(lease_before, lease_after, "fresh lease must not be rewritten");
+    f.clean();
+}
+
+#[test]
+fn throttled_renew_extends_when_lease_is_running_out() {
+    let f = Fixture::new();
+    let run = f.run();
+    // 把租约拨到只剩 1 分钟：低于 4 分钟阈值，节流续租必须真正写库。
+    // 注意 lease_until 与 now 的比较是字符串序，必须用同一种格式（chrono
+    // rfc3339 的 'T' 分隔）写入，不能用 SQLite datetime() 的空格分隔格式。
+    let short_lease = (chrono::Utc::now() + chrono::Duration::minutes(1)).to_rfc3339();
+    f.store
+        .connection
+        .execute(
+            "UPDATE chat_runs SET lease_until=?1 WHERE id=?2",
+            rusqlite::params![short_lease, run.id],
+        )
+        .unwrap();
+    assert!(f.store.renew_chat_run_if_due(&run.id, "owner").unwrap());
+    let remaining: f64 = f
+        .store
+        .connection
+        .query_row(
+            "SELECT julianday(lease_until)-julianday(?1) FROM chat_runs WHERE id=?2",
+            rusqlite::params![chrono::Utc::now().to_rfc3339(), run.id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(
+        remaining * 86400.0 > 240.0,
+        "renew must extend the lease beyond the throttle threshold, got {remaining} days"
+    );
+    f.clean();
+}
+
+#[test]
+fn throttled_renew_rejects_wrong_owner_and_missing_run() {
+    let f = Fixture::new();
+    let run = f.run();
+    // 别的执行者：不能续租。
+    assert!(!f.store.renew_chat_run_if_due(&run.id, "intruder").unwrap());
+    // 不存在的 run：同样不持有。
+    assert!(!f.store.renew_chat_run_if_due("no-such-run", "owner").unwrap());
+    f.clean();
+}
+
+#[test]
+fn throttled_renew_on_terminal_run_reports_not_held() {
+    let f = Fixture::new();
+    let run = f.run();
+    f.store
+        .finish_chat_run(&run.id, "owner", "completed", Some("done"), None)
+        .unwrap();
+    assert!(
+        !f.store.renew_chat_run_if_due(&run.id, "owner").unwrap(),
+        "terminal run must not be renewable"
+    );
+    f.clean();
+}

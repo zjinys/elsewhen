@@ -3,7 +3,7 @@ use crate::storage::{
     Store,
     chat_runs::{ChatRun, ChatRunStopped},
 };
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use serde_json::json;
 use std::{
     path::Path,
@@ -80,13 +80,33 @@ pub(crate) fn shutdown(path: &Path) -> Result<usize> {
 pub(crate) struct RunIdentity {
     pub id: String,
     pub owner: String,
+    /// 本轮 turn 的开始时刻，用于墙钟兑底：进程被冻结再解冻后 tokio
+    /// 计时器可能一次性过期或长期停摆，租约续租又是无条件续命，
+    /// 没有墙钟上限的 run 会无限挂下去（issue 2026-10-31 手机实测）。
+    pub started_at: std::time::Instant,
 }
 
 /// The database is the cancellation signal as well as the terminal arbiter. A
 /// different process/connection can stop a worker without sharing a Dart flag.
+/// 停止检查 + 租约节流续租。流式心跳每 25ms 调一次：[`Store::renew_chat_run_if_due`]
+/// 内部只在剩余租约 < 4 分钟时才写库，高频调用不产生写放大，同时保证
+/// 生成内的任意单个阻塞段（渠道 60s 超时、failover 串行）不会跨过租约
+/// 终点被误回收（Android 端 11 渠道×60s 实际发生过，issue 2026-10-31）。
 pub(crate) fn check(store: &Store) -> Result<()> {
     if let Some(run) = &store.chat_run_identity {
-        store.check_chat_run_owner(&run.id, &run.owner)?;
+        // 墙钟兑底：单轮 turn 超过 10 分钟强制失败。正常生成几十秒内完成；
+        // 能超过 10 分钟的只有进程冻结/计时器停摆这类病态路径。
+        if run.started_at.elapsed() > std::time::Duration::from_secs(600) {
+            crate::logging::log_always(&format!(
+                "[generation] run={} 超过 10 分钟墙钟上限，强制失败",
+                run.id
+            ));
+            return Err(anyhow::Error::from(ChatRunStopped));
+        }
+        ensure!(
+            store.renew_chat_run_if_due(&run.id, &run.owner)?,
+            ChatRunStopped
+        );
     }
     Ok(())
 }
@@ -267,11 +287,17 @@ pub(crate) fn execute(
         .insert(run.id.clone(), (store.path.clone(), owner.into()));
     let _guard = WorkerGuard(run.id.clone());
     let result = (|| {
+        crate::logging::log_always(&format!(
+            "[generation] execute run={} 开始生成",
+            run.id
+        ));
         let mut snapshot = store.snapshot_for_input(&run.conversation_id, &run.input_message_id)?;
         snapshot.validate_chat_run_context(&run.id, &run.conversation_id)?;
         snapshot.chat_run_identity = Some(RunIdentity {
             id: run.id.clone(),
             owner: owner.into(),
+            started_at: std::time::Instant::now(),
+            
         });
         super::conversation::generate_conversation_reply_core(
             &run.conversation_id,
@@ -281,6 +307,11 @@ pub(crate) fn execute(
     })();
     match result {
         Ok(content) => {
+            crate::logging::log_always(&format!(
+                "[generation] run={} 完成，{} 字符",
+                run.id,
+                content.chars().count(),
+            ));
             // 10-19 档案 P0-c：completed run 的降级声明走确定性前缀，
             // 不走 failure_notice（新通道，避免污染 2026-10-18 事故的
             // P1-A 失败指纹体系）。模型把 system 免责声明转述成「没有
@@ -314,6 +345,10 @@ pub(crate) fn execute(
             }
         }
         Err(error) => {
+            crate::logging::log_always(&format!(
+                "[generation] run={} 失败：{error:#}",
+                run.id
+            ));
             let stopped = error.downcast_ref::<ChatRunStopped>().is_some()
                 || store
                     .chat_run(&run.id)?
@@ -433,6 +468,10 @@ pub(crate) fn dispatch_queued(
 }
 
 fn launch(path: &Path, store: Store, run: ChatRun, owner: String) -> Result<ChatRun> {
+    crate::logging::log_always(&format!(
+        "[generation] launch run={} conversation={}",
+        run.id, run.conversation_id
+    ));
     // Re-delivery returns the existing run; it never starts a second executor.
     if store.check_chat_run_owner(&run.id, &owner).is_ok() {
         // Open before launching so connection failures can finalize via the
@@ -440,6 +479,9 @@ fn launch(path: &Path, store: Store, run: ChatRun, owner: String) -> Result<Chat
         let worker_store = match Store::open(path) {
             Ok(store) => store,
             Err(error) => {
+                crate::logging::log_always(&format!(
+                    "[generation] worker 库打开失败：{error:#}"
+                ));
                 let _ = store.finish_chat_run(
                     &run.id,
                     &owner,
@@ -463,6 +505,7 @@ fn launch(path: &Path, store: Store, run: ChatRun, owner: String) -> Result<Chat
                     execute(&worker_store, &worker_run, &worker_owner, None)
                 }));
                 if result.is_err() {
+                    crate::logging::log_always("[generation] worker 线程 panic");
                     let _ = worker_store.finish_chat_run(
                         &worker_run.id,
                         &worker_owner,

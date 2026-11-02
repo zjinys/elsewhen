@@ -2,13 +2,108 @@
 //!
 //! 后台任务（知识消化、周期报告、洞察等）与主对话分流：它们只需要一个
 //! `AiProvider`，但单个渠道的 5xx/429/网络错误不应让整条后台链路停摆。
-//! 这里把「候选渠道 + 顺序尝试 + 记住上次成功者」封装成一个 provider，
-//! 调用方无需感知多渠道。
+//! 这里把「候选渠道 + 顺序尝试 + 记住上次成功者 + 失败渠道冷却」封装成
+//! 一个 provider，调用方无需感知多渠道。
 
 use super::*;
 use crate::storage::Store;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
+
+/// 失败渠道冷却状态（进程内）：连续失败次数与下次可试时间。
+/// 指数退避 2→4→…→30 分钟封顶；成功即清零。只影响排序/跳过，
+/// 所有渠道都冷却时仍然全试（不因为状态就让请求无路可走）。
+struct CooldownState {
+    consecutive_failures: u32,
+    retry_after: std::time::Instant,
+}
+
+impl CooldownState {
+    fn backoff(failures: u32) -> std::time::Duration {
+        const BASE_SECS: u64 = 120;
+        const MAX_SECS: u64 = 1800;
+        let exp = BASE_SECS
+            .saturating_mul(1u64 << failures.saturating_sub(1).min(4))
+            .min(MAX_SECS);
+        std::time::Duration::from_secs(exp)
+    }
+
+    fn record_failure(&mut self) {
+        self.consecutive_failures = self.consecutive_failures.saturating_add(1);
+        self.retry_after = std::time::Instant::now() + Self::backoff(self.consecutive_failures);
+    }
+
+    fn record_success(&mut self) {
+        *self = CooldownState {
+            consecutive_failures: 0,
+            retry_after: std::time::Instant::now(),
+        };
+    }
+
+    fn cooling(&self, now: std::time::Instant) -> bool {
+        now < self.retry_after
+    }
+}
+
+fn cooldown_slot() -> &'static Mutex<Vec<(String, CooldownState)>> {
+    static SLOT: OnceLock<Mutex<Vec<(String, CooldownState)>>> = OnceLock::new();
+    SLOT.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+#[cfg(test)]
+pub(crate) fn reset_provider_cooldowns() {
+    cooldown_slot().lock().unwrap_or_else(|e| e.into_inner()).clear();
+}
+
+fn cooling_provider(id: &str, now: std::time::Instant) -> bool {
+    cooldown_slot()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .iter()
+        .any(|(key, state)| key == id && state.cooling(now))
+}
+
+/// 主对话管线用的冷却查询（公开给 generate_pipeline 预扫）。
+pub(crate) fn provider_in_cooldown(id: &str, now: std::time::Instant) -> bool {
+    cooling_provider(id, now)
+}
+
+/// 主对话管线的成功落点：清零冷却。
+pub(crate) fn record_channel_success(id: &str) {
+    record_provider_success(id);
+}
+
+/// 主对话管线的失败落点：累积退避。by-design 只记渠道 id，
+/// 不区分错误类别（鉴权失败也退避——换渠道就是唯一出路）。
+pub(crate) fn record_channel_failure(id: &str) {
+    record_provider_failure(id);
+}
+
+fn record_provider_failure(id: &str) {
+    let mut slot = cooldown_slot().lock().unwrap_or_else(|e| e.into_inner());
+    match slot.iter_mut().find(|(key, _)| key == id) {
+        Some((_, state)) => state.record_failure(),
+        None => slot.push((
+            id.to_string(),
+            CooldownState {
+                consecutive_failures: 1,
+                retry_after: std::time::Instant::now() + CooldownState::backoff(1),
+            },
+        )),
+    }
+}
+
+fn record_provider_success(id: &str) {
+    cooldown_slot()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .iter_mut()
+        .for_each(|(key, state)| {
+            if key == id {
+                state.record_success();
+            }
+        });
+}
 
 /// 一个候选渠道。`id` 用于记住上次成功者，`name` 只用于错误信息。
 pub(crate) struct FailoverEntry {
@@ -53,6 +148,35 @@ impl FailoverProvider {
         let index = self.preferred.load(Ordering::Relaxed) % len;
         Ok(&self.entries[index])
     }
+
+    /// 尝试顺序：跳过冷却中的渠道（记录冷却错误摘要）；若全部冷却则
+    /// 照常全试（冷却只是优先级提示，不是熔断死锁）。
+    fn attempt_order(&self) -> (Vec<usize>, Vec<String>) {
+        let len = self.entries.len();
+        let start = self.preferred.load(Ordering::Relaxed) % len;
+        let mut order = Vec::with_capacity(len);
+        let mut skipped = Vec::new();
+        let now = std::time::Instant::now();
+        for offset in 0..len {
+            let index = (start + offset) % len;
+            let entry = &self.entries[index];
+            if cooling_provider(&entry.id, now) {
+                skipped.push(format!("[{}] 冷却中，跳过", entry.name));
+                crate::logging::log_always(&format!(
+                    "[provider-failover] 后台渠道「{}」冷却中，跳过",
+                    entry.name
+                ));
+            } else {
+                order.push(index);
+            }
+        }
+        if order.is_empty() {
+            // 全部在冷却：放弃跳过，按原顺序全试。
+            order = (0..len).map(|offset| (start + offset) % len).collect();
+            skipped.clear();
+        }
+        (order, skipped)
+    }
 }
 
 /// 后台结构化调用只接受完整正文。空正文、只有推理、未执行的工具调用
@@ -93,10 +217,9 @@ impl AiProvider for FailoverProvider {
     ) -> Result<AiReply> {
         let len = self.entries.len();
         anyhow::ensure!(len > 0, "没有可用的 AI provider");
-        let start = self.preferred.load(Ordering::Relaxed) % len;
+        let (order, skipped) = self.attempt_order();
         let mut errors = Vec::with_capacity(len);
-        for offset in 0..len {
-            let index = (start + offset) % len;
+        for index in order {
             let entry = &self.entries[index];
             match entry
                 .provider
@@ -104,32 +227,32 @@ impl AiProvider for FailoverProvider {
             {
                 Ok(reply) => {
                     if let Some(reason) = unusable_background_reply(&reply) {
-                        if std::env::var_os("ELSEWHEN_DEBUG").is_some() {
-                            eprintln!(
-                                "[provider-failover] 后台渠道「{}」返回不可用响应，换下一个：{reason}",
-                                entry.name
-                            );
-                        }
+                        crate::logging::log_always(&format!(
+                            "[provider-failover] 后台渠道「{}」返回不可用响应，换下一个：{reason}",
+                            entry.name
+                        ));
+                        record_provider_failure(&entry.id);
                         errors.push(format!("[{}] {reason}", entry.name));
                         continue;
                     }
                     self.preferred.store(index, Ordering::Relaxed);
+                    record_provider_success(&entry.id);
                     remember_last_good(&entry.id);
                     return Ok(reply);
                 }
                 Err(error) => {
                     // 渠道级错误（5xx/429/超时/鉴权/余额）都继续试下一个：
                     // 后台链路没有前台那样的用户可重试入口，能换就换。
-                    if std::env::var_os("ELSEWHEN_DEBUG").is_some() {
-                        eprintln!(
-                            "[provider-failover] 后台渠道「{}」失败，换下一个：{error:#}",
-                            entry.name
-                        );
-                    }
+                    crate::logging::log_always(&format!(
+                        "[provider-failover] 后台渠道「{}」失败，换下一个：{error:#}",
+                        entry.name
+                    ));
+                    record_provider_failure(&entry.id);
                     errors.push(format!("[{}] {error:#}", entry.name));
                 }
             }
         }
+        errors.extend(skipped);
         anyhow::bail!("所有 AI provider 均失败：{}", errors.join(" | "))
     }
 
@@ -221,6 +344,10 @@ mod tests {
     use super::*;
     use std::sync::Arc;
 
+    /// cooldown 槽是进程级全局状态；并行测试用这把锁串行化，
+    /// 避免 A 测试的 reset 清掉 B 测试刚记的失败。
+    static COOLDOWN_TEST_LOCK: Mutex<()> = Mutex::new(());
+
     struct ScriptedProvider {
         result: Mutex<Option<Result<AiReply>>>,
     }
@@ -261,7 +388,9 @@ mod tests {
 
     #[test]
     fn tries_next_provider_after_failure() {
+        let _guard = COOLDOWN_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         reset_last_good_background_provider();
+        reset_provider_cooldowns();
         let chain = FailoverProvider::new(vec![
             FailoverEntry::new("bad", "bad", Box::new(ScriptedProvider::err("503"))),
             FailoverEntry::new("good", "good", Box::new(ScriptedProvider::ok("ok"))),
@@ -277,7 +406,9 @@ mod tests {
 
     #[test]
     fn skips_empty_and_truncated_replies() {
+        let _guard = COOLDOWN_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         reset_last_good_background_provider();
+        reset_provider_cooldowns();
         let chain = FailoverProvider::new(vec![
             FailoverEntry::new(
                 "empty",
@@ -338,7 +469,9 @@ mod tests {
 
     #[test]
     fn reuses_successful_provider_for_next_call() {
+        let _guard = COOLDOWN_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         reset_last_good_background_provider();
+        reset_provider_cooldowns();
         let calls = Arc::new(Mutex::new(Vec::new()));
         let chain = FailoverProvider::new(vec![
             FailoverEntry::new(
@@ -373,7 +506,9 @@ mod tests {
 
     #[test]
     fn reports_every_provider_when_all_fail() {
+        let _guard = COOLDOWN_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         reset_last_good_background_provider();
+        reset_provider_cooldowns();
         let chain = FailoverProvider::new(vec![
             FailoverEntry::new("first", "first", Box::new(ScriptedProvider::err("503"))),
             FailoverEntry::new("second", "second", Box::new(ScriptedProvider::err("429"))),
@@ -388,5 +523,83 @@ mod tests {
         assert!(error.contains("[second]"));
         assert!(error.contains("503"));
         assert!(error.contains("429"));
+    }
+
+    #[test]
+    fn failure_puts_provider_into_cooldown_and_next_call_skips_it() {
+        let _guard = COOLDOWN_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        reset_last_good_background_provider();
+        reset_provider_cooldowns();
+        let calls = Arc::new(Mutex::new(Vec::new()));
+        let chain = FailoverProvider::new(vec![
+            FailoverEntry::new(
+                "bad",
+                "bad",
+                Box::new(RecordingProvider {
+                    name: "bad",
+                    ok: false,
+                    calls: calls.clone(),
+                }),
+            ),
+            FailoverEntry::new(
+                "good",
+                "good",
+                Box::new(RecordingProvider {
+                    name: "good",
+                    ok: true,
+                    calls: calls.clone(),
+                }),
+            ),
+        ]);
+
+        chain.generate_reply_with_tools(Vec::new(), None).unwrap();
+        chain.generate_reply_with_tools(Vec::new(), None).unwrap();
+
+        assert_eq!(
+            calls.lock().unwrap().as_slice(),
+            ["bad", "good", "good"],
+            "cooled-down provider must not be retried on the next call"
+        );
+        assert!(provider_in_cooldown("bad", std::time::Instant::now()));
+        assert!(!provider_in_cooldown("good", std::time::Instant::now()));
+    }
+
+    #[test]
+    fn success_clears_cooldown() {
+        let _guard = COOLDOWN_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        reset_last_good_background_provider();
+        reset_provider_cooldowns();
+        record_provider_failure("flaky");
+        assert!(provider_in_cooldown("flaky", std::time::Instant::now()));
+        record_provider_success("flaky");
+        assert!(!provider_in_cooldown("flaky", std::time::Instant::now()));
+    }
+
+    #[test]
+    fn all_cooled_down_still_tries_every_provider() {
+        let _guard = COOLDOWN_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        reset_last_good_background_provider();
+        reset_provider_cooldowns();
+        record_provider_failure("a");
+        record_provider_failure("b");
+        let chain = FailoverProvider::new(vec![
+            FailoverEntry::new("a", "a", Box::new(ScriptedProvider::err("503"))),
+            FailoverEntry::new("b", "b", Box::new(ScriptedProvider::ok("recovered"))),
+        ]);
+
+        let reply = chain
+            .generate_reply_with_tools(Vec::new(), None)
+            .expect("all-cooled chain must still attempt every provider");
+        assert_eq!(reply.content, "recovered");
+    }
+
+    #[test]
+    fn cooldown_backoff_grows_and_caps() {
+        let first = CooldownState::backoff(1);
+        let second = CooldownState::backoff(2);
+        let huge = CooldownState::backoff(40);
+        assert_eq!(first, std::time::Duration::from_secs(120));
+        assert_eq!(second, std::time::Duration::from_secs(240));
+        assert_eq!(huge, std::time::Duration::from_secs(1800));
     }
 }

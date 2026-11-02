@@ -370,6 +370,7 @@ mod page_marks {
         store.chat_run_identity = Some(crate::ai::generation::RunIdentity {
             id: run.id.clone(),
             owner: "fixture-owner".into(),
+            started_at: std::time::Instant::now(),
         });
         let context =
             crate::ai::memory::prepare_uncompressed_context(&conversation, &store).unwrap();

@@ -55,6 +55,10 @@ pub(crate) fn shared_blocking_client(timeout_secs: u64) -> Result<reqwest::block
     }
     let client = crate::http_proxy::with_outbound_proxy(reqwest::blocking::Client::builder())
         .timeout(std::time::Duration::from_secs(timeout_secs))
+        // TCP/TLS 建连阶段的独立兑底（issue 2026-10-31 手机实测两次：总 timeout
+        // 在 OPPO 后台网络管控 drop 包时不触发，请求无限挂死；connect_timeout
+        // 由 hyper 连接层强制执行，不受 runtime timer 驱动路径影响）。
+        .connect_timeout(std::time::Duration::from_secs(10))
         .build()
         .context("Failed to create HTTP client")?;
     clients.push((timeout_secs, client.clone()));
@@ -77,7 +81,7 @@ pub(crate) fn provider_error_body(status: impl std::fmt::Display, body: &str) ->
 
 /// Token usage reported by an AI provider
 mod contract;
-mod failover;
+pub(crate) mod failover;
 mod ollama;
 mod openai;
 

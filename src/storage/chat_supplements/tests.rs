@@ -387,6 +387,7 @@ fn budget_refusal_keeps_eligibility_and_success_adds_required_context() {
     store.chat_run_identity = Some(crate::ai::generation::RunIdentity {
         id: run.clone(),
         owner: "owner".into(),
+        started_at: std::time::Instant::now(),
     });
     let messages = vec![ContextMessage::new("user", "原始问题")];
     assert!(

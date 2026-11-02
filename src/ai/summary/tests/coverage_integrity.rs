@@ -91,6 +91,7 @@ fn summary_auxiliary_stream_never_creates_answer_deltas() {
     snapshot.chat_run_identity = Some(crate::ai::generation::RunIdentity {
         id: run.id.clone(),
         owner: "worker".into(),
+        started_at: std::time::Instant::now(),
     });
     let mut messages = context(&snapshot, &conversation);
     let provider = FakeProvider::new(good_reply());

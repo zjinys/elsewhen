@@ -47,6 +47,8 @@ fn auxiliary_stream_keeps_answer_draft_and_accounts_separate_usage() {
     store.chat_run_identity = Some(RunIdentity {
         id: run.id.clone(),
         owner: "owner".into(),
+        started_at: std::time::Instant::now(),
+        
     });
     store
         .flush_chat_run_checkpoint(&run.id, "owner", "existing answer draft")

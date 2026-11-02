@@ -154,6 +154,8 @@ fn real_model_chat_supplement_acceptance() {
             snapshot.chat_run_identity = Some(RunIdentity {
                 id: run.id.clone(),
                 owner: owner.into(),
+                started_at: std::time::Instant::now(),
+                
             });
             let provider = ControlledProvider {
                 inner: OpenAiCompatibleProvider::new(fixture.provider.clone())?,
@@ -248,6 +250,8 @@ fn real_model_chat_cancel_recovery_acceptance() {
     snapshot.chat_run_identity = Some(RunIdentity {
         id: run.id.clone(),
         owner: owner.into(),
+        started_at: std::time::Instant::now(),
+        
     });
     let provider = ControlledProvider {
         inner: OpenAiCompatibleProvider::new(fixture.provider.clone()).unwrap(),

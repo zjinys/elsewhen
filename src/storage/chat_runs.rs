@@ -275,9 +275,41 @@ impl Store {
             .flatten()
     }
 
+    /// 无条件续租：只在 heartbeat 驱动的显式续租路径使用。
     pub(crate) fn renew_chat_run(&self, run: &str, owner: &str) -> Result<bool> {
         Ok(self.connection.execute("UPDATE chat_runs SET lease_until=?1 WHERE id=?2 AND executor_id=?3 AND status IN ('preparing','running') AND lease_until>?4",params![deadline(),run,owner,chrono::Utc::now().to_rfc3339()])?==1)
     }
+
+    /// 租约节流续租：剩余寿命 ≥ [`Self::RENEW_IDLE_MINUTES`] 时是 no-op，
+    /// 不产生写入。心跳（25ms 一次 Poll）高频调用本方法，节流把写放大
+    /// 压到每分钟一次，同时保证单渠道超时（60–120s）串起来也永远追
+    /// 不上租约终点。返回 true 表示租约仍由本执行者持有。
+    pub(crate) fn renew_chat_run_if_due(&self, run: &str, owner: &str) -> Result<bool> {
+        let now = chrono::Utc::now();
+        let remaining: Option<f64> = self
+            .connection
+            .query_row(
+                "SELECT julianday(lease_until)-julianday(?1) FROM chat_runs \
+                 WHERE id=?2 AND executor_id=?3 AND status IN ('preparing','running')",
+                rusqlite::params![now.to_rfc3339(), run, owner],
+                |r| r.get(0),
+            )
+            .optional()
+            .context("读取运行租约失败")?;
+        // 行消失（终态/被回收）视为不再持有。
+        let Some(remaining_days) = remaining else {
+            return Ok(false);
+        };
+        let remaining_secs = remaining_days * 86400.0;
+        if remaining_secs >= Self::RENEW_IDLE_MINUTES as f64 * 60.0 {
+            return Ok(remaining_secs > 0.0);
+        }
+        self.renew_chat_run(run, owner)
+    }
+
+    /// 续租节流阈值（秒）：剩余寿命低于该值才真正写库。远大于单渠道
+    /// 60s HTTP 超时，节流窗口内的最长静默也不会跨过租约终点。
+    const RENEW_IDLE_MINUTES: i64 = 4;
 
     pub(crate) fn append_chat_run_event(
         &self,

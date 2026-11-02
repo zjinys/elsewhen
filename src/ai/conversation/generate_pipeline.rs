@@ -299,8 +299,25 @@ pub(crate) fn generate_with_provider_configs(
     // 4) Agent 循环（可调工具）
     let mut errors = Vec::new();
     let mut outcome = None;
-    for (provider_id, provider_name, provider) in ai_providers {
+    let mut skipped_cooldown: Vec<String> = Vec::new();
+    // 渠道冷却预扫：上次失败仍在冷却期的渠道直接跳过，不让死渠道每轮
+    // 烧满 60s 超时；全部冷却时照常全试（与 FailoverProvider 同一纪律）。
+    let now = std::time::Instant::now();
+    for (provider_id, provider_name, provider) in ai_providers
+        .into_iter()
+        .filter(|(id, name, _)| match id {
+            Some(id) if super::provider::failover::provider_in_cooldown(id, now) => {
+                skipped_cooldown.push(format!("[{name}] 冷却中，跳过"));
+                false
+            }
+            _ => true,
+        })
+    {
         let mut attempt_context = context.clone();
+        crate::logging::log_always(&format!(
+            "[agent] 尝试渠道「{provider_name}」（id={:?}）",
+            provider_id
+        ));
         if let Some(budget) = selection_budget {
             let fallback_model = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "llama2".into());
             let fallback_basis = crate::storage::knowledge::content_hash(&format!(
@@ -389,6 +406,9 @@ pub(crate) fn generate_with_provider_configs(
             turn_start,
         ) {
             Ok(result) => {
+                if let Some(id) = &provider_id {
+                    super::provider::failover::record_channel_success(id);
+                }
                 if let Some(id) = provider_id {
                     // failover 落点不进同步域：active 是本机运行时事实，写
                     // ai_provider_runtime_active（迁移 55），不碰 is_active——
@@ -402,6 +422,12 @@ pub(crate) fn generate_with_provider_configs(
             }
             Err(error) => {
                 super::generation::check(store)?;
+                if let Some(id) = &provider_id {
+                    super::provider::failover::record_channel_failure(id);
+                }
+                crate::logging::log_always(&format!(
+                    "[agent] 渠道「{provider_name}」失败（turn 开始于 {turn_start}）：{error:#}"
+                ));
                 // Consumed supplements belong to this run, not to one provider
                 // attempt. A failover must not lose or consume them a second time.
                 for supplement in attempt_context
@@ -434,6 +460,7 @@ pub(crate) fn generate_with_provider_configs(
             }
         }
     }
+    errors.extend(skipped_cooldown);
     let outcome = outcome.context(format!("所有 AI provider 均失败：{}", errors.join(" | ")))?;
     if let Some(task) = &page_task {
         task.validate(store)?;

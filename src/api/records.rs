@@ -43,6 +43,9 @@ pub enum DailyReviewResult {
 
 /// Initialize the bridge with database path
 pub fn init_bridge(database_path: Option<String>) -> Result<String> {
+    // 日志通道自检：验证 Android logcat 出口真的能出字（issue 2026-10-31：
+    // 无法区分「生成没启动」和「日志没工作」，用一条确定性日志排除后者）。
+    crate::logging::log_always("[log] init_bridge 日志通道自检（启动）");
     // 库路径在进程内钉死（见 config::AppConfig::pin）：早前这里是
     // `std::env::set_var("ELSEWHEN_DATA_DIR", ...)`，而每个 API 函数都重读该环境变量，
     // 于是运行时任何代码都能改写数据源，且 `flutter test` 下并发 suite 会互相覆盖

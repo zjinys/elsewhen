@@ -98,6 +98,11 @@ struct Builder<'a> {
     provider_basis: &'a str,
     model: &'a str,
     requests: usize,
+    /// 整次摘要的时间预算（issue 2026-10-31 手机实测：507 条会话冷启动摘要
+    /// 要几十个请求，手机网络下每个数十秒，生成路径上现场摘要拖过 8 分钟，
+    /// 用户只看到「没有回复」。预算超时放弃本轮摘要（回复照常，带降级标注），
+    /// 让后台预热慢慢把节点补齐，下次生成就能命中缓存。
+    started: std::time::Instant,
     cache_hits: usize,
 }
 
@@ -110,6 +115,17 @@ impl Builder<'_> {
         compact: bool,
     ) -> Result<SummaryNode> {
         super::generation::check(self.store)?;
+        // 时间预算止损（issue 2026-10-31）：生成路径上现场摘要若被慢网络
+        // 拖住，主回复会跟着无限等待。超预算即放弃本轮摘要，回复照常
+        // 生成并带降级标注；后台预热会继续补节点，下次命中缓存。
+        const SUMMARY_TIME_BUDGET: std::time::Duration = std::time::Duration::from_secs(45);
+        if self.started.elapsed() > SUMMARY_TIME_BUDGET {
+            return Err(anyhow::anyhow!(
+                "摘要时间预算已到（{:?}，{} 请求），放弃本轮等待后台预热",
+                self.started.elapsed(),
+                self.requests
+            ));
+        }
         let basis_hash =
             content_hash(&json!({"spans":spans,"children":children,"compact":compact}).to_string());
         if let Some(node) = self.store.summary_node(
@@ -146,7 +162,19 @@ impl Builder<'_> {
             self.provider,
             self.provider_name,
             messages,
-        )?;
+        )
+        .inspect_err(|error| {
+            crate::logging::log_always(&format!(
+                "[summary] 请求 #{} 失败（{:?}）：{error:#}",
+                self.requests,
+                started.elapsed()
+            ));
+        })?;
+        crate::logging::log_always(&format!(
+            "[summary] 请求 #{} 完成，耗时 {:?}",
+            self.requests,
+            started.elapsed()
+        ));
         let body = parse_body(&reply, self.model)?;
         let node = SummaryNode {
             id: content_hash(
@@ -285,6 +313,7 @@ pub(crate) fn generate_page_mark(
         provider_name,
         provider_basis,
         model,
+        started: std::time::Instant::now(),
         requests: 0,
         cache_hits: 0,
     };
@@ -423,6 +452,7 @@ pub(crate) fn apply_summary(
         provider_name,
         provider_basis,
         model,
+        started: std::time::Instant::now(),
         requests: 0,
         cache_hits: 0,
     };
@@ -486,6 +516,9 @@ pub(crate) fn apply_summary(
         }
         Err(error) => {
             failed_flag = true;
+            // 事件 detail 同步进日志通道：手机上事件表不可直接查，
+            // 没有 logcat 就只能猜（issue 2026-10-31 实测）。
+            crate::logging::log_always(&format!("[summary] 摘要不可用：{error:#}"));
             // Completed leaf nodes remain reusable; an incomplete root is never
             // injected. P0-a（2026-10-19 档案）：此前真实错误被丢弃，一个
             // 确定性 bug 伪装成「偶发不可用」每轮重试数周。归并/校验错误

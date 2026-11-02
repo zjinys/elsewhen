@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../bridge/api.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../models/conversation.dart';
+import '../sync/sync_keep_alive.dart';
 import 'conversation_provider.dart';
 import 'todo_provider.dart';
 import 'wiki_provider.dart';
@@ -117,6 +118,25 @@ class ChatRunController extends ChangeNotifier {
 
   bool _current(int epoch) => !_disposed && epoch == _epoch;
 
+  /// 生成期间挂前台服务，防 OPPO/一加等 ROM 冻结后台进程。
+  ///
+  /// 实测（2026-10-31）：用户发消息后切走/锁屏，OplusHansManager 冻结进程，
+  /// tokio 计时器停摆，渠道 60s 超时不触发，生成无限期挂死。带常驻通知的
+  /// FGS 进程默认豁免冻结；run 进入终态或控制器销毁时立即释放，不做常驻保活。
+  void _syncKeepAlive() {
+    final run = _run;
+    final active =
+        !_disposed && run != null && chatRunIsActive(run.status);
+    if (active) {
+      SyncKeepAlive.hold(
+        'chat-run-$conversationId',
+        text: '正在生成回复；切走也能继续，完成后自动停止。',
+      );
+    } else {
+      SyncKeepAlive.release('chat-run-$conversationId');
+    }
+  }
+
   void _acceptSnapshot(ChatRunDto? snapshot, {bool replace = false}) {
     if (snapshot != null && snapshot.conversationId != conversationId) {
       throw StateError('wrong conversation');
@@ -152,6 +172,7 @@ class ChatRunController extends ChangeNotifier {
       _notifiedTerminal = snapshot.id;
       onTerminal?.call();
     }
+    _syncKeepAlive();
   }
 
   Future<void> restore() async {
@@ -397,6 +418,7 @@ class ChatRunController extends ChangeNotifier {
     _disposed = true;
     _epoch++;
     _timer?.cancel();
+    SyncKeepAlive.release('chat-run-$conversationId');
     super.dispose();
   }
 }

@@ -152,6 +152,7 @@ fn cancellation_prevents_summary_commit() {
     snapshot.chat_run_identity = Some(crate::ai::generation::RunIdentity {
         id: run.id.clone(),
         owner: "owner".into(),
+        started_at: std::time::Instant::now(),
     });
     let summary = node(&snapshot, &conversation);
     store.cancel_chat_run(&conversation, &run.id).unwrap();

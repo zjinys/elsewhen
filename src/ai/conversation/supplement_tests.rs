@@ -93,6 +93,8 @@ fn supplements_enter_only_the_request_after_a_completed_tool_exchange() {
         snapshot.chat_run_identity = Some(super::super::generation::RunIdentity {
             id: run.id.clone(),
             owner: "owner".into(),
+            started_at: std::time::Instant::now(),
+            
         });
         let provider = SteeringProvider {
             store: &store,
@@ -148,6 +150,8 @@ fn supplements_enter_only_the_request_after_a_completed_tool_exchange() {
             retry_store.chat_run_identity = Some(super::super::generation::RunIdentity {
                 id: retry.id,
                 owner: "next".into(),
+                started_at: std::time::Instant::now(),
+                
             });
             let mut retry_context = vec![ContextMessage::new("user", "整理材料")];
             super::super::supplements::restore(&retry_store, &conversation, &mut retry_context)

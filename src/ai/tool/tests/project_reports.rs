@@ -67,6 +67,7 @@ fn project_report_staging_rejects_cancelled_and_expired_runs() {
         store.chat_run_identity = Some(crate::ai::generation::RunIdentity {
             id: run.id.clone(),
             owner: "owner".into(),
+            started_at: std::time::Instant::now(),
         });
         crate::ai::generation::check(&store).unwrap();
 
@@ -124,6 +125,7 @@ fn project_report_staging_commits_for_live_run_and_joins_outer_transaction() {
     store.chat_run_identity = Some(crate::ai::generation::RunIdentity {
         id: run.id,
         owner: "owner".into(),
+        started_at: std::time::Instant::now(),
     });
     let args = json!({"directory":"synthetic-project", "content_md":"prepared report"});
     let id = store_create_pending(&store, &conv, "import_directory_as_project", &args).unwrap();

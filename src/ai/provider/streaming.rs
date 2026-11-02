@@ -219,7 +219,12 @@ pub(super) fn generate(
         .build()?;
     runtime.block_on(async {
         let client = crate::http_proxy::with_outbound_proxy_async(
-            reqwest::Client::builder().timeout(std::time::Duration::from_secs(60)),
+            reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(60))
+                // 建连独立兑底：总 timeout 依赖 tokio timer 被正常 poll，
+                // OPPO 冻结/后台网络 drop 包场景下实测不触发；
+                // connect_timeout 在 hyper 连接层强制执行（issue 2026-10-31）。
+                .connect_timeout(std::time::Duration::from_secs(10)),
         )
         .build()?;
         payload["stream"] = Value::Bool(true);
@@ -229,6 +234,12 @@ pub(super) fn generate(
         let mut attempt = 0;
         let mut trigger = "initial";
         let mut heartbeat = tokio::time::interval(std::time::Duration::from_millis(25));
+        // 渠道级墙钟（issue 2026-10-31）：OPPO 后台网络管控 drop 包时实测
+        // reqwest 总 timeout 不触发（timer 依赖 runtime 被 poll），单渠道
+        // 无限挂死拖死整条 failover 链。90s 覆盖建连 + 等首字节 + 正常
+        // 流式回复；正常生成几十秒内完成，超它必是病态路径。
+        let channel_started = std::time::Instant::now();
+        const CHANNEL_WALL_LIMIT: std::time::Duration = std::time::Duration::from_secs(90);
         loop {
             observer(ProviderEvent::Poll)?;
             attempt += 1;
@@ -247,6 +258,9 @@ pub(super) fn generate(
                 .send();
             tokio::pin!(send);
             let mut response = loop {
+                if channel_started.elapsed() > CHANNEL_WALL_LIMIT {
+                    bail!("渠道墙钟超过 90s 未完成（网络被后台管控拦截或服务端无响应）");
+                }
                 tokio::select! {
                     result = &mut send => break result.context("Failed to send streaming request")?,
                     _ = heartbeat.tick() => observer(ProviderEvent::Poll)?,
@@ -264,6 +278,9 @@ pub(super) fn generate(
                 let read = response.chunk();
                 tokio::pin!(read);
                 let chunk = loop {
+                    if channel_started.elapsed() > CHANNEL_WALL_LIMIT {
+                        bail!("渠道墙钟超过 90s 未完成（流式读取中断或服务端无响应）");
+                    }
                     tokio::select! {
                         result = &mut read => break result.context("Provider stream read failed")?,
                         _ = heartbeat.tick() => observer(ProviderEvent::Poll)?,

@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/api.dart';
 import '../providers/conversation_provider.dart';
-import 'chat_run_history.dart';
 
 /// Read-only queue observation. Dispatch belongs to the repository lifecycle,
 /// so changing pages neither stops an authorized queue nor resumes a paused one.
@@ -98,7 +97,7 @@ class _ChatInputQueueState extends ConsumerState<ChatInputQueue> {
     if (_error != null) return Text(_error!);
     if (queue == null ||
         (queue.items.isEmpty && queue.recentInjections.isEmpty)) {
-      return ChatRunHistory(conversationId: widget.conversationId);
+      return const SizedBox.shrink();
     }
     final id = widget.conversationId;
     return Padding(
@@ -167,7 +166,6 @@ class _ChatInputQueueState extends ConsumerState<ChatInputQueue> {
                   ),
               ],
             ),
-          ChatRunHistory(conversationId: id),
         ],
       ),
     );
