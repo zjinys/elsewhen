@@ -26,12 +26,12 @@ import androidx.core.app.NotificationCompat
  * 开始的时机是用户发起加入 / 批准邀请 / 进入快照传输阶段，结束的时机是
  * 交接完成、失败或用户放弃。它不做任何业务逻辑，不碰数据库。
  */
-class SyncKeepAliveService : Service() {
+class KeepAliveService : Service() {
     companion object {
-        const val ACTION_START = "dev.elsewhen.sync.keepalive.START"
-        const val ACTION_STOP = "dev.elsewhen.sync.keepalive.STOP"
+        const val ACTION_START = "dev.elsewhen.keepalive.START"
+        const val ACTION_STOP = "dev.elsewhen.keepalive.STOP"
         const val EXTRA_TEXT = "text"
-        private const val CHANNEL_ID = "sync_keepalive"
+        private const val CHANNEL_ID = "keepalive"
         private const val NOTIFICATION_ID = 1061
         private const val DEFAULT_TEXT = "正在与另一台设备同步"
 
@@ -40,7 +40,7 @@ class SyncKeepAliveService : Service() {
          * 用户此刻多半不在前台，本来也不该弹通知，下一次进入前台会再拉起。
          */
         fun start(context: Context, text: String?) {
-            val intent = Intent(context, SyncKeepAliveService::class.java).apply {
+            val intent = Intent(context, KeepAliveService::class.java).apply {
                 action = ACTION_START
                 putExtra(EXTRA_TEXT, text)
             }
@@ -53,15 +53,15 @@ class SyncKeepAliveService : Service() {
             } catch (e: Exception) {
                 // ForegroundServiceStartNotAllowedException / SecurityException：
                 // 保活是优化项，绝不能因为它让配对流程抛错。
-                android.util.Log.w("SyncKeepAlive", "start rejected: ${e.message}")
+                android.util.Log.w("KeepAlive", "start rejected: ${e.message}")
             }
         }
 
         fun stop(context: Context) {
             try {
-                context.stopService(Intent(context, SyncKeepAliveService::class.java))
+                context.stopService(Intent(context, KeepAliveService::class.java))
             } catch (e: Exception) {
-                android.util.Log.w("SyncKeepAlive", "stop failed: ${e.message}")
+                android.util.Log.w("KeepAlive", "stop failed: ${e.message}")
             }
         }
     }
@@ -80,7 +80,7 @@ class SyncKeepAliveService : Service() {
         } catch (e: Exception) {
             // Android 12+ 后台启动限制 / 12+ 的类型校验都可能在这里抛错。
             // 服务自己挂掉会把整个进程拖死，所以只能放弃保活、干净退出。
-            android.util.Log.w("SyncKeepAlive", "startForeground failed: ${e.message}")
+            android.util.Log.w("KeepAlive", "startForeground failed: ${e.message}")
             stopSelf()
             return START_NOT_STICKY
         }
@@ -89,7 +89,7 @@ class SyncKeepAliveService : Service() {
         try {
             acquireWakeLock()
         } catch (e: Exception) {
-            android.util.Log.w("SyncKeepAlive", "wakelock failed: ${e.message}")
+            android.util.Log.w("KeepAlive", "wakelock failed: ${e.message}")
         }
         return START_NOT_STICKY
     }

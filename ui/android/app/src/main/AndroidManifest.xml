@@ -3,6 +3,10 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- 可选的打开密码解锁：仅当用户在设置中开启指纹/面容解锁时调用。 -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- 保活前台服务（targetSdk 34+ 必需的运行时权限）与传输期 wake lock。 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- 自建局域网中继需要明文 HTTP；公网防线仍在 Rust 层
          （transport_relay.rs 仅放行私网/环回地址的 http）。 -->
     <application
@@ -35,6 +39,13 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- 保活前台服务（同步传输与 AI 生成期间挂起，防国产 ROM 冻结后台进程）。
+             没有此声明时 startForegroundService 抛 ServiceNotFoundException，
+             会被 Dart 侧吞掉，保活从未生效过（issue 2026-10-31 发现）。 -->
+        <service
+            android:name=".KeepAliveService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

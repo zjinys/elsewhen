@@ -21,11 +21,11 @@ class MainActivity : FlutterFragmentActivity() {
                 when (call.method) {
                     "start" -> {
                         ensureNotificationPermission()
-                        SyncKeepAliveService.start(this, call.argument<String>("text"))
+                        KeepAliveService.start(this, call.argument<String>("text"))
                         result.success(true)
                     }
                     "stop" -> {
-                        SyncKeepAliveService.stop(this)
+                        KeepAliveService.stop(this)
                         result.success(true)
                     }
                     else -> result.notImplemented()
