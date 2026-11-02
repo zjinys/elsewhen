@@ -293,13 +293,14 @@ void openGoalDialog(BuildContext context) {
         child: const SizedBox(
           width: 560,
           height: 560,
-          child: GoalListView(),
+          // embeddedInDialog：卡片级 AI 辅助触发时先关此弹窗再落到对话
+          child: GoalListView(quickGlance: true),
         ),
       ),
     ),
     sheetBuilder: (sheetContext) => _PanelSheet(
       title: '目标',
-      builder: (context) => const GoalListView(),
+      builder: (context) => GoalListView(quickGlance: true),
     ),
   );
 }

@@ -55,7 +55,11 @@ Goal _goal(
   doneCriteria: doneCriteria,
 ));
 
-Widget _panel({List<Goal> active = const [], List<Goal> archived = const []}) {
+Widget _panel({
+  List<Goal> active = const [],
+  List<Goal> archived = const [],
+  bool quickGlance = false,
+}) {
   return ProviderScope(
     overrides: [
       activeGoalsProvider.overrideWith((ref) async => active),
@@ -65,7 +69,11 @@ Widget _panel({List<Goal> active = const [], List<Goal> archived = const []}) {
       completedGoalsProvider.overrideWith((ref) async =>
           archived.where((g) => g.status == GoalStatus.completed).toList()),
     ],
-    child: const MaterialApp(home: Scaffold(body: GoalListView())),
+    child: MaterialApp(
+      home: Scaffold(
+        body: GoalListView(quickGlance: quickGlance),
+      ),
+    ),
   );
 }
 
@@ -129,14 +137,13 @@ void main() {
       expect(find.text('近期'), findsWidgets);
       expect(find.text('中期'), findsWidgets);
       expect(find.text('长远'), findsWidgets);
-      // tab 化后：目标名同时出现在 tab 芯片（选中项）与详情卡片中；
-      // 未选中项只在 tab 芯片出现
-      expect(find.text('近期的事'), findsNWidgets(2));
+      // 非活跃区竖排展示：每条目标名只出现一次
+      expect(find.text('近期的事'), findsOneWidget);
       expect(find.text('中期的事'), findsOneWidget);
       expect(find.text('长远的事'), findsOneWidget);
     });
 
-    testWidgets('历史归档可复活', (tester) async {
+    testWidgets('状态过滤：暂停搁置目标切到「暂停搁置」后可复活', (tester) async {
       await tester.pumpWidget(
         _panel(
           active: [_goal('g1', '现在的事')],
@@ -154,15 +161,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('历史归档'), findsOneWidget);
+      // 缺省看活跃，暂停目标不在视区内
+      expect(find.text('现在的事'), findsOneWidget);
+      expect(find.text('放弃过的事'), findsNothing);
+
+      // 切到「暂停搁置」过滤后可复活
+      await tester.tap(find.textContaining('暂停搁置'));
+      await tester.pumpAndSettle();
+      expect(find.text('现在的事'), findsNothing);
       expect(find.text('放弃过的事'), findsOneWidget);
       expect(find.byTooltip('复活（需有名额）'), findsOneWidget);
-    });
-
-    testWidgets('历史为空时不占版面', (tester) async {
-      await tester.pumpWidget(_panel(active: [_goal('g1', '现在的事')]));
-      await tester.pumpAndSettle();
-      expect(find.text('历史归档'), findsNothing);
     });
 
     testWidgets('活跃目标高亮呈现抓手、卡点与动力判据切片', (tester) async {
@@ -246,21 +254,23 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 默认在「暂停搁置」Tab
+      // 缺省看活跃；切到「暂停搁置」过滤
+      await tester.tap(find.textContaining('暂停搁置'));
+      await tester.pumpAndSettle();
       expect(find.text('学法语'), findsOneWidget);
       expect(find.textContaining('背完 500 个基础词汇'), findsOneWidget);
       expect(find.text('考过驾照'), findsNothing);
 
-      // 切换到「已达成」Tab
-      await tester.tap(find.textContaining('已达成 (1)'));
+      // 切换到「已达成」过滤
+      await tester.tap(find.textContaining('已达成'));
       await tester.pumpAndSettle();
 
       expect(find.text('考过驾照'), findsOneWidget);
       expect(find.textContaining('科目四通过并拿本'), findsOneWidget);
       expect(find.text('学法语'), findsNothing);
 
-      // 切回「暂停搁置」Tab 并点击「重新激活」
-      await tester.tap(find.textContaining('暂停搁置 (1)'));
+      // 切回「暂停搁置」过滤并点击「重新激活」
+      await tester.tap(find.textContaining('暂停搁置'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('重新激活'));
@@ -272,6 +282,61 @@ void main() {
       expect(find.widgetWithText(TextField, '背完 500 个基础词汇'), findsOneWidget);
       expect(find.widgetWithText(TextField, '缺少日常发音纠正环境'), findsOneWidget);
       expect(find.text('确认唤醒'), findsOneWidget);
+    });
+
+    testWidgets('速览弹窗（quickGlance）：只读无写入口无 AI 入口，仅活跃目标', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            activeGoalsProvider.overrideWith((ref) async => [
+                  _goal(
+                    'g1',
+                    '发布 Elsewhen 1.0',
+                    currentFocus: '攻克快照收敛',
+                    blocker: '证书配置繁琐',
+                  ),
+                ]),
+            archivedGoalsProvider.overrideWith((ref) async => const []),
+            pausedGoalsProvider.overrideWith((ref) async => const []),
+            completedGoalsProvider.overrideWith((ref) async => const []),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => Center(
+                  child: TextButton(
+                    onPressed: () => openGoalDialog(context),
+                    child: const Text('打开目标面板'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 打开目标面板（真实 openGoalDialog 路径，quickGlance 形态）
+      await tester.tap(find.text('打开目标面板'));
+      await tester.pumpAndSettle();
+
+      // 活跃目标切片完整呈现
+      expect(find.text('发布 Elsewhen 1.0'), findsOneWidget);
+      expect(find.textContaining('攻克快照收敛'), findsOneWidget);
+      expect(find.textContaining('证书配置繁琐'), findsOneWidget);
+
+      // 零写入口、零 AI 入口、无历史归档、无新增表单
+      expect(find.text('AI 辅助拆解'), findsNothing);
+      expect(find.textContaining('和 AI'), findsNothing);
+      expect(find.text('添加'), findsNothing);
+      expect(find.byIcon(Icons.tune_outlined), findsNothing);
+      expect(find.byIcon(Icons.more_horiz), findsNothing);
+      expect(find.byType(TextField), findsNothing);
+      expect(find.textContaining('暂停搁置'), findsNothing);
+      expect(find.textContaining('已达成'), findsNothing);
+      expect(find.textContaining('活跃 ('), findsNothing);
+
+      expect(tester.takeException(), isNull);
     });
   });
 

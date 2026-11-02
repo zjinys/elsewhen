@@ -101,7 +101,7 @@ Widget _goalDomain({
                 const Expanded(
                   child: Align(
                     alignment: Alignment.topCenter,
-                    child: GoalListView(readOnly: true),
+                    child: GoalListView(),
                   ),
                 ),
               ],
@@ -123,8 +123,8 @@ void main() {
     addTearDown(tester.view.reset);
   }
 
-  group('目标域只读总览（左侧导航一级入口）', () {
-    testWidgets('只读模式：无新增表单、无操作按钮、无关闭按钮，内容完整呈现', (tester) async {
+  group('目标域工作台（左侧导航一级入口，可编辑）', () {
+    testWidgets('工作台完整呈现：活跃竖排卡片 + 状态过滤 + 写入口可用', (tester) async {
       useWideSidebar(tester);
       await tester.pumpWidget(_goalDomain(
         active: [
@@ -137,28 +137,22 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // 活跃/暂停内容完整呈现；达成项默认隐藏在「已达成」分栏下，
-      // 切换后再断言（与 GoalListView 的归档交互一致）
-      // tab 化后：选中目标同时出现在 tab 芯片与详情卡片
-      expect(find.text('发布 Elsewhen 1.0'), findsNWidgets(2));
+      // 缺省「活跃」过滤：活跃目标竖排完整呈现
+      expect(find.text('发布 Elsewhen 1.0'), findsOneWidget);
       expect(find.textContaining('攻克多端同步快照收敛'), findsWidgets);
-      expect(find.textContaining('学 Rust'), findsOneWidget);
-      await tester.tap(find.text('已达成 (1)'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('搬家'), findsOneWidget);
+      expect(find.text('锻炼身体'), findsOneWidget);
 
-      // 只读：无新增表单、无添加按钮、无关闭按钮
-      expect(find.byType(TextField), findsNothing);
-      expect(find.text('添加'), findsNothing);
-      expect(find.byIcon(Icons.close), findsNothing);
-      // 只读：无卡片操作按钮
-      expect(find.byIcon(Icons.tune_outlined), findsNothing);
-      expect(find.byIcon(Icons.more_horiz), findsNothing);
-      expect(find.byIcon(Icons.play_arrow_outlined), findsNothing);
-      expect(find.byIcon(Icons.refresh), findsNothing);
-      // 历史归档分栏仍在；默认 tab 是暂停搁置，「搬家」需切到已达成
-      expect(find.text('历史归档'), findsOneWidget);
-      await tester.tap(find.text('已达成 (1)'));
+      // 可编辑工作台：新增表单、卡片级 AI 辅助、卡片操作按钮都在
+      expect(find.text('添加'), findsOneWidget);
+      expect(find.byType(TextField), findsWidgets);
+      expect(find.text('AI 辅助拆解'), findsWidgets);
+      expect(find.byIcon(Icons.tune_outlined), findsWidgets);
+
+      // 切到「暂停搁置」过滤：归档内容呈现，激活后仍可复活
+      await tester.tap(find.textContaining('暂停搁置'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('学 Rust'), findsOneWidget);
+      await tester.tap(find.textContaining('已达成'));
       await tester.pumpAndSettle();
       expect(find.textContaining('搬家'), findsOneWidget);
     });
@@ -248,7 +242,7 @@ void main() {
       expect(btn.onPressed, isNull);
     });
 
-    testWidgets('多目标 tab：默认选中第一条，切换后展示对应详情与卡片级 AI 辅助', (tester) async {
+    testWidgets('多目标竖排：每张卡片都有独立的 AI 辅助入口，种子只带本目标上下文', (tester) async {
       useWideSidebar(tester);
       String? capturedDraft;
       await tester.pumpWidget(_goalDomain(
@@ -265,24 +259,14 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // 默认 tab 0：详情卡展示第一条完整切片，卡片级 AI 辅助入口可见
-      // （「发布 Elsewhen 1.0」出现 3 次：tab 芯片 + 详情卡 + 左栏摘要）
-      expect(find.text('发布 Elsewhen 1.0'), findsNWidgets(3));
-      // 抓手在详情卡与左栏摘要中各出现一次
-      expect(find.textContaining('攻兡快照收敛'), findsNWidgets(2));
-      expect(find.text('锻炼身体'), findsNWidgets(2)); // tab 芯片 + 左栏摘要
-      expect(find.text('AI 辅助拆解'), findsOneWidget);
+      // 两张卡片各自带 AI 辅助入口；主区各渲染一次 + 左栏摘要
+      expect(find.text('发布 Elsewhen 1.0'), findsNWidgets(2));
+      expect(find.text('锻炼身体'), findsNWidgets(2));
+      expect(find.text('AI 辅助拆解'), findsNWidgets(2));
 
-      // 切到第二条：卡片切换，未选中项只剩 tab 芯片
-      await tester.tap(find.byKey(const ValueKey('goal-tab-g2')));
-      await tester.pumpAndSettle();
-      expect(find.text('锻炼身体'), findsNWidgets(3));
-      // g1 详情卡已切走，仅剩左栏摘要中的一次
-      expect(find.textContaining('攻兡快照收敛'), findsOneWidget);
-      expect(find.text('AI 辅助拆解'), findsOneWidget);
-
-      // 卡片级 AI 辅助：种子只带当前选中目标的上下文
-      await tester.tap(find.text('AI 辅助拆解'));
+      // 点第二张卡片的 AI 辅助：卡片按列表顺序渲染，取第二个入口按钮，
+      // 种子只带 g2 上下文
+      await tester.tap(find.text('AI 辅助拆解').last);
       await tester.pumpAndSettle();
       expect(capturedDraft, isNotNull);
       expect(capturedDraft, contains('锻炼身体'));

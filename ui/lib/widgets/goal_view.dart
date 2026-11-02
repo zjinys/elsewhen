@@ -54,7 +54,8 @@ void showGoalCoAuthorToast(BuildContext context) {
 }
 
 /// 历史归档视图子分类
-enum _ArchivedTab {
+enum _StatusFilter {
+  active,
   paused,
   completed,
 }
@@ -62,15 +63,21 @@ enum _ArchivedTab {
 /// 目标管理面板（FR-PES-005-01 / Roadmap Phase G3）：
 /// 认知型目标工作台（切片化卡片、滚动抓手、三态流转与无缝读档复活）。
 ///
-/// [readOnly]：左侧导航「目标」域主区用的只读总览——隐藏新增表单、
-/// 各卡片的操作按钮与航向校准卡片，只保留切片内容的浏览呈现。
-/// 写操作仍以对话流/弹窗面板（GoalListView 可编辑版）为单一入口，
-/// 避免同一功能两处入口语义漂移。
+/// 两个挂载点内容刻意不同：
+/// - 左侧导航「目标」tab（默认，可编辑）：完整工作台，按状态过滤浏览
+///   （缺省「活跃」，可切「暂停搁置」「已达成」），写入口与 AI 共同
+///   立项/拆解都收敛在这里。
+/// - 对话界面「目标」弹窗（[quickGlance] = true）：只读速览——仅活跃
+///   目标切片，零写操作、零 AI 入口、无历史归档。对话中瞄一眼目标
+///   现状用；所有操作引流到左 tab 工作台。
+///
+/// 单一写入口纪律：目标写操作只经对话流（WriteConfirm 提议卡）与
+/// 左 tab 工作台，避免同一功能多入口语义漂移。
 class GoalListView extends ConsumerStatefulWidget {
-  const GoalListView({super.key, this.readOnly = false});
+  const GoalListView({super.key, this.quickGlance = false});
 
-  /// 只读总览模式：供左侧导航「目标」域主区使用，隐藏写操作入口。
-  final bool readOnly;
+  /// 只读速览模式：供对话界面目标弹窗使用，只呈现活跃目标切片。
+  final bool quickGlance;
 
   @override
   ConsumerState<GoalListView> createState() => _GoalListViewState();
@@ -83,13 +90,12 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
   final _blockerController = TextEditingController();
   final _doneController = TextEditingController();
 
-  /// 活跃区当前选中的 tab（多目标时按 tab 展示详情）。
-  int? _activeTabIndex;
-
   GoalPhase _newPhase = GoalPhase.near;
   bool _saving = false;
   bool _expandFacets = false;
-  _ArchivedTab _archivedTab = _ArchivedTab.paused;
+
+  /// 状态过滤视图（可编辑工作台）：缺省看活跃。
+  _StatusFilter _statusFilter = _StatusFilter.active;
 
   @override
   void dispose() {
@@ -114,7 +120,6 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
     ref.invalidate(pausedGoalsProvider);
     ref.invalidate(completedGoalsProvider);
     ref.invalidate(activeCompassNudgeProvider);
-    _activeTabIndex = null;
   }
 
   Future<void> _add() async {
@@ -164,12 +169,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
     final seed = activeCount == 0
         ? '我想立一个新的长程目标。请用几个设问帮我明确：为什么做、什么算完成、近 1~2 周的第一启动抓手是什么、可能卡在哪。$goalBrief'
         : '帮我看看这些目标的推进情况：哪个抓手该滚动到下一个切片了？或者帮我共同规划一个新的目标。$goalBrief';
-    final ok = startGoalCoAuthor(ref, seed);
-    if (!ok) {
-      _toast('暂无可用会话，请先在对话页新建会话后再试');
-      return;
-    }
-    if (mounted) showGoalCoAuthorToast(context);
+    _launchCoAuthor(seed);
   }
 
   /// 卡片/tab 级 AI 辅助：种子只带这一条目标的完整切片上下文，
@@ -190,7 +190,13 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
     }
     buf.write('。帮我拆解下一步：先聊聊近 1~2 周该做什么、怎么验证推进了。');
 
-    final ok = startGoalCoAuthor(ref, buf.toString());
+    _launchCoAuthor(buf.toString());
+  }
+
+  /// 共同立项/拆解的实际触发：预填草稿并切回对话 tab。
+  /// 只在左 tab 可编辑工作台可用（速览弹窗无 AI 入口）。
+  void _launchCoAuthor(String seed) {
+    final ok = startGoalCoAuthor(ref, seed);
     if (!ok) {
       _toast('暂无可用会话，请先在对话页新建会话后再试');
       return;
@@ -199,7 +205,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
   }
 
   Future<void> _pause(Goal goal) async {
-    if (widget.readOnly) return;
+    if (widget.quickGlance) return;
     final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
     try {
       await repo.pauseGoal(goal.id);
@@ -211,7 +217,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
   }
 
   Future<void> _complete(Goal goal) async {
-    if (widget.readOnly) return;
+    if (widget.quickGlance) return;
     final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
     try {
       await repo.completeGoal(goal.id);
@@ -223,7 +229,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
   }
 
   Future<void> _rollFocus(Goal goal) async {
-    if (widget.readOnly) return;
+    if (widget.quickGlance) return;
     final result = await showDialog<({String? focus, String? blocker})>(
       context: context,
       builder: (_) => GoalRollFocusDialog.forGoal(goal),
@@ -244,7 +250,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
   }
 
   Future<void> _editFull(Goal goal) async {
-    if (widget.readOnly) return;
+    if (widget.quickGlance) return;
     final result = await showDialog<
         ({
           String content,
@@ -277,7 +283,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
   }
 
   Future<void> _reactivate(Goal goal, int activeCount) async {
-    if (widget.readOnly) return;
+    if (widget.quickGlance) return;
     if (activeCount >= maxActiveGoals) {
       _toast('当前已有 $maxActiveGoals 个活跃目标（精力上限）。请先暂停或达成一个，再腾出精力唤醒此目标。');
       return;
@@ -308,6 +314,43 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
     final completedAsync = ref.watch(completedGoalsProvider);
     final nudge = ref.watch(activeCompassNudgeProvider);
     final activeCount = activeAsync.value?.length ?? 0;
+
+    // 速览模式：只看活跃目标切片，零操作零 AI 入口
+    if (widget.quickGlance) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.track_changes_outlined,
+                  size: 17,
+                  color: AppTheme.accentPrimary,
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  '活跃目标 $activeCount / $maxActiveGoals',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '管理与 AI 讨论在「目标」页',
+                  style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildActiveSection(activeAsync),
+          ],
+        ),
+      );
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -348,28 +391,16 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
                   ),
                 ),
               ),
-              const Spacer(),
-              if (!widget.readOnly)
-                IconButton(
-                  tooltip: '关闭',
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.close, size: 18),
-                  color: AppTheme.textSecondary,
-                  onPressed: () => Navigator.of(context).maybePop(),
-                ),
             ],
           ),
           const SizedBox(height: 3),
           Text(
-            widget.readOnly
-                ? '活跃目标上限严格控制在 $maxActiveGoals 个以内。滚动抓手、达成或读档唤醒在对话面板中操作。'
-                : '活跃目标上限严格控制在 $maxActiveGoals 个以内，守恒注意力。通过滚动抓手持续向前推进。',
+            '活跃目标上限严格控制在 $maxActiveGoals 个以内，守恒注意力。通过滚动抓手持续向前推进。',
             style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
           ),
           const SizedBox(height: 8),
-          // AI 共同立项入口（两种形态都可用）：预填对话草稿并切回对话 tab，
-          // 实际落库仍走 create_goal / update_goal_facets 的 WriteConfirm
-          // 提议卡，不绕过确认机制。
+          // AI 共同立项入口：预填对话草稿并切回对话 tab，实际落库仍走
+          // create_goal / update_goal_facets 的 WriteConfirm 提议卡。
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
@@ -393,14 +424,50 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
             ),
           ),
           const SizedBox(height: 6),
-          if (!widget.readOnly && nudge != null)
-            GoalCompassNudgeCard(nudge: nudge),
-          _buildActiveSection(activeAsync),
-          if (!widget.readOnly) ...[
-            const SizedBox(height: 16),
-            _buildAddForm(activeCount),
-          ],
-          _buildHistorySection(pausedAsync, completedAsync, activeCount),
+          if (nudge != null) GoalCompassNudgeCard(nudge: nudge),
+          const SizedBox(height: 8),
+          // 状态过滤：缺省看活跃，可切暂停搁置/已达成
+          SegmentedButton<_StatusFilter>(
+            segments: [
+              ButtonSegment(
+                value: _StatusFilter.active,
+                label: Text('活跃 ($activeCount)'),
+                icon: const Icon(Icons.play_arrow_outlined, size: 14),
+              ),
+              ButtonSegment(
+                value: _StatusFilter.paused,
+                label: Text('暂停搁置 (${pausedAsync.value?.length ?? 0})'),
+                icon: const Icon(Icons.pause_circle_outline, size: 14),
+              ),
+              ButtonSegment(
+                value: _StatusFilter.completed,
+                label: Text('已达成 (${completedAsync.value?.length ?? 0})'),
+                icon: const Icon(Icons.emoji_events_outlined, size: 14),
+              ),
+            ],
+            selected: {_statusFilter},
+            onSelectionChanged: (set) {
+              setState(() => _statusFilter = set.first);
+            },
+            style: const ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 11)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          switch (_statusFilter) {
+            _StatusFilter.active => _buildActiveSection(activeAsync),
+            _StatusFilter.paused => _buildPausedList(
+                pausedAsync.value ?? [],
+                activeCount,
+              ),
+            _StatusFilter.completed => _buildCompletedList(
+                completedAsync.value ?? [],
+                activeCount,
+              ),
+          },
+          const SizedBox(height: 16),
+          _buildAddForm(activeCount),
         ],
       ),
     );
@@ -452,9 +519,11 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
             ),
           );
         }
-        return goals.length == 1
-            ? _buildActiveCard(goals.first)
-            : _buildActiveTabs(goals);
+        return Column(
+          children: [
+            for (final goal in goals) _buildActiveCard(goal),
+          ],
+        );
       },
     );
   }
@@ -462,55 +531,13 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
   Widget _buildActiveCard(Goal goal) {
     return _ActiveGoalCard(
       goal: goal,
-      readOnly: widget.readOnly,
+      quickGlance: widget.quickGlance,
       onRollFocus: () => _rollFocus(goal),
       onEditFull: () => _editFull(goal),
       onPause: () => _pause(goal),
       onComplete: () => _complete(goal),
-      onCoAuthor: () => _startGoalCoAuthor(goal),
+      onCoAuthor: widget.quickGlance ? null : () => _startGoalCoAuthor(goal),
     );
-  }
-
-  /// 多目标时按 tab 展示：每条目标一个 tab，选中项呈现完整详情卡片
-  /// （含该目标专属的 AI 辅助入口），避免竖排长卡挤占滚动视野。
-  Widget _buildActiveTabs(List<Goal> goals) {
-    final index = (_activeTabIndex == null || _activeTabIndex! >= goals.length)
-        ? 0
-        : _activeTabIndex!;
-    final selected = goals[index];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              for (final (i, goal) in goals.indexed)
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: _GoalTabChip(
-                    key: ValueKey('goal-tab-${goal.id}'),
-                    label: goal.content,
-                    phaseIcon: _phaseIcon(goal.phase),
-                    selected: i == index,
-                    onTap: () => setState(() => _activeTabIndex = i),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        _buildActiveCard(selected),
-      ],
-    );
-  }
-
-  IconData _phaseIcon(GoalPhase phase) {
-    return switch (phase) {
-      GoalPhase.near => Icons.bolt_outlined,
-      GoalPhase.mid => Icons.trending_up_outlined,
-      GoalPhase.long => Icons.flag_outlined,
-    };
   }
 
   Widget _buildAddForm(int activeCount) {
@@ -559,24 +586,22 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
             ],
           ),
           const SizedBox(height: 8),
-          Row(
+          // 阶段选择与切片展开：Wrap 布局，窄容器下自动换行不溢出
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Wrap(
-                spacing: 6,
-                children: [
-                  for (final phase in GoalPhase.values)
-                    ChoiceChip(
-                      label: Text(phase.label),
-                      selected: _newPhase == phase,
-                      onSelected: atCap
-                          ? null
-                          : (_) => setState(() => _newPhase = phase),
-                      visualDensity: VisualDensity.compact,
-                      labelStyle: const TextStyle(fontSize: 11.5),
-                    ),
-                ],
-              ),
-              const Spacer(),
+              for (final phase in GoalPhase.values)
+                ChoiceChip(
+                  label: Text(phase.label),
+                  selected: _newPhase == phase,
+                  onSelected: atCap
+                      ? null
+                      : (_) => setState(() => _newPhase = phase),
+                  visualDensity: VisualDensity.compact,
+                  labelStyle: const TextStyle(fontSize: 11.5),
+                ),
               TextButton.icon(
                 onPressed: atCap
                     ? null
@@ -652,69 +677,6 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
     );
   }
 
-  Widget _buildHistorySection(
-    AsyncValue<List<Goal>> pausedAsync,
-    AsyncValue<List<Goal>> completedAsync,
-    int activeCount,
-  ) {
-    final pausedGoals = pausedAsync.value ?? [];
-    final completedGoals = completedAsync.value ?? [];
-    if (pausedGoals.isEmpty && completedGoals.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 20),
-        const Divider(height: 1),
-        const SizedBox(height: 14),
-        Row(
-          children: [
-            Text(
-              '历史归档',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textSecondary,
-              ),
-            ),
-            const Spacer(),
-            Flexible(
-              child: SegmentedButton<_ArchivedTab>(
-                segments: [
-                  ButtonSegment(
-                    value: _ArchivedTab.paused,
-                    label: Text('暂停搁置 (${pausedGoals.length})'),
-                    icon: const Icon(Icons.pause_circle_outline, size: 14),
-                  ),
-                  ButtonSegment(
-                    value: _ArchivedTab.completed,
-                    label: Text('已达成 (${completedGoals.length})'),
-                    icon: const Icon(Icons.emoji_events_outlined, size: 14),
-                  ),
-                ],
-                selected: {_archivedTab},
-                onSelectionChanged: (set) {
-                  setState(() => _archivedTab = set.first);
-                },
-                style: const ButtonStyle(
-                  visualDensity: VisualDensity.compact,
-                  textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 11)),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        if (_archivedTab == _ArchivedTab.paused)
-          _buildPausedList(pausedGoals, activeCount)
-        else
-          _buildCompletedList(completedGoals, activeCount),
-      ],
-    );
-  }
-
   Widget _buildPausedList(List<Goal> goals, int activeCount) {
     if (goals.isEmpty) {
       return Padding(
@@ -732,7 +694,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
         for (final goal in goals)
           _PausedGoalTile(
             goal: goal,
-            readOnly: widget.readOnly,
+            readOnly: widget.quickGlance,
             onReactivate: () => _reactivate(goal, activeCount),
           ),
       ],
@@ -756,74 +718,10 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
         for (final goal in goals)
           _CompletedGoalTile(
             goal: goal,
-            readOnly: widget.readOnly,
+            readOnly: widget.quickGlance,
             onReopen: () => _reactivate(goal, activeCount),
           ),
       ],
-    );
-  }
-}
-
-/// 活跃目标 tab 芯片（多目标时的切换器）。
-class _GoalTabChip extends StatelessWidget {
-  const _GoalTabChip({
-    super.key,
-    required this.label,
-    required this.phaseIcon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData phaseIcon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppTheme.accentPrimary.withValues(alpha: 0.12)
-              : AppTheme.surface1,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: selected
-                ? AppTheme.accentPrimary.withValues(alpha: 0.4)
-                : AppTheme.surface3,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              phaseIcon,
-              size: 13,
-              color: selected
-                  ? AppTheme.accentPrimary
-                  : AppTheme.textTertiary,
-            ),
-            const SizedBox(width: 5),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 180),
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  color: selected ? AppTheme.accentPrimary : AppTheme.textSecondary,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -837,7 +735,7 @@ class _ActiveGoalCard extends StatelessWidget {
     required this.onPause,
     required this.onComplete,
     this.onCoAuthor,
-    this.readOnly = false,
+    this.quickGlance = false,
   });
 
   final Goal goal;
@@ -847,11 +745,11 @@ class _ActiveGoalCard extends StatelessWidget {
   final VoidCallback onComplete;
 
   /// 卡片级 AI 辅助入口（带本目标上下文预填对话草稿）；
-  /// 只读模式下隐藏。实际落库仍走 WriteConfirm 提议卡。
+  /// 速览模式下隐藏。实际落库仍走 WriteConfirm 提议卡。
   final VoidCallback? onCoAuthor;
 
-  /// 只读总览模式：隐藏滚动抓手按钮与操作菜单。
-  final bool readOnly;
+  /// 只读速览模式：隐藏滚动抓手按钮与操作菜单。
+  final bool quickGlance;
 
   @override
   Widget build(BuildContext context) {
@@ -903,7 +801,7 @@ class _ActiveGoalCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (!readOnly)
+                if (!quickGlance)
                   IconButton(
                     tooltip: '滚动抓手',
                     visualDensity: VisualDensity.compact,
@@ -911,7 +809,7 @@ class _ActiveGoalCard extends StatelessWidget {
                     color: AppTheme.accentPrimary,
                     onPressed: onRollFocus,
                   ),
-                if (!readOnly)
+                if (!quickGlance)
                   PopupMenuButton<String>(
                   tooltip: '更多操作',
                   icon: const Icon(Icons.more_horiz, size: 16),
@@ -988,7 +886,7 @@ class _ActiveGoalCard extends StatelessWidget {
               children: [
                 // 抓手条
                 InkWell(
-                  onTap: readOnly ? null : onRollFocus,
+                  onTap: quickGlance ? null : onRollFocus,
                   borderRadius: BorderRadius.circular(6),
                   child: Container(
                     width: double.infinity,
@@ -1035,7 +933,7 @@ class _ActiveGoalCard extends StatelessWidget {
                         Icon(
                           Icons.edit_outlined,
                           size: 13,
-                          color: readOnly
+                          color: quickGlance
                               ? Colors.transparent
                               : AppTheme.textTertiary,
                         ),

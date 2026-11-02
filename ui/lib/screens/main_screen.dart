@@ -182,7 +182,7 @@ class MainScreen extends ConsumerWidget {
                           // 对话流/弹窗面板（GoalListView.readOnly 注释）。
                           SidebarTab.goal => const Align(
                             alignment: Alignment.topCenter,
-                            child: GoalListView(readOnly: true),
+                            child: GoalListView(),
                           ),
                         },
                       ),
