@@ -129,7 +129,9 @@ void main() {
       expect(find.text('近期'), findsWidgets);
       expect(find.text('中期'), findsWidgets);
       expect(find.text('长远'), findsWidgets);
-      expect(find.text('近期的事'), findsOneWidget);
+      // tab 化后：目标名同时出现在 tab 芯片（选中项）与详情卡片中；
+      // 未选中项只在 tab 芯片出现
+      expect(find.text('近期的事'), findsNWidgets(2));
       expect(find.text('中期的事'), findsOneWidget);
       expect(find.text('长远的事'), findsOneWidget);
     });

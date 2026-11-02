@@ -139,7 +139,8 @@ void main() {
 
       // 活跃/暂停内容完整呈现；达成项默认隐藏在「已达成」分栏下，
       // 切换后再断言（与 GoalListView 的归档交互一致）
-      expect(find.text('发布 Elsewhen 1.0'), findsOneWidget);
+      // tab 化后：选中目标同时出现在 tab 芯片与详情卡片
+      expect(find.text('发布 Elsewhen 1.0'), findsNWidgets(2));
       expect(find.textContaining('攻克多端同步快照收敛'), findsWidgets);
       expect(find.textContaining('学 Rust'), findsOneWidget);
       await tester.tap(find.text('已达成 (1)'));
@@ -177,7 +178,7 @@ void main() {
       // 左栏导航摘要可见
       expect(find.text('活跃目标 2 / 3'), findsOneWidget);
       // 左栏卡片与主区各渲染一次 → 用 findsWidgets
-      expect(find.text('发布 Elsewhen 1.0'), findsWidgets);
+      expect(find.text('发布 Elsewhen 1.0'), findsWidgets); // tab 芯片 + 卡片
       expect(find.textContaining('攻克多端同步快照收敛'), findsWidgets);
       expect(find.text('锻炼身体'), findsWidgets);
     });
@@ -245,6 +246,47 @@ void main() {
         ),
       );
       expect(btn.onPressed, isNull);
+    });
+
+    testWidgets('多目标 tab：默认选中第一条，切换后展示对应详情与卡片级 AI 辅助', (tester) async {
+      useWideSidebar(tester);
+      String? capturedDraft;
+      await tester.pumpWidget(_goalDomain(
+        atGoalTab: true,
+        active: [
+          _goal('g1', '发布 Elsewhen 1.0', currentFocus: '攻兡快照收敛'),
+          _goal('g2', '锻炼身体', phase: 'mid'),
+        ],
+        extraChild: Consumer(builder: (context, ref, _) {
+          capturedDraft = ref.watch(goalCompassChatDraftProvider('conv-main'));
+          ref.watch(conversationsProvider);
+          return const SizedBox.shrink();
+        }),
+      ));
+      await tester.pumpAndSettle();
+
+      // 默认 tab 0：详情卡展示第一条完整切片，卡片级 AI 辅助入口可见
+      // （「发布 Elsewhen 1.0」出现 3 次：tab 芯片 + 详情卡 + 左栏摘要）
+      expect(find.text('发布 Elsewhen 1.0'), findsNWidgets(3));
+      // 抓手在详情卡与左栏摘要中各出现一次
+      expect(find.textContaining('攻兡快照收敛'), findsNWidgets(2));
+      expect(find.text('锻炼身体'), findsNWidgets(2)); // tab 芯片 + 左栏摘要
+      expect(find.text('AI 辅助拆解'), findsOneWidget);
+
+      // 切到第二条：卡片切换，未选中项只剩 tab 芯片
+      await tester.tap(find.byKey(const ValueKey('goal-tab-g2')));
+      await tester.pumpAndSettle();
+      expect(find.text('锻炼身体'), findsNWidgets(3));
+      // g1 详情卡已切走，仅剩左栏摘要中的一次
+      expect(find.textContaining('攻兡快照收敛'), findsOneWidget);
+      expect(find.text('AI 辅助拆解'), findsOneWidget);
+
+      // 卡片级 AI 辅助：种子只带当前选中目标的上下文
+      await tester.tap(find.text('AI 辅助拆解'));
+      await tester.pumpAndSettle();
+      expect(capturedDraft, isNotNull);
+      expect(capturedDraft, contains('锻炼身体'));
+      expect(capturedDraft, isNot(contains('发布 Elsewhen 1.0')));
     });
   });
 }

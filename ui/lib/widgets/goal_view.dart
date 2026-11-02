@@ -83,6 +83,9 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
   final _blockerController = TextEditingController();
   final _doneController = TextEditingController();
 
+  /// 活跃区当前选中的 tab（多目标时按 tab 展示详情）。
+  int? _activeTabIndex;
+
   GoalPhase _newPhase = GoalPhase.near;
   bool _saving = false;
   bool _expandFacets = false;
@@ -111,6 +114,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
     ref.invalidate(pausedGoalsProvider);
     ref.invalidate(completedGoalsProvider);
     ref.invalidate(activeCompassNudgeProvider);
+    _activeTabIndex = null;
   }
 
   Future<void> _add() async {
@@ -161,6 +165,32 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
         ? '我想立一个新的长程目标。请用几个设问帮我明确：为什么做、什么算完成、近 1~2 周的第一启动抓手是什么、可能卡在哪。$goalBrief'
         : '帮我看看这些目标的推进情况：哪个抓手该滚动到下一个切片了？或者帮我共同规划一个新的目标。$goalBrief';
     final ok = startGoalCoAuthor(ref, seed);
+    if (!ok) {
+      _toast('暂无可用会话，请先在对话页新建会话后再试');
+      return;
+    }
+    if (mounted) showGoalCoAuthorToast(context);
+  }
+
+  /// 卡片/tab 级 AI 辅助：种子只带这一条目标的完整切片上下文，
+  /// AI 会看到 system_context 并走提议卡确认，这里不做任何直接写库。
+  void _startGoalCoAuthor(Goal goal) {
+    final focus = goal.currentFocus?.trim();
+    final blocker = goal.blocker?.trim();
+    final why = goal.why?.trim();
+    final buf = StringBuffer('关于目标「${goal.content}」');
+    if (why != null && why.isNotEmpty) buf.write('（为什么做：$why）');
+    if (focus != null && focus.isNotEmpty) {
+      buf.write('，当前抓手是「$focus」');
+    } else {
+      buf.write('，还没设定当前抓手');
+    }
+    if (blocker != null && blocker.isNotEmpty) {
+      buf.write('，卡在「$blocker」');
+    }
+    buf.write('。帮我拆解下一步：先聊聊近 1~2 周该做什么、怎么验证推进了。');
+
+    final ok = startGoalCoAuthor(ref, buf.toString());
     if (!ok) {
       _toast('暂无可用会话，请先在对话页新建会话后再试');
       return;
@@ -422,21 +452,65 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
             ),
           );
         }
-        return Column(
-          children: [
-            for (final goal in goals)
-              _ActiveGoalCard(
-                goal: goal,
-                readOnly: widget.readOnly,
-                onRollFocus: () => _rollFocus(goal),
-                onEditFull: () => _editFull(goal),
-                onPause: () => _pause(goal),
-                onComplete: () => _complete(goal),
-              ),
-          ],
-        );
+        return goals.length == 1
+            ? _buildActiveCard(goals.first)
+            : _buildActiveTabs(goals);
       },
     );
+  }
+
+  Widget _buildActiveCard(Goal goal) {
+    return _ActiveGoalCard(
+      goal: goal,
+      readOnly: widget.readOnly,
+      onRollFocus: () => _rollFocus(goal),
+      onEditFull: () => _editFull(goal),
+      onPause: () => _pause(goal),
+      onComplete: () => _complete(goal),
+      onCoAuthor: () => _startGoalCoAuthor(goal),
+    );
+  }
+
+  /// 多目标时按 tab 展示：每条目标一个 tab，选中项呈现完整详情卡片
+  /// （含该目标专属的 AI 辅助入口），避免竖排长卡挤占滚动视野。
+  Widget _buildActiveTabs(List<Goal> goals) {
+    final index = (_activeTabIndex == null || _activeTabIndex! >= goals.length)
+        ? 0
+        : _activeTabIndex!;
+    final selected = goals[index];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (final (i, goal) in goals.indexed)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: _GoalTabChip(
+                    key: ValueKey('goal-tab-${goal.id}'),
+                    label: goal.content,
+                    phaseIcon: _phaseIcon(goal.phase),
+                    selected: i == index,
+                    onTap: () => setState(() => _activeTabIndex = i),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        _buildActiveCard(selected),
+      ],
+    );
+  }
+
+  IconData _phaseIcon(GoalPhase phase) {
+    return switch (phase) {
+      GoalPhase.near => Icons.bolt_outlined,
+      GoalPhase.mid => Icons.trending_up_outlined,
+      GoalPhase.long => Icons.flag_outlined,
+    };
   }
 
   Widget _buildAddForm(int activeCount) {
@@ -690,6 +764,70 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
   }
 }
 
+/// 活跃目标 tab 芯片（多目标时的切换器）。
+class _GoalTabChip extends StatelessWidget {
+  const _GoalTabChip({
+    super.key,
+    required this.label,
+    required this.phaseIcon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData phaseIcon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppTheme.accentPrimary.withValues(alpha: 0.12)
+              : AppTheme.surface1,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: selected
+                ? AppTheme.accentPrimary.withValues(alpha: 0.4)
+                : AppTheme.surface3,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              phaseIcon,
+              size: 13,
+              color: selected
+                  ? AppTheme.accentPrimary
+                  : AppTheme.textTertiary,
+            ),
+            const SizedBox(width: 5),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 180),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  color: selected ? AppTheme.accentPrimary : AppTheme.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// 活跃目标卡片（高亮呈现当前抓手与已知卡点）
 class _ActiveGoalCard extends StatelessWidget {
   const _ActiveGoalCard({
@@ -698,6 +836,7 @@ class _ActiveGoalCard extends StatelessWidget {
     required this.onEditFull,
     required this.onPause,
     required this.onComplete,
+    this.onCoAuthor,
     this.readOnly = false,
   });
 
@@ -706,6 +845,10 @@ class _ActiveGoalCard extends StatelessWidget {
   final VoidCallback onEditFull;
   final VoidCallback onPause;
   final VoidCallback onComplete;
+
+  /// 卡片级 AI 辅助入口（带本目标上下文预填对话草稿）；
+  /// 只读模式下隐藏。实际落库仍走 WriteConfirm 提议卡。
+  final VoidCallback? onCoAuthor;
 
   /// 只读总览模式：隐藏滚动抓手按钮与操作菜单。
   final bool readOnly;
@@ -968,6 +1111,23 @@ class _ActiveGoalCard extends StatelessWidget {
                           ),
                         ),
                     ],
+                  ),
+                ],
+
+                // 卡片级 AI 辅助：只预填对话草稿，落库仍走提议卡确认
+                if (onCoAuthor != null) ...[
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: onCoAuthor,
+                    icon: const Icon(Icons.auto_awesome, size: 13),
+                    label: const Text('AI 辅助拆解', style: TextStyle(fontSize: 11.5)),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                    ),
                   ),
                 ],
               ],
