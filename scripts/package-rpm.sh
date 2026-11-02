@@ -12,6 +12,7 @@ if [ -x "$root/ui/.fvm/flutter_sdk/bin/flutter" ]; then flutter="$root/ui/.fvm/f
 bundle="$root/ui/build/linux/x64/release/bundle"
 [ -x "$bundle/elsewhen_ui" ] || { echo "未找到 $bundle/elsewhen_ui" >&2; exit 1; }
 cp "$root/target/release/libelsewhen.so" "$bundle/lib/"
+
 top="$(mktemp -d)"; trap 'rm -rf "$top"' EXIT
 # 不能用 {BUILD,...} 大括号展开：shebang 是 sh（CI 上为 dash），那是 bash 语法。
 mkdir -p "$top/BUILD" "$top/RPMS" "$top/SOURCES" "$top/SPECS" "$top/SRPMS"

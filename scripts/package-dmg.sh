@@ -42,6 +42,7 @@ echo "[3/5] 放入 Rust 桥接库 + 品牌图标 ..."
 mkdir -p "$app/Contents/Frameworks"
 cp "$root/target/release/libelsewhen.dylib" "$app/Contents/Frameworks/"
 
+
 # 用品牌 PNG 生成 AppIcon.icns（iconutil 为 macOS 自带工具）。
 icon_src="$root/assets/brand/elsewhen-icon-v2-1024.png"
 if [ -f "$icon_src" ]; then

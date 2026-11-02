@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:elsewhen_ui/main.dart';
-import 'package:elsewhen_ui/models/app_config.dart';
 import 'package:elsewhen_ui/providers/app_provider.dart';
 
 void main() {
@@ -16,9 +15,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: ElsewhenApp(
-          config: AppConfig(mode: AppMode.main, databasePath: ':memory:'),
-        ),
+        child: const ElsewhenApp(),
       ),
     );
     await tester.pumpAndSettle();

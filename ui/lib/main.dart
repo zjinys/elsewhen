@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -8,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'theme/app_theme.dart';
 import 'theme/content_font.dart';
 import 'theme/design_tokens.dart';
-import 'models/app_config.dart';
 import 'models/settings.dart';
 import 'screens/lock_screen.dart';
 import 'screens/main_screen.dart';
@@ -40,31 +40,18 @@ void main(List<String> args) async {
     );
   }
 
-  final config = AppConfig.fromArgs(args);
-
   runApp(
     // Riverpod 3 默认对失败 provider 指数退避自动重试；桥接/DB 失败多为
     // 确定性错误，重试只会刷日志，关闭以保持 v2 的失败即停行为。
     ProviderScope(
       retry: (retryCount, error) => null,
-      child: ElsewhenApp(config: config),
+      child: const ElsewhenApp(),
     ),
   );
 }
 
 class ElsewhenApp extends ConsumerStatefulWidget {
-  final AppConfig config;
-
-  /// capture 模式的屏幕构造器。桌面端由 main_desktop.dart 传入 CaptureScreen
-  /// （其依赖 window_service → nativeapi，不可进入 Android 的 main 可达图）；
-  /// 移动端为 null（移动端无 capture 模式）。
-  final Widget Function()? captureScreenBuilder;
-
-  const ElsewhenApp({
-    super.key,
-    required this.config,
-    this.captureScreenBuilder,
-  });
+  const ElsewhenApp({super.key});
 
   @override
   ConsumerState<ElsewhenApp> createState() => _ElsewhenAppState();
@@ -76,6 +63,11 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
   bool? _appLockEnabled;
   bool _appUnlocked = false;
   final AppLockService _appLockService = AppLockService();
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -206,14 +198,9 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
                   );
                 }
 
-                final captureBuilder = widget.captureScreenBuilder;
                 return KeyedSubtree(
                   key: themeKey,
-                  child:
-                      widget.config.mode == AppMode.capture &&
-                          captureBuilder != null
-                      ? captureBuilder()
-                      : const MainScreen(),
+                  child: const MainScreen(),
                 );
               },
               loading: () => Scaffold(

@@ -53,7 +53,6 @@ class DesktopWindowService implements WindowService {
   // 不给 compositor 自作主张（移动/最大化）的机会；小屏再由 clampedMainSize 兜底。
   static const ui.Size mainWindowSize = ui.Size(1440, 900);
   static const ui.Size mainWindowMinSize = ui.Size(800, 600);
-  static const ui.Size captureWindowSize = ui.Size(500, 240);
 
   bool _isDesktop() {
     return Platform.isLinux || Platform.isMacOS || Platform.isWindows;
@@ -127,31 +126,6 @@ class DesktopWindowService implements WindowService {
     ui.debugPrint('Applied main window chrome');
   }
 
-  /// 应用捕获窗口外观（启动期以 --mode=capture 进入时调用）。
-  @override
-  Future<void> applyCaptureChrome() async {
-    if (!_isDesktop()) return;
-    currentMode = WindowMode.capture;
-    await windowManager.ensureInitialized();
-
-    await _applyTitleBarHidden();
-    await windowManager.setPreventClose(true);
-
-    await windowManager.waitUntilReadyToShow(
-      const WindowOptions(
-        size: captureWindowSize,
-        center: true,
-        alwaysOnTop: true,
-        title: 'Elsewhen',
-      ),
-      () async {
-        await windowManager.show();
-        await windowManager.focus();
-      },
-    );
-    ui.debugPrint('Applied capture window chrome');
-  }
-
   @override
   Future<void> initialize() async {
     if (!_isDesktop()) return;
@@ -186,11 +160,6 @@ class DesktopWindowService implements WindowService {
               key: 'show',
               label: '显示主窗口',
               onClick: (_) => unawaited(showWindow()),
-            ),
-            tray.MenuItem(
-              key: 'capture',
-              label: '快速捕获',
-              onClick: (_) => unawaited(switchToCaptureMode()),
             ),
             tray.MenuItem.separator(),
             tray.MenuItem(
@@ -231,18 +200,32 @@ class DesktopWindowService implements WindowService {
 
     currentMode = WindowMode.main;
 
-    // 恢复上次的主窗口几何；无历史则默认尺寸+居中。
-    final restored = await restoreMainBounds();
-    if (!restored) {
-      await windowManager.setSize(await clampedMainSize());
-      await windowManager.center();
-    }
+    // Wayland 下从捕获小窗切回时，直接对可见窗口连续 setSize/setBounds
+    // 会被 compositor 忽略（GTK min-size 变更后的 resize 需要重新映射才
+    // 可靠），实测窗口停留在捕获尺寸。改为先隐藏，设好全部几何再显示：
+    // hide/show 走一次 unmap/map，compositor 必然按新几何落位。
+    await windowManager.hide();
+
+    final saved = _geometryStore.load();
+    final target = (saved != null &&
+            saved.width >= mainWindowMinSize.width &&
+            saved.height >= mainWindowMinSize.height)
+        ? ui.Size(saved.width, saved.height)
+        : await clampedMainSize();
     await windowManager.setMinimumSize(mainWindowMinSize);
+    await windowManager.setSize(target);
+    await windowManager.center();
+
     await windowManager.setAlwaysOnTop(false);
     await _applyTitleBarHidden(); // Linux 跳过（GL 崩溃），见该方法注释
     await windowManager.setTitle('Elsewhen');
     await windowManager.show();
     await windowManager.focus();
+    final after = await windowManager.getBounds();
+    ui.debugPrint(
+      'switchToMainMode: target=${target.width}x${target.height} '
+      'after=(${after.width}x${after.height})',
+    );
 
     ui.debugPrint('Switched to main mode');
   }
@@ -311,23 +294,6 @@ class DesktopWindowService implements WindowService {
     });
   }
 
-  /// Switch to capture mode
-  @override
-  Future<void> switchToCaptureMode() async {
-    if (!_isDesktop()) return;
-
-    currentMode = WindowMode.capture;
-
-    await windowManager.setSize(captureWindowSize);
-    await windowManager.setAlwaysOnTop(true);
-    await _applyTitleBarHidden(); // Linux 跳过（GL 崩溃），见该方法注释
-    await windowManager.center();
-    await windowManager.show();
-    await windowManager.focus();
-
-    ui.debugPrint('Switched to capture mode');
-  }
-
   /// Hide window
   @override
   Future<void> hideWindow() async {
@@ -348,16 +314,6 @@ class DesktopWindowService implements WindowService {
     await windowManager.focus();
 
     ui.debugPrint('Window shown');
-  }
-
-  /// Toggle between main and capture mode
-  @override
-  Future<void> toggleMode() async {
-    if (currentMode == WindowMode.main) {
-      await switchToCaptureMode();
-    } else {
-      await switchToMainMode();
-    }
   }
 
   /// Close window (but keep app running in background)

@@ -34,6 +34,7 @@ bundle="$root/ui/build/linux/x64/release/bundle"
 # 把桥接库放进 bundle/lib/，AppRun 再兜一层 LD_LIBRARY_PATH。
 cp "$root/target/release/libelsewhen.so" "$bundle/lib/"
 
+
 echo "[3/4] 组装 AppDir ..."
 stage="$(mktemp -d)"; trap 'rm -rf "$stage"' EXIT
 appdir="$stage/Elsewhen.AppDir"

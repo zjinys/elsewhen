@@ -51,6 +51,7 @@ try {
     # 首先搜索 exe 所在目录——把桥接库放到 exe 旁边即可。
     Copy-Item (Join-Path $root "target\release\elsewhen.dll") $releaseDir
 
+
     # WiX v3.11 工具定位
     $wixBin = if ($env:WIX) { Join-Path $env:WIX "bin" } else { "" }
     $heat = if ($wixBin -and (Test-Path "$wixBin\heat.exe")) { "$wixBin\heat.exe" }

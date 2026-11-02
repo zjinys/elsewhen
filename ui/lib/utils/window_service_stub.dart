@@ -10,25 +10,16 @@ class StubWindowService implements WindowService {
   Future<void> applyMainChrome() async {}
 
   @override
-  Future<void> applyCaptureChrome() async {}
-
-  @override
   Future<void> initialize() async {}
 
   @override
   Future<void> switchToMainMode() async {}
 
   @override
-  Future<void> switchToCaptureMode() async {}
-
-  @override
   Future<void> hideWindow() async {}
 
   @override
   Future<void> showWindow() async {}
-
-  @override
-  Future<void> toggleMode() async {}
 
   @override
   Future<bool> restoreMainBounds() async => false;

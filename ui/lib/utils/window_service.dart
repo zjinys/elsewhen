@@ -24,13 +24,11 @@ abstract class WindowService {
   WindowMode get currentMode;
 
   Future<void> applyMainChrome();
-  Future<void> applyCaptureChrome();
   Future<void> initialize();
   Future<void> switchToMainMode();
-  Future<void> switchToCaptureMode();
+
   Future<void> hideWindow();
   Future<void> showWindow();
-  Future<void> toggleMode();
   Future<bool> restoreMainBounds();
   Future<void> closeWindow();
   Future<void> quitApp();

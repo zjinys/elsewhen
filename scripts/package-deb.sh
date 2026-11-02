@@ -12,6 +12,7 @@ if [ -x "$root/ui/.fvm/flutter_sdk/bin/flutter" ]; then flutter="$root/ui/.fvm/f
 bundle="$root/ui/build/linux/x64/release/bundle"
 [ -x "$bundle/elsewhen_ui" ] || { echo "未找到 $bundle/elsewhen_ui" >&2; exit 1; }
 cp "$root/target/release/libelsewhen.so" "$bundle/lib/"
+
 stage="$(mktemp -d)"; trap 'rm -rf "$stage"' EXIT
 mkdir -p "$stage/DEBIAN" "$stage/usr/bin" "$stage/usr/lib/elsewhen" "$stage/usr/share/applications" "$stage/usr/share/icons/hicolor/256x256/apps"
 cp -a "$bundle/." "$stage/usr/lib/elsewhen/"

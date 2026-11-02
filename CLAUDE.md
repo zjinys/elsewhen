@@ -217,9 +217,12 @@ OPPO / 一加（`OplusHansManager`）等国内 ROM 会冻结「没有前台服�
 冻结后 Dart 定时器、socket 和快照分片传输全部停摆——表现是配对停在「等待成员
 授权与初始同步」、初始快照传到一半再也不动，而前台看界面毫无异常。
 
-- `ui/android/.../SyncKeepAliveService.kt`：`dataSync` 类型前台服务 + 低优先级常驻
+- `ui/android/.../KeepAliveService.kt`：`dataSync` 类型前台服务 + 低优先级常驻
   通知 + 传输期 `PARTIAL_WAKE_LOCK`；`MainActivity` 暴露
   `MethodChannel('dev.elsewhen/sync_keepalive')` 的 `start`/`stop`。
+  **必须在 Manifest 注册**：漏注册时 `startForegroundService` 抛
+  `ServiceNotFoundException` 被 Dart 侧吞掉，保活静默失效（2026-10-31 发现）。
+  另需 `FOREGROUND_SERVICE(_DATA_SYNC)` 权限（targetSdk 34+）。
 - `ui/lib/sync/sync_keep_alive.dart`：**按持有者计数**的 `hold`/`release`（配对请求、
   交接轮询、准备本机各自持有，最后一个释放才关灯）。方法刻意是同步 void，避免在
   配对状态机里多让一次微任务改变「关闭先于下一步」这类既有顺序。
@@ -241,6 +244,20 @@ OPPO / 一加（`OplusHansManager`）等国内 ROM 会冻结「没有前台服�
 ## Flutter GUI Development
 
 The Flutter app is the only GUI (see `docs/requirements/product/FR-PES-003-Flutter统一GUI.md`); the legacy Iced GUI and CLI have been removed.
+
+### 快速捕获的演进（2026-11-01 复盘，避免重蹈）
+
+曾用独立 gpui 二进制（`crates/capture`）做快速捕获窗，**已整体删除**。复盘：
+
+- gpui 方案解决的「单窗口双模式 Wayland resize 坑」以「产品上不需要捕获模式」消解：tray 的
+  全部职责是「关闭时缩小到托盘 + 唤回主窗」，窗口永远一个尺寸；托盘菜单点「快速捕获」
+  与「显示主窗口」等效（`switchToCaptureMode` 现在就是 `showWindow`）。
+- 独立进程的配套成本（29MB 二进制、独立 crate/lock、xattr patch、六个打包脚本、
+  besideExe 查找、flock 防重入）没有对应的真实需求支撑。
+- 全局快捷键（FR-PES-001 预留）将来走主程序内 XDG `GlobalShortcuts` portal：
+  Wayland 下唤起已有窗口比从常驻进程弹新窗可靠；不要再用独立 GUI 进程方案。
+- `AppMode` 枚举、`AppConfig`、`--mode` 参数、托盘「快速捕获」菜单项、`switchToCaptureMode`
+  已全部删除：单实例转发恒发「唤回主窗」命令，老快捷方式带参启动行为不变。
 
 ### FVM Setup
 Flutter is managed via FVM (Flutter Version Manager):
