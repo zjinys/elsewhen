@@ -590,6 +590,34 @@ class RustBridgeRepository implements StorageRepository {
     return _fromConversationDto(dto);
   }
 
+  /// 获取（不存在则创建）目标专属讨论会话；目标页内 AI 讨论走该会话
+  /// 待审提议 / 决策回执列表。放在类体内（不放 extension）：
+  /// 测试 fake 需覆写它们来拦截 ChatProposalReviewButton 的探测调用。
+  Future<List<api.ChatProposalDto>> listChatProposals(
+    String? conversationId, {
+    int offset = 0,
+    int limit = 25,
+  }) => api.listChatProposals(
+    conversationId: conversationId,
+    offset: offset,
+    limit: limit,
+  );
+
+  Future<List<api.ChatDecisionDto>> listChatDecisions(
+    String? conversationId, {
+    int offset = 0,
+    int limit = 25,
+  }) => api.listChatDecisions(
+    conversationId: conversationId,
+    offset: offset,
+    limit: limit,
+  );
+
+  Future<Conversation> ensureGoalChat(String goalId) async {
+    final dto = await api.ensureGoalChat(goalId: goalId);
+    return _fromConversationDto(dto);
+  }
+
   // ── 目标航向与认知切片虚分派方法（支持测试 Fake 覆写）──
 
   /// 滚动更新目标抓手与卡点（最常用的轻量认知更新操作）

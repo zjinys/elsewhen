@@ -200,3 +200,156 @@ impl Tool for UpdateGoalFacetsTool {
         ))
     }
 }
+
+/// 提议暂停目标（确认后置为 paused，随时可读档复活）
+pub(super) struct PauseGoalTool;
+impl Tool for PauseGoalTool {
+    fn name(&self) -> &'static str {
+        "pause_goal"
+    }
+    fn description(&self) -> &'static str {
+        "提议把一条活跃目标暂时搁置（需用户在审阅卡确认）。适用于用户明确表示想先放下/暂停某个目标、或精力需要让位给其他目标时。暂停的目标保留全部切片，随时可读档复活。"
+    }
+    fn parameters_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "goal_id": { "type": "string", "description": "要暂停的目标 ID，必填" },
+                "reason": { "type": "string", "description": "暂停原因（会展示给用户核对），可选" }
+            },
+            "required": ["goal_id"],
+            "additionalProperties": false
+        })
+    }
+    fn deferred(&self) -> bool {
+        true
+    }
+    fn policy(&self) -> ToolPolicy {
+        ToolPolicy::WriteConfirm
+    }
+    fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
+        let goal_id = arg_str(args, "goal_id")?;
+        let goal = ctx
+            .store
+            .get_goal(&goal_id)?
+            .ok_or_else(|| anyhow::anyhow!("未找到 ID 为 {goal_id} 的目标"))?;
+        if goal.status != crate::storage::GoalStatus::Active {
+            anyhow::bail!("目标「{}」当前不是活跃状态，无需暂停", goal.content);
+        }
+        let reason = arg_str_opt(args, "reason");
+        let action_args = json!({
+            "goal_id": goal_id,
+            "goal_content": goal.content,
+            "reason": reason,
+        });
+        store_create_pending(ctx.store, ctx.conversation_id, "pause_goal", &action_args)?;
+        Ok(format!(
+            "已为你草拟暂停目标「{}」的提议（待确认，尚未生效）：\n—— 请在审阅卡片中核对，点击接受后目标进入暂停搁置（可随时读档复活）。",
+            goal.content
+        ))
+    }
+}
+
+/// 提议达成目标（确认后归档为成就）
+pub(super) struct CompleteGoalTool;
+impl Tool for CompleteGoalTool {
+    fn name(&self) -> &'static str {
+        "complete_goal"
+    }
+    fn description(&self) -> &'static str {
+        "提议把一条活跃目标标记为达成（需用户在审阅卡确认）。仅在用户明确表示目标已经完成、或达成判据已满足时使用。"
+    }
+    fn parameters_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "goal_id": { "type": "string", "description": "要标记达成的目标 ID，必填" }
+            },
+            "required": ["goal_id"],
+            "additionalProperties": false
+        })
+    }
+    fn deferred(&self) -> bool {
+        true
+    }
+    fn policy(&self) -> ToolPolicy {
+        ToolPolicy::WriteConfirm
+    }
+    fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
+        let goal_id = arg_str(args, "goal_id")?;
+        let goal = ctx
+            .store
+            .get_goal(&goal_id)?
+            .ok_or_else(|| anyhow::anyhow!("未找到 ID 为 {goal_id} 的目标"))?;
+        if goal.status != crate::storage::GoalStatus::Active {
+            anyhow::bail!("目标「{}」当前不是活跃状态，无法标记达成", goal.content);
+        }
+        let action_args = json!({
+            "goal_id": goal_id,
+            "goal_content": goal.content,
+        });
+        store_create_pending(ctx.store, ctx.conversation_id, "complete_goal", &action_args)?;
+        Ok(format!(
+            "已为你草拟达成目标「{}」的提议（待确认，尚未生效）：\n—— 请在审阅卡片中核对完成判据，点击接受后归档为成就 🎉。",
+            goal.content
+        ))
+    }
+}
+
+/// 提议复活暂停目标（确认后重新激活，可带新抓手/卡点）
+pub(super) struct ReactivateGoalTool;
+impl Tool for ReactivateGoalTool {
+    fn name(&self) -> &'static str {
+        "reactivate_goal"
+    }
+    fn description(&self) -> &'static str {
+        "提议把一条暂停搁置的目标重新激活（需用户在审阅卡确认）。活跃目标严格上限 3 条，须有空位；可顺带更新重启后的抓手与卡点。"
+    }
+    fn parameters_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "goal_id": { "type": "string", "description": "要复活的目标 ID（状态须为 paused），必填" },
+                "current_focus": { "type": "string", "description": "重启后的首个抓手切片，可选（保留原值若省略）" },
+                "blocker": { "type": "string", "description": "重启后的已知卡点，可选（保留原值若省略）" }
+            },
+            "required": ["goal_id"],
+            "additionalProperties": false
+        })
+    }
+    fn deferred(&self) -> bool {
+        true
+    }
+    fn policy(&self) -> ToolPolicy {
+        ToolPolicy::WriteConfirm
+    }
+    fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
+        let goal_id = arg_str(args, "goal_id")?;
+        let goal = ctx
+            .store
+            .get_goal(&goal_id)?
+            .ok_or_else(|| anyhow::anyhow!("未找到 ID 为 {goal_id} 的目标"))?;
+        if goal.status != crate::storage::GoalStatus::Paused {
+            anyhow::bail!("目标「{}」不在暂停搁置状态，无法读档复活", goal.content);
+        }
+        if ctx.store.count_active_goals()? >= crate::storage::MAX_ACTIVE_GOALS as i64 {
+            anyhow::bail!(
+                "活跃目标已达 {} 条上限，请先暂停或达成一条再复活",
+                crate::storage::MAX_ACTIVE_GOALS
+            );
+        }
+        let current_focus = arg_str_opt(args, "current_focus");
+        let blocker = arg_str_opt(args, "blocker");
+        let action_args = json!({
+            "goal_id": goal_id,
+            "goal_content": goal.content,
+            "current_focus": current_focus,
+            "blocker": blocker,
+        });
+        store_create_pending(ctx.store, ctx.conversation_id, "reactivate_goal", &action_args)?;
+        Ok(format!(
+            "已为你草拟复活目标「{}」的提议（待确认，尚未生效）：\n—— 请在审阅卡片中核对重启抓手，点击接受后目标重新激活。",
+            goal.content
+        ))
+    }
+}

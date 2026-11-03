@@ -12,7 +12,9 @@ pub struct ConversationSummary {
     pub archived: bool,
     /// 关联的知识页 slug（页内 AI 处理会话）；None 为普通对话
     pub wiki_page_slug: Option<String>,
-    /// AI 对话角色：personal_secretary 或 knowledge_mentor
+    /// 关联的目标 id（目标专属讨论会话）；None 为非目标会话
+    pub goal_id: Option<String>,
+    /// AI 对话角色：personal_secretary / knowledge_mentor / goal_mentor
     pub assistant_mode: String,
 }
 

@@ -4,6 +4,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import 'conversations.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
@@ -11,6 +12,11 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`
 
 /// 列出全部活跃目标（最多 3 条，按近期→中期→长远排序）
+/// 获取（不存在则创建）某个目标的专属讨论会话，返回会话 DTO。
+/// 目标页内 AI 讨论通过该会话进行；生成时注入目标全部认知切片。
+Future<ConversationDto> ensureGoalChat({required String goalId}) =>
+    RustLib.instance.api.crateApiGoalsEnsureGoalChat(goalId: goalId);
+
 Future<List<GoalDto>> listActiveGoals() =>
     RustLib.instance.api.crateApiGoalsListActiveGoals();
 

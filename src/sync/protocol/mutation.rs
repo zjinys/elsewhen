@@ -147,10 +147,17 @@ impl SyncMutation {
                 ensure!(
                     matches!(
                         conversation.assistant_mode.as_str(),
-                        "personal_secretary" | "knowledge_mentor"
+                        "personal_secretary" | "knowledge_mentor" | "goal_mentor"
                     ),
                     "sync_assistant_mode_invalid"
                 );
+                if let Some(goal_id) = &conversation.goal_id {
+                    ensure!(
+                        matches!(conversation.assistant_mode.as_str(), "goal_mentor"),
+                        "sync_conversation_mode_goal_mismatch"
+                    );
+                    validate_id(goal_id)?;
+                }
                 if let Some(slug) = &conversation.wiki_page_slug {
                     ensure!(
                         matches!(conversation.assistant_mode.as_str(), "knowledge_mentor"),

@@ -41,7 +41,7 @@ class ConversationRepository {
     final ordinary = [
       ...active,
       ...archived,
-    ].where((conversation) => !conversation.isWikiChat).toList();
+    ].where((conversation) => !conversation.isWikiChat && !conversation.isGoalChat).toList();
     final isMain = ordinary.any(
       (conversation) =>
           conversation.id == conversationId && conversation.title == '主对话流',
@@ -68,10 +68,12 @@ class ConversationRepository {
     return await _bridge.createConversation();
   }
 
-  /// 纯读：找出主对话流（不含知识页对话），不存在返回 null。**不写库**。
+  /// 纯读：找出主对话流（不含知识页对话与目标讨论会话），不存在返回 null。**不写库**。
   Future<Conversation?> findMainConversation() async {
     final conversations = await _bridge.listConversations();
-    final main = conversations.where((c) => !c.isWikiChat).toList();
+    final main = conversations
+        .where((c) => !c.isWikiChat && !c.isGoalChat)
+        .toList();
     if (main.isEmpty) return null;
     // The reserved title makes the identity stable across restarts instead
     // of relying on whichever conversation happens to be newest.

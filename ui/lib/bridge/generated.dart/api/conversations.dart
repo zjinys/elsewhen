@@ -161,6 +161,9 @@ class ConversationDto {
   final bool archived;
   final String? wikiPageSlug;
 
+  /// 目标专属讨论会话绑定（goal_mentor）；None 为非目标会话
+  final String? goalId;
+
   const ConversationDto({
     required this.id,
     this.title,
@@ -171,6 +174,7 @@ class ConversationDto {
     this.lastMessagePreview,
     required this.archived,
     this.wikiPageSlug,
+    this.goalId,
   });
 
   @override
@@ -183,7 +187,8 @@ class ConversationDto {
       messageCount.hashCode ^
       lastMessagePreview.hashCode ^
       archived.hashCode ^
-      wikiPageSlug.hashCode;
+      wikiPageSlug.hashCode ^
+      goalId.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -198,7 +203,8 @@ class ConversationDto {
           messageCount == other.messageCount &&
           lastMessagePreview == other.lastMessagePreview &&
           archived == other.archived &&
-          wikiPageSlug == other.wikiPageSlug;
+          wikiPageSlug == other.wikiPageSlug &&
+          goalId == other.goalId;
 }
 
 /// Daily token usage DTO for Flutter（每日 token 使用统计）

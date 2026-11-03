@@ -39,6 +39,8 @@ pub(crate) fn build_system_context(
     }
     let mut prompt = String::new();
     let mut is_knowledge_mentor = false;
+    let mut goal_chat: Option<(String, Option<String>, Option<String>, Option<String>, Option<String>)> =
+        None;
     if let Some(conversation) = store.get_conversation(conversation_id)? {
         is_knowledge_mentor = conversation.assistant_mode == "knowledge_mentor"
             || conversation.wiki_page_slug.is_some();
@@ -46,6 +48,39 @@ pub(crate) fn build_system_context(
             prompt.push_str(
                 "\n\n你当前扮演知识页专业导师，而不是主对话秘书。只围绕当前知识页工作：主动指出矛盾、漏洞、模糊表述、未经验证的假设和缺失依据；区分事实、推断、观点和待确认项；必要时直接质疑用户并说明理由。保持尊重但不要为了陪伴或迎合而泛泛附和。默认不要把页面讨论记录为个人事件，也不要主动发起无关的联系人关系或待办提议。任何页面修改只能通过确认制修订工具提出，不能直接声称已修改。",
             );
+        }
+        // 目标专属讨论会话（goal_mentor）：AI 是这条目标的幕僚与镜子。
+        // 上下文即该目标的全部认知切片；所有变更（暂停/达成/复活/改抓手）
+        // 都通过确认制工具提议，绝不直接声称已修改。
+        if conversation.assistant_mode == "goal_mentor" {
+            if let Some(goal_id) = &conversation.goal_id {
+                if let Some(goal) = store.get_goal(goal_id)? {
+                    goal_chat = Some((
+                        goal.id.clone(),
+                        goal.why.clone(),
+                        goal.current_focus.clone(),
+                        goal.blocker.clone(),
+                        goal.done_criteria.clone(),
+                    ));
+                    prompt.push_str(&format!(
+                        "\n\n你当前是这条目标的专属幕僚，而不是主对话秘书。这是目标页内的讨论：帮用户看清这条目标本身——当前抓手是否仍然成立、卡点是什么、下一步最小行动是什么。职责是幕僚与镜子：客观陈述你从记录里看到的事实，用设问帮用户收敛判断，不评判、不代用户决定。任何目标变更（更新抓手/卡点/完成判据、暂停、达成、重新激活）都必须通过确认制工具提议（update_goal_facets / pause_goal / complete_goal / reactivate_goal），用户点头才生效，绝不直接声称已修改；用户没有明确表达变更意图时不要主动提议变更。不要把目标讨论记录为个人事件，也不要发起无关的联系人关系或待办提议。\n\n当前讨论的目标：{}（阶段：{}）\n",
+                        goal.content,
+                        goal.phase.label()
+                    ));
+                    if let Some(why) = &goal.why {
+                        prompt.push_str(&format!("· 核心动力：{}\n", why));
+                    }
+                    if let Some(focus) = &goal.current_focus {
+                        prompt.push_str(&format!("· 当前抓手：{}\n", focus));
+                    }
+                    if let Some(blocker) = &goal.blocker {
+                        prompt.push_str(&format!("· 已知卡点：{}\n", blocker));
+                    }
+                    if let Some(done) = &goal.done_criteria {
+                        prompt.push_str(&format!("· 完成判据：{}\n", done));
+                    }
+                }
+            }
         }
         let title = conversation.title.as_deref().unwrap_or("未命名");
         prompt.push_str("\n\n当前对话：");
@@ -59,7 +94,9 @@ pub(crate) fn build_system_context(
     let input_already_recorded = store
         .latest_event_id_for_conversation(conversation_id)?
         .is_some();
-    let allow_record_event = !is_knowledge_mentor && !input_already_recorded;
+    // 目标专属讨论同样不记事件（讨论内容属于目标域，不属于原始记录流）。
+    let is_goal_mentor = goal_chat.is_some();
+    let allow_record_event = !is_knowledge_mentor && !is_goal_mentor && !input_already_recorded;
     if input_already_recorded {
         prompt.push_str(
             "\n\n当前这条用户输入已由系统原样保存为个人事件，并已进入后台分析队列。不要再次记录，也不要把你的摘要或解读另存为事件；直接结合上下文回复即可。",
@@ -170,9 +207,14 @@ pub(crate) fn recent_background(
     store: &Store,
     conversation_id: &str,
 ) -> Result<Option<ContextMessage>> {
+    // goal_mentor 会话同样跳过跨对话背景：目标讨论不掺入其他对话的回忆噪声。
     let is_knowledge_mentor = store
         .get_conversation(conversation_id)?
-        .is_some_and(|c| c.assistant_mode == "knowledge_mentor" || c.wiki_page_slug.is_some());
+        .is_some_and(|c| {
+            c.assistant_mode == "knowledge_mentor"
+                || c.wiki_page_slug.is_some()
+                || c.assistant_mode == "goal_mentor"
+        });
     let recent = if is_knowledge_mentor {
         Vec::new()
     } else {
@@ -209,7 +251,11 @@ pub(crate) fn today_memory_background(
 ) -> Result<Option<ContextMessage>> {
     let is_knowledge_mentor = store
         .get_conversation(conversation_id)?
-        .is_some_and(|c| c.assistant_mode == "knowledge_mentor" || c.wiki_page_slug.is_some());
+        .is_some_and(|c| {
+            c.assistant_mode == "knowledge_mentor"
+                || c.wiki_page_slug.is_some()
+                || c.assistant_mode == "goal_mentor"
+        });
     if is_knowledge_mentor {
         return Ok(None);
     }

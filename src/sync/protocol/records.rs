@@ -317,7 +317,11 @@ pub struct ConversationRecord {
     /// Wiki 专属会话绑定：页面 slug 是引用不推断的锚（S05）。普通会话为
     /// None；wiki 聊天（assistant_mode='knowledge_mentor'）必填。
     pub wiki_page_slug: Option<String>,
-    /// 'personal_secretary' 普通会话 / 'knowledge_mentor' Wiki 专属。
+    /// 目标专属讨论会话绑定（goal_mentor）。普通会话为 None；goal 聊天
+    /// 必填且指向随快照携带的 goals 行（引用不推断，同 wiki_page_slug）。
+    pub goal_id: Option<String>,
+    /// 'personal_secretary' 普通会话 / 'knowledge_mentor' Wiki 专属 /
+    /// 'goal_mentor' 目标专属讨论。
     pub assistant_mode: String,
     pub created_at: String,
     pub updated_at: String,

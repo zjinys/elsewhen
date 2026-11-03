@@ -9,6 +9,8 @@ class Conversation {
   final String? lastMessagePreview;
   final bool archived;
   final String? wikiPageSlug;
+  /// 目标专属讨论会话绑定（goal_mentor）；null 为非目标会话
+  final String? goalId;
 
   const Conversation({
     required this.id,
@@ -20,6 +22,7 @@ class Conversation {
     this.lastMessagePreview,
     this.archived = false,
     this.wikiPageSlug,
+    this.goalId,
   });
 
   factory Conversation.fromRust(Map<String, dynamic> dto) {
@@ -32,6 +35,7 @@ class Conversation {
       messageCount: dto['message_count'] as int,
       lastMessagePreview: dto['last_message_preview'] as String?,
       archived: dto['archived'] as bool? ?? false,
+      goalId: dto['goal_id'] as String?,
     );
   }
 
@@ -39,6 +43,9 @@ class Conversation {
 
   /// 是否为知识页处理会话（关联了知识页）
   bool get isWikiChat => wikiPageSlug != null;
+
+  /// 是否为目标专属讨论会话（goal_mentor）
+  bool get isGoalChat => goalId != null;
 }
 
 /// Message role enum

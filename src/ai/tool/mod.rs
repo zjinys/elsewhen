@@ -11,7 +11,10 @@ use anyhow::Result;
 
 use self::dispatch::user_skills_roster;
 use self::dispatch::{ImportDirectoryFilesTool, ImportDirectoryProjectTool};
-use self::goal_tools::{CreateGoalTool, ListGoalsTool, UpdateGoalFacetsTool};
+use self::goal_tools::{
+    CompleteGoalTool, CreateGoalTool, ListGoalsTool, PauseGoalTool, ReactivateGoalTool,
+    UpdateGoalFacetsTool,
+};
 use self::query_tools::ListEventsByDateTool;
 use self::query_tools::{ArchiveConversationsByTitleTool, ImportUrlToWikiTool, RenameWikiPageTool};
 use self::read_tools::{
@@ -170,8 +173,17 @@ pub const BUILTIN_SKILLS: &[SkillDefinition] = &[
             - 活跃目标上限严格为 3 条。活跃目标已常驻在系统提示词中；list_goals 可查暂停或已达成目标。\n\
             - create_goal 与 update_goal_facets 均为草拟待确认制，需用户在审阅卡确认后真正落库。\n\
             - 立项时协助用户提炼愿景、核心动力(why)、近1~2周首发启动切片(current_focus)、已知卡点(blocker)与完成判据(done_criteria)。\n\
-            - 目标推进或卡点化解时，使用 update_goal_facets 滚动更新抓手或记录卡点，不要频繁重建目标。",
-        tools: &["list_goals", "create_goal", "update_goal_facets"],
+            - 目标推进或卡点化解时，使用 update_goal_facets 滚动更新抓手或记录卡点，不要频繁重建目标。
+\
+            - pause_goal / complete_goal / reactivate_goal 同为草拟待确认制；仅在用户明确表达暂停、达成或重启意愿时提议，不要主动劝用户放弃目标。",
+        tools: &[
+            "list_goals",
+            "create_goal",
+            "update_goal_facets",
+            "pause_goal",
+            "complete_goal",
+            "reactivate_goal",
+        ],
     },
 ];
 
@@ -320,6 +332,9 @@ impl ToolRegistry {
             Box::new(ListGoalsTool),
             Box::new(CreateGoalTool),
             Box::new(UpdateGoalFacetsTool),
+            Box::new(PauseGoalTool),
+            Box::new(CompleteGoalTool),
+            Box::new(ReactivateGoalTool),
         ]
     }
 }

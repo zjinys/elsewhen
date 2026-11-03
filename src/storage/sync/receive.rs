@@ -372,7 +372,7 @@ impl Store {
                             return Ok(Apply::Waiting);
                         }
                     }
-                    self.connection.execute("INSERT INTO conversations(id,title,tag,archived,wiki_page_slug,assistant_mode,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",params![conversation.id,conversation.title,conversation.tag,conversation.archived,conversation.wiki_page_slug,conversation.assistant_mode,conversation.created_at,conversation.updated_at])?;
+                    self.connection.execute("INSERT INTO conversations(id,title,tag,archived,wiki_page_slug,goal_id,assistant_mode,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)",params![conversation.id,conversation.title,conversation.tag,conversation.archived,conversation.wiki_page_slug,conversation.goal_id,conversation.assistant_mode,conversation.created_at,conversation.updated_at])?;
                 }
                 self.sync_set_head("conversation", &conversation.id, &op.op_id, *deleted)?;
                 Ok(Apply::Applied)
@@ -527,6 +527,6 @@ impl Store {
     }
 
     pub(crate) fn sync_conversation_record(&self, id: &str) -> Result<Option<ConversationRecord>> {
-        Ok(self.connection.query_row("SELECT id,title,tag,archived,wiki_page_slug,assistant_mode,created_at,updated_at FROM conversations WHERE id=?1",[id],|r|Ok(ConversationRecord{id:r.get(0)?,title:r.get(1)?,tag:r.get(2)?,archived:r.get(3)?,wiki_page_slug:r.get(4)?,assistant_mode:r.get(5)?,created_at:r.get(6)?,updated_at:r.get(7)?})).optional()?)
+        Ok(self.connection.query_row("SELECT id,title,tag,archived,wiki_page_slug,goal_id,assistant_mode,created_at,updated_at FROM conversations WHERE id=?1",[id],|r|Ok(ConversationRecord{id:r.get(0)?,title:r.get(1)?,tag:r.get(2)?,archived:r.get(3)?,wiki_page_slug:r.get(4)?,goal_id:r.get(5)?,assistant_mode:r.get(6)?,created_at:r.get(7)?,updated_at:r.get(8)?})).optional()?)
     }
 }

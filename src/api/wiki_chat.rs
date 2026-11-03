@@ -100,6 +100,7 @@ pub fn ensure_wiki_page_chat(page_slug: String) -> Result<ConversationDto> {
         last_message_preview: conversation.last_message_preview,
         archived: conversation.archived,
         wiki_page_slug: conversation.wiki_page_slug,
+        goal_id: conversation.goal_id,
     })
 }
 

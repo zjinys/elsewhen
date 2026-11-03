@@ -242,8 +242,7 @@ impl Store {
         // 应用它对数据是无操作，只把修订链接回本端 head——重装后设备重发
         // 同一份快照就是这种形态，为「什么都没变」弹人工审阅只会训练用户
         // 盲点确认。内容有任何实质差异仍走冲突审阅（失败关闭不变）。
-        let conflict =
-            chain_conflict && !self.provider_bundle_matches_local(&bundle, &canonical)?;
+        let conflict = chain_conflict && !self.provider_bundle_matches_local(&bundle, &[])?;
         self.connection.execute("INSERT INTO sync_provider_versions(revision_id,base_revision,sender_device_id,content_hash,encrypted_envelope,state) VALUES(?1,?2,?3,?4,?5,?6)",params![bundle.revision_id,bundle.base_revision,expected.sender_device_id,digest,bytes,if conflict {"conflict"} else {"applied"}])?;
         if conflict {
             if let Some(tx) = tx {
@@ -265,7 +264,7 @@ impl Store {
     fn provider_bundle_matches_local(
         &self,
         bundle: &ProviderBundle,
-        canonical: &[u8],
+        _canonical: &[u8],
     ) -> Result<bool> {
         let relabeled = self
             .export_provider_bundle(&bundle.revision_id, bundle.base_revision.clone())?;

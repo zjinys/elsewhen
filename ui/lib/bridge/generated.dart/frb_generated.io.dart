@@ -3807,6 +3807,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     );
     wireObj.archived = cst_encode_bool(apiObj.archived);
     wireObj.wiki_page_slug = cst_encode_opt_String(apiObj.wikiPageSlug);
+    wireObj.goal_id = cst_encode_opt_String(apiObj.goalId);
   }
 
   @protected
@@ -10272,6 +10273,28 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_wire__crate__api__goals__dismiss_compass_nudge');
   late final _wire__crate__api__goals__dismiss_compass_nudge =
       _wire__crate__api__goals__dismiss_compass_nudgePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__goals__ensure_goal_chat(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> goal_id,
+  ) {
+    return _wire__crate__api__goals__ensure_goal_chat(port_, goal_id);
+  }
+
+  late final _wire__crate__api__goals__ensure_goal_chatPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__goals__ensure_goal_chat');
+  late final _wire__crate__api__goals__ensure_goal_chat =
+      _wire__crate__api__goals__ensure_goal_chatPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
@@ -17295,6 +17318,8 @@ final class wire_cst_conversation_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> wiki_page_slug;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> goal_id;
+
   static ffi.Pointer<wire_cst_conversation_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
@@ -17306,6 +17331,7 @@ final class wire_cst_conversation_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> last_message_preview,
     required bool archived,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> wiki_page_slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> goal_id,
   }) => $allocator<wire_cst_conversation_dto>()
     ..ref.id = id
     ..ref.title = title
@@ -17315,7 +17341,8 @@ final class wire_cst_conversation_dto extends ffi.Struct {
     ..ref.message_count = message_count
     ..ref.last_message_preview = last_message_preview
     ..ref.archived = archived
-    ..ref.wiki_page_slug = wiki_page_slug;
+    ..ref.wiki_page_slug = wiki_page_slug
+    ..ref.goal_id = goal_id;
 }
 
 final class wire_cst_daily_entry_dto extends ffi.Struct {

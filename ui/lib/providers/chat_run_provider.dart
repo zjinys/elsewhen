@@ -430,6 +430,16 @@ final wikiChatMessagesProvider = FutureProvider.autoDispose
       return bridge.listMessages(id);
     });
 
+/// 目标专属会话（goal_mentor）的消息流；与 wiki 页内聊天同构，
+/// 但由 [GoalChatPanel] 消费。goal 会话不进主对话流，
+/// 所以单独建 family，终态时与 wikiChatMessagesProvider 一起失效。
+final goalChatMessagesProvider = FutureProvider.autoDispose
+    .family<List<Message>, String>((ref, id) {
+      final bridge =
+          ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      return bridge.listMessages(id);
+    });
+
 final chatRunControllerProvider = Provider.autoDispose
     .family<ChatRunController, String>((ref, id) {
       final repository = ref.watch(conversationRepositoryProvider);
@@ -439,6 +449,7 @@ final chatRunControllerProvider = Provider.autoDispose
         onTerminal: () {
           ref.invalidate(messagesProvider);
           ref.invalidate(wikiChatMessagesProvider(id));
+          ref.invalidate(goalChatMessagesProvider(id));
           ref.invalidate(conversationsProvider);
           ref.invalidate(pendingActionsProvider);
           ref.invalidate(wikiPagesProvider);

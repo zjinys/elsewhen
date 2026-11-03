@@ -113,7 +113,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 389173234;
+  int get rustContentHash => 1326355545;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -417,6 +417,8 @@ abstract class RustLibApi extends BaseApi {
     required String runId,
     required String contextJson,
   });
+
+  Future<ConversationDto> crateApiGoalsEnsureGoalChat({required String goalId});
 
   Future<ConversationDto> crateApiWikiChatEnsureWikiPageChat({
     required String pageSlug,
@@ -3432,6 +3434,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "enqueue_chat_supplement",
         argNames: ["conversationId", "inputMessageId", "runId", "contextJson"],
       );
+
+  @override
+  Future<ConversationDto> crateApiGoalsEnsureGoalChat({
+    required String goalId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(goalId);
+          return wire.wire__crate__api__goals__ensure_goal_chat(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_conversation_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsEnsureGoalChatConstMeta,
+        argValues: [goalId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsEnsureGoalChatConstMeta =>
+      const TaskConstMeta(debugName: "ensure_goal_chat", argNames: ["goalId"]);
 
   @override
   Future<ConversationDto> crateApiWikiChatEnsureWikiPageChat({
@@ -11090,8 +11116,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ConversationDto dco_decode_conversation_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 9)
-      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return ConversationDto(
       id: dco_decode_String(arr[0]),
       title: dco_decode_opt_String(arr[1]),
@@ -11102,6 +11128,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       lastMessagePreview: dco_decode_opt_String(arr[6]),
       archived: dco_decode_bool(arr[7]),
       wikiPageSlug: dco_decode_opt_String(arr[8]),
+      goalId: dco_decode_opt_String(arr[9]),
     );
   }
 
@@ -14326,6 +14353,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_lastMessagePreview = sse_decode_opt_String(deserializer);
     var var_archived = sse_decode_bool(deserializer);
     var var_wikiPageSlug = sse_decode_opt_String(deserializer);
+    var var_goalId = sse_decode_opt_String(deserializer);
     return ConversationDto(
       id: var_id,
       title: var_title,
@@ -14336,6 +14364,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       lastMessagePreview: var_lastMessagePreview,
       archived: var_archived,
       wikiPageSlug: var_wikiPageSlug,
+      goalId: var_goalId,
     );
   }
 
@@ -18719,6 +18748,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.lastMessagePreview, serializer);
     sse_encode_bool(self.archived, serializer);
     sse_encode_opt_String(self.wikiPageSlug, serializer);
+    sse_encode_opt_String(self.goalId, serializer);
   }
 
   @protected

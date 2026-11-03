@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 389173234;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1326355545;
 
 // Section: executor
 
@@ -1768,6 +1768,29 @@ fn wire__crate__api__chat_runs__enqueue_chat_supplement_impl(
                             api_run_id,
                             api_context_json,
                         )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__goals__ensure_goal_chat_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    goal_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ensure_goal_chat",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_goal_id = goal_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::ensure_goal_chat(api_goal_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -8257,6 +8280,7 @@ impl SseDecode for crate::api::conversations::ConversationDto {
         let mut var_lastMessagePreview = <Option<String>>::sse_decode(deserializer);
         let mut var_archived = <bool>::sse_decode(deserializer);
         let mut var_wikiPageSlug = <Option<String>>::sse_decode(deserializer);
+        let mut var_goalId = <Option<String>>::sse_decode(deserializer);
         return crate::api::conversations::ConversationDto {
             id: var_id,
             title: var_title,
@@ -8267,6 +8291,7 @@ impl SseDecode for crate::api::conversations::ConversationDto {
             last_message_preview: var_lastMessagePreview,
             archived: var_archived,
             wiki_page_slug: var_wikiPageSlug,
+            goal_id: var_goalId,
         };
     }
 }
@@ -12648,6 +12673,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::conversations::ConversationDt
             self.last_message_preview.into_into_dart().into_dart(),
             self.archived.into_into_dart().into_dart(),
             self.wiki_page_slug.into_into_dart().into_dart(),
+            self.goal_id.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -15791,6 +15817,7 @@ impl SseEncode for crate::api::conversations::ConversationDto {
         <Option<String>>::sse_encode(self.last_message_preview, serializer);
         <bool>::sse_encode(self.archived, serializer);
         <Option<String>>::sse_encode(self.wiki_page_slug, serializer);
+        <Option<String>>::sse_encode(self.goal_id, serializer);
     }
 }
 
@@ -18874,6 +18901,7 @@ mod io {
                 last_message_preview: self.last_message_preview.cst_decode(),
                 archived: self.archived.cst_decode(),
                 wiki_page_slug: self.wiki_page_slug.cst_decode(),
+                goal_id: self.goal_id.cst_decode(),
             }
         }
     }
@@ -21709,6 +21737,7 @@ mod io {
                 last_message_preview: core::ptr::null_mut(),
                 archived: Default::default(),
                 wiki_page_slug: core::ptr::null_mut(),
+                goal_id: core::ptr::null_mut(),
             }
         }
     }
@@ -24358,6 +24387,14 @@ mod io {
             run_id,
             context_json,
         )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__ensure_goal_chat(
+        port_: i64,
+        goal_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__goals__ensure_goal_chat_impl(port_, goal_id)
     }
 
     #[unsafe(no_mangle)]
@@ -28013,6 +28050,7 @@ mod io {
         last_message_preview: *mut wire_cst_list_prim_u_8_strict,
         archived: bool,
         wiki_page_slug: *mut wire_cst_list_prim_u_8_strict,
+        goal_id: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -30223,8 +30261,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                9,
-                "Expected 9 elements, got {}",
+                10,
+                "Expected 10 elements, got {}",
                 self_.length()
             );
             crate::api::conversations::ConversationDto {
@@ -30237,6 +30275,7 @@ mod web {
                 last_message_preview: self_.get(6).cst_decode(),
                 archived: self_.get(7).cst_decode(),
                 wiki_page_slug: self_.get(8).cst_decode(),
+                goal_id: self_.get(9).cst_decode(),
             }
         }
     }
@@ -34624,6 +34663,14 @@ mod web {
             run_id,
             context_json,
         )
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__goals__ensure_goal_chat(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        goal_id: String,
+    ) {
+        wire__crate__api__goals__ensure_goal_chat_impl(port_, goal_id)
     }
 
     #[wasm_bindgen]

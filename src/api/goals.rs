@@ -3,6 +3,7 @@
 //! 活跃目标上限由数据库触发器强制，本层只做参数校验与错误转译；
 //! 达到上限时不做任何自动顶替，错误直接上抛由界面提示用户先归档。
 
+use crate::api::conversations::ConversationDto;
 use crate::storage::{Goal, GoalCompassNudge, GoalPhase, Store};
 use anyhow::Result;
 
@@ -81,6 +82,35 @@ fn parse_phase(phase: &str) -> Result<GoalPhase> {
 pub const MAX_ACTIVE_GOALS: usize = crate::storage::MAX_ACTIVE_GOALS;
 
 /// 列出全部活跃目标（最多 3 条，按近期→中期→长远排序）
+/// 获取（不存在则创建）某个目标的专属讨论会话，返回会话 DTO。
+/// 目标页内 AI 讨论通过该会话进行；生成时注入目标全部认知切片。
+pub fn ensure_goal_chat(goal_id: String) -> Result<ConversationDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let Some(goal) = store.get_goal(&goal_id)? else {
+        anyhow::bail!("目标不存在: {goal_id}");
+    };
+    let conversation_id = match store.find_goal_chat_conversation(&goal_id)? {
+        Some(id) => id,
+        None => store.create_goal_chat_conversation(&goal_id, &format!("[目标] {}", goal.content))?,
+    };
+    let conversation = store
+        .get_conversation(&conversation_id)?
+        .ok_or_else(|| anyhow::anyhow!("会话创建失败"))?;
+    Ok(ConversationDto {
+        id: conversation.id,
+        title: conversation.title,
+        tag: conversation.tag,
+        created_at: conversation.created_at,
+        updated_at: conversation.updated_at,
+        message_count: conversation.message_count,
+        last_message_preview: conversation.last_message_preview,
+        archived: conversation.archived,
+        wiki_page_slug: conversation.wiki_page_slug,
+        goal_id: conversation.goal_id,
+    })
+}
+
 pub fn list_active_goals() -> Result<Vec<GoalDto>> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;

@@ -41,7 +41,10 @@ impl Store {
                 if let Some(slug) = &value.wiki_page_slug {
                     self.sync_mark_wiki_slug_seen(slug)?;
                 }
-                self.connection.execute("INSERT INTO conversations(id,title,tag,archived,wiki_page_slug,assistant_mode,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",params![value.id,value.title,value.tag,value.archived,value.wiki_page_slug,value.assistant_mode,value.created_at,value.updated_at])?;
+                if let Some(goal_id) = &value.goal_id {
+                    validate_id(goal_id)?;
+                }
+                self.connection.execute("INSERT INTO conversations(id,title,tag,archived,wiki_page_slug,goal_id,assistant_mode,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)",params![value.id,value.title,value.tag,value.archived,value.wiki_page_slug,value.goal_id,value.assistant_mode,value.created_at,value.updated_at])?;
             }
             Record::Message { value, order } => {
                 value.validate()?;

@@ -7,6 +7,7 @@ import '../providers/conversation_provider.dart';
 import '../providers/goal_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../theme/app_theme.dart';
+import 'goal_chat_panel.dart';
 import 'goal_compass_banner.dart';
 // goalCompassChatDraftProvider / MessageArea 输入预填机制定义在此文件。
 import 'message_area.dart';
@@ -172,9 +173,10 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
     _launchCoAuthor(seed);
   }
 
-  /// 卡片/tab 级 AI 辅助：种子只带这一条目标的完整切片上下文，
-  /// AI 会看到 system_context 并走提议卡确认，这里不做任何直接写库。
-  void _startGoalCoAuthor(Goal goal) {
+  /// 卡片级 AI 辅助拆解种子：只带这一条目标的完整切片上下文。
+  /// 由 [GoalChatPanel.initialSeed] 消费——只预填面板输入框草稿，
+  /// 绝不自动发送；实际落库仍走 WriteConfirm 提议卡。
+  String _goalSeed(Goal goal) {
     final focus = goal.currentFocus?.trim();
     final blocker = goal.blocker?.trim();
     final why = goal.why?.trim();
@@ -189,9 +191,11 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
       buf.write('，卡在「$blocker」');
     }
     buf.write('。帮我拆解下一步：先聊聊近 1~2 周该做什么、怎么验证推进了。');
-
-    _launchCoAuthor(buf.toString());
+    return buf.toString();
   }
+
+  /// 顶部「和 AI 拆解 / 立新目标」：预填对话草稿并切回对话 tab。
+  /// （卡片级拆解已改为目标页内直接展开讨论，不走这里。）
 
   /// 共同立项/拆解的实际触发：预填草稿并切回对话 tab。
   /// 只在左 tab 可编辑工作台可用（速览弹窗无 AI 入口）。
@@ -536,7 +540,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
       onEditFull: () => _editFull(goal),
       onPause: () => _pause(goal),
       onComplete: () => _complete(goal),
-      onCoAuthor: widget.quickGlance ? null : () => _startGoalCoAuthor(goal),
+      chatSeed: widget.quickGlance ? null : _goalSeed(goal),
     );
   }
 
@@ -727,14 +731,14 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
 }
 
 /// 活跃目标卡片（高亮呈现当前抓手与已知卡点）
-class _ActiveGoalCard extends StatelessWidget {
+class _ActiveGoalCard extends StatefulWidget {
   const _ActiveGoalCard({
     required this.goal,
     required this.onRollFocus,
     required this.onEditFull,
     required this.onPause,
     required this.onComplete,
-    this.onCoAuthor,
+    this.chatSeed,
     this.quickGlance = false,
   });
 
@@ -744,16 +748,26 @@ class _ActiveGoalCard extends StatelessWidget {
   final VoidCallback onPause;
   final VoidCallback onComplete;
 
-  /// 卡片级 AI 辅助入口（带本目标上下文预填对话草稿）；
-  /// 速览模式下隐藏。实际落库仍走 WriteConfirm 提议卡。
-  final VoidCallback? onCoAuthor;
+  /// 卡片级 AI 辅助拆解种子（非空时展示「AI 辅助拆解」入口）。
+  /// 点击在卡内直接展开 [GoalChatPanel]（不切对话 tab），
+  /// 种子只预填面板输入框草稿，绝不自动发送；
+  /// 实际落库仍走 WriteConfirm 提议卡。速览模式下为 null。
+  final String? chatSeed;
 
-  /// 只读速览模式：隐藏滚动抓手按钮与操作菜单。
+  /// 只读速览模式：隐藏操作菜单，无 AI 入口。
   final bool quickGlance;
+
+  @override
+  State<_ActiveGoalCard> createState() => _ActiveGoalCardState();
+}
+
+class _ActiveGoalCardState extends State<_ActiveGoalCard> {
+  bool _chatExpanded = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final goal = widget.goal;
     final focus = goal.currentFocus?.trim();
     final blocker = goal.blocker?.trim();
     final why = goal.why?.trim();
@@ -801,15 +815,7 @@ class _ActiveGoalCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (!quickGlance)
-                  IconButton(
-                    tooltip: '滚动抓手',
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.tune_outlined, size: 16),
-                    color: AppTheme.accentPrimary,
-                    onPressed: onRollFocus,
-                  ),
-                if (!quickGlance)
+                if (!widget.quickGlance)
                   PopupMenuButton<String>(
                   tooltip: '更多操作',
                   icon: const Icon(Icons.more_horiz, size: 16),
@@ -817,16 +823,16 @@ class _ActiveGoalCard extends StatelessWidget {
                   onSelected: (val) {
                     switch (val) {
                       case 'roll':
-                        onRollFocus();
+                        widget.onRollFocus();
                         break;
                       case 'complete':
-                        onComplete();
+                        widget.onComplete();
                         break;
                       case 'pause':
-                        onPause();
+                        widget.onPause();
                         break;
                       case 'edit':
-                        onEditFull();
+                        widget.onEditFull();
                         break;
                     }
                   },
@@ -886,7 +892,7 @@ class _ActiveGoalCard extends StatelessWidget {
               children: [
                 // 抓手条
                 InkWell(
-                  onTap: quickGlance ? null : onRollFocus,
+                  onTap: widget.quickGlance ? null : widget.onRollFocus,
                   borderRadius: BorderRadius.circular(6),
                   child: Container(
                     width: double.infinity,
@@ -929,13 +935,6 @@ class _ActiveGoalCard extends StatelessWidget {
                               ],
                             ),
                           ),
-                        ),
-                        Icon(
-                          Icons.edit_outlined,
-                          size: 13,
-                          color: quickGlance
-                              ? Colors.transparent
-                              : AppTheme.textTertiary,
                         ),
                       ],
                     ),
@@ -1012,13 +1011,17 @@ class _ActiveGoalCard extends StatelessWidget {
                   ),
                 ],
 
-                // 卡片级 AI 辅助：只预填对话草稿，落库仍走提议卡确认
-                if (onCoAuthor != null) ...[
+                // 卡片级 AI 辅助拆解：在卡内直接展开目标讨论面板，
+                // 种子只预填输入框草稿，落库仍走提议卡确认
+                if (widget.chatSeed != null) ...[
                   const SizedBox(height: 8),
                   TextButton.icon(
-                    onPressed: onCoAuthor,
+                    onPressed: () => setState(() => _chatExpanded = !_chatExpanded),
                     icon: const Icon(Icons.auto_awesome, size: 13),
-                    label: const Text('AI 辅助拆解', style: TextStyle(fontSize: 11.5)),
+                    label: Text(
+                      _chatExpanded ? '收起 AI 讨论' : 'AI 辅助拆解',
+                      style: const TextStyle(fontSize: 11.5),
+                    ),
                     style: TextButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                       padding: const EdgeInsets.symmetric(
@@ -1027,6 +1030,17 @@ class _ActiveGoalCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (_chatExpanded)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: GoalChatPanel(
+                        key: ValueKey('goal-chat-${goal.id}'),
+                        goalId: goal.id,
+                        goalContent: goal.content,
+                        initialSeed: widget.chatSeed,
+                        onMinimize: () => setState(() => _chatExpanded = false),
+                      ),
+                    ),
                 ],
               ],
             ),

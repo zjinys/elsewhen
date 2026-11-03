@@ -113,6 +113,7 @@ fn migrations_are_discovered_from_the_directory() {
             "64-drop-mail-snapshot",
             "65-cognitive-goals",
             "66-goal-compass-nudges",
+            "67-goal-chat-conversations",
         ],
         "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
     );
@@ -144,7 +145,7 @@ fn migration_applies_goals_table() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 66, "六十六条迁移跑完，user_version 应为 66");
+    assert_eq!(version, 67, "六十七条迁移跑完，user_version 应为 67");
     assert_eq!(
         latest_version().unwrap(),
         version,
@@ -662,7 +663,7 @@ fn v65_cognitive_goals_migration_keeps_data_and_updates_status() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 66);
+    assert_eq!(version, 67);
 
     // 验证原有的 superseded 状态已平滑变为 paused，且切片列为 NULL
     let (status, why, focus, blocker, criteria): (
@@ -767,7 +768,7 @@ fn v66_goal_compass_nudges_table_created() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 66);
+    assert_eq!(version, 67);
 
     // 插入活跃目标和关联 nudge
     connection
@@ -794,4 +795,67 @@ fn v66_goal_compass_nudges_table_created() {
         )
         .unwrap();
     assert_eq!(count, 1);
+}
+
+#[test]
+fn v67_goal_chat_conversations_column_added() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    initialize(&mut connection).unwrap();
+
+    let version: i64 = connection
+        .query_row("PRAGMA main.user_version", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(version, 67);
+
+    // 普通会话旧行保持 NULL goal_id
+    connection
+        .execute(
+            "INSERT INTO conversations(id, title, assistant_mode, created_at, updated_at)
+             VALUES('c-plain', '普通会话', 'personal_secretary', 't0', 't0')",
+            [],
+        )
+        .unwrap();
+    let goal_id: Option<String> = connection
+        .query_row(
+            "SELECT goal_id FROM conversations WHERE id='c-plain'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(goal_id, None);
+
+    // goal_mentor 会话可带 goal_id，且外键约束生效（引用不存在的目标被拒）
+    connection
+        .execute(
+            "INSERT INTO goals(id, content, phase, status, created_at, updated_at)
+             VALUES('g-1', '测试目标', 'near', 'active', 't0', 't0')",
+            [],
+        )
+        .unwrap();
+    connection
+        .execute(
+            "INSERT INTO conversations(id, title, goal_id, assistant_mode, created_at, updated_at)
+             VALUES('c-goal', '目标讨论', 'g-1', 'goal_mentor', 't1', 't1')",
+            [],
+        )
+        .unwrap();
+
+    let err = connection
+        .execute(
+            "INSERT INTO conversations(id, title, goal_id, assistant_mode, created_at, updated_at)
+             VALUES('c-bad', '坏引用', 'g-missing', 'goal_mentor', 't2', 't2')",
+            [],
+        )
+        .unwrap_err();
+    assert!(err.to_string().contains("FOREIGN KEY"));
+
+    // 部分索引存在（供 find_goal_chat_conversation 查询使用）
+    let index_count: i64 = connection
+        .query_row(
+            "SELECT count(*) FROM sqlite_master WHERE type='index' AND name='idx_conversations_goal'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(index_count, 1);
 }

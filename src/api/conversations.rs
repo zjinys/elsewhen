@@ -14,6 +14,8 @@ pub struct ConversationDto {
     pub last_message_preview: Option<String>,
     pub archived: bool,
     pub wiki_page_slug: Option<String>,
+    /// 目标专属讨论会话绑定（goal_mentor）；None 为非目标会话
+    pub goal_id: Option<String>,
 }
 
 /// Message DTO for Flutter
@@ -175,6 +177,7 @@ pub fn create_conversation(title: Option<String>, tag: Option<String>) -> Result
         last_message_preview: conversation.last_message_preview,
         archived: conversation.archived,
         wiki_page_slug: conversation.wiki_page_slug,
+        goal_id: conversation.goal_id,
     })
 }
 
@@ -197,6 +200,7 @@ pub fn list_conversations() -> Result<Vec<ConversationDto>> {
             last_message_preview: c.last_message_preview,
             archived: c.archived,
             wiki_page_slug: c.wiki_page_slug,
+            goal_id: c.goal_id,
         })
         .collect())
 }
@@ -220,6 +224,7 @@ pub fn list_archived_conversations() -> Result<Vec<ConversationDto>> {
             last_message_preview: c.last_message_preview,
             archived: c.archived,
             wiki_page_slug: c.wiki_page_slug,
+            goal_id: c.goal_id,
         })
         .collect())
 }
@@ -261,6 +266,7 @@ pub fn get_conversation(conversation_id: String) -> Result<Option<ConversationDt
             last_message_preview: conversation.last_message_preview,
             archived: conversation.archived,
             wiki_page_slug: conversation.wiki_page_slug,
+            goal_id: conversation.goal_id,
         }))
     } else {
         Ok(None)

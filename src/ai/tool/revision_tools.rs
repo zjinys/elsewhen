@@ -314,6 +314,43 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                 existing.content
             ))
         }
+        "pause_goal" => {
+            let goal_id = arg_str(&args, "goal_id")?;
+            store.pause_goal(&goal_id)?;
+            let content = args
+                .get("goal_content")
+                .and_then(|v| v.as_str())
+                .unwrap_or(&goal_id);
+            Ok(format!("已将目标「{content}」暂时搁置，随时可读档复活。"))
+        }
+        "complete_goal" => {
+            let goal_id = arg_str(&args, "goal_id")?;
+            store.complete_goal(&goal_id)?;
+            let content = args
+                .get("goal_content")
+                .and_then(|v| v.as_str())
+                .unwrap_or(&goal_id);
+            Ok(format!("🎉 已达成目标「{content}」，归档为成就。"))
+        }
+        "reactivate_goal" => {
+            let goal_id = arg_str(&args, "goal_id")?;
+            let current_focus = arg_str_opt(&args, "current_focus");
+            let blocker = arg_str_opt(&args, "blocker");
+            store.reactivate_goal_with_focus(
+                &goal_id,
+                current_focus.as_deref(),
+                blocker.as_deref(),
+            )?;
+            let content = args
+                .get("goal_content")
+                .and_then(|v| v.as_str())
+                .unwrap_or(&goal_id);
+            let focus_desc = current_focus
+                .as_deref()
+                .map(|f| format!("，重启抓手：{f}"))
+                .unwrap_or_default();
+            Ok(format!("已读档复活目标「{content}」{focus_desc}。"))
+        }
         "propose_people_relations" => {
             crate::wiki::apply_people_relations(&args, store, &pa.conversation_id)
         }

@@ -2466,6 +2466,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_opt_String(raw.lastMessagePreview),
       cst_encode_bool(raw.archived),
       cst_encode_opt_String(raw.wikiPageSlug),
+      cst_encode_opt_String(raw.goalId),
     ].jsify()!;
   }
 
@@ -6780,6 +6781,11 @@ class RustLibWire implements BaseWire {
     context_json,
   );
 
+  void wire__crate__api__goals__ensure_goal_chat(
+    NativePortType port_,
+    String goal_id,
+  ) => wasmModule.wire__crate__api__goals__ensure_goal_chat(port_, goal_id);
+
   void wire__crate__api__wiki_chat__ensure_wiki_page_chat(
     NativePortType port_,
     String page_slug,
@@ -9111,6 +9117,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String input_message_id,
     String run_id,
     String context_json,
+  );
+
+  external void wire__crate__api__goals__ensure_goal_chat(
+    NativePortType port_,
+    String goal_id,
   );
 
   external void wire__crate__api__wiki_chat__ensure_wiki_page_chat(

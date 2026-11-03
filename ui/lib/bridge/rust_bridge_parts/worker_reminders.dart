@@ -332,6 +332,7 @@ extension RepoWorkerReminders on RustBridgeRepository {
       lastMessagePreview: dto.lastMessagePreview,
       archived: dto.archived,
       wikiPageSlug: dto.wikiPageSlug,
+      goalId: dto.goalId,
     );
   }
 
@@ -484,26 +485,6 @@ extension RepoWorkerReminders on RustBridgeRepository {
     actionId: action.id,
     expectedVersion: action.version,
     approvalToken: action.approvalToken,
-  );
-
-  Future<List<api.ChatProposalDto>> listChatProposals(
-    String? conversationId, {
-    int offset = 0,
-    int limit = 25,
-  }) => api.listChatProposals(
-    conversationId: conversationId,
-    offset: offset,
-    limit: limit,
-  );
-
-  Future<List<api.ChatDecisionDto>> listChatDecisions(
-    String? conversationId, {
-    int offset = 0,
-    int limit = 25,
-  }) => api.listChatDecisions(
-    conversationId: conversationId,
-    offset: offset,
-    limit: limit,
   );
 
   Future<api.ChatProposalDto> editChatProposal(

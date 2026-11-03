@@ -1,10 +1,13 @@
 import 'package:elsewhen_ui/bridge/api.dart' as api;
+import 'package:elsewhen_ui/bridge/api.dart' show ChatProposalDto;
+import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/models/conversation.dart';
 import 'package:elsewhen_ui/models/goal.dart';
 import 'package:elsewhen_ui/providers/conversation_provider.dart';
 import 'package:elsewhen_ui/providers/goal_provider.dart';
 import 'package:elsewhen_ui/providers/state_holder.dart';
 import 'package:elsewhen_ui/providers/wiki_provider.dart';
+import 'package:elsewhen_ui/widgets/goal_chat_panel.dart';
 import 'package:elsewhen_ui/widgets/goal_view.dart';
 import 'package:elsewhen_ui/widgets/left_sidebar.dart';
 import 'package:elsewhen_ui/widgets/message_area.dart';
@@ -61,15 +64,53 @@ Goal _goal(
 
 /// 左侧导航「目标」域端到端：LeftSidebar（footer 入口 + 左栏摘要）+
 /// 主区只读 GoalListView，与 main_screen 的挂载方式一致。
+/// 目标会话 fake：不触碰真实桥接；durable 能力全关（走非 durable 路径）。
+/// 覆写 listChatProposals，让面板头部的 ChatProposalReviewButton 探测
+/// 不落到真实桥接。
+class _FakeGoalChatRepo extends RustBridgeRepository {
+  _FakeGoalChatRepo()
+      : super(runBackgroundWorker: false, runChatQueueWorker: false);
+
+  @override
+  bool get supportsChatRuns => false;
+
+  @override
+  bool get supportsChatQueue => false;
+
+  @override
+  Future<Conversation> ensureGoalChat(String goalId) async => Conversation(
+        id: 'goal-conv-$goalId',
+        title: '目标讨论',
+        tag: 'diary',
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+        messageCount: 0,
+        goalId: goalId,
+      );
+
+  @override
+  Future<List<Message>> listMessages(String conversationId) async => const [];
+
+  @override
+  Future<List<ChatProposalDto>> listChatProposals(
+    String? conversationId, {
+    int offset = 0,
+    int limit = 25,
+  }) async => const [];
+}
+
 Widget _goalDomain({
   List<Goal> active = const [],
   List<Goal> paused = const [],
   List<Goal> completed = const [],
   bool atGoalTab = false,
   Widget? extraChild,
+  _FakeGoalChatRepo? goalChatRepo,
 }) {
   return ProviderScope(
     overrides: [
+      if (goalChatRepo != null)
+        storageRepositoryProvider.overrideWithValue(goalChatRepo),
       if (atGoalTab)
         sidebarTabProvider.overrideWith(() => StateHolder(SidebarTab.goal)),
       activeGoalsProvider.overrideWith((ref) async => active),
@@ -142,11 +183,13 @@ void main() {
       expect(find.textContaining('攻克多端同步快照收敛'), findsWidgets);
       expect(find.text('锻炼身体'), findsOneWidget);
 
-      // 可编辑工作台：新增表单、卡片级 AI 辅助、卡片操作按钮都在
+      // 可编辑工作台：新增表单、卡片级 AI 辅助、卡片操作菜单都在；
+      // ⚙ 滚动抓手按钮已移除（入口收敛到 ⋯ 菜单与抓手条点击）
       expect(find.text('添加'), findsOneWidget);
       expect(find.byType(TextField), findsWidgets);
       expect(find.text('AI 辅助拆解'), findsWidgets);
-      expect(find.byIcon(Icons.tune_outlined), findsWidgets);
+      expect(find.byIcon(Icons.tune_outlined), findsNothing);
+      expect(find.byIcon(Icons.more_horiz), findsWidgets);
 
       // 切到「暂停搁置」过滤：归档内容呈现，激活后仍可复活
       await tester.tap(find.textContaining('暂停搁置'));
@@ -242,17 +285,21 @@ void main() {
       expect(btn.onPressed, isNull);
     });
 
-    testWidgets('多目标竖排：每张卡片都有独立的 AI 辅助入口，种子只带本目标上下文', (tester) async {
+    testWidgets('多目标竖排：每张卡都有独立 AI 辅助入口，点击卡内展开讨论面板，不切对话 tab，种子只预填草稿', (tester) async {
       useWideSidebar(tester);
       String? capturedDraft;
+      SidebarTab? capturedTab;
+      final repo = _FakeGoalChatRepo();
       await tester.pumpWidget(_goalDomain(
         atGoalTab: true,
+        goalChatRepo: repo,
         active: [
           _goal('g1', '发布 Elsewhen 1.0', currentFocus: '攻兡快照收敛'),
           _goal('g2', '锻炼身体', phase: 'mid'),
         ],
         extraChild: Consumer(builder: (context, ref, _) {
           capturedDraft = ref.watch(goalCompassChatDraftProvider('conv-main'));
+          capturedTab = ref.watch(sidebarTabProvider);
           ref.watch(conversationsProvider);
           return const SizedBox.shrink();
         }),
@@ -263,14 +310,31 @@ void main() {
       expect(find.text('发布 Elsewhen 1.0'), findsNWidgets(2));
       expect(find.text('锻炼身体'), findsNWidgets(2));
       expect(find.text('AI 辅助拆解'), findsNWidgets(2));
+      expect(find.byType(GoalChatPanel), findsNothing);
 
-      // 点第二张卡片的 AI 辅助：卡片按列表顺序渲染，取第二个入口按钮，
-      // 种子只带 g2 上下文
+      // 点第二张卡片的 AI 辅助：目标页内直接展开 GoalChatPanel，
+      // 不切对话 tab，对话草稿保持为空
       await tester.tap(find.text('AI 辅助拆解').last);
       await tester.pumpAndSettle();
-      expect(capturedDraft, isNotNull);
-      expect(capturedDraft, contains('锻炼身体'));
-      expect(capturedDraft, isNot(contains('发布 Elsewhen 1.0')));
+
+      expect(find.byType(GoalChatPanel), findsOneWidget);
+      expect(capturedTab, SidebarTab.goal);
+      expect(capturedDraft, isNull);
+      // 种子只预填面板输入框草稿（不自动发送）：fake 的 ensureGoalChat
+      // 返回 goal-conv-g2，面板输入框应出现带 g2 上下文的种子文本
+      final fields = tester.widgetList<TextField>(find.byType(TextField));
+      final seedText = fields
+          .map((f) => f.controller?.text ?? '')
+          .where((t) => t.isNotEmpty)
+          .join('\n');
+      expect(seedText, contains('锻炼身体'));
+      expect(seedText, isNot(contains('发布 Elsewhen 1.0')));
+
+      // 再点收起（按钮文本切换）→ 面板折叠
+      await tester.tap(find.text('收起 AI 讨论'));
+      await tester.pumpAndSettle();
+      expect(find.byType(GoalChatPanel), findsNothing);
+      expect(tester.takeException(), isNull);
     });
   });
 }

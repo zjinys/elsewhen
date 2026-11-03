@@ -99,17 +99,47 @@ impl Store {
         Ok(id)
     }
 
+    /// 查询某个目标是否已有专属讨论会话，返回会话 id
+    pub fn find_goal_chat_conversation(&self, goal_id: &str) -> Result<Option<String>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id FROM conversations
+         WHERE goal_id = ?1 AND archived = 0
+         ORDER BY updated_at DESC LIMIT 1",
+        )?;
+        let id = statement
+            .query_row(params![goal_id], |row| row.get::<_, String>(0))
+            .optional()?;
+        Ok(id)
+    }
+
+    /// 为目标创建专属讨论会话（带 goal_id 关联，goal_mentor 角色）
+    pub fn create_goal_chat_conversation(&self, goal_id: &str, title: &str) -> Result<String> {
+        let id = Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().to_rfc3339();
+        let tx = self.begin_write_transaction()?;
+        self.connection.execute(
+        "INSERT INTO conversations (id, title, tag, goal_id, assistant_mode, created_at, updated_at)
+         VALUES (?1, ?2, 'idea', ?3, 'goal_mentor', ?4, ?4)",
+        params![id, title, goal_id, now],
+    )?;
+        self.sync_record_conversation(&id, false)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(id)
+    }
+
     pub fn list_conversations(&self) -> Result<Vec<ConversationSummary>> {
         let mut statement = self.connection.prepare(
             "SELECT c.id, c.title, c.tag, c.created_at, c.updated_at, c.archived,
-                c.wiki_page_slug, c.assistant_mode,
+                c.wiki_page_slug, c.assistant_mode, c.goal_id,
                 COUNT(m.id) as message_count,
                 (SELECT m2.content FROM messages m2
                  WHERE m2.conversation_id = c.id
                  ORDER BY COALESCE((SELECT logical_clock FROM sync_message_order WHERE message_id=m2.id),0) DESC, m2.created_at DESC, m2.id DESC LIMIT 1) as last_message
          FROM conversations c
          LEFT JOIN messages m ON m.conversation_id = c.id
-         WHERE c.archived = 0 AND c.wiki_page_slug IS NULL
+         WHERE c.archived = 0 AND c.wiki_page_slug IS NULL AND c.goal_id IS NULL
          GROUP BY c.id
          ORDER BY c.updated_at DESC, c.id DESC",
         )?;
@@ -120,11 +150,12 @@ impl Store {
                 tag: row.get(2)?,
                 created_at: row.get(3)?,
                 updated_at: row.get(4)?,
-                message_count: row.get(8)?,
-                last_message_preview: row.get(9)?,
+                message_count: row.get(9)?,
+                last_message_preview: row.get(10)?,
                 archived: row.get(5)?,
                 wiki_page_slug: row.get(6)?,
                 assistant_mode: row.get(7)?,
+                goal_id: row.get(8)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -135,14 +166,14 @@ impl Store {
     pub fn list_archived_conversations(&self) -> Result<Vec<ConversationSummary>> {
         let mut statement = self.connection.prepare(
             "SELECT c.id, c.title, c.tag, c.created_at, c.updated_at, c.archived,
-                c.wiki_page_slug, c.assistant_mode,
+                c.wiki_page_slug, c.assistant_mode, c.goal_id,
                 COUNT(m.id) as message_count,
                 (SELECT m2.content FROM messages m2
                  WHERE m2.conversation_id = c.id
                  ORDER BY COALESCE((SELECT logical_clock FROM sync_message_order WHERE message_id=m2.id),0) DESC, m2.created_at DESC, m2.id DESC LIMIT 1) as last_message
          FROM conversations c
          LEFT JOIN messages m ON m.conversation_id = c.id
-         WHERE c.archived = 1 AND c.wiki_page_slug IS NULL
+         WHERE c.archived = 1 AND c.wiki_page_slug IS NULL AND c.goal_id IS NULL
          GROUP BY c.id
          ORDER BY c.updated_at DESC, c.id DESC",
         )?;
@@ -153,11 +184,12 @@ impl Store {
                 tag: row.get(2)?,
                 created_at: row.get(3)?,
                 updated_at: row.get(4)?,
-                message_count: row.get(8)?,
-                last_message_preview: row.get(9)?,
+                message_count: row.get(9)?,
+                last_message_preview: row.get(10)?,
                 archived: row.get(5)?,
                 wiki_page_slug: row.get(6)?,
                 assistant_mode: row.get(7)?,
+                goal_id: row.get(8)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -220,7 +252,7 @@ impl Store {
         self.connection
             .query_row(
                 "SELECT c.id, c.title, c.tag, c.created_at, c.updated_at, c.archived,
-                    c.wiki_page_slug, c.assistant_mode,
+                    c.wiki_page_slug, c.assistant_mode, c.goal_id,
                     COUNT(m.id) as message_count,
                     (SELECT m2.content FROM messages m2
                      WHERE m2.conversation_id = c.id
@@ -237,11 +269,12 @@ impl Store {
                         tag: row.get(2)?,
                         created_at: row.get(3)?,
                         updated_at: row.get(4)?,
-                        message_count: row.get(8)?,
-                        last_message_preview: row.get(9)?,
+                        message_count: row.get(9)?,
+                        last_message_preview: row.get(10)?,
                         archived: row.get(5)?,
                         wiki_page_slug: row.get(6)?,
                         assistant_mode: row.get(7)?,
+                        goal_id: row.get(8)?,
                     })
                 },
             )
