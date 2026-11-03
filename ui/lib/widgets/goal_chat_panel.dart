@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,9 +18,13 @@ import 'wiki_ai_chat_panel.dart';
 /// 目标专属 AI 讨论面板（goal_mentor）。
 ///
 /// 每条活跃目标一个持久会话（`ensureGoalChat`），讨论上下文由
-/// system_context 的 goal_mentor 幕僚切片注入；在目标卡片内直接展开，
+/// system_context 的 goal_mentor 幕僚切片注入；目标页内展开，
 /// 不切对话 tab。AI 变更（暂停/达成/重启/抓手调整）全部走
 /// WriteConfirm 提议卡，本面板只负责对话与展示，不做任何直接写库。
+///
+/// 可操作选项 UI：AI 回复里的 ```elsewhen-choices 围栏块
+/// （JSON 数组，见 goal_mentor 幕僚提示）渲染成可点选按钮，
+/// 点击即把该选项作为用户消息发送；块本身不渲染为原始 JSON。
 class GoalChatPanel extends ConsumerStatefulWidget {
   const GoalChatPanel({
     super.key,
@@ -27,6 +33,7 @@ class GoalChatPanel extends ConsumerStatefulWidget {
     this.initialSeed,
     this.onMinimize,
     this.onDragUpdate,
+    this.fillHeight = false,
   });
 
   final String goalId;
@@ -41,8 +48,19 @@ class GoalChatPanel extends ConsumerStatefulWidget {
   /// 拖动回调（浮动形态时用；卡内嵌形态传 null）。
   final ValueChanged<Offset>? onDragUpdate;
 
+  /// 占满可用高度（左右分栏形态用 true）；false 时消息区限高滚动
+  /// （卡内嵌形态）。
+  final bool fillHeight;
+
   @override
   ConsumerState<GoalChatPanel> createState() => _GoalChatPanelState();
+}
+
+/// elsewhen-choices 块的解析结果：剥块正文 + 可点选选项。
+class _ChoicesBlock {
+  final String strippedContent;
+  final List<String> options;
+  const _ChoicesBlock({required this.strippedContent, required this.options});
 }
 
 class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
@@ -354,11 +372,16 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
             ),
           ),
           Divider(height: 1, color: AppTheme.surface3),
-          // 消息区（卡片内嵌，限高滚动）
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 280),
-            child: messages,
-          ),
+          // 消息区：分栏形态占满剩余高度；卡内嵌限高滚动
+          if (widget.fillHeight)
+            Expanded(child: messages)
+          else
+            Flexible(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 280),
+                child: messages,
+              ),
+            ),
           // 输入区
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -436,6 +459,26 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
   }
 
   Widget _buildMessage(Message message, {bool canGenerate = false}) {
+    // 可操作选项：assistant 消息里的 elsewhen-choices 围栏块渲染成
+    // 可点选按钮（点击即发送），块本身从 markdown 正文中剥掉。
+    if (!message.isUser) {
+      final choices = _extractChoices(message.content);
+      if (choices != null) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            WikiChatBubble(
+              message: ContentChatMessage(
+                role: message.role.name,
+                content: choices.strippedContent,
+              ),
+            ),
+            _buildChoiceChips(choices.options),
+          ],
+        );
+      }
+    }
     final bubble = WikiChatBubble(
       message: ContentChatMessage(
         role: message.role.name,
@@ -459,8 +502,71 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
     return bubble;
   }
 
+  /// 选项按钮组：点击即把选项原文作为用户消息发送。
+  /// 生成中/输入中禁用，避免并发发送。
+  Widget _buildChoiceChips(List<String> options) {
+    final enabled = _ready && !_inputBusy;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.space3, left: 34),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          for (final option in options)
+            ActionChip(
+              label: Text(option, style: const TextStyle(fontSize: 12)),
+              labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+              visualDensity: VisualDensity.compact,
+              backgroundColor: AppTheme.accentPrimary.withValues(alpha: 0.08),
+              side: BorderSide(
+                color: AppTheme.accentPrimary.withValues(alpha: 0.35),
+              ),
+              onPressed: enabled ? () => _send(option) : null,
+            ),
+        ],
+      ),
+    );
+  }
+
   String _shortGoal(String content) {
     final t = content.trim().replaceAll('\n', ' ');
     return t.length <= 24 ? t : '${t.substring(0, 24)}…';
+  }
+
+  /// 提取 assistant 消息里的 elsewhen-choices 围栏块。
+  /// 返回 null 表示无选项块；否则返回剥块后的正文与选项列表。
+  _ChoicesBlock? _extractChoices(String content) {
+    final pattern = RegExp(
+      r'```elsewhen-choices\s*\n([\s\S]*?)\n?```',
+      caseSensitive: false,
+    );
+    final match = pattern.firstMatch(content);
+    if (match == null) return null;
+    final raw = match.group(1) ?? '';
+    final options = <String>[];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        for (final item in decoded) {
+          if (item is Map && item['label'] is String) {
+            final label = (item['label'] as String).trim();
+            if (label.isNotEmpty) options.add(label);
+          } else if (item is String && item.trim().isNotEmpty) {
+            options.add(item.trim());
+          }
+        }
+      }
+    } catch (_) {
+      // 宽松回退：非 JSON 时按行取列表项（模型偶发格式漂移的兕底）。
+      for (final line in raw.split('\n')) {
+        final t = line.trim().replaceFirst(RegExp(r'^[-*•]\s*'), '');
+        if (t.isNotEmpty && !t.startsWith('{') && !t.startsWith('[')) {
+          options.add(t);
+        }
+      }
+    }
+    if (options.isEmpty) return null;
+    final stripped = content.replaceRange(match.start, match.end, '').trim();
+    return _ChoicesBlock(strippedContent: stripped, options: options);
   }
 }

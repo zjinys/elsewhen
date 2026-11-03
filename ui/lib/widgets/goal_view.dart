@@ -55,11 +55,7 @@ void showGoalCoAuthorToast(BuildContext context) {
 }
 
 /// 历史归档视图子分类
-enum _StatusFilter {
-  active,
-  paused,
-  completed,
-}
+enum _StatusFilter { active, paused, completed }
 
 /// 目标管理面板（FR-PES-005-01 / Roadmap Phase G3）：
 /// 认知型目标工作台（切片化卡片、滚动抓手、三态流转与无缝读档复活）。
@@ -97,6 +93,18 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
 
   /// 状态过滤视图（可编辑工作台）：缺省看活跃。
   _StatusFilter _statusFilter = _StatusFilter.active;
+
+  /// 当前展开 AI 讨论的目标（左右分栏形态：右栏展示 GoalChatPanel；
+  /// 窄屏回退卡内嵌展开）。null = 无展开。
+  String? _chatGoalId;
+
+  /// 与 [_chatGoalId] 配套的种子：仅在新开一个目标的讨论时预填；
+  /// 重开同一目标不重复预填（避免陈旧种子覆盖用户已删的草稿）。
+  String? _chatSeed;
+  String? _seededGoalId;
+
+  /// 当前是否为宽屏分栏形态（由 build 的 LayoutBuilder 刷新）。
+  bool _usePane = false;
 
   @override
   void dispose() {
@@ -176,6 +184,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
   /// 卡片级 AI 辅助拆解种子：只带这一条目标的完整切片上下文。
   /// 由 [GoalChatPanel.initialSeed] 消费——只预填面板输入框草稿，
   /// 绝不自动发送；实际落库仍走 WriteConfirm 提议卡。
+  /// 同一目标重开不重复预填（见 [_seedFor]）。
   String _goalSeed(Goal goal) {
     final focus = goal.currentFocus?.trim();
     final blocker = goal.blocker?.trim();
@@ -192,6 +201,14 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
     }
     buf.write('。帮我拆解下一步：先聊聊近 1~2 周该做什么、怎么验证推进了。');
     return buf.toString();
+  }
+
+  /// 与 [_chatGoalId] 配套的种子：仅在新开一个目标的讨论时预填；
+  /// 重开同一目标不重复预填（避免陈旧种子覆盖用户已删的草稿）。
+  String? _seedFor(Goal goal) {
+    if (_seededGoalId == goal.id) return null;
+    _seededGoalId = goal.id;
+    return _chatSeed ?? _goalSeed(goal);
   }
 
   /// 顶部「和 AI 拆解 / 立新目标」：预填对话草稿并切回对话 tab。
@@ -255,18 +272,20 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
 
   Future<void> _editFull(Goal goal) async {
     if (widget.quickGlance) return;
-    final result = await showDialog<
-        ({
-          String content,
-          GoalPhase phase,
-          String? why,
-          String? focus,
-          String? blocker,
-          String? done,
-        })>(
-      context: context,
-      builder: (_) => _GoalEditFullDialog(goal: goal),
-    );
+    final result =
+        await showDialog<
+          ({
+            String content,
+            GoalPhase phase,
+            String? why,
+            String? focus,
+            String? blocker,
+            String? done,
+          })
+        >(
+          context: context,
+          builder: (_) => _GoalEditFullDialog(goal: goal),
+        );
     if (result == null) return;
     final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
     try {
@@ -356,124 +375,210 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.track_changes_outlined,
-                size: 19,
-                color: AppTheme.accentPrimary,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final twoPane = constraints.maxWidth >= 760;
+        _usePane = twoPane;
+        final list = SingleChildScrollView(
+          key: const ValueKey('goal-list-scroll'),
+          padding: EdgeInsets.fromLTRB(16, 12, twoPane ? 8 : 16, 16),
+          child: _buildWorkbenchColumn(
+            activeAsync,
+            pausedAsync,
+            completedAsync,
+            nudge,
+            activeCount,
+          ),
+        );
+        if (!twoPane) {
+          // 窄屏：单列回退，卡内嵌展开讨论面板。
+          return list;
+        }
+        // 宽屏：左列表 + 右 AI 讨论栏（讨论内容长，分栏阅读体验更好）。
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: list),
+            _buildChatPane(),
+          ],
+        );
+      },
+    );
+  }
+
+  /// 可编辑工作台主列（标题 + 共同立项入口 + 状态过滤 + 列表 + 添加表单）。
+  Widget _buildWorkbenchColumn(
+    AsyncValue<List<Goal>> activeAsync,
+    AsyncValue<List<Goal>> pausedAsync,
+    AsyncValue<List<Goal>> completedAsync,
+    dynamic nudge,
+    int activeCount,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.track_changes_outlined,
+              size: 19,
+              color: AppTheme.accentPrimary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '长程目标与航向',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
               ),
-              const SizedBox(width: 8),
-              Text(
-                '长程目标与航向',
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: AppTheme.surface3,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                '$activeCount / $maxActiveGoals',
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                decoration: BoxDecoration(
-                  color: AppTheme.surface3,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  '$activeCount / $maxActiveGoals',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: activeCount >= maxActiveGoals
-                        ? AppTheme.accentPrimary
-                        : AppTheme.textSecondary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 3),
-          Text(
-            '活跃目标上限严格控制在 $maxActiveGoals 个以内，守恒注意力。通过滚动抓手持续向前推进。',
-            style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
-          ),
-          const SizedBox(height: 8),
-          // AI 共同立项入口：预填对话草稿并切回对话 tab，实际落库仍走
-          // create_goal / update_goal_facets 的 WriteConfirm 提议卡。
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: activeCount >= maxActiveGoals
-                  ? null
-                  : () => _startCoAuthor(activeCount),
-              icon: const Icon(Icons.auto_awesome, size: 14),
-              label: Text(
-                activeCount == 0
-                    ? '和 AI 聊聊，共同立一个目标'
-                    : '和 AI 拆解 / 立新目标',
-                style: const TextStyle(fontSize: 11.5),
-              ),
-              style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 2,
+                  color: activeCount >= maxActiveGoals
+                      ? AppTheme.accentPrimary
+                      : AppTheme.textSecondary,
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 6),
-          if (nudge != null) GoalCompassNudgeCard(nudge: nudge),
-          const SizedBox(height: 8),
-          // 状态过滤：缺省看活跃，可切暂停搁置/已达成
-          SegmentedButton<_StatusFilter>(
-            segments: [
-              ButtonSegment(
-                value: _StatusFilter.active,
-                label: Text('活跃 ($activeCount)'),
-                icon: const Icon(Icons.play_arrow_outlined, size: 14),
-              ),
-              ButtonSegment(
-                value: _StatusFilter.paused,
-                label: Text('暂停搁置 (${pausedAsync.value?.length ?? 0})'),
-                icon: const Icon(Icons.pause_circle_outline, size: 14),
-              ),
-              ButtonSegment(
-                value: _StatusFilter.completed,
-                label: Text('已达成 (${completedAsync.value?.length ?? 0})'),
-                icon: const Icon(Icons.emoji_events_outlined, size: 14),
-              ),
-            ],
-            selected: {_statusFilter},
-            onSelectionChanged: (set) {
-              setState(() => _statusFilter = set.first);
-            },
-            style: const ButtonStyle(
+          ],
+        ),
+        const SizedBox(height: 3),
+        Text(
+          '活跃目标上限严格控制在 $maxActiveGoals 个以内，守恒注意力。通过滚动抓手持续向前推进。',
+          style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+        ),
+        const SizedBox(height: 8),
+        // AI 共同立项入口：预填对话草稿并切回对话 tab，实际落库仍走
+        // create_goal / update_goal_facets 的 WriteConfirm 提议卡。
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: activeCount >= maxActiveGoals
+                ? null
+                : () => _startCoAuthor(activeCount),
+            icon: const Icon(Icons.auto_awesome, size: 14),
+            label: Text(
+              activeCount == 0 ? '和 AI 聊聊，共同立一个目标' : '和 AI 拆解 / 立新目标',
+              style: const TextStyle(fontSize: 11.5),
+            ),
+            style: TextButton.styleFrom(
               visualDensity: VisualDensity.compact,
-              textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 11)),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             ),
           ),
-          const SizedBox(height: 12),
-          switch (_statusFilter) {
-            _StatusFilter.active => _buildActiveSection(activeAsync),
-            _StatusFilter.paused => _buildPausedList(
-                pausedAsync.value ?? [],
-                activeCount,
-              ),
-            _StatusFilter.completed => _buildCompletedList(
-                completedAsync.value ?? [],
-                activeCount,
-              ),
+        ),
+        const SizedBox(height: 6),
+        if (nudge != null) GoalCompassNudgeCard(nudge: nudge),
+        const SizedBox(height: 8),
+        // 状态过滤：缺省看活跃，可切暂停搁置/已达成
+        SegmentedButton<_StatusFilter>(
+          segments: [
+            ButtonSegment(
+              value: _StatusFilter.active,
+              label: Text('活跃 ($activeCount)'),
+              icon: const Icon(Icons.play_arrow_outlined, size: 14),
+            ),
+            ButtonSegment(
+              value: _StatusFilter.paused,
+              label: Text('暂停搁置 (${pausedAsync.value?.length ?? 0})'),
+              icon: const Icon(Icons.pause_circle_outline, size: 14),
+            ),
+            ButtonSegment(
+              value: _StatusFilter.completed,
+              label: Text('已达成 (${completedAsync.value?.length ?? 0})'),
+              icon: const Icon(Icons.emoji_events_outlined, size: 14),
+            ),
+          ],
+          selected: {_statusFilter},
+          onSelectionChanged: (set) {
+            setState(() => _statusFilter = set.first);
           },
-          const SizedBox(height: 16),
-          _buildAddForm(activeCount),
-        ],
-      ),
+          style: const ButtonStyle(
+            visualDensity: VisualDensity.compact,
+            textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 11)),
+          ),
+        ),
+        const SizedBox(height: 12),
+        switch (_statusFilter) {
+          _StatusFilter.active => _buildActiveSection(activeAsync),
+          _StatusFilter.paused => _buildPausedList(
+            pausedAsync.value ?? [],
+            activeCount,
+          ),
+          _StatusFilter.completed => _buildCompletedList(
+            completedAsync.value ?? [],
+            activeCount,
+          ),
+        },
+        const SizedBox(height: 16),
+        _buildAddForm(activeCount),
+      ],
+    );
+  }
+
+  /// 宽屏右栏：当前目标的 AI 讨论面板；未展开时给占位提示。
+  /// 面板用 [GoalChatPanel.fillHeight] 占满栏高，种子只预填一次。
+  Widget _buildChatPane() {
+    final goalId = _chatGoalId;
+    final goals = ref.read(activeGoalsProvider).value ?? const <Goal>[];
+    Goal? goal;
+    for (final g in goals) {
+      if (g.id == goalId) {
+        goal = g;
+        break;
+      }
+    }
+    return Container(
+      width: 400,
+      margin: const EdgeInsets.fromLTRB(0, 12, 16, 16),
+      child: goal == null
+          ? Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppTheme.surface1,
+                border: Border.all(color: AppTheme.surface3),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.forum_outlined,
+                    size: 26,
+                    color: AppTheme.textTertiary,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '点击左侧卡片的「AI 辅助拆解」\n在此展开与 AI 的目标讨论',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.6,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : GoalChatPanel(
+              key: ValueKey('goal-chat-pane-${goal.id}'),
+              goalId: goal.id,
+              goalContent: goal.content,
+              initialSeed: _seedFor(goal),
+              onMinimize: () => setState(() => _chatGoalId = null),
+              fillHeight: true,
+            ),
     );
   }
 
@@ -524,23 +629,34 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
           );
         }
         return Column(
-          children: [
-            for (final goal in goals) _buildActiveCard(goal),
-          ],
+          children: [for (final goal in goals) _buildActiveCard(goal)],
         );
       },
     );
   }
 
   Widget _buildActiveCard(Goal goal) {
+    final quickGlance = widget.quickGlance;
     return _ActiveGoalCard(
       goal: goal,
-      quickGlance: widget.quickGlance,
+      quickGlance: quickGlance,
       onRollFocus: () => _rollFocus(goal),
       onEditFull: () => _editFull(goal),
       onPause: () => _pause(goal),
       onComplete: () => _complete(goal),
-      chatSeed: widget.quickGlance ? null : _goalSeed(goal),
+      chatSeed: quickGlance ? null : _seedFor(goal),
+      chatOpen: _chatGoalId == goal.id,
+      usePane: _usePane,
+      onToggleChat: quickGlance
+          ? null
+          : () => setState(() {
+              if (_chatGoalId == goal.id) {
+                _chatGoalId = null;
+              } else {
+                _chatGoalId = goal.id;
+                _chatSeed = _goalSeed(goal);
+              }
+            }),
     );
   }
 
@@ -740,6 +856,9 @@ class _ActiveGoalCard extends StatefulWidget {
     required this.onComplete,
     this.chatSeed,
     this.quickGlance = false,
+    this.chatOpen = false,
+    this.onToggleChat,
+    this.usePane = false,
   });
 
   final Goal goal;
@@ -749,7 +868,7 @@ class _ActiveGoalCard extends StatefulWidget {
   final VoidCallback onComplete;
 
   /// 卡片级 AI 辅助拆解种子（非空时展示「AI 辅助拆解」入口）。
-  /// 点击在卡内直接展开 [GoalChatPanel]（不切对话 tab），
+  /// 点击展开 [GoalChatPanel]（宽屏右侧分栏 / 窄屏卡内嵌，不切对话 tab），
   /// 种子只预填面板输入框草稿，绝不自动发送；
   /// 实际落库仍走 WriteConfirm 提议卡。速览模式下为 null。
   final String? chatSeed;
@@ -757,13 +876,20 @@ class _ActiveGoalCard extends StatefulWidget {
   /// 只读速览模式：隐藏操作菜单，无 AI 入口。
   final bool quickGlance;
 
+  /// 本卡讨论是否展开（状态提升到 [_GoalListViewState]，支持右栏分栏）。
+  final bool chatOpen;
+
+  /// 展开/收起讨论回调（null = 无 AI 入口）。
+  final VoidCallback? onToggleChat;
+
+  /// 宽屏分栏形态：面板在右栏渲染，卡内不再内嵌。
+  final bool usePane;
+
   @override
   State<_ActiveGoalCard> createState() => _ActiveGoalCardState();
 }
 
 class _ActiveGoalCardState extends State<_ActiveGoalCard> {
-  bool _chatExpanded = false;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -790,7 +916,10 @@ class _ActiveGoalCardState extends State<_ActiveGoalCard> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.surface3,
                     borderRadius: BorderRadius.circular(4),
@@ -817,69 +946,69 @@ class _ActiveGoalCardState extends State<_ActiveGoalCard> {
                 ),
                 if (!widget.quickGlance)
                   PopupMenuButton<String>(
-                  tooltip: '更多操作',
-                  icon: const Icon(Icons.more_horiz, size: 16),
-                  color: AppTheme.surface2,
-                  onSelected: (val) {
-                    switch (val) {
-                      case 'roll':
-                        widget.onRollFocus();
-                        break;
-                      case 'complete':
-                        widget.onComplete();
-                        break;
-                      case 'pause':
-                        widget.onPause();
-                        break;
-                      case 'edit':
-                        widget.onEditFull();
-                        break;
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'roll',
-                      child: Row(
-                        children: [
-                          Icon(Icons.tune_outlined, size: 16),
-                          SizedBox(width: 8),
-                          Text('滚动抓手 / 卡点'),
-                        ],
+                    tooltip: '更多操作',
+                    icon: const Icon(Icons.more_horiz, size: 16),
+                    color: AppTheme.surface2,
+                    onSelected: (val) {
+                      switch (val) {
+                        case 'roll':
+                          widget.onRollFocus();
+                          break;
+                        case 'complete':
+                          widget.onComplete();
+                          break;
+                        case 'pause':
+                          widget.onPause();
+                          break;
+                        case 'edit':
+                          widget.onEditFull();
+                          break;
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(
+                        value: 'roll',
+                        child: Row(
+                          children: [
+                            Icon(Icons.tune_outlined, size: 16),
+                            SizedBox(width: 8),
+                            Text('滚动抓手 / 卡点'),
+                          ],
+                        ),
                       ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'complete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.check_circle_outline, size: 16),
-                          SizedBox(width: 8),
-                          Text('达成目标（归档为成就）'),
-                        ],
+                      const PopupMenuItem(
+                        value: 'complete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.check_circle_outline, size: 16),
+                            SizedBox(width: 8),
+                            Text('达成目标（归档为成就）'),
+                          ],
+                        ),
                       ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'pause',
-                      child: Row(
-                        children: [
-                          Icon(Icons.pause_circle_outline, size: 16),
-                          SizedBox(width: 8),
-                          Text('暂时搁置（随时读档复活）'),
-                        ],
+                      const PopupMenuItem(
+                        value: 'pause',
+                        child: Row(
+                          children: [
+                            Icon(Icons.pause_circle_outline, size: 16),
+                            SizedBox(width: 8),
+                            Text('暂时搁置（随时读档复活）'),
+                          ],
+                        ),
                       ),
-                    ),
-                    const PopupMenuDivider(),
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(Icons.edit_note, size: 16),
-                          SizedBox(width: 8),
-                          Text('编辑全貌'),
-                        ],
+                      const PopupMenuDivider(),
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_note, size: 16),
+                            SizedBox(width: 8),
+                            Text('编辑全貌'),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -896,7 +1025,10 @@ class _ActiveGoalCardState extends State<_ActiveGoalCard> {
                   borderRadius: BorderRadius.circular(6),
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 7,
+                    ),
                     decoration: BoxDecoration(
                       color: AppTheme.surface2,
                       borderRadius: BorderRadius.circular(6),
@@ -946,7 +1078,10 @@ class _ActiveGoalCardState extends State<_ActiveGoalCard> {
                   const SizedBox(height: 6),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: AppTheme.surface2,
                       borderRadius: BorderRadius.circular(6),
@@ -972,7 +1107,9 @@ class _ActiveGoalCardState extends State<_ActiveGoalCard> {
                                 ),
                                 TextSpan(
                                   text: blocker,
-                                  style: TextStyle(color: AppTheme.textSecondary),
+                                  style: TextStyle(
+                                    color: AppTheme.textSecondary,
+                                  ),
                                 ),
                               ],
                             ),
@@ -1011,15 +1148,20 @@ class _ActiveGoalCardState extends State<_ActiveGoalCard> {
                   ),
                 ],
 
-                // 卡片级 AI 辅助拆解：在卡内直接展开目标讨论面板，
+                // 卡片级 AI 辅助拆解：宽屏展开右栏讨论，窄屏卡内嵌展开；
                 // 种子只预填输入框草稿，落库仍走提议卡确认
-                if (widget.chatSeed != null) ...[
+                if (widget.chatSeed != null || widget.chatOpen) ...[
                   const SizedBox(height: 8),
                   TextButton.icon(
-                    onPressed: () => setState(() => _chatExpanded = !_chatExpanded),
-                    icon: const Icon(Icons.auto_awesome, size: 13),
+                    onPressed: widget.onToggleChat,
+                    icon: Icon(
+                      widget.chatOpen
+                          ? Icons.auto_awesome
+                          : Icons.auto_awesome_outlined,
+                      size: 13,
+                    ),
                     label: Text(
-                      _chatExpanded ? '收起 AI 讨论' : 'AI 辅助拆解',
+                      widget.chatOpen ? '收起 AI 讨论' : 'AI 辅助拆解',
                       style: const TextStyle(fontSize: 11.5),
                     ),
                     style: TextButton.styleFrom(
@@ -1030,7 +1172,7 @@ class _ActiveGoalCardState extends State<_ActiveGoalCard> {
                       ),
                     ),
                   ),
-                  if (_chatExpanded)
+                  if (widget.chatOpen && !widget.usePane)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: GoalChatPanel(
@@ -1038,7 +1180,7 @@ class _ActiveGoalCardState extends State<_ActiveGoalCard> {
                         goalId: goal.id,
                         goalContent: goal.content,
                         initialSeed: widget.chatSeed,
-                        onMinimize: () => setState(() => _chatExpanded = false),
+                        onMinimize: widget.onToggleChat,
                       ),
                     ),
                 ],
@@ -1113,7 +1255,10 @@ class _PausedGoalTile extends StatelessWidget {
                     style: FilledButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                       textStyle: const TextStyle(fontSize: 11.5),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 0,
+                      ),
                     ),
                   ),
                 ),

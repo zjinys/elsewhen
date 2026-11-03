@@ -89,7 +89,39 @@ class _FakeGoalChatRepo extends RustBridgeRepository {
       );
 
   @override
-  Future<List<Message>> listMessages(String conversationId) async => const [];
+  Future<List<Message>> listMessages(String conversationId) async => messages;
+
+  /// 非 durable 兼容路径的同步生成回复（选项块 UI 测试用）。
+  @override
+  Future<String> generateReply(
+    String conversationId, {
+    String? providerType,
+    String? memoryType,
+    int? memoryWindowSize,
+  }) async =>
+      reply;
+
+  /// 选项块 UI 测试：预置一条带 elsewhen-choices 块的助手消息。
+  List<Message> messages = const [];
+  String reply = '';
+
+  @override
+  Future<Message> sendMessage(
+    String conversationId,
+    String role,
+    String content, {
+    String? parentMessageId,
+  }) async {
+    final saved = Message(
+      id: 'm-${(messages.length + 1).toRadixString(36)}',
+      conversationId: conversationId,
+      role: MessageRole.fromString(role),
+      content: content,
+      createdAt: DateTime(2026),
+    );
+    messages = [...messages, saved];
+    return saved;
+  }
 
   @override
   Future<List<ChatProposalDto>> listChatProposals(
@@ -334,6 +366,80 @@ void main() {
       await tester.tap(find.text('收起 AI 讨论'));
       await tester.pumpAndSettle();
       expect(find.byType(GoalChatPanel), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('可操作选项 UI：elsewhen-choices 块渲染成点选按钮，点击即发送选项原文',
+        (tester) async {
+      useWideSidebar(tester);
+      final repo = _FakeGoalChatRepo()
+        ..messages = [
+          Message(
+            id: 'm-ai-1',
+            conversationId: 'goal-conv-g1',
+            role: MessageRole.assistant,
+            content: '关于署名方式，想确认你的边界：\n\n```elsewhen-choices\n'
+                '[{"label": "A：可以，愿意用自己的名字说话"}, '
+                '{"label": "B：可以用小号或匿名，不露脸"}]\n```',
+            createdAt: DateTime(2026),
+          ),
+        ];
+      await tester.pumpWidget(_goalDomain(
+        atGoalTab: true,
+        goalChatRepo: repo,
+        active: [_goal('g1', '发布 Elsewhen 1.0')],
+      ));
+      await tester.pumpAndSettle();
+
+      // 展开讨论面板（主区卡片上的入口，取 last 避开左栏摘要）
+      await tester.tap(find.text('AI 辅助拆解').last);
+      await tester.pumpAndSettle();
+
+      // 选项渲染成可点击 chip；原始 JSON 与围栏不渲染
+      expect(find.text('A：可以，愿意用自己的名字说话'), findsOneWidget);
+      expect(find.text('B：可以用小号或匿名，不露脸'), findsOneWidget);
+      expect(find.textContaining('elsewhen-choices'), findsNothing);
+      expect(find.textContaining('"label"'), findsNothing);
+
+      // 点击选项 → 选项原文作为用户消息发送（非 durable 路径同步生成）
+      await tester.tap(find.text('B：可以用小号或匿名，不露脸'));
+      await tester.pumpAndSettle();
+
+      final sent = repo.messages.where((m) => m.isUser).toList();
+      expect(sent, isNotEmpty);
+      expect(sent.last.content, 'B：可以用小号或匿名，不露脸');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('宽屏分栏：右栏占位提示；点 AI 辅助拆解后在右栏展开讨论，窄屏回退卡内嵌',
+        (tester) async {
+      // 主区宽度 ≥ 760（总视口 1200 − 侧栏 280）触发分栏
+      tester.view.physicalSize = const Size(1200, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      final repo = _FakeGoalChatRepo();
+      await tester.pumpWidget(_goalDomain(
+        atGoalTab: true,
+        goalChatRepo: repo,
+        active: [_goal('g1', '发布 Elsewhen 1.0')],
+      ));
+      await tester.pumpAndSettle();
+
+      // 未展开时右栏给占位提示
+      expect(find.textContaining('点击左侧卡片的「AI 辅助拆解」'), findsOneWidget);
+      expect(find.byType(GoalChatPanel), findsNothing);
+
+      // 展开后面板在右栏（fillHeight），卡内不内嵌
+      await tester.tap(find.text('AI 辅助拆解'));
+      await tester.pumpAndSettle();
+      expect(find.byType(GoalChatPanel), findsOneWidget);
+      expect(find.textContaining('点击左侧卡片的「AI 辅助拆解」'), findsNothing);
+
+      // 收起 → 回到占位
+      await tester.tap(find.text('收起 AI 讨论'));
+      await tester.pumpAndSettle();
+      expect(find.byType(GoalChatPanel), findsNothing);
+      expect(find.textContaining('点击左侧卡片的「AI 辅助拆解」'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });
