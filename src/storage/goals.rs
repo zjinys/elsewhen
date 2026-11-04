@@ -112,6 +112,9 @@ pub struct GoalCompassNudge {
     pub id: String,
     pub goal_id: String,
     pub goal_content: String,
+    /// 所属长程计划（P4：停滞步骤属于计划时，提醒携带计划上下文）
+    pub plan_id: Option<String>,
+    pub plan_intent: Option<String>,
     pub current_focus: String,
     pub stalled_days: i64,
     pub recent_topics: String,
@@ -553,13 +556,15 @@ impl Store {
     pub fn insert_compass_nudge(&self, nudge: &GoalCompassNudge) -> Result<()> {
         self.connection.execute(
             "INSERT INTO goal_compass_nudges(
-                id, goal_id, goal_content, current_focus, stalled_days,
+                id, goal_id, goal_content, plan_id, plan_intent, current_focus, stalled_days,
                 recent_topics, status, created_at, dismissed_until
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 nudge.id,
                 nudge.goal_id,
                 nudge.goal_content,
+                nudge.plan_id,
+                nudge.plan_intent,
                 nudge.current_focus,
                 nudge.stalled_days,
                 nudge.recent_topics,
@@ -576,7 +581,7 @@ impl Store {
     pub fn get_active_compass_nudge(&self) -> Result<Option<GoalCompassNudge>> {
         let now = chrono::Utc::now().to_rfc3339();
         let mut stmt = self.connection.prepare(
-            "SELECT n.id, n.goal_id, n.goal_content, n.current_focus, n.stalled_days,
+            "SELECT n.id, n.goal_id, n.goal_content, n.plan_id, n.plan_intent, n.current_focus, n.stalled_days,
                     n.recent_topics, n.status, n.created_at, n.dismissed_until
              FROM goal_compass_nudges n
              JOIN goals g ON n.goal_id = g.id
@@ -591,12 +596,14 @@ impl Store {
                 id: row.get(0)?,
                 goal_id: row.get(1)?,
                 goal_content: row.get(2)?,
-                current_focus: row.get(3)?,
-                stalled_days: row.get(4)?,
-                recent_topics: row.get(5)?,
-                status: row.get(6)?,
-                created_at: row.get(7)?,
-                dismissed_until: row.get(8)?,
+                plan_id: row.get(3)?,
+                plan_intent: row.get(4)?,
+                current_focus: row.get(5)?,
+                stalled_days: row.get(6)?,
+                recent_topics: row.get(7)?,
+                status: row.get(8)?,
+                created_at: row.get(9)?,
+                dismissed_until: row.get(10)?,
             })
         })?;
         if let Some(res) = rows.next() {
@@ -646,6 +653,29 @@ impl Store {
                  OR (dismissed_until IS NOT NULL AND dismissed_until > ?3)
                )",
             params![goal_id, threshold, now_str],
+            |row| row.get(0),
+        )?;
+        Ok(count > 0)
+    }
+
+    /// P4 计划层降频：指定计划在最近 within_days 内是否已有提醒
+    /// （含退避期）——同计划换一步也不连环打扰。
+    pub fn has_recent_compass_nudge_for_plan(
+        &self,
+        plan_id: &str,
+        within_days: i64,
+    ) -> Result<bool> {
+        let now = chrono::Utc::now();
+        let threshold = (now - chrono::Duration::days(within_days)).to_rfc3339();
+        let now_str = now.to_rfc3339();
+        let count: i64 = self.connection.query_row(
+            "SELECT count(*) FROM goal_compass_nudges
+             WHERE plan_id = ?1
+               AND (
+                 created_at >= ?2
+                 OR (dismissed_until IS NOT NULL AND dismissed_until > ?3)
+               )",
+            params![plan_id, threshold, now_str],
             |row| row.get(0),
         )?;
         Ok(count > 0)
@@ -958,6 +988,8 @@ mod tests {
             id: "nudge-1".to_string(),
             goal_id: g.id.clone(),
             goal_content: g.content.clone(),
+            plan_id: None,
+            plan_intent: None,
             current_focus: g.current_focus.clone().unwrap(),
             stalled_days: 4,
             recent_topics: "报销, 闲聊, 整理书架".to_string(),
@@ -1001,6 +1033,8 @@ mod tests {
             id: "nudge-2".to_string(),
             goal_id: g2.id.clone(),
             goal_content: g2.content.clone(),
+            plan_id: None,
+            plan_intent: None,
             current_focus: "抓手2".to_string(),
             stalled_days: 5,
             recent_topics: "修车".to_string(),

@@ -130,6 +130,8 @@ class GoalCompassNudge {
   final String id;
   final String goalId;
   final String goalContent;
+  /// 所属长程计划（P4：停滞步骤属于计划时的计划意图；null = 无计划归属）
+  final String? planIntent;
   final String currentFocus;
   final int stalledDays;
   final String recentTopics;
@@ -141,6 +143,7 @@ class GoalCompassNudge {
     required this.id,
     required this.goalId,
     required this.goalContent,
+    this.planIntent,
     required this.currentFocus,
     required this.stalledDays,
     required this.recentTopics,
@@ -154,6 +157,7 @@ class GoalCompassNudge {
       id: dto.id,
       goalId: dto.goalId,
       goalContent: dto.goalContent,
+      planIntent: dto.planIntent,
       currentFocus: dto.currentFocus,
       stalledDays: dto.stalledDays.toInt(),
       recentTopics: dto.recentTopics,

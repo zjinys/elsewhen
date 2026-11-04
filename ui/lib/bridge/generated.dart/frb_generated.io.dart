@@ -4160,6 +4160,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.id = cst_encode_String(apiObj.id);
     wireObj.goal_id = cst_encode_String(apiObj.goalId);
     wireObj.goal_content = cst_encode_String(apiObj.goalContent);
+    wireObj.plan_id = cst_encode_opt_String(apiObj.planId);
+    wireObj.plan_intent = cst_encode_opt_String(apiObj.planIntent);
     wireObj.current_focus = cst_encode_String(apiObj.currentFocus);
     wireObj.stalled_days = cst_encode_i_64(apiObj.stalledDays);
     wireObj.recent_topics = cst_encode_String(apiObj.recentTopics);
@@ -18344,6 +18346,10 @@ final class wire_cst_goal_compass_nudge_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> goal_content;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> plan_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> plan_intent;
+
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> current_focus;
 
   @ffi.Int64()
@@ -18362,6 +18368,8 @@ final class wire_cst_goal_compass_nudge_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> goal_id,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> goal_content,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> plan_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> plan_intent,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> current_focus,
     required int stalled_days,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> recent_topics,
@@ -18372,6 +18380,8 @@ final class wire_cst_goal_compass_nudge_dto extends ffi.Struct {
     ..ref.id = id
     ..ref.goal_id = goal_id
     ..ref.goal_content = goal_content
+    ..ref.plan_id = plan_id
+    ..ref.plan_intent = plan_intent
     ..ref.current_focus = current_focus
     ..ref.stalled_days = stalled_days
     ..ref.recent_topics = recent_topics

@@ -2769,6 +2769,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.id),
       cst_encode_String(raw.goalId),
       cst_encode_String(raw.goalContent),
+      cst_encode_opt_String(raw.planId),
+      cst_encode_opt_String(raw.planIntent),
       cst_encode_String(raw.currentFocus),
       cst_encode_i_64(raw.stalledDays),
       cst_encode_String(raw.recentTopics),

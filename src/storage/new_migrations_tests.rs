@@ -115,6 +115,7 @@ fn migrations_are_discovered_from_the_directory() {
             "66-goal-compass-nudges",
             "67-goal-chat-conversations",
             "68-goal-plans",
+            "69-goal-compass-plan-context",
         ],
         "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
     );
@@ -146,7 +147,7 @@ fn migration_applies_goals_table() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 68, "六十八条迁移跑完，user_version 应为 68");
+    assert_eq!(version, 69, "六十九条迁移跑完，user_version 应为 69");
     assert_eq!(
         latest_version().unwrap(),
         version,
@@ -774,7 +775,7 @@ fn v66_goal_compass_nudges_table_created() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 68);
+    assert_eq!(version, 69);
 
     // 插入活跃目标和关联 nudge
     connection
@@ -811,7 +812,7 @@ fn v67_goal_chat_conversations_column_added() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 68);
+    assert_eq!(version, 69);
 
     // 普通会话旧行保持 NULL goal_id
     connection
@@ -887,7 +888,12 @@ fn v68_goal_plans_migration_purges_legacy_goals_without_orphans() {
         )
         .unwrap();
 
-    initialize(&mut connection).unwrap();
+    // 只升到 v68 为止：这条测试盯的是迁移 68 的存量清理与列扩展，
+    // 之后的代际（如 v69）不再影响它的断言对象。
+    migrations()
+        .unwrap()
+        .to_version(&mut connection, 68)
+        .unwrap();
 
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
@@ -944,4 +950,67 @@ fn v68_goal_plans_migration_purges_legacy_goals_without_orphans() {
         .unwrap();
     assert_eq!(pid.as_deref(), Some("p-1"));
     assert_eq!(idx, Some(1));
+}
+
+/// 迁移 69：航向校准提醒携带计划层上下文（纯本地表，加可空列）。
+#[test]
+fn v69_compass_nudges_gain_plan_context_columns() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    migrations()
+        .unwrap()
+        .to_version(&mut connection, 68)
+        .unwrap();
+    connection
+        .execute(
+            "INSERT INTO goals(id, content, phase, status, created_at, updated_at)
+             VALUES('g-x', '挂靠目标', 'near', 'active', 't1', 't1')",
+            [],
+        )
+        .unwrap();
+    connection
+        .execute(
+            "INSERT INTO goal_compass_nudges(id, goal_id, goal_content, current_focus, stalled_days, recent_topics, status, created_at)
+             VALUES('n-legacy', 'g-x', '旧提醒', '抓手', 4, '话题', 'pending', 't1')",
+            [],
+        )
+        .unwrap();
+
+    initialize(&mut connection).unwrap();
+    let version: i64 = connection
+        .query_row("PRAGMA main.user_version", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(version, 69);
+
+    // 旧行两列回填为 NULL；新行可携带计划上下文。
+    let (plan_id, plan_intent): (Option<String>, Option<String>) = connection
+        .query_row(
+            "SELECT plan_id, plan_intent FROM goal_compass_nudges WHERE id='n-legacy'",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert!(plan_id.is_none() && plan_intent.is_none());
+    connection
+        .execute(
+            "INSERT INTO goals(id, content, phase, status, created_at, updated_at)
+             VALUES('g-y', '挂靠目标二', 'near', 'active', 't2', 't2')",
+            [],
+        )
+        .unwrap();
+    connection
+        .execute(
+            "INSERT INTO goal_compass_nudges(id, goal_id, goal_content, current_focus, stalled_days, recent_topics, status, created_at, plan_id, plan_intent)
+             VALUES('n-plan', 'g-y', '步骤', '抓手', 5, '话题', 'pending', 't2', 'p-1', '三年十个月入十万')",
+            [],
+        )
+        .unwrap();
+    let (pid, intent): (Option<String>, Option<String>) = connection
+        .query_row(
+            "SELECT plan_id, plan_intent FROM goal_compass_nudges WHERE id='n-plan'",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(pid.as_deref(), Some("p-1"));
+    assert_eq!(intent.as_deref(), Some("三年十个月入十万"));
 }

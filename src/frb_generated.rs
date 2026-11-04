@@ -8987,6 +8987,8 @@ impl SseDecode for crate::api::goals::GoalCompassNudgeDto {
         let mut var_id = <String>::sse_decode(deserializer);
         let mut var_goalId = <String>::sse_decode(deserializer);
         let mut var_goalContent = <String>::sse_decode(deserializer);
+        let mut var_planId = <Option<String>>::sse_decode(deserializer);
+        let mut var_planIntent = <Option<String>>::sse_decode(deserializer);
         let mut var_currentFocus = <String>::sse_decode(deserializer);
         let mut var_stalledDays = <i64>::sse_decode(deserializer);
         let mut var_recentTopics = <String>::sse_decode(deserializer);
@@ -8997,6 +8999,8 @@ impl SseDecode for crate::api::goals::GoalCompassNudgeDto {
             id: var_id,
             goal_id: var_goalId,
             goal_content: var_goalContent,
+            plan_id: var_planId,
+            plan_intent: var_planIntent,
             current_focus: var_currentFocus,
             stalled_days: var_stalledDays,
             recent_topics: var_recentTopics,
@@ -13491,6 +13495,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::goals::GoalCompassNudgeDto {
             self.id.into_into_dart().into_dart(),
             self.goal_id.into_into_dart().into_dart(),
             self.goal_content.into_into_dart().into_dart(),
+            self.plan_id.into_into_dart().into_dart(),
+            self.plan_intent.into_into_dart().into_dart(),
             self.current_focus.into_into_dart().into_dart(),
             self.stalled_days.into_into_dart().into_dart(),
             self.recent_topics.into_into_dart().into_dart(),
@@ -16432,6 +16438,8 @@ impl SseEncode for crate::api::goals::GoalCompassNudgeDto {
         <String>::sse_encode(self.id, serializer);
         <String>::sse_encode(self.goal_id, serializer);
         <String>::sse_encode(self.goal_content, serializer);
+        <Option<String>>::sse_encode(self.plan_id, serializer);
+        <Option<String>>::sse_encode(self.plan_intent, serializer);
         <String>::sse_encode(self.current_focus, serializer);
         <i64>::sse_encode(self.stalled_days, serializer);
         <String>::sse_encode(self.recent_topics, serializer);
@@ -19552,6 +19560,8 @@ mod io {
                 id: self.id.cst_decode(),
                 goal_id: self.goal_id.cst_decode(),
                 goal_content: self.goal_content.cst_decode(),
+                plan_id: self.plan_id.cst_decode(),
+                plan_intent: self.plan_intent.cst_decode(),
                 current_focus: self.current_focus.cst_decode(),
                 stalled_days: self.stalled_days.cst_decode(),
                 recent_topics: self.recent_topics.cst_decode(),
@@ -22484,6 +22494,8 @@ mod io {
                 id: core::ptr::null_mut(),
                 goal_id: core::ptr::null_mut(),
                 goal_content: core::ptr::null_mut(),
+                plan_id: core::ptr::null_mut(),
+                plan_intent: core::ptr::null_mut(),
                 current_focus: core::ptr::null_mut(),
                 stalled_days: Default::default(),
                 recent_topics: core::ptr::null_mut(),
@@ -28792,6 +28804,8 @@ mod io {
         id: *mut wire_cst_list_prim_u_8_strict,
         goal_id: *mut wire_cst_list_prim_u_8_strict,
         goal_content: *mut wire_cst_list_prim_u_8_strict,
+        plan_id: *mut wire_cst_list_prim_u_8_strict,
+        plan_intent: *mut wire_cst_list_prim_u_8_strict,
         current_focus: *mut wire_cst_list_prim_u_8_strict,
         stalled_days: i64,
         recent_topics: *mut wire_cst_list_prim_u_8_strict,
@@ -31294,20 +31308,22 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                9,
-                "Expected 9 elements, got {}",
+                11,
+                "Expected 11 elements, got {}",
                 self_.length()
             );
             crate::api::goals::GoalCompassNudgeDto {
                 id: self_.get(0).cst_decode(),
                 goal_id: self_.get(1).cst_decode(),
                 goal_content: self_.get(2).cst_decode(),
-                current_focus: self_.get(3).cst_decode(),
-                stalled_days: self_.get(4).cst_decode(),
-                recent_topics: self_.get(5).cst_decode(),
-                status: self_.get(6).cst_decode(),
-                created_at: self_.get(7).cst_decode(),
-                dismissed_until: self_.get(8).cst_decode(),
+                plan_id: self_.get(3).cst_decode(),
+                plan_intent: self_.get(4).cst_decode(),
+                current_focus: self_.get(5).cst_decode(),
+                stalled_days: self_.get(6).cst_decode(),
+                recent_topics: self_.get(7).cst_decode(),
+                status: self_.get(8).cst_decode(),
+                created_at: self_.get(9).cst_decode(),
+                dismissed_until: self_.get(10).cst_decode(),
             }
         }
     }

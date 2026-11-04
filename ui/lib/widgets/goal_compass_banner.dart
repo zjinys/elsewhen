@@ -50,7 +50,9 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '航向校准 · 目标「${nudge.goalContent}」',
+                  nudge.planIntent != null
+                      ? '航向校准 · 计划「${nudge.planIntent}」'
+                      : '航向校准 · 目标「${nudge.goalContent}」',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -345,7 +347,7 @@ class GoalCompassNudgeCard extends ConsumerWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '目标「${nudge.goalContent}」当前抓手「${nudge.currentFocus}」已连续 ${nudge.stalledDays} 天未推进，近期精力分散在「${nudge.recentTopics}」。',
+            '${nudge.planIntent != null ? '计划「${nudge.planIntent}」· 步骤' : '目标'}「${nudge.goalContent}」当前抓手「${nudge.currentFocus}」已连续 ${nudge.stalledDays} 天未推进，近期精力分散在「${nudge.recentTopics}」。',
             style: TextStyle(
               fontSize: 12,
               color: AppTheme.textSecondary,

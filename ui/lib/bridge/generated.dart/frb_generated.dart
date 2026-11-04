@@ -11782,18 +11782,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   GoalCompassNudgeDto dco_decode_goal_compass_nudge_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 9)
-      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
     return GoalCompassNudgeDto(
       id: dco_decode_String(arr[0]),
       goalId: dco_decode_String(arr[1]),
       goalContent: dco_decode_String(arr[2]),
-      currentFocus: dco_decode_String(arr[3]),
-      stalledDays: dco_decode_i_64(arr[4]),
-      recentTopics: dco_decode_String(arr[5]),
-      status: dco_decode_String(arr[6]),
-      createdAt: dco_decode_String(arr[7]),
-      dismissedUntil: dco_decode_opt_String(arr[8]),
+      planId: dco_decode_opt_String(arr[3]),
+      planIntent: dco_decode_opt_String(arr[4]),
+      currentFocus: dco_decode_String(arr[5]),
+      stalledDays: dco_decode_i_64(arr[6]),
+      recentTopics: dco_decode_String(arr[7]),
+      status: dco_decode_String(arr[8]),
+      createdAt: dco_decode_String(arr[9]),
+      dismissedUntil: dco_decode_opt_String(arr[10]),
     );
   }
 
@@ -15142,6 +15144,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_id = sse_decode_String(deserializer);
     var var_goalId = sse_decode_String(deserializer);
     var var_goalContent = sse_decode_String(deserializer);
+    var var_planId = sse_decode_opt_String(deserializer);
+    var var_planIntent = sse_decode_opt_String(deserializer);
     var var_currentFocus = sse_decode_String(deserializer);
     var var_stalledDays = sse_decode_i_64(deserializer);
     var var_recentTopics = sse_decode_String(deserializer);
@@ -15152,6 +15156,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       id: var_id,
       goalId: var_goalId,
       goalContent: var_goalContent,
+      planId: var_planId,
+      planIntent: var_planIntent,
       currentFocus: var_currentFocus,
       stalledDays: var_stalledDays,
       recentTopics: var_recentTopics,
@@ -19459,6 +19465,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.id, serializer);
     sse_encode_String(self.goalId, serializer);
     sse_encode_String(self.goalContent, serializer);
+    sse_encode_opt_String(self.planId, serializer);
+    sse_encode_opt_String(self.planIntent, serializer);
     sse_encode_String(self.currentFocus, serializer);
     sse_encode_i_64(self.stalledDays, serializer);
     sse_encode_String(self.recentTopics, serializer);

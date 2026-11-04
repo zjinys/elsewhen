@@ -55,6 +55,9 @@ pub struct GoalCompassNudgeDto {
     pub id: String,
     pub goal_id: String,
     pub goal_content: String,
+    /// 所属长程计划（P4 计划层上下文；None = 无计划归属的历史提醒）
+    pub plan_id: Option<String>,
+    pub plan_intent: Option<String>,
     pub current_focus: String,
     pub stalled_days: i64,
     pub recent_topics: String,
@@ -69,6 +72,8 @@ impl From<GoalCompassNudge> for GoalCompassNudgeDto {
             id: n.id,
             goal_id: n.goal_id,
             goal_content: n.goal_content,
+            plan_id: n.plan_id,
+            plan_intent: n.plan_intent,
             current_focus: n.current_focus,
             stalled_days: n.stalled_days,
             recent_topics: n.recent_topics,
@@ -425,6 +430,12 @@ pub(crate) fn evaluate_goal_compass(store: &Store) -> Result<Option<GoalCompassN
         if store.has_recent_compass_nudge_for_goal(&goal.id, 7)? {
             continue;
         }
+        // P4 计划层降频：同计划近期提醒过就跳过（换一步也不连环打扰）。
+        if let Some(plan_id) = goal.plan_id.as_deref() {
+            if store.has_recent_compass_nudge_for_plan(plan_id, 7)? {
+                continue;
+            }
+        }
 
         // 计算该目标当前抓手的停滞天数
         let updated_at = chrono::DateTime::parse_from_rfc3339(&goal.updated_at)
@@ -463,6 +474,11 @@ pub(crate) fn evaluate_goal_compass(store: &Store) -> Result<Option<GoalCompassN
         id: uuid::Uuid::new_v4().to_string(),
         goal_id: stalled_goal.id.clone(),
         goal_content: stalled_goal.content.clone(),
+        plan_id: stalled_goal.plan_id.clone(),
+        plan_intent: match stalled_goal.plan_id.as_deref() {
+            Some(plan_id) => store.get_plan(plan_id)?.map(|p| p.intent_text),
+            None => None,
+        },
         current_focus: stalled_goal.current_focus.clone().unwrap_or_default(),
         stalled_days: stalled_days.max(3),
         recent_topics,
@@ -730,5 +746,95 @@ mod tests {
 
         // 且 7 天频控下不应立即重复生成新卡片（避免更新抓手反被骚扰）
         assert!(evaluate_goal_compass(&store.store).unwrap().is_none());
+    }
+
+    #[test]
+    fn compass_nudge_carries_plan_context_and_plan_level_throttle() {
+        // P4：停滞步骤属于计划时，提醒携带计划意图；同计划 7 天内
+        // 已有提醒（含已校准）——换一条停滞步骤也不再连环打扰。
+        let store = store();
+        let now = chrono::Utc::now();
+        let four_days_ago = (now - chrono::Duration::days(4)).to_rfc3339();
+
+        let (plan, _goal) = store
+            .store
+            .create_goal_as_single_step_plan(
+                "3 年内月入 10 万",
+                GoalPhase::Near,
+                Some("验证闭环"),
+                Some("先验证付费意愿"),
+                None,
+                None,
+            )
+            .unwrap();
+        store
+            .store
+            .append_plan_steps(
+                &plan.id,
+                &[crate::storage::PlanStepDraft {
+                    content: "第二步：最小可售卖方案".into(),
+                    phase: GoalPhase::Mid,
+                    why: None,
+                    current_focus: Some("第二步抓手".into()),
+                    blocker: None,
+                    done_criteria: None,
+                }],
+            )
+            .unwrap();
+        let step1_id = store.store.list_plan_steps(&plan.id).unwrap()[0].id.clone();
+        let step2_id = store.store.list_plan_steps(&plan.id).unwrap()[1].id.clone();
+
+        // 两步都制造停滞；第二步直接激活（名额 1→2，触发器允许）。
+        for id in [&step1_id, &step2_id] {
+            store
+                .store
+                .connection
+                .execute(
+                    "UPDATE goals SET updated_at = ?2 WHERE id = ?1",
+                    rusqlite::params![id, four_days_ago],
+                )
+                .unwrap();
+        }
+        store
+            .store
+            .connection
+            .execute(
+                "UPDATE goals SET status='active', superseded_at=NULL WHERE id = ?1",
+                rusqlite::params![step2_id],
+            )
+            .unwrap();
+
+        // 活跃期（5 条无关事件）。
+        for (i, text) in [
+            "买了一杯美式咖啡",
+            "修理办公室的旧打印机",
+            "整理上个月的差旅发票",
+            "看了一部科幻电影",
+            "晚上去超市采购日常用品",
+        ]
+        .iter()
+        .enumerate()
+        {
+            let t = (now - chrono::Duration::hours((i as i64) * 6 + 1)).to_rfc3339();
+            store
+                .store
+                .connection
+                .execute(
+                    "INSERT INTO events(id, occurred_at, recorded_at, raw_text, source, status, created_at, updated_at) VALUES (?1, ?3, ?3, ?2, 'manual', 'active', ?3, ?3)",
+                    rusqlite::params![format!("ev-{i}"), text, t],
+                )
+                .unwrap();
+        }
+
+        let nudge = evaluate_goal_compass(&store.store).unwrap().unwrap();
+        assert_eq!(nudge.plan_id.as_deref(), Some(plan.id.as_str()));
+        assert_eq!(nudge.plan_intent.as_deref(), Some("3 年内月入 10 万"));
+
+        // 计划层频控：本条已校准后，另一条停滞步骤也不再连环提醒。
+        store.store.realign_compass_nudge(&nudge.id).unwrap();
+        assert!(
+            evaluate_goal_compass(&store.store).unwrap().is_none(),
+            "同计划 7 天内已有提醒，换一步也应被计划层降频拦住"
+        );
     }
 }

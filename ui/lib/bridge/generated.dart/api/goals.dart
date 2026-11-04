@@ -38,8 +38,9 @@ Future<GoalDto?> getGoal({required String id}) =>
 
 /// 新建一条目标（支持传入各认知切片）
 ///
-/// 活跃名额未满时直接激活；已满 3 条时以 paused（暂停搁置）状态创建，
-/// 保留完整上下文供随时读档唤醒，不报错也不自动顶替既有目标。
+/// P3「无独立目标概念」：自动包成单步计划（计划意图 = 目标正文）。
+/// 活跃名额未满时该步骤直接激活；已满 3 条时以 paused（暂停搁置）状态
+/// 创建，保留完整上下文供随时读档唤醒，不报错也不自动顶替既有目标。
 Future<GoalDto> createGoal({
   required String content,
   required String phase,
@@ -156,6 +157,10 @@ class GoalCompassNudgeDto {
   final String id;
   final String goalId;
   final String goalContent;
+
+  /// 所属长程计划（P4 计划层上下文；None = 无计划归属的历史提醒）
+  final String? planId;
+  final String? planIntent;
   final String currentFocus;
   final PlatformInt64 stalledDays;
   final String recentTopics;
@@ -167,6 +172,8 @@ class GoalCompassNudgeDto {
     required this.id,
     required this.goalId,
     required this.goalContent,
+    this.planId,
+    this.planIntent,
     required this.currentFocus,
     required this.stalledDays,
     required this.recentTopics,
@@ -180,6 +187,8 @@ class GoalCompassNudgeDto {
       id.hashCode ^
       goalId.hashCode ^
       goalContent.hashCode ^
+      planId.hashCode ^
+      planIntent.hashCode ^
       currentFocus.hashCode ^
       stalledDays.hashCode ^
       recentTopics.hashCode ^
@@ -195,6 +204,8 @@ class GoalCompassNudgeDto {
           id == other.id &&
           goalId == other.goalId &&
           goalContent == other.goalContent &&
+          planId == other.planId &&
+          planIntent == other.planIntent &&
           currentFocus == other.currentFocus &&
           stalledDays == other.stalledDays &&
           recentTopics == other.recentTopics &&
