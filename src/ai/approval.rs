@@ -55,6 +55,7 @@ pub(crate) fn execute_claimed_proposal(
                 | "import_url_to_wiki"
                 | "create_plan"
                 | "add_plan_steps"
+                | "advance_plan_step"
         );
     if !atomic {
         return store.finish_chat_proposal(proposal, execute());

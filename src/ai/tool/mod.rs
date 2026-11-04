@@ -15,7 +15,7 @@ use self::goal_tools::{
     CompleteGoalTool, CreateGoalTool, ListGoalsTool, PauseGoalTool, ReactivateGoalTool,
     UpdateGoalFacetsTool,
 };
-use self::plan_tools::{AddPlanStepsTool, CreatePlanTool, ListPlansTool};
+use self::plan_tools::{AddPlanStepsTool, AdvancePlanStepTool, CreatePlanTool, ListPlansTool};
 use self::query_tools::ListEventsByDateTool;
 use self::query_tools::{ArchiveConversationsByTitleTool, ImportUrlToWikiTool, RenameWikiPageTool};
 use self::read_tools::{
@@ -180,7 +180,9 @@ pub const BUILTIN_SKILLS: &[SkillDefinition] = &[
             - pause_goal / complete_goal / reactivate_goal 同为草拟待确认制；仅在用户明确表达暂停、达成或重启意愿时提议，不要主动劝用户放弃目标。\n\
             - 用户提出长期意图/愿望（如「3 年内月入 10 万」）时，用 create_plan 一次给出计划全貌与第一步：先给现实性评估（可查知识库、必要时 web_search 核实关键事实），再列假设清单（软时间窗/现状/路径/风险），每条假设都可被用户纠正；intent_text 引用用户原话，不改写。\n\
             - 拆解方法论：里程碑由近及远；每步 1~2 周内可启动、带可验证判据；用户给出期望步数（「用 5 步实现」）时按该数量拆。接受后第一步直接推进，其余自动排队——不要把「名额」当作拒绝理由。\n\
-            - 计划进入下一段或用户细化路径时用 add_plan_steps 追加；用 list_plans 查计划与进度，不要为同一意图重复建计划。",
+            - 计划进入下一段或用户细化路径时用 add_plan_steps 追加；用 list_plans 查计划与进度，不要为同一意图重复建计划。\n\
+            - 计划推进循环：一步达成时先做复盘（事实 vs 假设，对照完成判据与假设清单），再用 advance_plan_step 一次提议「达成当前步 + 激活队列中的下一步 / 追加新步骤」；活跃名额满时新步骤自动保持排队，不要因此拒绝推进。\n\
+            - 「直接建一条目标」会自动包成单步计划；长期意图优先走 create_plan（含假设清单与里程碑），单步计划适合还没想清楚、先干起来的念头。",
         tools: &[
             "list_goals",
             "create_goal",
@@ -191,6 +193,7 @@ pub const BUILTIN_SKILLS: &[SkillDefinition] = &[
             "list_plans",
             "create_plan",
             "add_plan_steps",
+            "advance_plan_step",
         ],
     },
 ];
@@ -347,6 +350,7 @@ impl ToolRegistry {
             Box::new(ListPlansTool),
             Box::new(CreatePlanTool),
             Box::new(AddPlanStepsTool),
+            Box::new(AdvancePlanStepTool),
         ]
     }
 }

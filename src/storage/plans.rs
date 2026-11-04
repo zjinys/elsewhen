@@ -365,7 +365,7 @@ impl Store {
             } else {
                 GoalStatus::Paused
             };
-            self.insert_plan_step(&plan.id, (i as i64) + 1, step, status)?;
+            let _ = self.insert_plan_step(&plan.id, (i as i64) + 1, step, status)?;
         }
         if let Some(tx) = tx {
             tx.commit()?;
@@ -373,9 +373,38 @@ impl Store {
         Ok(plan)
     }
 
+    /// P3：「直接建一条目标」= 自动包成单步计划（无独立目标概念）。
+    /// 计划意图 = 目标正文（原话不改写）；步骤 1 = 该目标本身。
+    /// 活跃名额未满时步骤直接激活；已满时落暂停排队（既有满额语义）。
+    pub fn create_goal_as_single_step_plan(
+        &self,
+        content: &str,
+        phase: GoalPhase,
+        why: Option<&str>,
+        current_focus: Option<&str>,
+        blocker: Option<&str>,
+        done_criteria: Option<&str>,
+    ) -> Result<(GoalPlan, Goal)> {
+        let steps = [PlanStepDraft {
+            content: content.to_string(),
+            phase,
+            why: why.map(str::to_string),
+            current_focus: current_focus.map(str::to_string),
+            blocker: blocker.map(str::to_string),
+            done_criteria: done_criteria.map(str::to_string),
+        }];
+        let plan = self.create_plan_with_steps(content, "", "[]", &steps)?;
+        let goal = self
+            .list_plan_steps(&plan.id)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("单步计划缺少步骤"))?;
+        Ok((plan, goal))
+    }
+
     /// P2：为既有计划追加步骤（追加拆解）。序号接续现有最大值；新步骤全部
     /// 落暂停排队，活跃名额空出时再由推进循环唤醒。
-    pub fn append_plan_steps(&self, plan_id: &str, steps: &[PlanStepDraft]) -> Result<usize> {
+    pub fn append_plan_steps(&self, plan_id: &str, steps: &[PlanStepDraft]) -> Result<Vec<String>> {
         if steps.is_empty() {
             anyhow::bail!("至少要追加一个步骤");
         }
@@ -396,8 +425,14 @@ impl Store {
             |r| r.get(0),
         )?;
         let tx = self.begin_write_transaction()?;
+        let mut ids = Vec::with_capacity(steps.len());
         for (i, step) in steps.iter().enumerate() {
-            self.insert_plan_step(plan_id, base + (i as i64) + 1, step, GoalStatus::Paused)?;
+            ids.push(self.insert_plan_step(
+                plan_id,
+                base + (i as i64) + 1,
+                step,
+                GoalStatus::Paused,
+            )?);
         }
         // 计划本体 updated_at 随之同步（列表排序与对端感知）。
         self.connection.execute(
@@ -408,7 +443,7 @@ impl Store {
         if let Some(tx) = tx {
             tx.commit()?;
         }
-        Ok(steps.len())
+        Ok(ids)
     }
 
     /// 插入一条已挂接的步骤目标（计划列随出生写入；同步在同一事务内捕获）。
@@ -418,7 +453,7 @@ impl Store {
         step_index: i64,
         step: &PlanStepDraft,
         status: GoalStatus,
-    ) -> Result<()> {
+    ) -> Result<String> {
         let content = step.content.trim();
         if content.is_empty() {
             anyhow::bail!("步骤内容不能为空");
@@ -458,7 +493,7 @@ impl Store {
             ],
         )?;
         self.sync_record_goal(&id)?;
-        Ok(())
+        Ok(id)
     }
 }
 
@@ -716,7 +751,7 @@ mod tests {
             blocker: None,
             done_criteria: None,
         }];
-        assert_eq!(store.store.append_plan_steps(&plan.id, &more).unwrap(), 1);
+        assert_eq!(store.store.append_plan_steps(&plan.id, &more).unwrap().len(), 1);
         let listed = store.store.list_plan_steps(&plan.id).unwrap();
         assert_eq!(listed.len(), 4);
         assert_eq!(listed[3].step_index, Some(4));
@@ -751,5 +786,42 @@ mod tests {
             "全局活跃已满：第一步也先排队"
         );
         assert_eq!(store.store.list_waiting_steps(&plan.id).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn create_goal_as_single_step_plan_wraps_active_and_queues_when_full() {
+        let store = store();
+        let (plan, goal) = store
+            .store
+            .create_goal_as_single_step_plan(
+                "发布 Elsewhen 1.0",
+                GoalPhase::Near,
+                Some("验证闭环"),
+                Some("收敛快照"),
+                None,
+                Some("全绿"),
+            )
+            .unwrap();
+        assert_eq!(plan.intent_text, "发布 Elsewhen 1.0");
+        assert_eq!(goal.plan_id.as_deref(), Some(plan.id.as_str()));
+        assert_eq!(goal.step_index, Some(1));
+        assert_eq!(goal.status, crate::storage::GoalStatus::Active);
+        assert_eq!(goal.current_focus.as_deref(), Some("收敛快照"));
+
+        // 占满全局名额后，新单步计划的目标落暂停排队。
+        store.store.create_goal("占位 A", GoalPhase::Near).unwrap();
+        store.store.create_goal("占位 B", GoalPhase::Near).unwrap();
+        let (_, queued) = store
+            .store
+            .create_goal_as_single_step_plan(
+                "满额后的目标",
+                GoalPhase::Mid,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!(queued.status, crate::storage::GoalStatus::Paused);
     }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/goal.dart';
+import '../models/plan.dart';
 import '../bridge/rust_bridge_repository.dart';
 import 'state_holder.dart';
 
@@ -75,4 +76,62 @@ final pausedGoalsProvider = FutureProvider<List<Goal>>((ref) async {
 final completedGoalsProvider = FutureProvider<List<Goal>>((ref) async {
   final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
   return await bridge.listCompletedGoals();
+});
+
+/// 一条计划的看板快照（意图 / 当前步 / 进度 / 下一步预告）。
+class PlanBoardEntry {
+  const PlanBoardEntry({
+    required this.plan,
+    required this.activeStep,
+    required this.nextStep,
+    required this.doneCount,
+    required this.totalCount,
+  });
+
+  final GoalPlan plan;
+  final Goal? activeStep;
+
+  /// 等待队列里最靠前的一步（下一步预告；活跃空位出现时由 AI 提议激活）。
+  final Goal? nextStep;
+  final int doneCount;
+  final int totalCount;
+
+  /// 选中联动锚：优先当前步，其次下一步。
+  String? get focusGoalId => activeStep?.id ?? nextStep?.id;
+}
+
+/// 计划看板（P3）：推进中的计划各一卡，附当前步与下一步预告。
+/// 步骤就是 goals 行——跟随目标清单变化自动刷新。
+final planBoardProvider = FutureProvider<List<PlanBoardEntry>>((ref) async {
+  ref.watch(activeGoalsProvider);
+  ref.watch(pausedGoalsProvider);
+  ref.watch(completedGoalsProvider);
+  final repo = ref.read(storageRepositoryProvider);
+  if (repo is! RustBridgeRepository) return const [];
+  final plans = await repo.listPlans();
+  final entries = <PlanBoardEntry>[];
+  for (final plan in plans) {
+    if (!plan.isActive) {
+      continue; // 看板只呈现推进中的计划；暂停/达成的步骤仍在其目标清单中
+    }
+    final steps = await repo.listPlanSteps(plan.id);
+    Goal? active;
+    Goal? next;
+    var done = 0;
+    for (final step in steps) {
+      if (step.status == GoalStatus.active && active == null) active = step;
+      if (step.status == GoalStatus.paused && next == null) next = step;
+      if (step.status == GoalStatus.completed) done += 1;
+    }
+    entries.add(
+      PlanBoardEntry(
+        plan: plan,
+        activeStep: active,
+        nextStep: next,
+        doneCount: done,
+        totalCount: steps.length,
+      ),
+    );
+  }
+  return entries;
 });

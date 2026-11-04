@@ -88,6 +88,7 @@ Widget _goalDomain({
       ),
       pausedGoalsProvider.overrideWith((ref) async => paused),
       completedGoalsProvider.overrideWith((ref) async => completed),
+      planBoardProvider.overrideWith((ref) async => const []),
       if (atGoalTab)
         conversationsProvider.overrideWith(
           (ref) async => [

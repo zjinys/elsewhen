@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/rust_bridge_repository.dart';
 import '../models/goal.dart';
+import '../models/plan.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/goal_provider.dart';
 import '../providers/wiki_provider.dart';
@@ -592,6 +593,7 @@ class GoalWorkbenchPanel extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 4),
+          _PlanBoardSection(onSelect: select),
           _listSection(
             filters: filter,
             activeAsync: activeAsync,
@@ -1106,6 +1108,102 @@ class _StatusFilterChip extends StatelessWidget {
 
 /// 目标详情卡（高亮呈现当前抓手与已知卡点）。AI 讨论面板
 /// [GoalChatPanel] 由主区与卡片并列渲染，卡片本身不含对话入口。
+/// P3 计划看板：推进中的计划各一卡（意图 / 当前步 / 进度 / 下一步预告）。
+/// 选中联动：点击卡片把主区切到该计划的当前步（无当前步则下一步）。
+class _PlanBoardSection extends ConsumerWidget {
+  const _PlanBoardSection({required this.onSelect});
+
+  final void Function(String goalId) onSelect;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final board = ref.watch(planBoardProvider);
+    final entries = board.value ?? const <PlanBoardEntry>[];
+    if (entries.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '长程计划',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          for (final entry in entries)
+            _PlanBoardCard(entry: entry, onSelect: onSelect),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanBoardCard extends StatelessWidget {
+  const _PlanBoardCard({required this.entry, required this.onSelect});
+
+  final PlanBoardEntry entry;
+  final void Function(String goalId) onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = entry.activeStep;
+    final next = entry.nextStep;
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 6),
+      color: AppTheme.surface3,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () {
+          final focus = entry.focusGoalId;
+          if (focus != null) onSelect(focus);
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                entry.plan.intentText,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                active != null ? '当前步：${active.content}' : '尚无推进中的步骤（下一步待唤醒）',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+              ),
+              if (next != null)
+                Text(
+                  '下一步：${next.content}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                ),
+              const SizedBox(height: 2),
+              Text(
+                '进度 ${entry.doneCount}/${entry.totalCount}',
+                style: TextStyle(fontSize: 10.5, color: AppTheme.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ActiveGoalCard extends StatefulWidget {
   const _ActiveGoalCard({
     required this.goal,

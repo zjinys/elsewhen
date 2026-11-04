@@ -142,42 +142,46 @@ impl Tool for SaveWikiRevisionTool {
 
 /// P2：解析计划步骤载荷为落库草稿。工具侧已校验一次；这里以确认时刻的
 /// args 为准再校验一遍——不信任登记时的状态（与 run_skill_script 同纪律）。
+fn parse_single_step(step: &Value, label: &str) -> Result<crate::storage::PlanStepDraft> {
+    let content = step
+        .get("content")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| anyhow::anyhow!("{label}缺少内容"))?;
+    let phase = match step.get("phase").and_then(Value::as_str).unwrap_or("near") {
+        "mid" => crate::storage::GoalPhase::Mid,
+        "long" => crate::storage::GoalPhase::Long,
+        _ => crate::storage::GoalPhase::Near,
+    };
+    let opt = |key: &str| {
+        step.get(key)
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+    };
+    Ok(crate::storage::PlanStepDraft {
+        content: content.to_string(),
+        phase,
+        why: opt("why"),
+        current_focus: opt("current_focus"),
+        blocker: opt("blocker"),
+        done_criteria: opt("done_criteria"),
+    })
+}
+
 fn parse_plan_steps(args: &Value) -> Result<Vec<crate::storage::PlanStepDraft>> {
     let steps = args
         .get("steps")
         .and_then(Value::as_array)
         .ok_or_else(|| anyhow::anyhow!("步骤清单缺失"))?;
     anyhow::ensure!(!steps.is_empty() && steps.len() <= 12, "步骤数需在 1~12 之间");
-    let mut drafts = Vec::with_capacity(steps.len());
-    for (i, step) in steps.iter().enumerate() {
-        let content = step
-            .get("content")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .ok_or_else(|| anyhow::anyhow!("第 {} 步缺少内容", i + 1))?;
-        let phase = match step.get("phase").and_then(Value::as_str).unwrap_or("near") {
-            "mid" => crate::storage::GoalPhase::Mid,
-            "long" => crate::storage::GoalPhase::Long,
-            _ => crate::storage::GoalPhase::Near,
-        };
-        let opt = |key: &str| {
-            step.get(key)
-                .and_then(Value::as_str)
-                .map(str::trim)
-                .filter(|s| !s.is_empty())
-                .map(str::to_string)
-        };
-        drafts.push(crate::storage::PlanStepDraft {
-            content: content.to_string(),
-            phase,
-            why: opt("why"),
-            current_focus: opt("current_focus"),
-            blocker: opt("blocker"),
-            done_criteria: opt("done_criteria"),
-        });
-    }
-    Ok(drafts)
+    steps
+        .iter()
+        .enumerate()
+        .map(|(i, step)| parse_single_step(step, &format!("第 {} 步", i + 1)))
+        .collect()
 }
 
 // ── 待确认动作的真正执行（用户确认后调用） ─────────────────────────
@@ -306,7 +310,8 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
             let blocker = arg_str_opt(&args, "blocker");
             let done_criteria = arg_str_opt(&args, "done_criteria");
 
-            let goal = store.create_goal_with_facets(
+            // P3「无独立目标概念」：直接建一条目标 = 自动包成单步计划。
+            let (_plan, goal) = store.create_goal_as_single_step_plan(
                 &content,
                 phase,
                 why.as_deref(),
@@ -325,7 +330,7 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                 ""
             };
             Ok(format!(
-                "已成功设立目标「{}」[{}]{focus_desc}{status_desc}。",
+                "已成功设立目标「{}」[{}]{focus_desc}{status_desc}（已自动包成单步计划，可随时用 add_plan_steps 追加后续步骤）。",
                 goal.content,
                 goal.phase.label()
             ))
@@ -374,8 +379,65 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                 .and_then(|v| v.as_str())
                 .unwrap_or(&plan_id);
             Ok(format!(
-                "已为计划「{intent}」追加 {added} 个步骤（排队等待，名额空出时激活）。"
+                "已为计划「{intent}」追加 {added} 个步骤（排队等待，名额空出时激活）。",
+                added = added.len()
             ))
+        }
+        "advance_plan_step" => {
+            let plan_id = arg_str(&args, "plan_id")?;
+            let completed = arg_str_opt(&args, "completed_step_goal_id");
+            let activate = arg_str_opt(&args, "activate_goal_id");
+            let new_step = args.get("new_step").filter(|v| !v.is_null());
+            let mut notes: Vec<String> = Vec::new();
+            if let Some(goal_id) = &completed {
+                let goal = store
+                    .get_goal(goal_id)?
+                    .ok_or_else(|| anyhow::anyhow!("未找到目标 {goal_id}"))?;
+                anyhow::ensure!(
+                    goal.plan_id.as_deref() == Some(plan_id.as_str()),
+                    "该步骤不属于本计划"
+                );
+                store.complete_goal(goal_id)?;
+                notes.push(format!("已达成步骤「{}」", goal.content));
+            }
+            if let Some(goal_id) = &activate {
+                let goal = store
+                    .get_goal(goal_id)?
+                    .ok_or_else(|| anyhow::anyhow!("未找到目标 {goal_id}"))?;
+                anyhow::ensure!(
+                    goal.plan_id.as_deref() == Some(plan_id.as_str()),
+                    "该步骤不属于本计划"
+                );
+                if goal.status != crate::storage::GoalStatus::Paused {
+                    notes.push(format!("步骤「{}」已在推进中，无需激活", goal.content));
+                } else if store.count_active_goals()? < crate::storage::MAX_ACTIVE_GOALS as i64 {
+                    store.reactivate_goal_with_focus(goal_id, None, None)?;
+                    notes.push(format!("已激活步骤「{}」", goal.content));
+                } else {
+                    notes.push(format!(
+                        "步骤「{}」保持排队（活跃名额已满，空出后可再推进）",
+                        goal.content
+                    ));
+                }
+            } else if let Some(step_value) = new_step {
+                let draft = parse_single_step(step_value, "新步骤")?;
+                let ids = store.append_plan_steps(&plan_id, std::slice::from_ref(&draft))?;
+                let new_id = ids
+                    .first()
+                    .cloned()
+                    .ok_or_else(|| anyhow::anyhow!("新步骤追加失败"))?;
+                if store.count_active_goals()? < crate::storage::MAX_ACTIVE_GOALS as i64 {
+                    store.reactivate_goal_with_focus(&new_id, None, None)?;
+                    notes.push(format!("已追加并激活新步骤「{}」", draft.content.trim()));
+                } else {
+                    notes.push(format!(
+                        "已追加新步骤「{}」（活跃名额已满，保持排队）",
+                        draft.content.trim()
+                    ));
+                }
+            }
+            anyhow::ensure!(!notes.is_empty(), "推进提案没有任何可执行项");
+            Ok(notes.join("；") + "。")
         }
         "update_goal_facets" => {
             let goal_id = arg_str(&args, "goal_id")?;

@@ -165,3 +165,103 @@ fn plan_proposal_supports_itemized_edit_then_accept_through_review_contract() {
     drop(store);
     let _ = std::fs::remove_file(path);
 }
+
+#[test]
+fn advance_plan_step_completes_and_activates_then_appends_new_step() {
+    let (store, path) = temp_db();
+    let registry = ToolRegistry::default();
+    let conv = store.create_conversation(Some("推进"), None).unwrap();
+
+    let call = ToolCall::new(
+        "create_plan",
+        json!({
+            "intent_text": "半年内上线 v1",
+            "steps": [
+                {"content": "第一步：需求收敛"},
+                {"content": "第二步：可用原型"},
+                {"content": "第三步：内测发布"}
+            ]
+        }),
+    );
+    dispatch(&call, &registry, &store, &conv);
+    let pendings = store.pending_actions_for_conversation(&conv).unwrap();
+    execute_pending_action(&store, &pendings[0]).unwrap();
+    store.delete_pending_action(&pendings[0].id).unwrap();
+
+    let plan_id = store.list_plans().unwrap()[0].id.clone();
+    let steps = store.list_plan_steps(&plan_id).unwrap();
+    let (step1, step2) = (steps[0].id.clone(), steps[1].id.clone());
+
+    // 达成第一步 + 激活队列中的第二步（名额空出后）。
+    let call = ToolCall::new(
+        "advance_plan_step",
+        json!({
+            "plan_id": plan_id,
+            "completed_step_goal_id": step1,
+            "activate_goal_id": step2
+        }),
+    );
+    let result = dispatch(&call, &registry, &store, &conv);
+    assert!(result.success, "{}", result.content);
+    assert!(result.content.contains("待确认"), "{}", result.content);
+    let pendings = store.pending_actions_for_conversation(&conv).unwrap();
+    let summary = execute_pending_action(&store, &pendings[0]).unwrap();
+    assert!(summary.contains("已达成步骤"), "{summary}");
+    assert!(summary.contains("已激活步骤"), "{summary}");
+    let steps = store.list_plan_steps(&plan_id).unwrap();
+    assert_eq!(steps[0].status, crate::storage::GoalStatus::Completed);
+    assert_eq!(steps[1].status, crate::storage::GoalStatus::Active);
+    assert_eq!(store.count_active_steps(&plan_id).unwrap(), 1);
+    assert_eq!(store.list_waiting_steps(&plan_id).unwrap().len(), 1);
+    store.delete_pending_action(&pendings[0].id).unwrap();
+
+    // 达成第二步 + 追加新步骤：追加即激活（名额未满）。
+    let call = ToolCall::new(
+        "advance_plan_step",
+        json!({
+            "plan_id": plan_id,
+            "completed_step_goal_id": step2,
+            "new_step": {"content": "第四步：公开推广", "phase": "mid"}
+        }),
+    );
+    dispatch(&call, &registry, &store, &conv);
+    let pendings = store.pending_actions_for_conversation(&conv).unwrap();
+    let summary = execute_pending_action(&store, &pendings[0]).unwrap();
+    assert!(summary.contains("已追加并激活"), "{summary}");
+    let steps = store.list_plan_steps(&plan_id).unwrap();
+    assert_eq!(steps.len(), 4);
+    assert_eq!(steps[3].step_index, Some(4));
+    assert_eq!(steps[3].status, crate::storage::GoalStatus::Active);
+    assert_eq!(store.count_active_steps(&plan_id).unwrap(), 1);
+
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn create_goal_tool_wraps_into_single_step_plan() {
+    let (store, path) = temp_db();
+    let registry = ToolRegistry::default();
+    let conv = store.create_conversation(Some("立项"), None).unwrap();
+
+    let call = ToolCall::new(
+        "create_goal",
+        json!({"content": "发布 Elsewhen 1.0", "current_focus": "收敛快照"}),
+    );
+    let result = dispatch(&call, &registry, &store, &conv);
+    assert!(result.success, "{}", result.content);
+    let pendings = store.pending_actions_for_conversation(&conv).unwrap();
+    let summary = execute_pending_action(&store, &pendings[0]).unwrap();
+    assert!(summary.contains("单步计划"), "{summary}");
+
+    let plans = store.list_plans().unwrap();
+    assert_eq!(plans.len(), 1, "直接建目标自动包成单步计划");
+    assert_eq!(plans[0].intent_text, "发布 Elsewhen 1.0");
+    let steps = store.list_plan_steps(&plans[0].id).unwrap();
+    assert_eq!(steps.len(), 1);
+    assert_eq!(steps[0].status, crate::storage::GoalStatus::Active);
+    assert_eq!(steps[0].current_focus.as_deref(), Some("收敛快照"));
+
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}

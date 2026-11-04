@@ -2,6 +2,7 @@ import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/models/conversation.dart';
 import 'package:elsewhen_ui/models/goal.dart';
+import 'package:elsewhen_ui/models/plan.dart';
 import 'package:elsewhen_ui/providers/conversation_provider.dart';
 import 'package:elsewhen_ui/providers/goal_provider.dart';
 import 'package:elsewhen_ui/providers/state_holder.dart';
@@ -71,6 +72,7 @@ _goalOverrides({
   List<Goal> active = const [],
   List<Goal> archived = const [],
   RustBridgeRepository? repository,
+  List<PlanBoardEntry> planBoard = const [],
 }) {
   return [
     storageRepositoryProvider.overrideWithValue(
@@ -86,6 +88,7 @@ _goalOverrides({
       (ref) async =>
           archived.where((g) => g.status == GoalStatus.completed).toList(),
     ),
+    planBoardProvider.overrideWith((ref) async => planBoard),
   ];
 }
 
@@ -94,12 +97,14 @@ Widget _workbench({
   List<Goal> active = const [],
   List<Goal> archived = const [],
   FakeGoalChatRepo? repository,
+  List<PlanBoardEntry> planBoard = const [],
 }) {
   return ProviderScope(
     overrides: _goalOverrides(
       active: active,
       archived: archived,
       repository: repository,
+      planBoard: planBoard,
     ),
     child: const MaterialApp(home: Scaffold(body: GoalWorkbenchPanel())),
   );
@@ -130,6 +135,67 @@ void main() {
   }
 
   group('GoalWorkbenchPanel（左栏工作台）', () {
+    testWidgets('长程计划看板：意图/当前步/进度/下一步渲染，点击选中当前步', (tester) async {
+      final plan = GoalPlan(
+        id: 'p-1',
+        intentText: '3 年内月入 10 万',
+        vision: '',
+        assumptions: '[]',
+        status: PlanStatus.active,
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+      );
+      final activeStep = Goal(
+        id: 'g-plan-1',
+        content: '第一步：验证付费意愿',
+        phase: GoalPhase.near,
+        status: GoalStatus.active,
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+        planId: 'p-1',
+        stepIndex: 1,
+      );
+      final nextStep = Goal(
+        id: 'g-plan-2',
+        content: '第二步：最小可售卖方案',
+        phase: GoalPhase.near,
+        status: GoalStatus.paused,
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+        planId: 'p-1',
+        stepIndex: 2,
+      );
+      await tester.pumpWidget(
+        _workbench(
+          active: [activeStep],
+          archived: [nextStep],
+          planBoard: [
+            PlanBoardEntry(
+              plan: plan,
+              activeStep: activeStep,
+              nextStep: nextStep,
+              doneCount: 0,
+              totalCount: 3,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('长程计划'), findsOneWidget);
+      expect(find.text('3 年内月入 10 万'), findsOneWidget);
+      expect(find.textContaining('当前步：第一步：验证付费意愿'), findsOneWidget);
+      expect(find.textContaining('下一步：第二步：最小可售卖方案'), findsOneWidget);
+      expect(find.text('进度 0/3'), findsOneWidget);
+
+      await tester.tap(find.text('3 年内月入 10 万'));
+      await tester.pumpAndSettle();
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(GoalWorkbenchPanel)),
+      );
+      expect(container.read(selectedGoalIdProvider), activeStep.id);
+    });
+
     testWidgets('标题「目标」+ 右上「新建」按钮；过滤多选且单行三枚', (tester) async {
       await tester.pumpWidget(
         _workbench(

@@ -122,6 +122,7 @@ fn editable_field(action: &str, key: &str) -> bool {
         // P2 计划拆解：意图原文是身份锚不可改；其余草案内容可逐项纠正后重绑审批 token。
         "create_plan" => matches!(key, "vision" | "assessment" | "assumptions" | "steps"),
         "add_plan_steps" => key == "steps",
+        "advance_plan_step" => key == "new_step",
         _ => false,
     }
 }

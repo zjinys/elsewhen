@@ -169,8 +169,9 @@ pub fn get_goal(id: String) -> Result<Option<GoalDto>> {
 
 /// 新建一条目标（支持传入各认知切片）
 ///
-/// 活跃名额未满时直接激活；已满 3 条时以 paused（暂停搁置）状态创建，
-/// 保留完整上下文供随时读档唤醒，不报错也不自动顶替既有目标。
+/// P3「无独立目标概念」：自动包成单步计划（计划意图 = 目标正文）。
+/// 活跃名额未满时该步骤直接激活；已满 3 条时以 paused（暂停搁置）状态
+/// 创建，保留完整上下文供随时读档唤醒，不报错也不自动顶替既有目标。
 pub fn create_goal(
     content: String,
     phase: String,
@@ -184,7 +185,7 @@ pub fn create_goal(
     if content.trim().is_empty() {
         anyhow::bail!("目标内容不能为空");
     }
-    let goal = store.create_goal_with_facets(
+    let (_plan, goal) = store.create_goal_as_single_step_plan(
         content.trim(),
         parse_phase(&phase)?,
         why.as_deref(),

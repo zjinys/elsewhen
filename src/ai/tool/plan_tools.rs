@@ -61,14 +61,33 @@ impl Tool for ListPlansTool {
         }
         let mut out = String::from("长程计划清单：\n");
         for plan in plans {
-            let active = ctx.store.count_active_steps(&plan.id)?;
-            let waiting = ctx.store.list_waiting_steps(&plan.id)?.len();
+            let steps = ctx.store.list_plan_steps(&plan.id)?;
+            let active = steps
+                .iter()
+                .filter(|g| g.status == crate::storage::GoalStatus::Active)
+                .count();
+            let waiting = steps
+                .iter()
+                .filter(|g| g.status == crate::storage::GoalStatus::Paused)
+                .count();
             out.push_str(&format!(
                 "- [{}] [ID:{}] {}\n  · 推进中 {active} 步，排队 {waiting} 步\n",
                 plan.status.label(),
                 plan.id,
                 plan.intent_text
             ));
+            for g in steps
+                .iter()
+                .filter(|g| g.status == crate::storage::GoalStatus::Active)
+            {
+                out.push_str(&format!("    · 推进 [ID:{}] {}\n", g.id, g.content));
+            }
+            for g in steps
+                .iter()
+                .filter(|g| g.status == crate::storage::GoalStatus::Paused)
+            {
+                out.push_str(&format!("    · 等待 [ID:{}] {}\n", g.id, g.content));
+            }
         }
         Ok(out)
     }
@@ -227,6 +246,83 @@ impl Tool for AddPlanStepsTool {
             "已为你草拟为计划「{}」追加 {} 个步骤的提议（待确认）：\n—— 确认后新步骤进入等待队列，活跃名额空出时激活。",
             plan.intent_text,
             steps.len()
+        ))
+    }
+}
+
+/// P3：完成一步并推进到下一步（达成标记 + 激活等待步骤 / 追加新步骤，
+/// 单提案一次确认；并发闸满额时保持排队，零拒绝）
+pub(super) struct AdvancePlanStepTool;
+impl Tool for AdvancePlanStepTool {
+    fn name(&self) -> &'static str {
+        "advance_plan_step"
+    }
+    fn description(&self) -> &'static str {
+        "计划推进提案（需用户确认）：先复盘——对照该步的完成判据与假设清单，向用户说明「事实 vs 假设」；再推进——完成当前步骤（completed_step_goal_id，可选）、激活队列中既有步骤（activate_goal_id，取自 list_plans 的等待名单）或追加一个新步骤（new_step）。活跃名额已满时新步骤会自动保持排队，不要因此拒绝推进。"
+    }
+    fn parameters_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "plan_id": { "type": "string", "description": "计划 ID，必填" },
+                "completed_step_goal_id": { "type": "string", "description": "已达成的那一步的目标 ID（可选；给出即标记为已达成）" },
+                "activate_goal_id": { "type": "string", "description": "要激活的等待步骤（可选；取自 list_plans 的等待名单）" },
+                "new_step": {
+                    "type": "object",
+                    "description": "要追加并激活的新步骤（可选；队列空或路径调整时用）",
+                    "properties": {
+                        "content": { "type": "string" },
+                        "phase": { "type": "string", "enum": ["near", "mid", "long"] },
+                        "why": { "type": "string" },
+                        "current_focus": { "type": "string" },
+                        "blocker": { "type": "string" },
+                        "done_criteria": { "type": "string" }
+                    },
+                    "required": ["content"],
+                    "additionalProperties": false
+                }
+            },
+            "required": ["plan_id"],
+            "additionalProperties": false
+        })
+    }
+    fn deferred(&self) -> bool {
+        true
+    }
+    fn policy(&self) -> ToolPolicy {
+        ToolPolicy::WriteConfirm
+    }
+    fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
+        let plan_id = arg_str(args, "plan_id")?;
+        let plan = ctx
+            .store
+            .get_plan(&plan_id)?
+            .ok_or_else(|| anyhow::anyhow!("未找到 ID 为 {plan_id} 的计划"))?;
+        let completed = arg_str_opt(args, "completed_step_goal_id");
+        let activate = arg_str_opt(args, "activate_goal_id");
+        let new_step = args.get("new_step").cloned().filter(|v| !v.is_null());
+        anyhow::ensure!(
+            completed.is_some() || activate.is_some() || new_step.is_some(),
+            "至少给出完成、激活或新增其中一项"
+        );
+        let action_args = json!({
+            "plan_id": plan_id,
+            "plan_intent": plan.intent_text,
+            "completed_step_goal_id": completed,
+            "activate_goal_id": activate,
+            "new_step": new_step,
+        });
+        store_create_pending(ctx.store, ctx.conversation_id, "advance_plan_step", &action_args)?;
+        Ok(format!(
+            "已为你草拟计划「{}」的推进提案（待确认）：{}。\n—— 请在审阅卡核对复盘结论与下一步；确认后执行（活跃名额满时新步骤保持排队）。",
+            plan.intent_text,
+            match (&completed, &activate, &new_step) {
+                (Some(_), Some(_), _) => "达成当前步骤并激活等待步骤",
+                (Some(_), None, Some(_)) => "达成当前步骤并追加下一步",
+                (None, Some(_), _) => "激活等待步骤",
+                (None, None, Some(_)) => "追加并推进新步骤",
+                _ => "记录进展",
+            }
         ))
     }
 }
