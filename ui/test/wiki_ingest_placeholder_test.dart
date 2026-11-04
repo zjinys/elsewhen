@@ -6,10 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// 知识库首页（合并工作区）：上方两张导入入口卡片，点击弹对话框。
+/// 知识库首页（合并工作区）：上方两张导入入口卡片，点击弹面板。
+/// 导入面板已统一为 bottom sheet（与目标/待办/审阅提议同形态），
 /// 只测本地校验路径（空输入提示），不发起真实网络/FFI 调用。
 void main() {
-  testWidgets('首页展示网址/文本导入入口，两对话框各有空输入校验', (tester) async {
+  testWidgets('首页展示网址/文本导入入口，两面板各有空输入校验', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         child: const MaterialApp(home: Scaffold(body: WikiPageDetailView())),
@@ -22,37 +23,35 @@ void main() {
     expect(find.text('网址导入'), findsOneWidget, reason: '首页应有网址导入入口');
     expect(find.text('创建主题'), findsOneWidget, reason: '首页应有创建主题入口');
 
-    // 网址模式对话框：输入框 + 抓取按钮；空输入 → 本地校验错误
+    // 网址模式面板：输入框 + 抓取按钮；空输入 → 本地校验错误
     await tester.tap(find.text('网址导入'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 200)); // 对话框动画落地
+    await tester.pumpAndSettle(); // sheet 滑入动画
     expect(
       find.descendant(
-        of: find.byType(Dialog),
+        of: find.byKey(const ValueKey('wiki-import-sheet-content')),
         matching: find.byType(TextField),
       ),
       findsOneWidget,
-      reason: '网址对话框应有输入框',
+      reason: '网址面板应有输入框',
     );
     expect(find.text('抓取'), findsOneWidget);
     await tester.tap(find.text('抓取'));
     await tester.pump();
     expect(find.text('请先粘贴一个链接'), findsOneWidget);
 
-    // 点 barrier 关闭对话框，打开「创建主题」对话框
-    await tester.tapAt(const Offset(5, 5));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 200)); // 对话框退场动画
+    // 关闭面板，打开「创建主题」面板
+    await tester.tap(find.byTooltip('关闭'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('创建主题'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(find.text('保存到知识库'), findsOneWidget, reason: '创建主题对话框应有保存按钮');
+    await tester.pumpAndSettle();
+    expect(find.text('保存到知识库'), findsOneWidget, reason: '创建主题面板应有保存按钮');
     await tester.tap(find.text('保存到知识库'));
     await tester.pump();
     expect(find.text('请先输入要保存的内容'), findsOneWidget);
   });
 
-  testWidgets('创建主题对话框在宽屏下是横向比例，不再又高又窄', (tester) async {
+  testWidgets('创建主题面板（bottom sheet）内容区有足够高度容纳编辑器', (tester) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -74,25 +73,19 @@ void main() {
     await tester.pump();
 
     await tester.tap(find.text('创建主题'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
 
+    // sheet 限高 0.85 屏：内容区应实际占满可用高度，编辑器不塌缩。
     final size = tester.getSize(
-      find.byKey(const ValueKey('wiki-import-dialog-content')),
+      find.byKey(const ValueKey('wiki-import-sheet-content')),
     );
-    expect(size.width, 960);
-    expect(size.height, lessThanOrEqualTo(680));
-    expect(
-      size.width / size.height,
-      greaterThan(1.3),
-      reason: '创建主题对话框应给正文足够的横向行宽',
-    );
+    expect(size.height, greaterThanOrEqualTo(500), reason: '创建主题是长编辑器，sheet 内容区不应塌缩');
 
     // 编辑器历史记录有 50ms 防抖 timer，等它落地避免测试结束时报 pending timer。
     await tester.pump(const Duration(milliseconds: 100));
   });
 
-  testWidgets('创建主题对话框：空正文编辑器有可聚焦段落，输入能写入文档', (tester) async {
+  testWidgets('创建主题面板：空正文编辑器有可聚焦段落，输入能写入文档', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
@@ -109,9 +102,8 @@ void main() {
     await tester.pump();
 
     await tester.tap(find.text('创建主题'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(find.byType(Dialog), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(find.text('创建主题'), findsWidgets); // 入口卡片 + sheet 标题
 
     expect(
       tester.widget<WikiContentEditor>(find.byType(WikiContentEditor)).editable,

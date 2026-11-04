@@ -68,6 +68,8 @@ pub struct ChatDecision {
     pub result: String,
     pub action: String,
     pub args_json: String,
+    /// 决定发起时间（RFC3339）：审阅历史排序依据，也供 UI 展示相对时间。
+    pub started_at: String,
 }
 
 pub(crate) enum ProposalClaim {
@@ -276,8 +278,8 @@ impl Store {
         conversation_id: Option<&str>,
     ) -> Result<Option<ChatDecision>> {
         Ok(self.connection.query_row(
-            "SELECT proposal_kind,proposal_id,conversation_id,proposal_version,approval_token,decision,status,result,action,args_json FROM chat_proposal_decisions WHERE proposal_kind=?1 AND proposal_id=?2 AND conversation_id IS ?3",
-            params![kind,id,conversation_id], |r| Ok(ChatDecision {kind:r.get(0)?,id:r.get(1)?,conversation_id:r.get(2)?,version:r.get(3)?,approval_token:r.get(4)?,decision:r.get(5)?,status:r.get(6)?,result:r.get(7)?,action:r.get(8)?,args_json:r.get(9)?}),
+            "SELECT proposal_kind,proposal_id,conversation_id,proposal_version,approval_token,decision,status,result,action,args_json,started_at FROM chat_proposal_decisions WHERE proposal_kind=?1 AND proposal_id=?2 AND conversation_id IS ?3",
+            params![kind,id,conversation_id], |r| Ok(ChatDecision {kind:r.get(0)?,id:r.get(1)?,conversation_id:r.get(2)?,version:r.get(3)?,approval_token:r.get(4)?,decision:r.get(5)?,status:r.get(6)?,result:r.get(7)?,action:r.get(8)?,args_json:r.get(9)?,started_at:r.get(10)?}),
         ).optional()?)
     }
 

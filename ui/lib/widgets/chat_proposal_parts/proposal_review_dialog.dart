@@ -5,6 +5,9 @@ part of '../chat_proposal_review.dart';
 class ChatProposalReviewDialog extends ConsumerStatefulWidget {
   const ChatProposalReviewDialog({super.key, required this.conversationId});
   final String? conversationId;
+
+  /// 本对话框一律由外部包在 [AdaptivePanelSheet] 里以 bottom sheet
+  /// 呈现（今天行/桌面同名按钮同一形态）；自身只负责主从内容窗格。
   @override
   ConsumerState<ChatProposalReviewDialog> createState() =>
       _ChatProposalReviewDialogState();
@@ -103,44 +106,54 @@ class _ChatProposalReviewDialogState
     await _load();
   }
 
+  /// 主从内容窗格：桌面 AlertDialog 与移动 sheet 两态共用。
+  Widget _buildPanes(int count) {
+    final detailOpen = _history
+        ? _viewingReceipt != null
+        : _viewing != null || _viewingBatch;
+    return PopScope(
+      // 详情/回执打开时，系统返回（Android 手势/返回键）＝回列表，
+      // 不冒泡关掉整个审阅面板；列表态才允许 pop 关 sheet。
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (detailOpen) {
+          setState(() {
+            _viewing = null;
+            _viewingBatch = false;
+            _viewingReceipt = null;
+          });
+        } else {
+          Navigator.of(context).pop();
+        }
+      },
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 720;
+          final listPane = _buildListPane(count);
+          final detailPane = _buildDetailPane();
+          if (wide) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(width: 400, child: listPane),
+                const VerticalDivider(width: 1),
+                Expanded(child: detailPane),
+              ],
+            );
+          }
+          // 窄屏：详情/回执打开时页内切换，不叠对话框。
+          return detailOpen ? detailPane : listPane;
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final count = _history ? _decisions.length : _proposals.length;
-    return AlertDialog(
-      title: Text(widget.conversationId == null ? '历史全局规则审阅' : '对话提议审阅'),
-      content: SizedBox(
-        width: 1000,
-        height: MediaQuery.sizeOf(context).height * .75,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final wide = constraints.maxWidth >= 720;
-            final listPane = _buildListPane(count);
-            final detailPane = _buildDetailPane();
-            if (wide) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(width: 400, child: listPane),
-                  const VerticalDivider(width: 1),
-                  Expanded(child: detailPane),
-                ],
-              );
-            }
-            // 窄屏：详情/回执打开时页内切换，不叠对话框。
-            final showDetail = _history
-                ? _viewingReceipt != null
-                : _viewing != null || _viewingBatch;
-            return showDetail ? detailPane : listPane;
-          },
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, _changed),
-          child: const Text('关闭'),
-        ),
-      ],
-    );
+    // 呈现骨架（面板壳）由外部的 showPanelSheet 提供，这里只出内容。
+    return _buildPanes(count);
   }
 
   Widget _buildDetailPane() {
@@ -149,21 +162,43 @@ class _ChatProposalReviewDialogState
       if (receipt == null) {
         return const Center(child: Text('选择左侧一条记录查看回执'));
       }
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${_actionLabel(receipt.action)} · ${_statusLabel(receipt.status)}',
-              style: Theme.of(context).textTheme.titleMedium,
+      // 处理记录详情：顶部带「返回列表」（详情/批量面板同款）；
+      // 此前这条内联路径没有任何返回入口，手机上无法回到列表。
+      return Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
+            child: Row(
+              children: [
+                TextButton.icon(
+                  onPressed: () => setState(() {
+                    _viewingReceipt = null;
+                  }),
+                  icon: const Icon(Icons.arrow_back_ios_new, size: 15),
+                  label: const Text('返回列表'),
+                ),
+                const Spacer(),
+                Text(
+                  '${_actionLabel(receipt.action)} · ${_statusLabel(receipt.status)}',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            _ReceiptText(receipt.result),
-            const SizedBox(height: 12),
-            _ProposalContent(argsJson: receipt.argsJson),
-          ],
-        ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _ReceiptText(receipt.result),
+                  const SizedBox(height: 12),
+                  _ProposalContent(argsJson: receipt.argsJson),
+                ],
+              ),
+            ),
+          ),
+        ],
       );
     }
     if (_viewingBatch) {
@@ -338,6 +373,15 @@ class _ChatProposalReviewDialogState
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
+                    // 创建时间（相对时间）：不然列表里分不清哪个新哪个旧。
+                    if (prettyTimestamp(proposal.createdAt)
+                        case final String timeLabel)
+                      Text(
+                        timeLabel,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -396,6 +440,15 @@ class _ChatProposalReviewDialogState
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
+                    // 处理时间（相对时间）：与待审列表同样的新旧判断依据。
+                    if (prettyTimestamp(receipt.startedAt)
+                        case final String timeLabel)
+                      Text(
+                        timeLabel,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -411,15 +464,17 @@ class _ChatProposalReviewDialogState
     );
   }
 
-  (IconData, Color) _statusIcon(String status, ThemeData theme) => switch (
-    status
-  ) {
-    'succeeded' => (Icons.check_circle_outline, theme.colorScheme.primary),
-    'failed' => (Icons.error_outline, theme.colorScheme.error),
-    'declined' => (Icons.cancel_outlined, theme.colorScheme.onSurfaceVariant),
-    'uncertain' => (Icons.help_outline, theme.colorScheme.tertiary),
-    _ => (Icons.hourglass_empty, theme.colorScheme.onSurfaceVariant),
-  };
+  (IconData, Color) _statusIcon(String status, ThemeData theme) =>
+      switch (status) {
+        'succeeded' => (Icons.check_circle_outline, theme.colorScheme.primary),
+        'failed' => (Icons.error_outline, theme.colorScheme.error),
+        'declined' => (
+          Icons.cancel_outlined,
+          theme.colorScheme.onSurfaceVariant,
+        ),
+        'uncertain' => (Icons.help_outline, theme.colorScheme.tertiary),
+        _ => (Icons.hourglass_empty, theme.colorScheme.onSurfaceVariant),
+      };
 }
 
 class _ProposalContent extends StatelessWidget {
@@ -432,7 +487,8 @@ class _ProposalContent extends StatelessWidget {
       return SelectableText('提议格式异常，不能接受；可以拒绝并重新草拟。\n$argsJson');
     }
 
-    final hasGoalFacets = args.containsKey('why') ||
+    final hasGoalFacets =
+        args.containsKey('why') ||
         args.containsKey('current_focus') ||
         args.containsKey('blocker') ||
         args.containsKey('done_criteria') ||
@@ -467,7 +523,9 @@ class _ProposalContent extends StatelessWidget {
         if (args['content'] != null && hasGoalFacets)
           SelectableText(
             '${args['content']}',
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
         if (body != null && !hasGoalFacets) MarkdownView(markdown: '$body'),
         if (hasGoalFacets) ...[
@@ -515,7 +573,9 @@ class _GoalFacetsCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -525,7 +585,10 @@ class _GoalFacetsCard extends StatelessWidget {
               children: [
                 if (phase != null)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(4),

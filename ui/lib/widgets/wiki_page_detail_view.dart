@@ -1,4 +1,5 @@
 import 'knowledge_workflows.dart';
+import 'adaptive_panel.dart';
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -188,32 +189,19 @@ Future<void> openWikiImportDialog(
   BuildContext context, {
   required bool urlMode,
 }) async {
-  final screen = MediaQuery.sizeOf(context);
-  // 创建主题是「标题 + 标签 + 正文」的长内容编辑器，横向给足行宽；
-  // 网址导入只有一行输入，保持紧凑高度，避免出现大片空白。
-  final dialogWidth = urlMode
-      ? math.min(760.0, screen.width - 48)
-      : math.min(960.0, screen.width - 48);
-  final dialogMaxHeight = urlMode
-      ? math.min(260.0, screen.height * 0.45)
-      : math.min(680.0, screen.height * 0.72);
-  await showDialog<void>(
-    context: context,
-    builder: (_) => Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: ConstrainedBox(
-        key: const ValueKey('wiki-import-dialog-content'),
-        constraints: BoxConstraints(
-          minWidth: dialogWidth,
-          maxWidth: dialogWidth,
-          maxHeight: dialogMaxHeight,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: _ImportTab(
-            initialUrlMode: urlMode,
-            onCompleted: () => Navigator.of(context).pop(),
-          ),
+  // 一律 bottom sheet（与「今天」行目标/待办/审阅提议面板同一形态）。
+  // 创建主题是「标题 + 标签 + 正文」的长编辑器，限高放宽到 0.85；
+  // 网址导入只有一行输入，用紧凑高度避免大片空白。
+  await showPanelSheet<void>(
+    context,
+    sheet: (_) => AdaptivePanelSheet(
+      title: urlMode ? '网址导入' : '创建主题',
+      maxHeightFactor: urlMode ? 0.45 : 0.85,
+      builder: (sheetContext) => KeyedSubtree(
+        key: const ValueKey('wiki-import-sheet-content'),
+        child: _ImportTab(
+          initialUrlMode: urlMode,
+          onCompleted: () => Navigator.of(sheetContext).pop(),
         ),
       ),
     ),

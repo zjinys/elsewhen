@@ -1,9 +1,12 @@
 // 只读免审批白名单（迁移 53）设置页接线测试：开关渲染、点击回写、
 // 免审批范围说明与信任开关并存。独立文件避免与 settings_screen_test
 // 的真实 FFI 隔离库流程互相牵连。
+//
+// 2026 UI 改版后：审批策略开关（信任 / 只读免审批）收进每张服务器
+// 卡片的 ⋮ 溢出菜单，列表只保留启用 Switch 与菜单入口；断言相应
+// 改为菜单项文案。
 import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
-import 'package:elsewhen_ui/providers/settings_provider.dart';
 import 'package:elsewhen_ui/screens/settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -42,6 +45,12 @@ class FakeMcpRepo extends RustBridgeRepository {
   }
 }
 
+/// 展开指定 server 卡片的 ⋮ 菜单（每张卡一个 more_horiz 图标）。
+Future<void> _openMenu(WidgetTester tester) async {
+  await tester.tap(find.byIcon(Icons.more_horiz));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('readonly-auto toggle renders and writes back per server', (
     tester,
@@ -60,13 +69,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('gitea'), findsOneWidget);
 
-    // 默认关闭：锁形图标 + 提示说明可打开。
-    final lock = find.byTooltip(
-      '只读免审批（点击后仅标了 readOnlyHint 的工具免逐次审批）',
-    );
-    expect(lock, findsOneWidget);
+    // 默认关闭：菜单里是「开只读免审批」。
+    await _openMenu(tester);
+    expect(find.text('开只读免审批'), findsOneWidget);
+    expect(find.text('关闭只读免审批'), findsNothing);
 
-    await tester.tap(lock);
+    await tester.tap(find.text('开只读免审批'));
     await tester.pumpAndSettle();
     expect(repo.toggles.single, ('srv-1', true), reason: '按 server 回写开关');
 
@@ -81,13 +89,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('MCP'));
     await tester.pumpAndSettle();
-    final unlock = find.byTooltip(
-      '只读免审批已开（仅豁免标了 readOnlyHint 的工具，点击关闭）',
-    );
-    expect(unlock, findsNothing, reason: 'fake 清单固定为关闭态，不误导断言');
-    await tester.tap(find.byTooltip(
-      '只读免审批（点击后仅标了 readOnlyHint 的工具免逐次审批）',
-    ));
+    await _openMenu(tester);
+    expect(find.text('关闭只读免审批'), findsNothing, reason: 'fake 清单固定为关闭态，不误导断言');
+    await tester.tap(find.text('开只读免审批'));
     await tester.pumpAndSettle();
     expect(openRepo.toggles.single, ('srv-1', true));
   });

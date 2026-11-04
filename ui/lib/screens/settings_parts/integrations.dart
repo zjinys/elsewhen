@@ -1,4 +1,5 @@
 part of '../settings_screen.dart';
+
 // ignore_for_file: invalid_use_of_protected_member — setState 从 State 子类方法平移至 extension，receiver 类型不变
 
 //! 集成/网络/技能 tab 与 MCP 服务器管理。
@@ -84,6 +85,7 @@ extension _Integrations on _SettingsScreenState {
 
   Widget _buildMcpContent() {
     final servers = _mcpServers;
+    final enabledCount = servers?.where((s) => s.enabled).length ?? 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -113,109 +115,55 @@ extension _Integrations on _SettingsScreenState {
           ),
         ),
         const SizedBox(height: AppTheme.space3),
-        OutlinedButton.icon(
-          onPressed: () => _showMcpServerDialog(),
-          icon: const Icon(Icons.add_outlined, size: 18),
-          label: const Text('添加服务器'),
+        // 列表头：启用统计 + 添加入口同行，服务器多时一眼看清规模
+        Row(
+          children: [
+            Text(
+              servers == null
+                  ? '读取中…'
+                  : '已启用 $enabledCount / ${servers.length}',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.4,
+                color: AppTheme.textTertiary,
+              ),
+            ),
+            const Spacer(),
+            OutlinedButton.icon(
+              onPressed: () => _showMcpServerDialog(),
+              icon: const Icon(Icons.add_outlined, size: 16),
+              label: const Text('添加服务器', style: TextStyle(fontSize: 12.5)),
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: AppTheme.space3),
         if (servers == null)
-          Text(
-            _mcpError ?? '读取中…',
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          _McpStatusLine(
+            icon: Icons.hourglass_empty_outlined,
+            text: _mcpError ?? '正在读取服务器列表…',
           )
         else if (servers.isEmpty)
-          Text(
-            '尚未添加任何 MCP 服务器',
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          _McpStatusLine(
+            icon: Icons.usb_outlined,
+            text: '尚未添加任何 MCP 服务器\n点右上角「添加服务器」接入第一个外部工具源',
           )
         else
           ...servers.map(
-            (server) => Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(server.name, style: const TextStyle(fontSize: 14)),
-                          const SizedBox(width: 6),
-                          // 平台徽章：同步分发的适用范围（迁移 48）。
-                          Text(
-                            server.platform == 'all' ? '全部平台' : '仅 ${server.platform}',
-                            style: TextStyle(
-                              color: AppTheme.textTertiary,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          server.transport == 'streamable-http'
-                              ? server.url
-                              : '${server.command} ${server.argsJson}',
-                          style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 12,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: server.trusted
-                      ? '信任（调用免审批，点击改为逐次审批）'
-                      : '逐次审批（点击标为信任，调用免审批）',
-                  icon: Icon(
-                    server.trusted
-                        ? Icons.verified_user_outlined
-                        : Icons.shield_outlined,
-                    size: 18,
-                    color: server.trusted
-                        ? AppTheme.accentPrimary
-                        : AppTheme.textTertiary,
-                  ),
-                  onPressed: () => _toggleMcpTrusted(server.id, !server.trusted),
-                ),
-                // 只读免审批白名单（迁移 53）：比信任更窄的自审面——只豁免
-                // 上游标了 readOnlyHint 的工具；不盲信上游标注，开关默认关。
-                IconButton(
-                  tooltip: server.allowReadonlyAuto
-                      ? '只读免审批已开（仅豁免标了 readOnlyHint 的工具，点击关闭）'
-                      : '只读免审批（点击后仅标了 readOnlyHint 的工具免逐次审批）',
-                  icon: Icon(
-                    server.allowReadonlyAuto
-                        ? Icons.lock_open_outlined
-                        : Icons.lock_outlined,
-                    size: 18,
-                    color: server.allowReadonlyAuto
-                        ? AppTheme.accentPrimary
-                        : AppTheme.textTertiary,
-                  ),
-                  onPressed: () =>
-                      _toggleMcpAllowReadonlyAuto(server.id, !server.allowReadonlyAuto),
-                ),
-                IconButton(
-                  tooltip: '编辑',
-                  icon: const Icon(Icons.edit_outlined, size: 18),
-                  onPressed: () => _showMcpServerDialog(existing: server),
-                ),
-                IconButton(
-                  tooltip: '删除',
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                  onPressed: () => _deleteMcpServer(server.id),
-                ),
-                Switch(
-                  value: server.enabled,
-                  onChanged: (value) => _toggleMcpServer(server.id, value),
-                ),
-              ],
+            (server) => _McpServerCard(
+              server: server,
+              onToggleEnabled: (v) => _toggleMcpServer(server.id, v),
+              onToggleTrusted: () =>
+                  _toggleMcpTrusted(server.id, !server.trusted),
+              onToggleReadonly: () => _toggleMcpAllowReadonlyAuto(
+                server.id,
+                !server.allowReadonlyAuto,
+              ),
+              onEdit: () => _showMcpServerDialog(existing: server),
+              onDelete: () => _deleteMcpServer(server.id),
             ),
           ),
       ],
@@ -227,11 +175,12 @@ extension _Integrations on _SettingsScreenState {
     if (repository is! RustBridgeRepository) return;
     try {
       final servers = await repository.listMcpServers();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _mcpServers = servers;
           _mcpError = null;
         });
+      }
     } catch (e) {
       if (mounted) setState(() => _mcpError = reportUiError('读取 MCP 服务器', e));
     }
@@ -244,15 +193,14 @@ extension _Integrations on _SettingsScreenState {
       await repository.setMcpServerTrusted(id: id, trusted: trusted);
       await _loadMcpServers();
       if (mounted && trusted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          const SnackBar(content: Text('已标为信任：该服务器的工具调用不再弹审批卡')),
-        );
+        ScaffoldMessenger.maybeOf(
+          context,
+        )?.showSnackBar(const SnackBar(content: Text('已标为信任：该服务器的工具调用不再弹审批卡')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(content: Text(reportUiError('切换信任状态', e))),
-        );
+        ScaffoldMessenger.maybeOf(context)
+            ?.showSnackBar(SnackBar(content: Text(reportUiError('切换信任状态', e))));
       }
     }
   }
@@ -264,16 +212,20 @@ extension _Integrations on _SettingsScreenState {
       await repository.setMcpServerAllowReadonlyAuto(id: id, allow: allow);
       await _loadMcpServers();
       if (mounted && allow) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(
-          content: Text('已开只读免审批：仅标了 readOnlyHint 的工具不再弹审批卡；'
-              '仍以上游标注为准，写类工具照旧逐次审批'),
-        ));
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(
+            content: Text(
+              '已开只读免审批：仅标了 readOnlyHint 的工具不再弹审批卡；'
+              '仍以上游标注为准，写类工具照旧逐次审批',
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(content: Text(reportUiError('切换只读免审批', e))),
-        );
+        ScaffoldMessenger.maybeOf(
+          context,
+        )?.showSnackBar(SnackBar(content: Text(reportUiError('切换只读免审批', e))));
       }
     }
   }
@@ -391,8 +343,7 @@ extension _Integrations on _SettingsScreenState {
                       controller: argsController,
                       decoration: const InputDecoration(
                         labelText: '参数（JSON 数组）',
-                        hintText:
-                            '["-y","@modelcontextprotocol/server-filesystem","/tmp"]',
+                        hintText: '["-y","@modelcontextprotocol/server-filesystem","/tmp"]',
                       ),
                     ),
                     const SizedBox(height: AppTheme.space3),
@@ -423,7 +374,10 @@ extension _Integrations on _SettingsScreenState {
                   const SizedBox(height: AppTheme.space3),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('信任（调用免审批）', style: TextStyle(fontSize: 13.5)),
+                    title: const Text(
+                      '信任（调用免审批）',
+                      style: TextStyle(fontSize: 13.5),
+                    ),
                     subtitle: const Text(
                       '开启后该服务器的工具调用直接执行，不再逐次弹审批卡。MCP 服务器是第三方代码，请只对你信任的服务器开启。',
                       style: TextStyle(fontSize: 11.5),
@@ -456,17 +410,19 @@ extension _Integrations on _SettingsScreenState {
             ),
             FilledButton(
               onPressed: () {
-                Navigator.of(dialogContext).pop(_McpServerFormResult(
-                  name: nameController.text,
-                  platform: platform,
-                  transport: transport,
-                  command: commandController.text,
-                  argsJson: argsController.text,
-                  envJson: envController.text,
-                  url: urlController.text,
-                  headersJson: headersController.text,
-                  trusted: trusted,
-                ));
+                Navigator.of(dialogContext).pop(
+                  _McpServerFormResult(
+                    name: nameController.text,
+                    platform: platform,
+                    transport: transport,
+                    command: commandController.text,
+                    argsJson: argsController.text,
+                    envJson: envController.text,
+                    url: urlController.text,
+                    headersJson: headersController.text,
+                    trusted: trusted,
+                  ),
+                );
               },
               child: const Text('保存'),
             ),
@@ -478,21 +434,23 @@ extension _Integrations on _SettingsScreenState {
     final repository =
         ref.read(storageRepositoryProvider) as RustBridgeRepository;
     try {
-      await repository.saveMcpServer(api.McpServerDto(
-        id: existing?.id ?? '',
-        name: result.name,
-        platform: result.platform,
-        transport: result.transport,
-        command: result.transport == 'stdio' ? result.command : '',
-        argsJson: result.argsJson,
-        envJson: result.envJson,
-        url: result.transport == 'streamable-http' ? result.url : '',
-        headersJson: result.headersJson,
-        enabled: existing?.enabled ?? true,
-        trusted: result.trusted,
-        // 白名单不经保存对话框改写，独立开关维护；回填避免覆盖。
-        allowReadonlyAuto: existing?.allowReadonlyAuto ?? false,
-      ));
+      await repository.saveMcpServer(
+        api.McpServerDto(
+          id: existing?.id ?? '',
+          name: result.name,
+          platform: result.platform,
+          transport: result.transport,
+          command: result.transport == 'stdio' ? result.command : '',
+          argsJson: result.argsJson,
+          envJson: result.envJson,
+          url: result.transport == 'streamable-http' ? result.url : '',
+          headersJson: result.headersJson,
+          enabled: existing?.enabled ?? true,
+          trusted: result.trusted,
+          // 白名单不经保存对话框改写，独立开关维护；回填避免覆盖。
+          allowReadonlyAuto: existing?.allowReadonlyAuto ?? false,
+        ),
+      );
       await _loadMcpServers();
     } catch (e) {
       if (mounted) {
@@ -515,43 +473,43 @@ extension _Integrations on _SettingsScreenState {
     String headersJson,
   ) async {
     if (transport == 'stdio' && command.trim().isEmpty) {
-      ScaffoldMessenger.maybeOf(dialogContext)?.showSnackBar(
-        const SnackBar(content: Text('先填命令再测试')),
-      );
+      ScaffoldMessenger.maybeOf(dialogContext)
+          ?.showSnackBar(const SnackBar(content: Text('先填命令再测试')));
       return;
     }
-    if (transport == 'streamable-http' &&
-        !url.trim().startsWith('http')) {
-      ScaffoldMessenger.maybeOf(dialogContext)?.showSnackBar(
-        const SnackBar(content: Text('先填 http(s) 端点 URL 再测试')),
-      );
+    if (transport == 'streamable-http' && !url.trim().startsWith('http')) {
+      ScaffoldMessenger.maybeOf(
+        dialogContext,
+      )?.showSnackBar(const SnackBar(content: Text('先填 http(s) 端点 URL 再测试')));
       return;
     }
     final messenger = ScaffoldMessenger.maybeOf(dialogContext);
     final repository =
         ref.read(storageRepositoryProvider) as RustBridgeRepository;
     try {
-      final tools = await repository.testMcpServer(api.McpServerDto(
-        id: 'test-probe',
-        allowReadonlyAuto: false,
-        name: name.isEmpty ? 'probe' : name,
-        platform: platform,
-        transport: transport,
-        command: transport == 'stdio' ? command : '',
-        argsJson: argsJson,
-        envJson: envJson,
-        url: transport == 'streamable-http' ? url : '',
-        headersJson: headersJson,
-        enabled: true,
-        trusted: false,
-      ));
+      final tools = await repository.testMcpServer(
+        api.McpServerDto(
+          id: 'test-probe',
+          allowReadonlyAuto: false,
+          name: name.isEmpty ? 'probe' : name,
+          platform: platform,
+          transport: transport,
+          command: transport == 'stdio' ? command : '',
+          argsJson: argsJson,
+          envJson: envJson,
+          url: transport == 'streamable-http' ? url : '',
+          headersJson: headersJson,
+          enabled: true,
+          trusted: false,
+        ),
+      );
       messenger?.showSnackBar(
         SnackBar(
           content: Text(
             tools.isEmpty
                 ? '连接成功，但该服务器未提供工具'
                 : '连接成功：${tools.map((t) => t.rawName).take(6).join('、')}'
-                    '${tools.length > 6 ? ' 等 ${tools.length} 个工具' : ''}',
+                      '${tools.length > 6 ? ' 等 ${tools.length} 个工具' : ''}',
           ),
         ),
       );
@@ -560,5 +518,291 @@ extension _Integrations on _SettingsScreenState {
         SnackBar(content: Text(reportUiError('MCP 测试连接', e))),
       );
     }
+  }
+}
+
+//! ── MCP 列表视觉组件（只负责呈现与回传动作，逻辑全在上方 extension）──
+
+/// 列表加载中 / 空态：图标 + 说明文字的浅提示容器。
+class _McpStatusLine extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _McpStatusLine({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      decoration: BoxDecoration(
+        color: AppTheme.surface2,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(color: AppTheme.surface3.withValues(alpha: 0.6)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 26, color: AppTheme.textTertiary),
+          const SizedBox(height: 8),
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12.5,
+              height: 1.6,
+              color: AppTheme.textTertiary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 单台 MCP 服务器卡片：
+/// - 左侧传输类型图标（终端=本机命令 / 公网=远程），禁用时整体降饱和；
+/// - 标题行：名称 + 传输徽章 + 平台徽章 + 信任/只读状态胶囊；
+/// - 副标题：命令+参数 或 端点 URL，等宽省略展示；
+/// - 尾部：启用开关 + 溢出菜单（编辑/信任/只读免审批/删除），不再平铺 5 个图标。
+class _McpServerCard extends StatelessWidget {
+  final api.McpServerDto server;
+  final ValueChanged<bool> onToggleEnabled;
+  final VoidCallback onToggleTrusted;
+  final VoidCallback onToggleReadonly;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _McpServerCard({
+    required this.server,
+    required this.onToggleEnabled,
+    required this.onToggleTrusted,
+    required this.onToggleReadonly,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  bool get _isHttp => server.transport == 'streamable-http';
+
+  String get _endpoint =>
+      _isHttp ? server.url : '${server.command} ${server.argsJson}'.trim();
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = server.enabled;
+    // 主色随状态：启用=强调色，停用=灰；信任中的服务器再用图标点亮。
+    final leadColor = enabled ? AppTheme.accentPrimary : AppTheme.textTertiary;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: enabled ? AppTheme.surface2 : AppTheme.surface1,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(
+          color: AppTheme.surface3.withValues(alpha: enabled ? 0.7 : 0.4),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // 传输类型图标
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: leadColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+            ),
+            child: Icon(
+              _isHttp ? Icons.public_outlined : Icons.terminal_outlined,
+              size: 18,
+              color: leadColor,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 标题行：名称 + 徽章
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        server.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: enabled
+                              ? AppTheme.textPrimary
+                              : AppTheme.textTertiary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    _McpBadge(
+                      label: _isHttp ? '远程' : '本机命令',
+                      color: AppTheme.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    // 平台徽章：同步分发的适用范围（迁移 48）。
+                    _McpBadge(
+                      label: server.platform == 'all'
+                          ? '全部平台'
+                          : '仅 ${server.platform}',
+                      color: AppTheme.textTertiary,
+                    ),
+                    if (server.trusted) ...[
+                      const SizedBox(width: 4),
+                      _McpBadge(
+                        label: '信任·免审批',
+                        color: AppTheme.accentPrimary,
+                        icon: Icons.verified_user_outlined,
+                      ),
+                    ] else if (server.allowReadonlyAuto) ...[
+                      const SizedBox(width: 4),
+                      _McpBadge(
+                        label: '只读免审批',
+                        color: AppTheme.success,
+                        icon: Icons.lock_open_outlined,
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 3),
+                // 端点：命令+参数 或 URL，单行省略
+                Text(
+                  _endpoint,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: enabled
+                        ? AppTheme.textSecondary
+                        : AppTheme.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // 溢出菜单：低频操作（编辑/审批策略/删除）收进来，列表不再横排 5 个图标
+          PopupMenuButton<String>(
+            tooltip: '更多操作',
+            icon: Icon(
+              Icons.more_horiz,
+              size: 18,
+              color: AppTheme.textTertiary,
+            ),
+            color: AppTheme.surface3,
+            onSelected: (value) => switch (value) {
+              'edit' => onEdit(),
+              'trusted' => onToggleTrusted(),
+              'readonly' => onToggleReadonly(),
+              'delete' => onDelete(),
+              _ => null,
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit_outlined, size: 16),
+                    SizedBox(width: 8),
+                    Text('编辑'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'trusted',
+                child: Row(
+                  children: [
+                    Icon(
+                      server.trusted
+                          ? Icons.shield_outlined
+                          : Icons.verified_user_outlined,
+                      size: 16,
+                      color: server.trusted
+                          ? AppTheme.textSecondary
+                          : AppTheme.accentPrimary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(server.trusted ? '改为逐次审批' : '标为信任（免审批）'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'readonly',
+                child: Row(
+                  children: [
+                    Icon(
+                      server.allowReadonlyAuto
+                          ? Icons.lock_outlined
+                          : Icons.lock_open_outlined,
+                      size: 16,
+                      color: server.allowReadonlyAuto
+                          ? AppTheme.textSecondary
+                          : AppTheme.success,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(server.allowReadonlyAuto ? '关闭只读免审批' : '开只读免审批'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline, size: 16),
+                    SizedBox(width: 8),
+                    Text('删除'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          Switch(value: enabled, onChanged: onToggleEnabled),
+        ],
+      ),
+    );
+  }
+}
+
+/// 小号语义色徽章（可带图标）：名称右侧的传输/平台/审批策略标签。
+class _McpBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+  final IconData? icon;
+
+  const _McpBadge({required this.label, required this.color, this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 10, color: color),
+            const SizedBox(width: 2),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -31,9 +31,13 @@ class ReviewRepo extends ConversationRepository {
     proposal('B'),
     proposal('C'),
   ];
+
+  /// 处理记录（回执）列表；默认空，需要测「处理记录」页签时填。
+  List<api.ChatDecisionDto> receipts = [];
   bool stale = false;
   String? failId;
   String status = 'succeeded';
+
   /// 回执口径控制：null=默认短回执；长回执用于折叠摘要测试。
   String? receiptResult;
 
@@ -48,7 +52,7 @@ class ReviewRepo extends ConversationRepository {
     String? conversationId, {
     int offset = 0,
     int limit = 25,
-  }) async => [];
+  }) async => [if (receipts.isNotEmpty) ...receipts.skip(offset).take(limit)];
   @override
   Future<List<dynamic>> listPendingActions(String conversationId) async => [];
 
@@ -83,6 +87,7 @@ class ReviewRepo extends ConversationRepository {
       result: receiptResult ?? '回执 ${request.proposalId}',
       action: 'create_todo',
       argsJson: '{}',
+      startedAt: '2026-11-04T08:00:00Z',
     );
   }
 }
@@ -173,6 +178,121 @@ void main() {
     },
   );
 
+  testWidgets('面板形态：点提议进详情后能「返回列表」回到列表窗格', (tester) async {
+    final repo = ReviewRepo();
+    await mount(
+      tester,
+      repo,
+      const ChatProposalReviewDialog(conversationId: 'conversation'),
+      size: const Size(900, 850),
+    );
+    // 列表窗格：点第一条提议
+    await tester.tap(find.text('A'));
+    await tester.pumpAndSettle();
+    // 详情窗格出现，顶部「返回列表」入口（底部重复入口已删 2026-11-04）
+    expect(find.text('返回列表'), findsOneWidget);
+    await tester.tap(find.text('返回列表'));
+    await tester.pumpAndSettle();
+    // 回到列表窗格：详情收起，列表重新可见
+    expect(find.text('返回列表'), findsNothing);
+    expect(find.text('A'), findsOneWidget);
+    expect(find.text('选择左侧一条提议查看详情'), findsOneWidget);
+  });
+
+  testWidgets('面板形态：处理记录详情也能「返回列表」', (tester) async {
+    final repo = ReviewRepo()..receiptResult = '回执 A';
+    await mount(
+      tester,
+      repo,
+      const ChatProposalReviewDialog(conversationId: 'conversation'),
+      size: const Size(900, 850),
+    );
+    // 先选中并进入详情，再接受
+    await tester.tap(find.text('A'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('接受这项'));
+    await tester.pumpAndSettle();
+    // 决策完成后详情面板显示回执；顶部返回列表入口应仍可用
+    expect(find.text('返回列表'), findsOneWidget);
+    await tester.tap(find.text('返回列表'));
+    await tester.pumpAndSettle();
+    expect(find.text('返回列表'), findsNothing);
+    expect(find.text('选择左侧一条提议查看详情'), findsOneWidget);
+  });
+
+  testWidgets('处理记录详情：顶部有「返回列表」，系统返回也回列表', (tester) async {
+    final repo = ReviewRepo()
+      ..receipts = [
+        api.ChatDecisionDto(
+          kind: 'action',
+          id: 'A',
+          conversationId: 'conversation',
+          version: 1,
+          decision: 'accept',
+          status: 'succeeded',
+          result: '回执 A',
+          action: 'create_todo',
+          argsJson: '{}',
+          startedAt: '2026-11-04T08:00:00Z',
+        ),
+      ];
+    await mount(
+      tester,
+      repo,
+      const ChatProposalReviewDialog(conversationId: 'conversation'),
+      size: const Size(900, 850),
+    );
+    // 切到处理记录页签，打开一条回执详情（内联路径，此前没有返回按钮）
+    await tester.tap(find.text('处理记录'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('创建待办 · 已完成'));
+    await tester.pumpAndSettle();
+    expect(find.text('返回列表'), findsOneWidget);
+    // 系统返回手势：回列表而不是关面板
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('返回列表'), findsNothing);
+    expect(find.text('回执 A'), findsOneWidget);
+  });
+
+  testWidgets('系统返回手势：详情态回列表而不是关掉整个面板', (tester) async {
+    final repo = ReviewRepo();
+    await mount(
+      tester,
+      repo,
+      const ChatProposalReviewDialog(conversationId: 'conversation'),
+      size: const Size(900, 850),
+    );
+    await tester.tap(find.text('A'));
+    await tester.pumpAndSettle();
+    expect(find.text('返回列表'), findsOneWidget);
+    // 模拟 Android 返回键/手势
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    // 回到列表态：详情收起，面板整体没有被关（还能看到列表与占位）
+    expect(find.text('返回列表'), findsNothing);
+    expect(find.text('A'), findsOneWidget);
+    expect(find.text('选择左侧一条提议查看详情'), findsOneWidget);
+  });
+
+  testWidgets('窄屏页内切换：详情页内也能「返回列表」', (tester) async {
+    final repo = ReviewRepo();
+    await mount(
+      tester,
+      repo,
+      const ChatProposalReviewDialog(conversationId: 'conversation'),
+      size: const Size(360, 760),
+    );
+    await tester.tap(find.text('A'));
+    await tester.pumpAndSettle();
+    expect(find.text('返回列表'), findsOneWidget);
+    await tester.tap(find.text('返回列表'));
+    await tester.pumpAndSettle();
+    // 窄屏：返回后应回到列表（页内切换，不叠对话框）
+    expect(find.text('返回列表'), findsNothing);
+    expect(find.text('A'), findsOneWidget);
+  });
+
   testWidgets(
     'batch review authorizes only explicitly selected snapshots and reports partial failure',
     (tester) async {
@@ -236,8 +356,7 @@ void main() {
   testWidgets('long receipts collapse to preview with expand action', (
     tester,
   ) async {
-    final repo = ReviewRepo()
-      ..receiptResult = '${'数据行\n' * 60}TAILMARKER';
+    final repo = ReviewRepo()..receiptResult = '${'数据行\n' * 60}TAILMARKER';
     await mount(
       tester,
       repo,
@@ -246,15 +365,21 @@ void main() {
     await tester.tap(find.text('接受这项'));
     await tester.pumpAndSettle();
     expect(find.textContaining('展开完整回执'), findsOneWidget);
-    expect(find.textContaining('TAILMARKER'), findsNothing,
-        reason: '折叠态不糊全文尾部');
+    expect(
+      find.textContaining('TAILMARKER'),
+      findsNothing,
+      reason: '折叠态不糊全文尾部',
+    );
     final expand = find.textContaining('展开完整回执');
     await tester.ensureVisible(expand);
     await tester.pumpAndSettle();
     await tester.tap(expand, warnIfMissed: true);
     await tester.pumpAndSettle();
-    expect(find.textContaining('TAILMARKER'), findsOneWidget,
-        reason: '展开后全文可见');
+    expect(
+      find.textContaining('TAILMARKER'),
+      findsOneWidget,
+      reason: '展开后全文可见',
+    );
   });
 
   testWidgets('short receipts render plainly without expand action', (
@@ -295,11 +420,7 @@ void main() {
       targetBasisJson: '[]',
     );
 
-    await mount(
-      tester,
-      repo,
-      ChatProposalDetailDialog(proposal: goalProposal),
-    );
+    await mount(tester, repo, ChatProposalDetailDialog(proposal: goalProposal));
 
     // 验证切片卡片结构化呈现
     expect(find.text('发布 Elsewhen 1.0'), findsOneWidget);
@@ -329,3 +450,5 @@ void main() {
     expect(repo.edits.single['current_focus'], '跑通 Android 真机自同步');
   });
 }
+
+void main2() {}

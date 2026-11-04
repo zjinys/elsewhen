@@ -97,18 +97,16 @@ class _ChatProposalBatchDialogState
       alignment: MainAxisAlignment.end,
       spacing: 8,
       children: [
-        TextButton(
-          onPressed: _busy
-              ? null
-              : () {
-                  if (panelClose != null) {
-                    panelClose();
-                  } else {
+        // 面板顶部已有「‹ 返回列表」，底部不再重复；对话框形态仍靠「关闭」。
+        if (panelClose == null)
+          TextButton(
+            onPressed: _busy
+                ? null
+                : () {
                     Navigator.maybePop(context, _finished);
-                  }
-                },
-          child: Text(panelClose != null ? '返回列表' : '关闭'),
-        ),
+                  },
+            child: const Text('关闭'),
+          ),
         if (!_finished) ...[
           TextButton(
             onPressed: _busy ? null : () => _apply(false),
@@ -126,23 +124,37 @@ class _ChatProposalBatchDialogState
     );
     if (isPanel) {
       return PopScope(
-        canPop: !_busy,
+        // 系统返回＝「返回列表」，同详情面板；列表态才关 sheet。
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && !_busy && panelClose != null) panelClose();
+        },
         child: Column(
           children: [
+            // 顶部「返回列表」：与详情面板一致，移动端 sheet 需要
+            // 明显的返回入口（只靠底部按钮不可发现）。
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
+              child: Row(
+                children: [
+                  if (panelClose != null)
+                    TextButton.icon(
+                      onPressed: _busy ? null : panelClose,
+                      icon: const Icon(Icons.arrow_back_ios_new, size: 15),
+                      label: const Text('返回列表'),
+                    ),
+                  const Spacer(),
+                  Text(
+                    '审阅选中的 ${_widgetProposals.length} 项',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ],
+              ),
+            ),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '审阅选中的 ${_widgetProposals.length} 项',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    body,
-                  ],
-                ),
+                child: body,
               ),
             ),
             const Divider(height: 1),

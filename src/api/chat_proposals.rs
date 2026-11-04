@@ -52,6 +52,8 @@ pub struct ChatDecisionDto {
     pub result: String,
     pub action: String,
     pub args_json: String,
+    /// 决定发起时间（RFC3339）；列表项展示「多久之前」用。
+    pub started_at: String,
 }
 
 impl From<ChatDecision> for ChatDecisionDto {
@@ -66,6 +68,7 @@ impl From<ChatDecision> for ChatDecisionDto {
             result: value.result,
             action: value.action,
             args_json: value.args_json,
+            started_at: value.started_at,
         }
     }
 }

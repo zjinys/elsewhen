@@ -8,11 +8,14 @@ import '../providers/conversation_provider.dart';
 import '../providers/goal_provider.dart';
 import '../providers/todo_provider.dart';
 import '../providers/wiki_provider.dart';
+import 'adaptive_panel.dart';
 import 'markdown_view.dart';
+import '../utils/pretty_time.dart';
 
 part 'chat_proposal_parts/proposal_review_dialog.dart';
 part 'chat_proposal_parts/proposal_batch_dialog.dart';
 part 'chat_proposal_parts/proposal_detail_dialog.dart';
+
 // ── 方案评审按对话框粒度拆分（纯类段平移，零行为变化）──
 
 String _actionLabel(String action) =>
@@ -77,9 +80,16 @@ class ChatProposalReviewButton extends ConsumerWidget {
   final bool compact;
 
   Future<void> _open(BuildContext context) async {
-    await showDialog<bool>(
-      context: context,
-      builder: (_) => ChatProposalReviewDialog(conversationId: conversationId),
+    // 与「今天」行其他入口（目标/待办/创建主题）同一形态：一律 bottom
+    // sheet（全平台），不再分桌面 dialog / 移动 sheet。
+    await showPanelSheet<bool>(
+      context,
+      sheet: (_) => AdaptivePanelSheet(
+        title: conversationId == null ? '历史全局规则审阅' : '对话提议审阅',
+        maxHeightFactor: 0.85,
+        builder: (_) =>
+            ChatProposalReviewDialog(conversationId: conversationId),
+      ),
     );
     if (context.mounted) onChanged?.call();
   }
@@ -119,6 +129,10 @@ final _hasPendingProvider = FutureProvider.family<bool, String?>((
   conversationId,
 ) async {
   final repo = ref.watch(conversationRepositoryProvider);
-  final rows = await repo.listChatProposals(conversationId, offset: 0, limit: 1);
+  final rows = await repo.listChatProposals(
+    conversationId,
+    offset: 0,
+    limit: 1,
+  );
   return rows.isNotEmpty;
 });

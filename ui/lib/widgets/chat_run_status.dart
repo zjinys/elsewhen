@@ -47,8 +47,8 @@ final label = view.starting
       };
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(
         color: AppTheme.surface2,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
@@ -75,18 +75,35 @@ final label = view.starting
                         : controller.stop,
                     icon: const Icon(Icons.stop_circle_outlined, size: 16),
                     label: const Text('停止生成'),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                   ),
                 if (view.canRetry && view.connectionError == null)
                   TextButton.icon(
                     onPressed: controller.retry,
                     icon: const Icon(Icons.refresh, size: 16),
                     label: const Text('重新生成本条'),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                   ),
                 if (view.connectionError != null)
                   TextButton(
                     onPressed: view.starting || view.restoring
                         ? null
                         : controller.reconnect,
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      minimumSize: const Size(0, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                     child: const Text('重新连接'),
                   ),
               ],

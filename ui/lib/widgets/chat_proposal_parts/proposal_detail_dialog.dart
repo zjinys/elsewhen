@@ -62,8 +62,20 @@ class _ChatProposalDetailDialogState
     'save_wiki_revision' => ['title', 'content_md', 'change_note'],
     'rename_wiki_page' => ['new_title'],
     'record_event' => ['raw_text'],
-    'create_goal' => ['content', 'phase', 'why', 'current_focus', 'blocker', 'done_criteria'],
-    'update_goal_facets' => ['why', 'current_focus', 'blocker', 'done_criteria'],
+    'create_goal' => [
+      'content',
+      'phase',
+      'why',
+      'current_focus',
+      'blocker',
+      'done_criteria',
+    ],
+    'update_goal_facets' => [
+      'why',
+      'current_focus',
+      'blocker',
+      'done_criteria',
+    ],
     _ => [],
   };
 
@@ -76,10 +88,9 @@ class _ChatProposalDetailDialogState
     _controllers.clear();
     for (final field in _editableFields) {
       _controllers[field] = TextEditingController(
-        text: args[field]?.toString() ??
-            (field == 'priority'
-                ? 'normal'
-                : (field == 'phase' ? 'near' : '')),
+        text:
+            args[field]?.toString() ??
+            (field == 'priority' ? 'normal' : (field == 'phase' ? 'near' : '')),
       );
     }
     setState(() {
@@ -152,27 +163,45 @@ class _ChatProposalDetailDialogState
 
   @override
   Widget build(BuildContext context) {
-    // 面板形态：直接返回内容+底部操作条（供主从布局右栏）。
-    // 对话框形态：包 AlertDialog 壳。
+    // 面板形态：直接返回内容+底部操作条（供主从布局右栏）。顶栏带
+    // 「返回列表」入口：移动端 sheet 无系统标题栏，只靠底部按钮
+    // 返回不可发现（用户反馈 2026-11-04）。
     final isPanel = widget is ChatProposalDetailPanel;
     if (isPanel) {
+      final panelClose = _panelOnClose;
       return PopScope(
-        canPop: !_busy,
+        // 系统返回（Android 手势/返回键）＝「返回列表」，不冒泡关掉
+        // 整个审阅面板；列表态才允许 pop 关 sheet。
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && !_busy && panelClose != null) panelClose();
+        },
         child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
+              child: Row(
+                children: [
+                  if (panelClose != null)
+                    TextButton.icon(
+                      onPressed: _busy ? null : panelClose,
+                      icon: const Icon(Icons.arrow_back_ios_new, size: 15),
+                      label: const Text('返回列表'),
+                    ),
+                  const Spacer(),
+                  Text(
+                    '${_actionLabel(_proposal.action)} · 版本 ${_proposal.version}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ],
+              ),
+            ),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${_actionLabel(_proposal.action)} · 版本 ${_proposal.version}',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    ..._detailBlocks(context),
-                  ],
+                  children: [..._detailBlocks(context)],
                 ),
               ),
             ),
@@ -228,7 +257,8 @@ class _ChatProposalDetailDialogState
             key: ValueKey(entry.key),
             controller: entry.value,
             enabled: !_busy,
-            minLines: entry.key == 'content_md' ||
+            minLines:
+                entry.key == 'content_md' ||
                     entry.key == 'content' ||
                     entry.key == 'why' ||
                     entry.key == 'current_focus' ||
@@ -274,22 +304,22 @@ class _ChatProposalDetailDialogState
 
   Widget _actionButtons(BuildContext context) {
     final panelClose = _panelOnClose;
+    // 面板形态顶部已有「‹ 返回列表」（用户反馈 2026-11-04：底部重复），
+    // 底部操作条不再放返回；对话框形态仍靠底部「关闭」收尾。
+    final showClose = panelClose == null;
     return OverflowBar(
       alignment: MainAxisAlignment.end,
       spacing: 8,
       children: [
-        TextButton(
-          onPressed: _busy
-              ? null
-              : () {
-                  if (panelClose != null) {
-                    panelClose();
-                  } else {
+        if (showClose)
+          TextButton(
+            onPressed: _busy
+                ? null
+                : () {
                     Navigator.maybePop(context, _changed);
-                  }
-                },
-          child: Text(panelClose != null ? '返回列表' : '关闭'),
-        ),
+                  },
+            child: const Text('关闭'),
+          ),
         if (_receipt == null && !_editing) ...[
           if (_editableFields.isNotEmpty && _args(_proposal.argsJson) != null)
             TextButton(
