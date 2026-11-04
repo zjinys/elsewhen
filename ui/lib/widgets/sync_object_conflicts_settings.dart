@@ -4,7 +4,7 @@ import '../bridge/api.dart' as api;
 import '../sync/sync_object_conflicts_controller.dart';
 import 'sync_conflict_section.dart';
 
-/// 待办/目标/规则同步冲突的只读审阅列表 + 显式裁决入口（与 wiki 页冲突同款）。
+/// 待办/目标/计划/规则同步冲突的只读审阅列表 + 显式裁决入口（与 wiki 页冲突同款）。
 ///
 /// 双端状态并列（主文本/状态/更新时间）；候选不搬运全文历史。裁决只支持
 /// 「保留本端」/「采纳对端」二选一——保留 = 本端现状为准（删除态即裁决，
@@ -41,11 +41,11 @@ class _SyncObjectConflictsSettingsState
           icon: Icons.checklist_outlined,
           title: '待办与目标同步冲突',
           explainer:
-              '来自其他设备的待办、目标、规则与本端互相冲突。选择「保留本端」或「采纳对端」，不做字段拼接。',
+              '来自其他设备的待办、目标、计划、规则与本端互相冲突。选择「保留本端」或「采纳对端」，不做字段拼接。',
           loaded: conflicts != null,
           busy: controller.busy,
           error: controller.error,
-          emptyText: '没有待审阅的待办/目标/规则冲突。',
+          emptyText: '没有待审阅的待办/目标/计划/规则冲突。',
           cards: [
             for (final conflict in conflicts ?? const []) _ObjectConflictCard(
               key: ValueKey(conflict.opId),
@@ -64,6 +64,7 @@ class _SyncObjectConflictsSettingsState
 String _kindText(String kind) => switch (kind) {
   'todo' => '待办',
   'goal' => '目标',
+  'plan' => '计划',
   'rule' => '规则',
   _ => kind,
 };
@@ -71,6 +72,7 @@ String _kindText(String kind) => switch (kind) {
 String _reasonText(String reason) => switch (reason) {
   'todo_deleted' => '对端已删除本条，而之后仍有改动要送达',
   'goal_deleted' => '对端已删除本条（目标无删除语义，删除后收到编辑必审）',
+  'plan_deleted' => '对端已删除本条，而之后仍有改动要送达',
   'rule_deleted' => '对端已删除本条，而之后仍有改动要送达',
   'base_revision_changed' => '两端都修改了同一条，各自基于旧版本',
   'goal_active_limit' => '对端目标会使本端活跃目标超出上限',

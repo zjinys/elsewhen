@@ -352,6 +352,8 @@ impl Store {
                 created_at,
                 updated_at,
                 superseded_at,
+                plan_id,
+                step_index,
             } => {
                 validate_id(id)?;
                 ensure!(
@@ -367,8 +369,31 @@ impl Store {
                 // 源端受同样的活跃上限不变式约束，快照里不可能出现违限行；
                 // 违限行到此必炸（触发器 fail-closed），不旁路。
                 self.connection.execute(
-                    "INSERT INTO goals(id,content,phase,status,why,current_focus,blocker,done_criteria,created_at,updated_at,superseded_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
-                    params![id,content,phase,normalized_status,why,current_focus,blocker,done_criteria,created_at,updated_at,superseded_at],
+                    "INSERT INTO goals(id,content,phase,status,why,current_focus,blocker,done_criteria,created_at,updated_at,superseded_at,plan_id,step_index) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
+                    params![id,content,phase,normalized_status,why,current_focus,blocker,done_criteria,created_at,updated_at,superseded_at,plan_id,step_index],
+                )?;
+            }
+            Record::Plan {
+                id,
+                intent_text,
+                vision,
+                assumptions,
+                status,
+                created_at,
+                updated_at,
+            } => {
+                validate_id(id)?;
+                ensure!(
+                    !intent_text.trim().is_empty()
+                        && matches!(status.as_str(), "proposed" | "active" | "paused" | "completed"),
+                    "sync_snapshot_plan_invalid"
+                );
+                let assumptions_json: serde_json::Value = serde_json::from_str(&assumptions)
+                    .map_err(|_| anyhow::anyhow!("sync_snapshot_plan_invalid"))?;
+                ensure!(assumptions_json.is_array(), "sync_snapshot_plan_invalid");
+                self.connection.execute(
+                    "INSERT INTO goal_plans(id,intent_text,vision,assumptions,status,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7)",
+                    params![id, intent_text, vision, assumptions, status, created_at, updated_at],
                 )?;
             }
             Record::Rule {

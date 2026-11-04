@@ -21,6 +21,7 @@ import 'api/knowledge_workflows.dart';
 import 'api/mcp.dart';
 import 'api/page_marks.dart';
 import 'api/period_stats.dart';
+import 'api/plans.dart';
 import 'api/provider_config.dart';
 import 'api/provider_reachability.dart';
 import 'api/records.dart';
@@ -113,7 +114,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 1326355545;
+  int get rustContentHash => -1437813334;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -195,6 +196,12 @@ abstract class RustLibApi extends BaseApi {
     required String baseUrl,
   });
 
+  Future<void> crateApiPlansAttachGoalToPlan({
+    required String goalId,
+    required String planId,
+    PlatformInt64? stepIndex,
+  });
+
   Future<InputRecordDto> crateApiRecordsBeginUrlInput({
     required String rawText,
     String? idempotencyKey,
@@ -272,6 +279,8 @@ abstract class RustLibApi extends BaseApi {
     required PlatformInt64 protectedRevision,
   });
 
+  Future<PlatformInt64> crateApiPlansCountActiveSteps({required String planId});
+
   Future<WikiPageDto> crateApiKnowledgeWorkflowsCreateArtifactFromMessage({
     required String slug,
     required String messageId,
@@ -301,6 +310,12 @@ abstract class RustLibApi extends BaseApi {
   Future<String> crateApiPageMarksCreatePageMark({
     required String conversationId,
     required String boundaryMessageId,
+  });
+
+  Future<PlanDto> crateApiPlansCreatePlan({
+    required String intentText,
+    required String vision,
+    required String assumptions,
   });
 
   Future<TodoDto> crateApiTodosCreateTodo({
@@ -365,6 +380,8 @@ abstract class RustLibApi extends BaseApi {
   Future<bool> crateApiHabitNudgesDeleteHabitNudge({required String id});
 
   Future<void> crateApiMcpDeleteMcpServer({required String id});
+
+  Future<void> crateApiPlansDeletePlan({required String id});
 
   Future<bool> crateApiRelationsDeleteRelation({required String id});
 
@@ -558,6 +575,8 @@ abstract class RustLibApi extends BaseApi {
     required String periodType,
     required String date,
   });
+
+  Future<PlanDto?> crateApiPlansGetPlan({required String id});
 
   Future<ProcessorHandoffStateDto>
   crateApiSyncDatasetsGetProcessorHandoffState();
@@ -774,6 +793,10 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<SyncJoinEntryDto>> crateApiSyncJoinListPendingSyncJoins();
 
+  Future<List<GoalDto>> crateApiPlansListPlanSteps({required String planId});
+
+  Future<List<PlanDto>> crateApiPlansListPlans();
+
   Future<List<ChatRuleHitDto>> crateApiRulesListRecentChatRuleHits({
     required PlatformInt64 limit,
   });
@@ -822,6 +845,8 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<List<UserSkillDto>> crateApiUserSkillsListUserSkills();
+
+  Future<List<GoalDto>> crateApiPlansListWaitingSteps({required String planId});
 
   Future<List<WikiPageConflictDto>>
   crateApiSyncConflictsListWikiPageConflicts();
@@ -1173,6 +1198,11 @@ abstract class RustLibApi extends BaseApi {
     required bool active,
   });
 
+  Future<void> crateApiPlansSetPlanStatus({
+    required String id,
+    required String status,
+  });
+
   Future<void> crateApiRulesSetRuleHitFeedback({
     required String id,
     String? feedback,
@@ -1331,6 +1361,12 @@ abstract class RustLibApi extends BaseApi {
     required PlatformInt64 expectedVersion,
     required String approvalToken,
     required String argsJson,
+  });
+
+  Future<void> crateApiPlansUpdatePlanMeta({
+    required String id,
+    required String vision,
+    required String assumptions,
   });
 
   Future<WikiPageDto> crateApiWikiUpdateProjectPath({
@@ -1866,6 +1902,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiProviderReachabilityAssessBaseUrlConstMeta =>
       const TaskConstMeta(debugName: "assess_base_url", argNames: ["baseUrl"]);
+
+  @override
+  Future<void> crateApiPlansAttachGoalToPlan({
+    required String goalId,
+    required String planId,
+    PlatformInt64? stepIndex,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(goalId);
+          var arg1 = cst_encode_String(planId);
+          var arg2 = cst_encode_opt_box_autoadd_i_64(stepIndex);
+          return wire.wire__crate__api__plans__attach_goal_to_plan(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPlansAttachGoalToPlanConstMeta,
+        argValues: [goalId, planId, stepIndex],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlansAttachGoalToPlanConstMeta =>
+      const TaskConstMeta(
+        debugName: "attach_goal_to_plan",
+        argNames: ["goalId", "planId", "stepIndex"],
+      );
 
   @override
   Future<InputRecordDto> crateApiRecordsBeginUrlInput({
@@ -2409,6 +2481,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<PlatformInt64> crateApiPlansCountActiveSteps({
+    required String planId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(planId);
+          return wire.wire__crate__api__plans__count_active_steps(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_i_64,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPlansCountActiveStepsConstMeta,
+        argValues: [planId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlansCountActiveStepsConstMeta =>
+      const TaskConstMeta(
+        debugName: "count_active_steps",
+        argNames: ["planId"],
+      );
+
+  @override
   Future<WikiPageDto> crateApiKnowledgeWorkflowsCreateArtifactFromMessage({
     required String slug,
     required String messageId,
@@ -2600,6 +2699,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "create_page_mark",
         argNames: ["conversationId", "boundaryMessageId"],
       );
+
+  @override
+  Future<PlanDto> crateApiPlansCreatePlan({
+    required String intentText,
+    required String vision,
+    required String assumptions,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(intentText);
+          var arg1 = cst_encode_String(vision);
+          var arg2 = cst_encode_String(assumptions);
+          return wire.wire__crate__api__plans__create_plan(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_plan_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPlansCreatePlanConstMeta,
+        argValues: [intentText, vision, assumptions],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlansCreatePlanConstMeta => const TaskConstMeta(
+    debugName: "create_plan",
+    argNames: ["intentText", "vision", "assumptions"],
+  );
 
   @override
   Future<TodoDto> crateApiTodosCreateTodo({
@@ -3032,6 +3166,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiMcpDeleteMcpServerConstMeta =>
       const TaskConstMeta(debugName: "delete_mcp_server", argNames: ["id"]);
+
+  @override
+  Future<void> crateApiPlansDeletePlan({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire.wire__crate__api__plans__delete_plan(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPlansDeletePlanConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlansDeletePlanConstMeta =>
+      const TaskConstMeta(debugName: "delete_plan", argNames: ["id"]);
 
   @override
   Future<bool> crateApiRelationsDeleteRelation({required String id}) {
@@ -4570,6 +4726,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "get_period_stats",
         argNames: ["periodType", "date"],
       );
+
+  @override
+  Future<PlanDto?> crateApiPlansGetPlan({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          return wire.wire__crate__api__plans__get_plan(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_opt_box_autoadd_plan_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPlansGetPlanConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlansGetPlanConstMeta =>
+      const TaskConstMeta(debugName: "get_plan", argNames: ["id"]);
 
   @override
   Future<ProcessorHandoffStateDto>
@@ -6275,6 +6453,49 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_pending_sync_joins", argNames: []);
 
   @override
+  Future<List<GoalDto>> crateApiPlansListPlanSteps({required String planId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(planId);
+          return wire.wire__crate__api__plans__list_plan_steps(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_goal_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPlansListPlanStepsConstMeta,
+        argValues: [planId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlansListPlanStepsConstMeta =>
+      const TaskConstMeta(debugName: "list_plan_steps", argNames: ["planId"]);
+
+  @override
+  Future<List<PlanDto>> crateApiPlansListPlans() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__plans__list_plans(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_plan_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPlansListPlansConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlansListPlansConstMeta =>
+      const TaskConstMeta(debugName: "list_plans", argNames: []);
+
+  @override
   Future<List<ChatRuleHitDto>> crateApiRulesListRecentChatRuleHits({
     required PlatformInt64 limit,
   }) {
@@ -6690,6 +6911,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiUserSkillsListUserSkillsConstMeta =>
       const TaskConstMeta(debugName: "list_user_skills", argNames: []);
+
+  @override
+  Future<List<GoalDto>> crateApiPlansListWaitingSteps({
+    required String planId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(planId);
+          return wire.wire__crate__api__plans__list_waiting_steps(port_, arg0);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_goal_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPlansListWaitingStepsConstMeta,
+        argValues: [planId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlansListWaitingStepsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_waiting_steps",
+        argNames: ["planId"],
+      );
 
   @override
   Future<List<WikiPageConflictDto>>
@@ -9117,6 +9365,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiPlansSetPlanStatus({
+    required String id,
+    required String status,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_String(status);
+          return wire.wire__crate__api__plans__set_plan_status(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPlansSetPlanStatusConstMeta,
+        argValues: [id, status],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlansSetPlanStatusConstMeta => const TaskConstMeta(
+    debugName: "set_plan_status",
+    argNames: ["id", "status"],
+  );
+
+  @override
   Future<void> crateApiRulesSetRuleHitFeedback({
     required String id,
     String? feedback,
@@ -10263,6 +10543,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiPlansUpdatePlanMeta({
+    required String id,
+    required String vision,
+    required String assumptions,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(id);
+          var arg1 = cst_encode_String(vision);
+          var arg2 = cst_encode_String(assumptions);
+          return wire.wire__crate__api__plans__update_plan_meta(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPlansUpdatePlanMetaConstMeta,
+        argValues: [id, vision, assumptions],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlansUpdatePlanMetaConstMeta =>
+      const TaskConstMeta(
+        debugName: "update_plan_meta",
+        argNames: ["id", "vision", "assumptions"],
+      );
+
+  @override
   Future<WikiPageDto> crateApiWikiUpdateProjectPath({
     required String slug,
     required String newPath,
@@ -10874,6 +11190,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PlanDto dco_decode_box_autoadd_plan_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_plan_dto(raw);
+  }
+
+  @protected
   ProcessingYieldProofDto dco_decode_box_autoadd_processing_yield_proof_dto(
     dynamic raw,
   ) {
@@ -11479,8 +11801,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   GoalDto dco_decode_goal_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 11)
-      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
     return GoalDto(
       id: dco_decode_String(arr[0]),
       content: dco_decode_String(arr[1]),
@@ -11490,9 +11812,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       currentFocus: dco_decode_opt_String(arr[5]),
       blocker: dco_decode_opt_String(arr[6]),
       doneCriteria: dco_decode_opt_String(arr[7]),
-      createdAt: dco_decode_String(arr[8]),
-      updatedAt: dco_decode_String(arr[9]),
-      supersededAt: dco_decode_opt_String(arr[10]),
+      planId: dco_decode_opt_String(arr[8]),
+      stepIndex: dco_decode_opt_box_autoadd_i_64(arr[9]),
+      createdAt: dco_decode_String(arr[10]),
+      updatedAt: dco_decode_String(arr[11]),
+      supersededAt: dco_decode_opt_String(arr[12]),
     );
   }
 
@@ -12384,6 +12708,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<PlanDto> dco_decode_list_plan_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_plan_dto).toList();
+  }
+
+  @protected
   Int64List dco_decode_list_prim_i_64_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeInt64List(raw);
@@ -12849,6 +13179,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PlanDto? dco_decode_opt_box_autoadd_plan_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_plan_dto(raw);
+  }
+
+  @protected
   SourceSnapshot? dco_decode_opt_box_autoadd_source_snapshot(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_source_snapshot(raw);
@@ -13024,6 +13360,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       byProject: dco_decode_list_named_count_dto(arr[7]),
       byActivity: dco_decode_list_named_count_dto(arr[8]),
       dailyCounts: dco_decode_list_day_count_dto(arr[9]),
+    );
+  }
+
+  @protected
+  PlanDto dco_decode_plan_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return PlanDto(
+      id: dco_decode_String(arr[0]),
+      intentText: dco_decode_String(arr[1]),
+      vision: dco_decode_String(arr[2]),
+      assumptions: dco_decode_String(arr[3]),
+      status: dco_decode_String(arr[4]),
+      createdAt: dco_decode_String(arr[5]),
+      updatedAt: dco_decode_String(arr[6]),
     );
   }
 
@@ -14050,6 +14403,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PlanDto sse_decode_box_autoadd_plan_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_plan_dto(deserializer));
+  }
+
+  @protected
   ProcessingYieldProofDto sse_decode_box_autoadd_processing_yield_proof_dto(
     SseDeserializer deserializer,
   ) {
@@ -14813,6 +15172,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_currentFocus = sse_decode_opt_String(deserializer);
     var var_blocker = sse_decode_opt_String(deserializer);
     var var_doneCriteria = sse_decode_opt_String(deserializer);
+    var var_planId = sse_decode_opt_String(deserializer);
+    var var_stepIndex = sse_decode_opt_box_autoadd_i_64(deserializer);
     var var_createdAt = sse_decode_String(deserializer);
     var var_updatedAt = sse_decode_String(deserializer);
     var var_supersededAt = sse_decode_opt_String(deserializer);
@@ -14825,6 +15186,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       currentFocus: var_currentFocus,
       blocker: var_blocker,
       doneCriteria: var_doneCriteria,
+      planId: var_planId,
+      stepIndex: var_stepIndex,
       createdAt: var_createdAt,
       updatedAt: var_updatedAt,
       supersededAt: var_supersededAt,
@@ -16276,6 +16639,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<PlanDto> sse_decode_list_plan_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <PlanDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_plan_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   Int64List sse_decode_list_prim_i_64_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
@@ -17016,6 +17391,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PlanDto? sse_decode_opt_box_autoadd_plan_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_plan_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   SourceSnapshot? sse_decode_opt_box_autoadd_source_snapshot(
     SseDeserializer deserializer,
   ) {
@@ -17265,6 +17651,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       byProject: var_byProject,
       byActivity: var_byActivity,
       dailyCounts: var_dailyCounts,
+    );
+  }
+
+  @protected
+  PlanDto sse_decode_plan_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_intentText = sse_decode_String(deserializer);
+    var var_vision = sse_decode_String(deserializer);
+    var var_assumptions = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    var var_updatedAt = sse_decode_String(deserializer);
+    return PlanDto(
+      id: var_id,
+      intentText: var_intentText,
+      vision: var_vision,
+      assumptions: var_assumptions,
+      status: var_status,
+      createdAt: var_createdAt,
+      updatedAt: var_updatedAt,
     );
   }
 
@@ -18513,6 +18920,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_plan_dto(PlanDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_plan_dto(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_processing_yield_proof_dto(
     ProcessingYieldProofDto self,
     SseSerializer serializer,
@@ -19065,6 +19478,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.currentFocus, serializer);
     sse_encode_opt_String(self.blocker, serializer);
     sse_encode_opt_String(self.doneCriteria, serializer);
+    sse_encode_opt_String(self.planId, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.stepIndex, serializer);
     sse_encode_String(self.createdAt, serializer);
     sse_encode_String(self.updatedAt, serializer);
     sse_encode_opt_String(self.supersededAt, serializer);
@@ -20170,6 +20585,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_plan_dto(List<PlanDto> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_plan_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_prim_i_64_strict(
     Int64List self,
     SseSerializer serializer,
@@ -20804,6 +21228,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_plan_dto(
+    PlanDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_plan_dto(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_source_snapshot(
     SourceSnapshot? self,
     SseSerializer serializer,
@@ -21009,6 +21446,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_named_count_dto(self.byProject, serializer);
     sse_encode_list_named_count_dto(self.byActivity, serializer);
     sse_encode_list_day_count_dto(self.dailyCounts, serializer);
+  }
+
+  @protected
+  void sse_encode_plan_dto(PlanDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.intentText, serializer);
+    sse_encode_String(self.vision, serializer);
+    sse_encode_String(self.assumptions, serializer);
+    sse_encode_String(self.status, serializer);
+    sse_encode_String(self.createdAt, serializer);
+    sse_encode_String(self.updatedAt, serializer);
   }
 
   @protected

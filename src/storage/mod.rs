@@ -16,6 +16,7 @@ pub(crate) mod knowledge;
 mod mcp_servers;
 mod new_migrations;
 pub mod page_marks;
+mod plans;
 mod provider;
 mod provider_keys;
 pub use mcp_servers::McpServerConfig;
@@ -84,6 +85,7 @@ pub use digest::{
     DigestBatch, DigestBatchOutcome, DigestJobRow, DigestJobStats, DigestRunRow,
 };
 pub use goals::{Goal, GoalCompassNudge, GoalPhase, GoalStatus, MAX_ACTIVE_GOALS};
+pub use plans::{GoalPlan, PlanStatus};
 pub use knowledge::{
     KnowledgeIssue, KnowledgeMetadata, KnowledgeProposal, RejectedSourceRow, SourceSnapshot,
 };

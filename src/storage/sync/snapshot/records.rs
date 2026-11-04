@@ -20,12 +20,15 @@ pub(crate) const SNAPSHOT_CARRIED_DIRS: &[&str] = &["tweet_images"];
 /// kind/ref，旧消息缺省仍按 chat 解释。
 /// v8：新增 Record::HabitPageLink（习惯页与问候计划的关联，迁移 58）：
 /// 关联随快照走；页面去重与计划启停联动由应用层负责。
+/// v9：新增 Record::Plan（长程计划整行，P1 计划拆解）与 goals 行的
+/// plan_id/step_index 两列；跨 v8/v9 同样整份隔离（新增 serde 变体后
+/// 旧端标签分发失败会整份拒收，必须显式 bump）。
 /// 同步语义：定义随人走，激活看平台——stdio 的 platform 变体不再导致
 /// 整表排除；行上不含 headers（凭据不离本机）与 trusted（信任是本机
 /// 事实，apply 强制置 0 回到逐次审批）。新增 serde 变体后旧端标签分发
 /// 失败会整份拒收，跨 v4/v5 必须显式 bump——与 wire 枚举不同（那边
 /// append-only 可被旧端忽略）。
-pub(crate) const SNAPSHOT_VERSION: u32 = 8;
+pub(crate) const SNAPSHOT_VERSION: u32 = 9;
 
 /// 随快照携带的表。QUERIES 必须真实覆盖这里的每一张（覆盖性由门禁测试
 /// `snapshot_carries_every_table_or_explicitly_excludes_it` 兜住：新增表不登记
@@ -46,6 +49,7 @@ pub(crate) const SNAPSHOT_CARRIED_TABLES: &[&str] = &[
     "habit_nudges",
     "habit_page_links",
     "goals",
+    "goal_plans",
     "rules",
     "sync_object_heads",
     "sync_known_revisions",
@@ -430,9 +434,26 @@ pub(crate) enum Record {
         blocker: Option<String>,
         #[serde(default)]
         done_criteria: Option<String>,
+        #[serde(default)]
+        plan_id: Option<String>,
+        #[serde(default)]
+        step_index: Option<i64>,
         created_at: String,
         updated_at: String,
         superseded_at: Option<String>,
+    },
+    /// 长程计划整行（P1，AI 为中心的意图拆解）：goals.plan_id/step_index
+    /// 把步骤目标挂到计划上；assumptions 是 JSON 数组文本。
+    Plan {
+        id: String,
+        intent_text: String,
+        #[serde(default)]
+        vision: String,
+        #[serde(default)]
+        assumptions: String,
+        status: String,
+        created_at: String,
+        updated_at: String,
     },
     Rule {
         id: String,
@@ -529,7 +550,8 @@ pub(crate) const QUERIES: &[&str] = &[
     "SELECT rowid,json_object('kind','todo','id',id,'title',title,'status',status,'priority',priority,'due_at',due_at,'reminder',(reminder!=0),'related_event_id',related_event_id,'related_wiki_slug',related_wiki_slug,'note',note,'created_at',created_at,'updated_at',updated_at) FROM todos WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','habit_nudge','value',json_object('id',id,'page_slug',page_slug,'question',question,'done_label',done_label,'done_text',done_text,'missed_label',missed_label,'missed_text',missed_text,'weekdays',weekdays,'local_time',local_time,'enabled',json(CASE WHEN enabled=1 THEN 'true' ELSE 'false' END),'created_at',created_at,'updated_at',updated_at)) FROM habit_nudges WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','habit_page_link','id',id,'page_slug',page_slug,'nudge_id',nudge_id,'status',status,'source',source,'created_at',created_at,'updated_at',updated_at) FROM habit_page_links WHERE rowid>?1 ORDER BY rowid LIMIT 1",
-    "SELECT rowid,json_object('kind','goal','id',id,'content',content,'phase',phase,'status',status,'why',why,'current_focus',current_focus,'blocker',blocker,'done_criteria',done_criteria,'created_at',created_at,'updated_at',updated_at,'superseded_at',superseded_at) FROM goals WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','goal','id',id,'content',content,'phase',phase,'status',status,'why',why,'current_focus',current_focus,'blocker',blocker,'done_criteria',done_criteria,'created_at',created_at,'updated_at',updated_at,'superseded_at',superseded_at,'plan_id',plan_id,'step_index',step_index) FROM goals WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','plan','id',id,'intent_text',intent_text,'vision',vision,'assumptions',assumptions,'status',status,'created_at',created_at,'updated_at',updated_at) FROM goal_plans WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','rule','id',id,'content',content,'status',status,'created_at',created_at,'updated_at',updated_at,'conversation_id',conversation_id,'review_version',review_version,'essence',essence) FROM rules WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT h.rowid,json_object('kind','head','object_kind',h.object_kind,'object_id',h.object_id,'revision_id',h.revision_id,'deleted',json(CASE WHEN h.deleted=1 THEN 'true' ELSE 'false' END)) FROM sync_object_heads h WHERE h.rowid>?1 ORDER BY h.rowid LIMIT 1",
     "SELECT r.rowid,json_object('kind','known_revision','object_kind',r.object_kind,'object_id',r.object_id,'revision_id',r.revision_id) FROM sync_known_revisions r JOIN sync_object_heads h ON h.object_kind=r.object_kind AND h.object_id=r.object_id WHERE r.rowid>?1 ORDER BY r.rowid LIMIT 1",

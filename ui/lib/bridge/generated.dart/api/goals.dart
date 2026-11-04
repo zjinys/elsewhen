@@ -36,9 +36,10 @@ Future<List<GoalDto>> listCompletedGoals() =>
 Future<GoalDto?> getGoal({required String id}) =>
     RustLib.instance.api.crateApiGoalsGetGoal(id: id);
 
-/// 新建一条活跃目标（支持传入各认知切片）
+/// 新建一条目标（支持传入各认知切片）
 ///
-/// 活跃目标已满 3 条时拒绝并报错，界面须提示用户先归档一条，不得自动顶替既有目标。
+/// 活跃名额未满时直接激活；已满 3 条时以 paused（暂停搁置）状态创建，
+/// 保留完整上下文供随时读档唤醒，不报错也不自动顶替既有目标。
 Future<GoalDto> createGoal({
   required String content,
   required String phase,
@@ -216,6 +217,12 @@ class GoalDto {
   final String? currentFocus;
   final String? blocker;
   final String? doneCriteria;
+
+  /// 所属长程计划（P1 计划拆解；None = 未挂计划/独立目标）
+  final String? planId;
+
+  /// 计划内步骤序号（None = 未挂计划）
+  final PlatformInt64? stepIndex;
   final String createdAt;
   final String updatedAt;
   final String? supersededAt;
@@ -229,6 +236,8 @@ class GoalDto {
     this.currentFocus,
     this.blocker,
     this.doneCriteria,
+    this.planId,
+    this.stepIndex,
     required this.createdAt,
     required this.updatedAt,
     this.supersededAt,
@@ -244,6 +253,8 @@ class GoalDto {
       currentFocus.hashCode ^
       blocker.hashCode ^
       doneCriteria.hashCode ^
+      planId.hashCode ^
+      stepIndex.hashCode ^
       createdAt.hashCode ^
       updatedAt.hashCode ^
       supersededAt.hashCode;
@@ -261,6 +272,8 @@ class GoalDto {
           currentFocus == other.currentFocus &&
           blocker == other.blocker &&
           doneCriteria == other.doneCriteria &&
+          planId == other.planId &&
+          stepIndex == other.stepIndex &&
           createdAt == other.createdAt &&
           updatedAt == other.updatedAt &&
           supersededAt == other.supersededAt;

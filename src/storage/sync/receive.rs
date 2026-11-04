@@ -410,6 +410,11 @@ impl Store {
                 base_revision,
                 deleted,
             } => self.apply_sync_goal(op, goal, base_revision, *deleted),
+            SyncMutation::PlanChanged {
+                plan,
+                base_revision,
+                deleted,
+            } => self.apply_sync_plan(op, plan, base_revision, *deleted),
             SyncMutation::RuleChanged {
                 rule,
                 base_revision,

@@ -1,4 +1,4 @@
-//! S05：可变小对象（待办/目标/规则）同步冲突审阅。
+//! S05：可变小对象（待办/目标/计划/规则）同步冲突审阅。
 //!
 //! 通用化 wiki 页审阅框架（page_conflicts.rs）：候选 payload 原文留在
 //! `sync_operations`（state='conflict'），`sync_conflicts` 只是立案索引。
@@ -99,6 +99,17 @@ fn mutation_incoming(mutation: &SyncMutation) -> Result<ObjectConflictIncoming> 
             base_revision: base_revision.clone(),
             updated_at: goal.updated_at.clone(),
         },
+        SyncMutation::PlanChanged {
+            plan,
+            base_revision,
+            deleted,
+        } => ObjectConflictIncoming {
+            summary: plan.intent_text.clone(),
+            status: plan.status.clone(),
+            deleted: *deleted,
+            base_revision: base_revision.clone(),
+            updated_at: plan.updated_at.clone(),
+        },
         SyncMutation::RuleChanged {
             rule,
             base_revision,
@@ -115,14 +126,14 @@ fn mutation_incoming(mutation: &SyncMutation) -> Result<ObjectConflictIncoming> 
 }
 
 impl Store {
-    /// 列出待审阅的待办/目标/规则同步冲突（object_kind IN todo/goal/rule，
+    /// 列出待审阅的待办/目标/计划/规则同步冲突（object_kind IN todo/goal/plan/rule，
     /// 按流内序）。
     pub fn list_object_conflicts(&self) -> Result<Vec<ObjectConflictReview>> {
         let rows: Vec<ConflictRow> = {
             let mut statement = self.connection.prepare(
                 "SELECT c.op_id,c.object_kind,c.object_id,c.reason,o.origin_device_id,o.payload \
                  FROM sync_conflicts c JOIN sync_operations o ON o.op_id=c.op_id \
-                 WHERE c.object_kind IN ('todo','habit_nudge','goal','rule') AND o.state='conflict' \
+                 WHERE c.object_kind IN ('todo','habit_nudge','goal','plan','rule') AND o.state='conflict' \
                  ORDER BY o.origin_stream_id,o.origin_sequence",
             )?;
             statement
@@ -169,6 +180,14 @@ impl Store {
                         |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
                     )
                     .optional()?,
+                "plan" => self
+                    .connection
+                    .query_row(
+                        "SELECT intent_text,status,updated_at FROM goal_plans WHERE id=?1",
+                        [&row.object_id],
+                        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+                    )
+                    .optional()?,
                 _ => self
                     .connection
                     .query_row(
@@ -210,7 +229,7 @@ impl Store {
             .query_row(
                 "SELECT c.object_kind,c.object_id,c.reason,o.payload \
                  FROM sync_conflicts c JOIN sync_operations o ON o.op_id=c.op_id \
-                 WHERE c.op_id=?1 AND c.object_kind IN ('todo','habit_nudge','goal','rule') \
+                 WHERE c.op_id=?1 AND c.object_kind IN ('todo','habit_nudge','goal','plan','rule') \
                    AND o.state='conflict'",
                 [op_id],
                 |r| {
@@ -230,6 +249,7 @@ impl Store {
             "todo" => "todos",
             "habit_nudge" => "habit_nudges",
             "goal" => "goals",
+            "plan" => "goal_plans",
             _ => "rules",
         };
         let local_now: Option<String> = self
@@ -264,6 +284,7 @@ impl Store {
                         "todo" => self.sync_record_todo(&object_id, false)?,
                         "habit_nudge" => self.sync_record_habit_nudge(&object_id, false)?,
                         "goal" => self.sync_record_goal(&object_id)?,
+                        "plan" => self.sync_record_plan(&object_id, false)?,
                         _ => self.sync_record_rule(&object_id, false)?,
                     }
                 }
@@ -309,11 +330,12 @@ impl Store {
                     goal.status.as_str()
                 };
                 self.connection.execute(
-                    "INSERT INTO goals(id,content,phase,status,why,current_focus,blocker,done_criteria,created_at,updated_at,superseded_at) \
-                     VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11) \
+                    "INSERT INTO goals(id,content,phase,status,why,current_focus,blocker,done_criteria,created_at,updated_at,superseded_at,plan_id,step_index) \
+                     VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13) \
                      ON CONFLICT(id) DO UPDATE SET content=excluded.content,phase=excluded.phase,status=excluded.status, \
                      why=excluded.why,current_focus=excluded.current_focus,blocker=excluded.blocker,done_criteria=excluded.done_criteria, \
-                     updated_at=excluded.updated_at,superseded_at=excluded.superseded_at",
+                     updated_at=excluded.updated_at,superseded_at=excluded.superseded_at, \
+                     plan_id=excluded.plan_id,step_index=excluded.step_index",
                     params![
                         goal.id,
                         goal.content,
@@ -325,10 +347,37 @@ impl Store {
                         goal.done_criteria,
                         goal.created_at,
                         goal.updated_at,
-                        goal.superseded_at
+                        goal.superseded_at,
+                        goal.plan_id,
+                        goal.step_index
                     ],
                 )?;
                 self.sync_set_head("goal", &goal.id, &op.op_id, false)?;
+                self.connection
+                    .execute("DELETE FROM sync_conflicts WHERE op_id=?1", [op_id])?;
+            }
+            (SyncMutation::PlanChanged { plan, deleted, .. }, true) => {
+                if *deleted {
+                    self.connection
+                        .execute("DELETE FROM goal_plans WHERE id=?1", [&plan.id])?;
+                } else {
+                    self.connection.execute(
+                        "INSERT INTO goal_plans(id,intent_text,vision,assumptions,status,created_at,updated_at) \
+                         VALUES(?1,?2,?3,?4,?5,?6,?7) \
+                         ON CONFLICT(id) DO UPDATE SET intent_text=excluded.intent_text,vision=excluded.vision, \
+                         assumptions=excluded.assumptions,status=excluded.status,updated_at=excluded.updated_at",
+                        params![
+                            plan.id,
+                            plan.intent_text,
+                            plan.vision,
+                            plan.assumptions,
+                            plan.status,
+                            plan.created_at,
+                            plan.updated_at
+                        ],
+                    )?;
+                }
+                self.sync_set_head("plan", &plan.id, &op.op_id, *deleted)?;
                 self.connection
                     .execute("DELETE FROM sync_conflicts WHERE op_id=?1", [op_id])?;
             }

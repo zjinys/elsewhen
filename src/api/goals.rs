@@ -20,6 +20,10 @@ pub struct GoalDto {
     pub current_focus: Option<String>,
     pub blocker: Option<String>,
     pub done_criteria: Option<String>,
+    /// 所属长程计划（P1 计划拆解；None = 未挂计划/独立目标）
+    pub plan_id: Option<String>,
+    /// 计划内步骤序号（None = 未挂计划）
+    pub step_index: Option<i64>,
     pub created_at: String,
     pub updated_at: String,
     pub superseded_at: Option<String>,
@@ -36,6 +40,8 @@ impl From<Goal> for GoalDto {
             current_focus: g.current_focus,
             blocker: g.blocker,
             done_criteria: g.done_criteria,
+            plan_id: g.plan_id,
+            step_index: g.step_index,
             created_at: g.created_at,
             updated_at: g.updated_at,
             superseded_at: g.superseded_at,

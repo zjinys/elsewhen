@@ -76,6 +76,10 @@ class Goal {
   final String? currentFocus;
   final String? blocker;
   final String? doneCriteria;
+  /// 所属长程计划（P1 意图拆解；null = 未挂计划）
+  final String? planId;
+  /// 计划内步骤序号（null = 未挂计划）
+  final int? stepIndex;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? supersededAt;
@@ -89,6 +93,8 @@ class Goal {
     this.currentFocus,
     this.blocker,
     this.doneCriteria,
+    this.planId,
+    this.stepIndex,
     required this.createdAt,
     required this.updatedAt,
     this.supersededAt,
@@ -104,6 +110,8 @@ class Goal {
       currentFocus: dto.currentFocus,
       blocker: dto.blocker,
       doneCriteria: dto.doneCriteria,
+      planId: dto.planId,
+      stepIndex: dto.stepIndex?.toInt(),
       createdAt: DateTime.parse(dto.createdAt).toLocal(),
       updatedAt: DateTime.parse(dto.updatedAt).toLocal(),
       supersededAt: dto.supersededAt == null

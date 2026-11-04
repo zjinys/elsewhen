@@ -24,6 +24,7 @@ import 'api/knowledge_workflows.dart';
 import 'api/mcp.dart';
 import 'api/page_marks.dart';
 import 'api/period_stats.dart';
+import 'api/plans.dart';
 import 'api/provider_config.dart';
 import 'api/provider_reachability.dart';
 import 'api/records.dart';
@@ -159,6 +160,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MessageRecordabilityDto dco_decode_box_autoadd_message_recordability_dto(
     dynamic raw,
   );
+
+  @protected
+  PlanDto dco_decode_box_autoadd_plan_dto(dynamic raw);
 
   @protected
   ProcessingYieldProofDto dco_decode_box_autoadd_processing_yield_proof_dto(
@@ -562,6 +566,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<PendingActionDto> dco_decode_list_pending_action_dto(dynamic raw);
 
   @protected
+  List<PlanDto> dco_decode_list_plan_dto(dynamic raw);
+
+  @protected
   Int64List dco_decode_list_prim_i_64_strict(dynamic raw);
 
   @protected
@@ -740,6 +747,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  PlanDto? dco_decode_opt_box_autoadd_plan_dto(dynamic raw);
+
+  @protected
   SourceSnapshot? dco_decode_opt_box_autoadd_source_snapshot(dynamic raw);
 
   @protected
@@ -784,6 +794,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PeriodStatsDto dco_decode_period_stats_dto(dynamic raw);
+
+  @protected
+  PlanDto dco_decode_plan_dto(dynamic raw);
 
   @protected
   ProcessingYieldProofDto dco_decode_processing_yield_proof_dto(dynamic raw);
@@ -1038,6 +1051,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MessageRecordabilityDto sse_decode_box_autoadd_message_recordability_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  PlanDto sse_decode_box_autoadd_plan_dto(SseDeserializer deserializer);
 
   @protected
   ProcessingYieldProofDto sse_decode_box_autoadd_processing_yield_proof_dto(
@@ -1577,6 +1593,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<PlanDto> sse_decode_list_plan_dto(SseDeserializer deserializer);
+
+  @protected
   Int64List sse_decode_list_prim_i_64_strict(SseDeserializer deserializer);
 
   @protected
@@ -1795,6 +1814,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  PlanDto? sse_decode_opt_box_autoadd_plan_dto(SseDeserializer deserializer);
+
+  @protected
   SourceSnapshot? sse_decode_opt_box_autoadd_source_snapshot(
     SseDeserializer deserializer,
   );
@@ -1853,6 +1875,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PeriodStatsDto sse_decode_period_stats_dto(SseDeserializer deserializer);
+
+  @protected
+  PlanDto sse_decode_plan_dto(SseDeserializer deserializer);
 
   @protected
   ProcessingYieldProofDto sse_decode_processing_yield_proof_dto(
@@ -2248,6 +2273,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_message_recordability_dto(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_plan_dto(PlanDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_plan_dto(raw);
   }
 
   @protected
@@ -2759,6 +2790,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_opt_String(raw.currentFocus),
       cst_encode_opt_String(raw.blocker),
       cst_encode_opt_String(raw.doneCriteria),
+      cst_encode_opt_String(raw.planId),
+      cst_encode_opt_box_autoadd_i_64(raw.stepIndex),
       cst_encode_String(raw.createdAt),
       cst_encode_String(raw.updatedAt),
       cst_encode_opt_String(raw.supersededAt),
@@ -3548,6 +3581,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_plan_dto(List<PlanDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_plan_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_prim_i_64_strict(Int64List raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cstEncodeInt64List(raw.inner);
@@ -3968,6 +4007,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny? cst_encode_opt_box_autoadd_plan_dto(PlanDto? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? null : cst_encode_box_autoadd_plan_dto(raw);
+  }
+
+  @protected
   JSAny? cst_encode_opt_box_autoadd_source_snapshot(SourceSnapshot? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_source_snapshot(raw);
@@ -4132,6 +4177,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_list_named_count_dto(raw.byProject),
       cst_encode_list_named_count_dto(raw.byActivity),
       cst_encode_list_day_count_dto(raw.dailyCounts),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_plan_dto(PlanDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.intentText),
+      cst_encode_String(raw.vision),
+      cst_encode_String(raw.assumptions),
+      cst_encode_String(raw.status),
+      cst_encode_String(raw.createdAt),
+      cst_encode_String(raw.updatedAt),
     ].jsify()!;
   }
 
@@ -4893,6 +4952,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_plan_dto(PlanDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_processing_yield_proof_dto(
     ProcessingYieldProofDto self,
     SseSerializer serializer,
@@ -5586,6 +5648,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_plan_dto(List<PlanDto> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_prim_i_64_strict(
     Int64List self,
     SseSerializer serializer,
@@ -5859,6 +5924,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_plan_dto(
+    PlanDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_source_snapshot(
     SourceSnapshot? self,
     SseSerializer serializer,
@@ -5935,6 +6006,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     PeriodStatsDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_plan_dto(PlanDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_processing_yield_proof_dto(
@@ -6323,6 +6397,18 @@ class RustLibWire implements BaseWire {
     base_url,
   );
 
+  void wire__crate__api__plans__attach_goal_to_plan(
+    NativePortType port_,
+    String goal_id,
+    String plan_id,
+    JSAny? step_index,
+  ) => wasmModule.wire__crate__api__plans__attach_goal_to_plan(
+    port_,
+    goal_id,
+    plan_id,
+    step_index,
+  );
+
   void wire__crate__api__records__begin_url_input(
     NativePortType port_,
     String raw_text,
@@ -6483,6 +6569,11 @@ class RustLibWire implements BaseWire {
     protected_revision,
   );
 
+  void wire__crate__api__plans__count_active_steps(
+    NativePortType port_,
+    String plan_id,
+  ) => wasmModule.wire__crate__api__plans__count_active_steps(port_, plan_id);
+
   void wire__crate__api__knowledge_workflows__create_artifact_from_message(
     NativePortType port_,
     String slug,
@@ -6544,6 +6635,18 @@ class RustLibWire implements BaseWire {
     port_,
     conversation_id,
     boundary_message_id,
+  );
+
+  void wire__crate__api__plans__create_plan(
+    NativePortType port_,
+    String intent_text,
+    String vision,
+    String assumptions,
+  ) => wasmModule.wire__crate__api__plans__create_plan(
+    port_,
+    intent_text,
+    vision,
+    assumptions,
   );
 
   void wire__crate__api__todos__create_todo(
@@ -6673,6 +6776,9 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
     String id,
   ) => wasmModule.wire__crate__api__mcp__delete_mcp_server(port_, id);
+
+  void wire__crate__api__plans__delete_plan(NativePortType port_, String id) =>
+      wasmModule.wire__crate__api__plans__delete_plan(port_, id);
 
   void wire__crate__api__relations__delete_relation(
     NativePortType port_,
@@ -7067,6 +7173,9 @@ class RustLibWire implements BaseWire {
     period_type,
     date,
   );
+
+  void wire__crate__api__plans__get_plan(NativePortType port_, String id) =>
+      wasmModule.wire__crate__api__plans__get_plan(port_, id);
 
   void wire__crate__api__sync__datasets__get_processor_handoff_state(
     NativePortType port_,
@@ -7494,6 +7603,14 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
   ) => wasmModule.wire__crate__api__sync__join__list_pending_sync_joins(port_);
 
+  void wire__crate__api__plans__list_plan_steps(
+    NativePortType port_,
+    String plan_id,
+  ) => wasmModule.wire__crate__api__plans__list_plan_steps(port_, plan_id);
+
+  void wire__crate__api__plans__list_plans(NativePortType port_) =>
+      wasmModule.wire__crate__api__plans__list_plans(port_);
+
   void wire__crate__api__rules__list_recent_chat_rule_hits(
     NativePortType port_,
     JSAny limit,
@@ -7582,6 +7699,11 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__user_skills__list_user_skills(NativePortType port_) =>
       wasmModule.wire__crate__api__user_skills__list_user_skills(port_);
+
+  void wire__crate__api__plans__list_waiting_steps(
+    NativePortType port_,
+    String plan_id,
+  ) => wasmModule.wire__crate__api__plans__list_waiting_steps(port_, plan_id);
 
   void wire__crate__api__sync__conflicts__list_wiki_page_conflicts(
     NativePortType port_,
@@ -8300,6 +8422,12 @@ class RustLibWire implements BaseWire {
     active,
   );
 
+  void wire__crate__api__plans__set_plan_status(
+    NativePortType port_,
+    String id,
+    String status,
+  ) => wasmModule.wire__crate__api__plans__set_plan_status(port_, id, status);
+
   void wire__crate__api__rules__set_rule_hit_feedback(
     NativePortType port_,
     String id,
@@ -8625,6 +8753,18 @@ class RustLibWire implements BaseWire {
     args_json,
   );
 
+  void wire__crate__api__plans__update_plan_meta(
+    NativePortType port_,
+    String id,
+    String vision,
+    String assumptions,
+  ) => wasmModule.wire__crate__api__plans__update_plan_meta(
+    port_,
+    id,
+    vision,
+    assumptions,
+  );
+
   void wire__crate__api__wiki__update_project_path(
     NativePortType port_,
     String slug,
@@ -8827,6 +8967,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String base_url,
   );
 
+  external void wire__crate__api__plans__attach_goal_to_plan(
+    NativePortType port_,
+    String goal_id,
+    String plan_id,
+    JSAny? step_index,
+  );
+
   external void wire__crate__api__records__begin_url_input(
     NativePortType port_,
     String raw_text,
@@ -8924,6 +9071,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny protected_revision,
   );
 
+  external void wire__crate__api__plans__count_active_steps(
+    NativePortType port_,
+    String plan_id,
+  );
+
   external void
   wire__crate__api__knowledge_workflows__create_artifact_from_message(
     NativePortType port_,
@@ -8959,6 +9111,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String conversation_id,
     String boundary_message_id,
+  );
+
+  external void wire__crate__api__plans__create_plan(
+    NativePortType port_,
+    String intent_text,
+    String vision,
+    String assumptions,
   );
 
   external void wire__crate__api__todos__create_todo(
@@ -9040,6 +9199,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void wire__crate__api__mcp__delete_mcp_server(
+    NativePortType port_,
+    String id,
+  );
+
+  external void wire__crate__api__plans__delete_plan(
     NativePortType port_,
     String id,
   );
@@ -9320,6 +9484,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String period_type,
     String date,
+  );
+
+  external void wire__crate__api__plans__get_plan(
+    NativePortType port_,
+    String id,
   );
 
   external void wire__crate__api__sync__datasets__get_processor_handoff_state(
@@ -9620,6 +9789,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
   );
 
+  external void wire__crate__api__plans__list_plan_steps(
+    NativePortType port_,
+    String plan_id,
+  );
+
+  external void wire__crate__api__plans__list_plans(NativePortType port_);
+
   external void wire__crate__api__rules__list_recent_chat_rule_hits(
     NativePortType port_,
     JSAny limit,
@@ -9690,6 +9866,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void wire__crate__api__user_skills__list_user_skills(
     NativePortType port_,
+  );
+
+  external void wire__crate__api__plans__list_waiting_steps(
+    NativePortType port_,
+    String plan_id,
   );
 
   external void wire__crate__api__sync__conflicts__list_wiki_page_conflicts(
@@ -10146,6 +10327,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     bool active,
   );
 
+  external void wire__crate__api__plans__set_plan_status(
+    NativePortType port_,
+    String id,
+    String status,
+  );
+
   external void wire__crate__api__rules__set_rule_hit_feedback(
     NativePortType port_,
     String id,
@@ -10357,6 +10544,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny expected_version,
     String approval_token,
     String args_json,
+  );
+
+  external void wire__crate__api__plans__update_plan_meta(
+    NativePortType port_,
+    String id,
+    String vision,
+    String assumptions,
   );
 
   external void wire__crate__api__wiki__update_project_path(

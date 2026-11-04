@@ -161,6 +161,6 @@ pub use mutation::SyncMutation;
 pub use records::{
     AnalysisRecord, ConversationRecord, EventRecord, GoalRecord, HabitNudgeRecord,
     HabitPageLinkRecord, InputRecord, KnowledgeReadingStateRecord, KnowledgeReviewRecord,
-    MessageRecord, ProviderBundle, ProviderProfile, RuleRecord, TodoRecord, WikiPageRecord,
-    WikiRevisionRecord, analysis_task_id,
+    MessageRecord, PlanRecord, ProviderBundle, ProviderProfile, RuleRecord, TodoRecord,
+    WikiPageRecord, WikiRevisionRecord, analysis_task_id,
 };

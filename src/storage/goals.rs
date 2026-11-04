@@ -96,6 +96,11 @@ pub struct Goal {
     pub current_focus: Option<String>,
     pub blocker: Option<String>,
     pub done_criteria: Option<String>,
+    /// 所属长程计划（P1 起）。无计划独立目标概念已取消：上层「直接建一条
+    /// 目标」会包成单步计划再挂接。
+    pub plan_id: Option<String>,
+    /// 步骤序号（计划内展示排序；缺省排末尾）。
+    pub step_index: Option<i64>,
     pub created_at: String,
     pub updated_at: String,
     pub superseded_at: Option<String>,
@@ -125,10 +130,10 @@ fn map_write_error(error: SqliteError) -> anyhow::Error {
     }
 }
 
-const SELECT_COLUMNS: &str =
-    "id, content, phase, status, why, current_focus, blocker, done_criteria, created_at, updated_at, superseded_at";
+pub(crate) const SELECT_COLUMNS: &str =
+    "id, content, phase, status, why, current_focus, blocker, done_criteria, created_at, updated_at, superseded_at, plan_id, step_index";
 
-fn row_to_goal(row: &rusqlite::Row<'_>) -> rusqlite::Result<Goal> {
+pub(crate) fn row_to_goal(row: &rusqlite::Row<'_>) -> rusqlite::Result<Goal> {
     let phase: String = row.get(2)?;
     let status: String = row.get(3)?;
     Ok(Goal {
@@ -147,6 +152,8 @@ fn row_to_goal(row: &rusqlite::Row<'_>) -> rusqlite::Result<Goal> {
         created_at: row.get(8)?,
         updated_at: row.get(9)?,
         superseded_at: row.get(10)?,
+        plan_id: row.get(11)?,
+        step_index: row.get(12)?,
     })
 }
 
@@ -264,6 +271,8 @@ impl Store {
             done_criteria: done_criteria
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty()),
+            plan_id: None,
+            step_index: None,
             created_at: now.clone(),
             updated_at: now.clone(),
             superseded_at,

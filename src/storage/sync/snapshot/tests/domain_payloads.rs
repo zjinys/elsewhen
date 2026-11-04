@@ -577,3 +577,107 @@ fn snapshot_carries_negative_knowledge_to_new_devices() {
         .unwrap();
     assert_eq!(hit.as_deref(), Some("伪科学，已辟谣"));
 }
+
+#[test]
+fn snapshot_carries_plans_with_steps_and_incremental_metadata() {
+    // P1（AI 为中心的意图拆解）：计划整行携带 + goals.plan_id/step_index
+    // 随行落地；快照后 PlanChanged 增量走同一 CAS 框架，无冲突立案。
+    let a = Database::new();
+    let b = Database::new();
+    a.enable("a");
+    b.enable("b");
+    pair(&a, &b);
+    // ---- 源端：一条计划 + 两个步骤（一活跃一等待）----
+    let plan = a
+        .store
+        .create_plan(
+            "3 年内月入 10 万",
+            "可持续的独立收入",
+            r#"[{"kind":"现状假设","text":"主业占用 60% 时间"}]"#,
+        )
+        .unwrap();
+    let step1 = a
+        .store
+        .create_goal("第一步：验证付费意愿", crate::storage::GoalPhase::Near)
+        .unwrap();
+    let step2 = a
+        .store
+        .create_goal("第二步：做出可售卖的最小方案", crate::storage::GoalPhase::Mid)
+        .unwrap();
+    a.store
+        .attach_goal_to_plan(&step1.id, &plan.id, Some(1))
+        .unwrap();
+    a.store
+        .attach_goal_to_plan(&step2.id, &plan.id, Some(2))
+        .unwrap();
+    a.store.pause_goal(&step2.id).unwrap();
+
+    // ---- 快照导出 → 空 staging 导入 ----
+    let key = ContentKey::generate().unwrap();
+    let signer = DeviceIdentity::generate().unwrap();
+    let id = Uuid::new_v4().to_string();
+    let (chunks, manifest) = export(&a.store, "b", &id, &key, &signer);
+    b.store.begin_snapshot_import(&id, "a", 1).unwrap();
+    stage(&b.store, &id, "a", &chunks, &key, &signer.public_key());
+    assert!(
+        b.store
+            .publish_snapshot(&id, "a", 1, &manifest, &key, &signer.public_key())
+            .unwrap()
+    );
+    assert_eq!(b.count("goal_plans"), 1, "计划整行随快照携带");
+    assert_eq!(b.count("goals"), 2);
+    let (intent, plan_status): (String, String) = b
+        .store
+        .connection
+        .query_row(
+            "SELECT intent_text,status FROM goal_plans WHERE id=?1",
+            [&plan.id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(intent, "3 年内月入 10 万");
+    assert_eq!(plan_status, "active");
+    let (pid, idx, goal_status): (Option<String>, Option<i64>, String) = b
+        .store
+        .connection
+        .query_row(
+            "SELECT plan_id,step_index,status FROM goals WHERE id=?1",
+            [&step2.id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .unwrap();
+    assert_eq!(pid.as_deref(), Some(plan.id.as_str()));
+    assert_eq!(idx, Some(2));
+    assert_eq!(goal_status, "paused", "等待步骤按落库状态携带");
+    let plan_heads: i64 = b
+        .store
+        .connection
+        .query_row(
+            "SELECT count(*) FROM sync_object_heads WHERE object_kind='plan'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(plan_heads, 1, "plan 种类 head 随快照重建");
+
+    // ---- 快照后增量：A 改计划元数据 → B 收下 PlanChanged，无冲突 ----
+    let reopened = Store::open(&b.store.path).unwrap();
+    a.store
+        .update_plan_meta(&plan.id, "改后的愿景", "[]")
+        .unwrap();
+    for operation in a.store.pending_sync_operations("b", 100).unwrap() {
+        reopened
+            .receive_sync_operation("a", &serde_json::to_vec(&operation).unwrap())
+            .unwrap();
+    }
+    let vision: String = reopened
+        .connection
+        .query_row(
+            "SELECT vision FROM goal_plans WHERE id=?1",
+            [&plan.id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(vision, "改后的愿景");
+    assert_eq!(reopened.list_object_conflicts().unwrap().len(), 0);
+}

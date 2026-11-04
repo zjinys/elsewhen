@@ -161,9 +161,54 @@ pub struct GoalRecord {
     pub blocker: Option<String>,
     #[serde(default)]
     pub done_criteria: Option<String>,
+    #[serde(default)]
+    pub plan_id: Option<String>,
+    #[serde(default)]
+    pub step_index: Option<i64>,
     pub created_at: String,
     pub updated_at: String,
     pub superseded_at: Option<String>,
+}
+
+/// 长程计划整行（P1，AI 为中心的意图拆解）。假设清单为 JSON 数组文本
+/// （软时间窗/现状/路径/风险由上层解释）；状态机同 `storage::PlanStatus`。
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PlanRecord {
+    pub id: String,
+    pub intent_text: String,
+    #[serde(default)]
+    pub vision: String,
+    #[serde(default)]
+    pub assumptions: String,
+    pub status: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl PlanRecord {
+    pub(crate) fn validate(&self) -> Result<()> {
+        validate_id(&self.id)?;
+        ensure!(
+            !self.intent_text.trim().is_empty(),
+            "sync_plan_intent_empty"
+        );
+        ensure!(
+            matches!(
+                self.status.as_str(),
+                "proposed" | "active" | "paused" | "completed"
+            ),
+            "sync_plan_status_invalid"
+        );
+        ensure!(
+            !self.created_at.trim().is_empty() && !self.updated_at.trim().is_empty(),
+            "sync_plan_timestamp_invalid"
+        );
+        let parsed: serde_json::Value = serde_json::from_str(&self.assumptions)
+            .map_err(|_| anyhow::anyhow!("sync_plan_assumptions_invalid"))?;
+        ensure!(parsed.is_array(), "sync_plan_assumptions_invalid");
+        Ok(())
+    }
 }
 
 /// 规则整行。status 含 pending（草拟归属某会话）；规则行复制不等于执行

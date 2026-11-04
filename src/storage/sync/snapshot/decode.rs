@@ -23,6 +23,7 @@ pub(crate) fn domain_table(kind: &str) -> Result<&'static str> {
         "todo" => "todos",
         "habit_nudge" => "habit_nudges",
         "goal" => "goals",
+        "plan" => "goal_plans",
         "rule" => "rules",
         _ => return Err(anyhow::anyhow!("sync_snapshot_object_kind_invalid")),
     })

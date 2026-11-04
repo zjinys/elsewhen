@@ -67,6 +67,12 @@ pub enum SyncMutation {
         base_revision: Option<String>,
         deleted: bool,
     },
+    /// 长程计划整行复制（P1）：与 GoalChanged 同 CAS 框架；删除为全端物理删行。
+    PlanChanged {
+        plan: PlanRecord,
+        base_revision: Option<String>,
+        deleted: bool,
+    },
     RuleChanged {
         rule: RuleRecord,
         base_revision: Option<String>,
@@ -315,6 +321,7 @@ impl SyncMutation {
                 }
                 ensure!(!deleted, "sync_goal_delete_invalid");
             }
+            Self::PlanChanged { plan, .. } => plan.validate()?,
             Self::RuleChanged {
                 rule, deleted: _, ..
             } => {

@@ -13,7 +13,7 @@ use rusqlite::{OptionalExtension, params};
 use super::{Apply, Store};
 use crate::sync::protocol::{
     GoalRecord, HabitNudgeRecord, HabitPageLinkRecord, KnowledgeReadingStateRecord,
-    KnowledgeReviewRecord, RuleRecord, SyncMutation, SyncOperation, TodoRecord,
+    KnowledgeReviewRecord, PlanRecord, RuleRecord, SyncMutation, SyncOperation, TodoRecord,
 };
 
 fn todo_record_from_row(
@@ -127,7 +127,7 @@ impl Store {
     fn sync_goal_record(&self, id: &str) -> Result<Option<GoalRecord>> {
         self.connection
             .query_row(
-                "SELECT id,content,phase,status,why,current_focus,blocker,done_criteria,created_at,updated_at,superseded_at \
+                "SELECT id,content,phase,status,why,current_focus,blocker,done_criteria,created_at,updated_at,superseded_at,plan_id,step_index \
                  FROM goals WHERE id=?1",
                 [id],
                 |r| {
@@ -143,11 +143,35 @@ impl Store {
                         created_at: r.get(8)?,
                         updated_at: r.get(9)?,
                         superseded_at: r.get(10)?,
+                        plan_id: r.get(11)?,
+                        step_index: r.get(12)?,
                     })
                 },
             )
             .optional()
             .context("sync_goal_record")
+    }
+
+    fn sync_plan_record(&self, id: &str) -> Result<Option<PlanRecord>> {
+        self.connection
+            .query_row(
+                "SELECT id,intent_text,vision,assumptions,status,created_at,updated_at \
+                 FROM goal_plans WHERE id=?1",
+                [id],
+                |r| {
+                    Ok(PlanRecord {
+                        id: r.get(0)?,
+                        intent_text: r.get(1)?,
+                        vision: r.get(2)?,
+                        assumptions: r.get(3)?,
+                        status: r.get(4)?,
+                        created_at: r.get(5)?,
+                        updated_at: r.get(6)?,
+                    })
+                },
+            )
+            .optional()
+            .context("sync_plan_record")
     }
 
     fn sync_rule_record(&self, id: &str) -> Result<Option<RuleRecord>> {
@@ -295,6 +319,24 @@ impl Store {
         Ok(())
     }
 
+    /// 计划捕获点（新建/元数据/状态同一入口）。删除必须先捕获再删行；
+    /// `deleted=true` 随整行广播，收端物理删行。
+    pub(crate) fn sync_record_plan(&self, id: &str, deleted: bool) -> Result<()> {
+        if self.sync_identity()?.is_none() {
+            return Ok(());
+        }
+        let plan = self.sync_plan_record(id)?.context("sync_plan_missing")?;
+        let base_revision = self.sync_object_head("plan", id)?.map(|h| h.0);
+        if let Some(op_id) = self.append_sync_mutation(SyncMutation::PlanChanged {
+            plan,
+            base_revision,
+            deleted,
+        })? {
+            self.sync_set_head("plan", id, &op_id, deleted)?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn sync_record_rule(&self, id: &str, deleted: bool) -> Result<()> {
         if self.sync_identity()?.is_none() {
             return Ok(());
@@ -345,6 +387,7 @@ impl Store {
                 "todo" => "todo_deleted",
                 "goal" => "goal_deleted",
                 "habit_nudge" => "habit_nudge_deleted",
+                "plan" => "plan_deleted",
                 _ => "rule_deleted",
             };
             return Ok(Some(Apply::Conflict {
@@ -567,11 +610,12 @@ impl Store {
             }
         }
         self.connection.execute(
-            "INSERT INTO goals(id,content,phase,status,why,current_focus,blocker,done_criteria,created_at,updated_at,superseded_at) \
-             VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11) \
+            "INSERT INTO goals(id,content,phase,status,why,current_focus,blocker,done_criteria,created_at,updated_at,superseded_at,plan_id,step_index) \
+             VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13) \
              ON CONFLICT(id) DO UPDATE SET content=excluded.content,phase=excluded.phase,status=excluded.status, \
              why=excluded.why,current_focus=excluded.current_focus,blocker=excluded.blocker,done_criteria=excluded.done_criteria, \
-             updated_at=excluded.updated_at,superseded_at=excluded.superseded_at",
+             updated_at=excluded.updated_at,superseded_at=excluded.superseded_at, \
+             plan_id=excluded.plan_id,step_index=excluded.step_index",
             params![
                 goal.id,
                 goal.content,
@@ -583,10 +627,54 @@ impl Store {
                 goal.done_criteria,
                 goal.created_at,
                 goal.updated_at,
-                goal.superseded_at
+                goal.superseded_at,
+                goal.plan_id,
+                goal.step_index
             ],
         )?;
         self.sync_set_head("goal", &goal.id, &op.op_id, false)?;
+        Ok(Apply::Applied)
+    }
+
+    pub(super) fn apply_sync_plan(
+        &self,
+        op: &SyncOperation,
+        plan: &PlanRecord,
+        base_revision: &Option<String>,
+        deleted: bool,
+    ) -> Result<Apply> {
+        if let Some(result) = self.mutable_cas_guard(
+            "plan",
+            "goal_plans",
+            &plan.id,
+            base_revision,
+            &op.op_id,
+            deleted,
+        )? {
+            return Ok(result);
+        }
+        if deleted {
+            self.connection
+                .execute("DELETE FROM goal_plans WHERE id=?1", [&plan.id])?;
+            self.sync_set_head("plan", &plan.id, &op.op_id, true)?;
+            return Ok(Apply::Applied);
+        }
+        self.connection.execute(
+            "INSERT INTO goal_plans(id,intent_text,vision,assumptions,status,created_at,updated_at) \
+             VALUES(?1,?2,?3,?4,?5,?6,?7) \
+             ON CONFLICT(id) DO UPDATE SET intent_text=excluded.intent_text,vision=excluded.vision, \
+             assumptions=excluded.assumptions,status=excluded.status,updated_at=excluded.updated_at",
+            params![
+                plan.id,
+                plan.intent_text,
+                plan.vision,
+                plan.assumptions,
+                plan.status,
+                plan.created_at,
+                plan.updated_at
+            ],
+        )?;
+        self.sync_set_head("plan", &plan.id, &op.op_id, false)?;
         Ok(Apply::Applied)
     }
 

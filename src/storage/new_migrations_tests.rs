@@ -32,7 +32,7 @@ fn migrations_validate() {
     migrations().unwrap().validate().unwrap();
 }
 
-/// 目录发现的结构性保证：八个迁移、按序号取名。
+/// 目录发现的结构性保证：迁移按序号取名、从 1 起连续。
 ///
 /// 「新增文件却忘了登记」这类错误在这里不可能发生——`from_directory` 直接
 /// 扫目录，不经过任何手工登记表。这条测试盯的是别一种漂移：有人把子目录
@@ -114,6 +114,7 @@ fn migrations_are_discovered_from_the_directory() {
             "65-cognitive-goals",
             "66-goal-compass-nudges",
             "67-goal-chat-conversations",
+            "68-goal-plans",
         ],
         "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
     );
@@ -145,7 +146,7 @@ fn migration_applies_goals_table() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 67, "六十七条迁移跑完，user_version 应为 67");
+    assert_eq!(version, 68, "六十八条迁移跑完，user_version 应为 68");
     assert_eq!(
         latest_version().unwrap(),
         version,
@@ -657,13 +658,18 @@ fn v65_cognitive_goals_migration_keeps_data_and_updates_status() {
         )
         .unwrap();
 
-    // 升级到最新版 (v65)
-    initialize(&mut connection).unwrap();
+    // 只升到 v65 为止：v68 的存量清理会删除全部 goals 行（2026-11-04
+    // 定案不做历史兼容），若升到最新，这条「迁移 65 保留数据」的断言
+    // 将失去观察对象。跨代清理由 v68 专项测试覆盖。
+    migrations()
+        .unwrap()
+        .to_version(&mut connection, 65)
+        .unwrap();
 
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 67);
+    assert_eq!(version, 65);
 
     // 验证原有的 superseded 状态已平滑变为 paused，且切片列为 NULL
     let (status, why, focus, blocker, criteria): (
@@ -768,7 +774,7 @@ fn v66_goal_compass_nudges_table_created() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 67);
+    assert_eq!(version, 68);
 
     // 插入活跃目标和关联 nudge
     connection
@@ -805,7 +811,7 @@ fn v67_goal_chat_conversations_column_added() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 67);
+    assert_eq!(version, 68);
 
     // 普通会话旧行保持 NULL goal_id
     connection
@@ -858,4 +864,84 @@ fn v67_goal_chat_conversations_column_added() {
         )
         .unwrap();
     assert_eq!(index_count, 1);
+}
+
+/// 迁移 68：长程计划（goal_plans）与步骤挂接（goals.plan_id/step_index）。
+/// 定案不做历史兼容：存量目标在迁移时清除，会话外键先解绑，保证无孤立引用。
+#[test]
+fn v68_goal_plans_migration_purges_legacy_goals_without_orphans() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    migrations()
+        .unwrap()
+        .to_version(&mut connection, 67)
+        .unwrap();
+    // v67 老库：活跃目标 + 目标讨论会话 + 待处理偏离提醒。
+    connection
+        .execute_batch(
+            "INSERT INTO goals(id, content, phase, status, created_at, updated_at)
+             VALUES('g-old', '旧目标', 'near', 'active', 't1', 't1');
+             INSERT INTO conversations(id, title, goal_id, assistant_mode, created_at, updated_at)
+             VALUES('c-goal', '目标讨论', 'g-old', 'goal_mentor', 't1', 't1');
+             INSERT INTO goal_compass_nudges(id, goal_id, goal_content, current_focus, stalled_days, recent_topics, status, created_at)
+             VALUES('n-old', 'g-old', '旧目标', '抓手', 4, '话题', 'pending', 't1');",
+        )
+        .unwrap();
+
+    initialize(&mut connection).unwrap();
+
+    let version: i64 = connection
+        .query_row("PRAGMA main.user_version", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(version, 68);
+
+    // 存量已清：目标为空、提醒为空、会话 goal_id 已解绑——无孤立引用。
+    let goals: i64 = connection
+        .query_row("SELECT count(*) FROM goals", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(goals, 0);
+    let nudges: i64 = connection
+        .query_row("SELECT count(*) FROM goal_compass_nudges", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(nudges, 0);
+    let dangling: i64 = connection
+        .query_row(
+            "SELECT count(*) FROM conversations WHERE goal_id IS NOT NULL",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(dangling, 0, "会话 goal_id 先解绑，不留孤立引用");
+    let convo_mode: String = connection
+        .query_row(
+            "SELECT assistant_mode FROM conversations WHERE id='c-goal'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(convo_mode, "goal_mentor", "会话本身保留，仅解绑目标");
+
+    // 新表与新列可用：计划整行 + 步骤挂接（可空列回填）。
+    connection
+        .execute(
+            "INSERT INTO goal_plans(id, intent_text, vision, assumptions, status, created_at, updated_at)
+             VALUES('p-1', '三年内月入十万', '', '[]', 'active', 't2', 't2')",
+            [],
+        )
+        .unwrap();
+    connection
+        .execute(
+            "INSERT INTO goals(id, content, phase, status, created_at, updated_at, plan_id, step_index)
+             VALUES('g-new', '第一步', 'near', 'active', 't2', 't2', 'p-1', 1)",
+            [],
+        )
+        .unwrap();
+    let (pid, idx): (Option<String>, Option<i64>) = connection
+        .query_row(
+            "SELECT plan_id, step_index FROM goals WHERE id='g-new'",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(pid.as_deref(), Some("p-1"));
+    assert_eq!(idx, Some(1));
 }

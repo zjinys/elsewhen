@@ -19,6 +19,7 @@ import '../models/tweet_fetch.dart';
 import '../models/rule.dart';
 import '../models/relation.dart';
 import '../models/goal.dart';
+import '../models/plan.dart';
 import '../sync/background_failure_policy.dart';
 import '../sync/sync_setup_controller.dart';
 import 'ai_activity.dart';
@@ -31,6 +32,7 @@ import 'generated.dart/frb_generated.dart';
 part 'rust_bridge_parts/worker_reminders.dart';
 part 'rust_bridge_parts/conversations.dart';
 part 'rust_bridge_parts/chat_and_misc.dart';
+part 'rust_bridge_parts/plans.dart';
 
 /// Rust bridge implementation of storage repository
 class RustBridgeRepository implements StorageRepository {
