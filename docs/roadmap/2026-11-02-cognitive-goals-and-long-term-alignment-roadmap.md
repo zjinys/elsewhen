@@ -108,6 +108,8 @@
 - 若名额已满（3/3），友好提示：“当前已有 3 个活跃目标。请先暂停或完成一个，再腾出精力唤醒此目标。”
 
 > **追加交付（2026-11-02）：左侧导航「目标」只读总览。** `SidebarTab` 新增 `goal` 域，footer 一级入口（宽栏/窄轨/移动抽屉共用），主区挂载 `GoalListView(readOnly: true)` 只读渲染（隐藏新增表单/操作按钮/校准卡片）；左栏配活跃目标导航摘要（计数 + 愿景/抓手速览）。写操作仍以对话流/弹窗面板为单一入口。测试：`goal_readonly_view_test.dart` 3 测全绿。
+>
+> **追加交付（2026-11-04）：目标工作台收拢进左栏，主区「详情 | AI 讨论」并排（取代只读总览形态）。** 左栏「目标」tab 升级为完整工作台 `GoalWorkbenchPanel`：标题「目标」+ 活跃计数徽章 + 右上常驻「新建」按钮（始终可点）；状态过滤多选（活跃/暂停搁置/已达成，单行三枚，缺省活跃）；「和 AI 拆解 / 立新目标」入口与目标清单。新增表单不再常驻：`showGoalCreateSheet` 弹出 `AdaptivePanelSheet`；**活跃已满 3 条时新建目标以「暂停搁置」状态创建**（storage `create_goal_with_facets` 满额自动落 paused、`superseded_at` 记创建时刻，数据库触发器仍兜底；AI 提议执行回执与 goal 工具文案同步说明），不再禁用按钮或报错。主区中列取消，选中目标后详情卡与 `GoalChatPanel` 左右并排（主区 <720 上下堆叠；桌面 700~1024 窄轨形态清单退回主区左侧，保证依然可选目标）。选中经 `selectedGoalIdProvider` 跨栏共享；讨论输入框不预填种子草稿（选中目标即保持空白，发送仍由用户主导）；切片展示字段（滚动抓手 / 读档唤醒 / 编辑全貌对话框）多行自适应（AI 写入的长文本直接可读可改，弹窗超屏可滚动）。测试：`goal_view_test` / `goal_readonly_view_test` / `goal_compass_banner_test` 已重写/新增，后端 `cargo test goals` 断言已同步改写，**验证结果（2026-11-04 补跑）**：`cargo test` **1011 passed / 0 failed / 20 ignored**、`fvm flutter test` 全量 **521 passed / 0 failed**、`fvm flutter analyze` 0 error；落地过程顺带修复 bridge part 扩展静态绑定缺陷（`createGoal` 位于 part extension 时无法被测试 Fake 覆写，已移回类内保证虚分派）。另同日落地 [2026-11-02 AI 侧定位 review](../review_logs/2026-11-02/review_goal_first_menu_positioning.md) 清单（基底补「目标与航向」坐标系条目、目标段改「航向基准·主动对照」、工具时机引导落目标段与 goal-management 技能包；TOOL_GUIDES 为常驻工具专用面、落点修订见 review 落地记录），随同批验证通过。
 
 ---
 
