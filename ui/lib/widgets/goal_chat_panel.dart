@@ -13,6 +13,7 @@ import '../theme/app_theme.dart';
 import 'chat_input_queue.dart';
 import 'chat_proposal_review.dart';
 import 'chat_run_status.dart';
+import 'goal_chat_ui_blocks.dart';
 import 'wiki_ai_chat_panel.dart';
 
 /// 目标专属 AI 讨论面板（goal_mentor）。
@@ -25,6 +26,11 @@ import 'wiki_ai_chat_panel.dart';
 /// 可操作选项 UI：AI 回复里的 ```elsewhen-choices 围栏块
 /// （JSON 数组，见 goal_mentor 幕僚提示）渲染成可点选按钮，
 /// 点击即把该选项作为用户消息发送；块本身不渲染为原始 JSON。
+///
+/// 生成式 UI：```elsewhen-ui 围栏块（UITree JSON，见
+/// goal_chat_ui_blocks.dart 的 guardrail 目录）渲染成原生组件卡片
+/// （指标/抓手/卡点/选项按钮），动作只开放 send_message 与
+/// fill_draft；解析失败自动回退纯文本，绝不展示原始 JSON。
 class GoalChatPanel extends ConsumerStatefulWidget {
   const GoalChatPanel({
     super.key,
@@ -39,7 +45,7 @@ class GoalChatPanel extends ConsumerStatefulWidget {
   final String goalId;
   final String goalContent;
 
-  /// 预填种子（如「AI 辅助拆解」的拆解引导语）。
+  /// 预填种子草稿（入口按需传入；目标页当前不传，选中即保持空白）。
   /// 只写入输入框草稿，**绝不自动发送**；用户可改可发。
   final String? initialSeed;
 
@@ -462,6 +468,28 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
     // 可操作选项：assistant 消息里的 elsewhen-choices 围栏块渲染成
     // 可点选按钮（点击即发送），块本身从 markdown 正文中剥掉。
     if (!message.isUser) {
+      // 生成式 UI：elsewhen-ui 块（UITree JSON）优先渲染为原生组件；
+      // 解析失败回退到 choices/纯文本路径。
+      final ui = extractGoalUiBlock(message.content);
+      if (ui != null) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (ui.strippedContent.isNotEmpty)
+              WikiChatBubble(
+                message: ContentChatMessage(
+                  role: message.role.name,
+                  content: ui.strippedContent,
+                ),
+              ),
+            GoalUiBlock(
+              tree: ui.tree,
+              onAction: (name, params) => _handleUiAction(name, params),
+            ),
+          ],
+        );
+      }
       final choices = _extractChoices(message.content);
       if (choices != null) {
         return Column(
@@ -526,6 +554,25 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
         ],
       ),
     );
+  }
+
+  /// 生成式 UI 动作：只开放 send_message 与 fill_draft；
+  /// 未识别动作静默忽略（guardrail 兑底，目标写操作仍走提议卡）。
+  void _handleUiAction(String name, Map<String, dynamic>? params) {
+    final text = params?['message']?.toString().trim() ?? '';
+    if (text.isEmpty) return;
+    switch (name) {
+      case 'send_message':
+        _send(text);
+        break;
+      case 'fill_draft':
+        _inputController.text = text;
+        _inputController.selection = TextSelection.collapsed(
+          offset: text.length,
+        );
+        _inputFocus.requestFocus();
+        break;
+    }
   }
 
   String _shortGoal(String content) {

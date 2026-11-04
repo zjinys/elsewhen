@@ -7,6 +7,7 @@ import 'glass.dart';
 import 'suggestion_feedback.dart';
 import 'save_topic_dialog.dart';
 import 'habit_nudge_dialog.dart';
+import 'adaptive_panel.dart';
 // ignore: unused_import — 翻篇入口暂隐藏，放量时恢复
 import 'page_mark_review.dart';
 import 'chat_proposal_review.dart';
@@ -175,130 +176,22 @@ int _habitNudgeAsk(String ref) {
   return int.tryParse(parts[2]) ?? 1;
 }
 
-bool get _isMobilePlatform => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
-
-/// 移动端用 bottom sheet 呈现面板（Material 惯例：大屏对话框在小屏上
-/// 上下留白多、圆角悬浮感重）；桌面端保持居中对话框。
-Future<void> _showAdaptivePanel(
-  BuildContext context, {
-  required Widget dialog,
-  required Widget Function(BuildContext) sheetBuilder,
-}) {
-  if (_isMobilePlatform) {
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppTheme.surface0,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: sheetBuilder,
-    );
-  }
-  return showDialog<void>(context: context, builder: (_) => dialog);
-}
-
-/// 通用底部面板壳（待办/目标等 bottom sheet 复用）。原在 drafts_sheets.dart，
-/// 草稿面板拆除后保留于此。
-class _PanelSheet extends StatelessWidget {
-  final String title;
-  final Widget Function(BuildContext) builder;
-
-  const _PanelSheet({required this.title, required this.builder});
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const _SheetHandle(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 8, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  tooltip: '关闭',
-                  icon: const Icon(Icons.close, size: 20),
-                  color: AppTheme.textSecondary,
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-          ),
-          Flexible(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(context).height * 0.7,
-              ),
-              child: builder(context),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SheetHandle extends StatelessWidget {
-  const _SheetHandle();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 10, bottom: 10),
-      child: Container(
-        width: 36,
-        height: 4,
-        decoration: BoxDecoration(
-          color: AppTheme.surface3,
-          borderRadius: BorderRadius.circular(2),
-        ),
-      ),
-    );
-  }
-}
+bool get _isMobilePlatform => isMobilePanel;
 
 void openTodoDialog(BuildContext context) {
-  _showAdaptivePanel(
+  showPanelSheet(
     context,
-    dialog: Dialog(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 560),
-        child: const SizedBox(width: 620, height: 560, child: TodoListView()),
-      ),
+    sheet: (_) => AdaptivePanelSheet(
+      title: '待办',
+      builder: (context) => const TodoListView(),
     ),
-    sheetBuilder: (sheetContext) =>
-        _PanelSheet(title: '待办', builder: (context) => const TodoListView()),
   );
 }
 
 void openGoalDialog(BuildContext context) {
-  _showAdaptivePanel(
+  showPanelSheet(
     context,
-    dialog: Dialog(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560, maxHeight: 560),
-        child: const SizedBox(
-          width: 560,
-          height: 560,
-          // embeddedInDialog：卡片级 AI 辅助触发时先关此弹窗再落到对话
-          child: GoalListView(quickGlance: true),
-        ),
-      ),
-    ),
-    sheetBuilder: (sheetContext) => _PanelSheet(
+    sheet: (_) => AdaptivePanelSheet(
       title: '目标',
       builder: (context) => GoalListView(quickGlance: true),
     ),

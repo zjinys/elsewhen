@@ -9,6 +9,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "108.0.0"
+  ai_ui_render:
+    dependency: "direct main"
+    description:
+      name: ai_ui_render
+      sha256: "946e3419ab38c82ff91a82a916f99590aeefd229ae41b68c25c2fcb43d737113"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.0"
   analyzer:
     dependency: transitive
     description:

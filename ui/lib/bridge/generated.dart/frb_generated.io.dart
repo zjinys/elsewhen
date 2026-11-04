@@ -3648,6 +3648,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.result = cst_encode_String(apiObj.result);
     wireObj.action = cst_encode_String(apiObj.action);
     wireObj.args_json = cst_encode_String(apiObj.argsJson);
+    wireObj.started_at = cst_encode_String(apiObj.startedAt);
   }
 
   @protected
@@ -16949,6 +16950,8 @@ final class wire_cst_chat_decision_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> started_at;
+
   static ffi.Pointer<wire_cst_chat_decision_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
@@ -16960,6 +16963,7 @@ final class wire_cst_chat_decision_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> result,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> action,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> started_at,
   }) => $allocator<wire_cst_chat_decision_dto>()
     ..ref.kind = kind
     ..ref.id = id
@@ -16969,7 +16973,8 @@ final class wire_cst_chat_decision_dto extends ffi.Struct {
     ..ref.status = status
     ..ref.result = result
     ..ref.action = action
-    ..ref.args_json = args_json;
+    ..ref.args_json = args_json
+    ..ref.started_at = started_at;
 }
 
 final class wire_cst_chat_input_queue_dto extends ffi.Struct {

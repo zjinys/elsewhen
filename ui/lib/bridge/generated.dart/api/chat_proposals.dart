@@ -59,6 +59,9 @@ class ChatDecisionDto {
   final String action;
   final String argsJson;
 
+  /// 决定发起时间（RFC3339）；列表项展示「多久之前」用。
+  final String startedAt;
+
   const ChatDecisionDto({
     required this.kind,
     required this.id,
@@ -69,6 +72,7 @@ class ChatDecisionDto {
     required this.result,
     required this.action,
     required this.argsJson,
+    required this.startedAt,
   });
 
   @override
@@ -81,7 +85,8 @@ class ChatDecisionDto {
       status.hashCode ^
       result.hashCode ^
       action.hashCode ^
-      argsJson.hashCode;
+      argsJson.hashCode ^
+      startedAt.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -96,7 +101,8 @@ class ChatDecisionDto {
           status == other.status &&
           result == other.result &&
           action == other.action &&
-          argsJson == other.argsJson;
+          argsJson == other.argsJson &&
+          startedAt == other.startedAt;
 }
 
 class ChatProposalDto {

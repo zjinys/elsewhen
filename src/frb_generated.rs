@@ -8039,6 +8039,7 @@ impl SseDecode for crate::api::chat_proposals::ChatDecisionDto {
         let mut var_result = <String>::sse_decode(deserializer);
         let mut var_action = <String>::sse_decode(deserializer);
         let mut var_argsJson = <String>::sse_decode(deserializer);
+        let mut var_startedAt = <String>::sse_decode(deserializer);
         return crate::api::chat_proposals::ChatDecisionDto {
             kind: var_kind,
             id: var_id,
@@ -8049,6 +8050,7 @@ impl SseDecode for crate::api::chat_proposals::ChatDecisionDto {
             result: var_result,
             action: var_action,
             args_json: var_argsJson,
+            started_at: var_startedAt,
         };
     }
 }
@@ -12374,6 +12376,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::chat_proposals::ChatDecisionD
             self.result.into_into_dart().into_dart(),
             self.action.into_into_dart().into_dart(),
             self.args_json.into_into_dart().into_dart(),
+            self.started_at.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -15671,6 +15674,7 @@ impl SseEncode for crate::api::chat_proposals::ChatDecisionDto {
         <String>::sse_encode(self.result, serializer);
         <String>::sse_encode(self.action, serializer);
         <String>::sse_encode(self.args_json, serializer);
+        <String>::sse_encode(self.started_at, serializer);
     }
 }
 
@@ -18746,6 +18750,7 @@ mod io {
                 result: self.result.cst_decode(),
                 action: self.action.cst_decode(),
                 args_json: self.args_json.cst_decode(),
+                started_at: self.started_at.cst_decode(),
             }
         }
     }
@@ -21534,6 +21539,7 @@ mod io {
                 result: core::ptr::null_mut(),
                 action: core::ptr::null_mut(),
                 args_json: core::ptr::null_mut(),
+                started_at: core::ptr::null_mut(),
             }
         }
     }
@@ -27931,6 +27937,7 @@ mod io {
         result: *mut wire_cst_list_prim_u_8_strict,
         action: *mut wire_cst_list_prim_u_8_strict,
         args_json: *mut wire_cst_list_prim_u_8_strict,
+        started_at: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -29974,8 +29981,8 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                9,
-                "Expected 9 elements, got {}",
+                10,
+                "Expected 10 elements, got {}",
                 self_.length()
             );
             crate::api::chat_proposals::ChatDecisionDto {
@@ -29988,6 +29995,7 @@ mod web {
                 result: self_.get(6).cst_decode(),
                 action: self_.get(7).cst_decode(),
                 args_json: self_.get(8).cst_decode(),
+                started_at: self_.get(9).cst_decode(),
             }
         }
     }

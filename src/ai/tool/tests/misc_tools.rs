@@ -187,6 +187,7 @@ fn approval_followup_injects_and_throttles() {
         result: "已创建待办草稿".into(),
         action: "create_todo".into(),
         args_json: "{}".into(),
+        started_at: "2026-10-20T00:00:00Z".into(),
     };
     // reject 不续跑
     assert!(

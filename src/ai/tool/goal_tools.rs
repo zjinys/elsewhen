@@ -95,7 +95,7 @@ impl Tool for CreateGoalTool {
         "create_goal"
     }
     fn description(&self) -> &'static str {
-        "为用户设立新的认知型目标（需用户在审阅卡确认）。活跃目标严格上限为 3 个。请在对话中协助用户明确：阶段、愿景、为什么做(why)、近1~2周第一启动抓手(current_focus)、可能卡点(blocker)以及达成判据(done_criteria)。"
+        "为用户设立新的认知型目标（需用户在审阅卡确认）。活跃目标严格上限为 3 个，满额时新目标会以「暂停搁置」状态创建、可随时读档唤醒。请在对话中协助用户明确：阶段、愿景、为什么做(why)、近1~2周第一启动抓手(current_focus)、可能卡点(blocker)以及达成判据(done_criteria)。"
     }
     fn parameters_schema(&self) -> Value {
         json!({
@@ -137,7 +137,7 @@ impl Tool for CreateGoalTool {
 
         store_create_pending(ctx.store, ctx.conversation_id, "create_goal", &action_args)?;
         Ok(format!(
-            "已为你草拟设立目标提议（待确认，尚未写入）：\n「{content}」\n—— 请在审阅卡片中核对动力、当前抓手与判据，点击接受后正式激活。"
+            "已为你草拟设立目标提议（待确认，尚未写入）：\n「{content}」\n—— 请在审阅卡片中核对动力、当前抓手与判据；点击接受后创建（活跃已满 3 条时会先放入「暂停搁置」，可随时读档唤醒）。"
         ))
     }
 }

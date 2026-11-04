@@ -78,7 +78,7 @@ class MainScreen extends ConsumerWidget {
                         ? const [TodayTitleBarActions()]
                         // 知识库/回顾/同步/目标：顶栏放「对话/知识」快速导航按钮
                         //（当前 tab 高亮），免开抽屉切回主 tab；抽屉保留，
-                        // 里面的最近页面/回顾日期/同步仪表/目标摘要导航不变。
+                        // 里面的最近页面/回顾日期/同步仪表/目标工作台导航不变。
                         : tab == SidebarTab.wiki
                         ? const [_WikiTabTitleBarActions()]
                         : const [_TabNavTitleBarActions()])
@@ -178,12 +178,9 @@ class MainScreen extends ConsumerWidget {
                               },
                             ),
                           ),
-                          // 目标总览（一级入口）：只读工作台，写操作仍在
-                          // 对话流/弹窗面板（GoalListView.readOnly 注释）。
-                          SidebarTab.goal => const Align(
-                            alignment: Alignment.topCenter,
-                            child: GoalListView(),
-                          ),
+                          // 目标（一级入口）：主区为「详情 | AI 讨论」并排，
+                          // master 清单与新建入口在左栏 GoalWorkbenchPanel。
+                          SidebarTab.goal => const GoalListView(),
                         },
                       ),
                     ),

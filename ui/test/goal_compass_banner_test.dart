@@ -11,6 +11,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/fake_goal_repo.dart';
+
 GoalCompassNudge _sampleNudge({
   String id = 'nudge-1',
   String goalId = 'goal-1',
@@ -51,9 +53,8 @@ Goal _sampleGoal({
   );
 }
 
-class FakeGoalCompassRepo extends RustBridgeRepository {
-  FakeGoalCompassRepo({GoalCompassNudge? initialNudge})
-      : super(runBackgroundWorker: false, runChatQueueWorker: false) {
+class FakeGoalCompassRepo extends FakeGoalChatRepo {
+  FakeGoalCompassRepo({GoalCompassNudge? initialNudge}) {
     activeCompassNudge.value = initialNudge;
   }
 

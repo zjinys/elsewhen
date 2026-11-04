@@ -217,6 +217,29 @@ class RustBridgeRepository implements StorageRepository {
     );
   }
 
+  /// 新建目标。类内成员（非 part extension）：测试 Fake 需要覆写它拦截
+  /// 落库，而扩展方法是静态绑定、不参与虚分派——见文件头 parts 拆分的
+  /// 规则注释。活跃已满 3 条时后端会以 paused（暂停搁置）状态创建，
+  /// 可随时读档唤醒，不再以报错方式拒绝。
+  Future<Goal> createGoal({
+    required String content,
+    required GoalPhase phase,
+    String? why,
+    String? currentFocus,
+    String? blocker,
+    String? doneCriteria,
+  }) async {
+    final dto = await api.createGoal(
+      content: content,
+      phase: phase.wire,
+      why: why,
+      currentFocus: currentFocus,
+      blocker: blocker,
+      doneCriteria: doneCriteria,
+    );
+    return Goal.fromDto(dto);
+  }
+
   Future<api.InputRecordDto> submitInput(
     String rawText, {
     String source = 'main_input',
@@ -625,11 +648,8 @@ class RustBridgeRepository implements StorageRepository {
     required String id,
     String? currentFocus,
     String? blocker,
-  }) => api.updateGoalFocus(
-        id: id,
-        currentFocus: currentFocus,
-        blocker: blocker,
-      );
+  }) =>
+      api.updateGoalFocus(id: id, currentFocus: currentFocus, blocker: blocker);
 
   /// 暂不打扰航向校准提醒（静默退避 7 天）
   Future<void> dismissCompassNudge(String id) async {

@@ -8,17 +8,16 @@ import 'package:intl/intl.dart';
 import 'app_pressable.dart';
 
 import '../models/wiki_page.dart';
-import '../models/goal.dart';
 import '../bridge/api.dart' as api;
 import '../providers/app_provider.dart';
 import '../providers/conversation_provider.dart';
-import '../providers/goal_provider.dart';
 import '../providers/knowledge_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../providers/review_provider.dart';
 import '../screens/settings_screen.dart';
 import '../theme/app_theme.dart';
 import 'sync_workspace.dart';
+import 'goal_view.dart' show GoalWorkbenchPanel;
 import '../bridge/rust_bridge_repository.dart';
 
 part 'left_sidebar_parts/sidebar_rail.dart';
@@ -117,8 +116,9 @@ class LeftSidebar extends ConsumerWidget {
                 SidebarTab.sync => SyncNavSummary(
                   repository: ref.watch(storageRepositoryProvider),
                 ),
-                // 目标左栏：活跃目标清单（只读导航，计数徽标；管理在主区/面板）
-                SidebarTab.goal => const _GoalNavSummary(),
+                // 目标左栏：长程目标与航向工作台（标题/过滤/清单/新建入口）；
+                // 选中目标后主区展示「详情 | AI 讨论」并排。
+                SidebarTab.goal => const GoalWorkbenchPanel(),
               },
             ),
             _buildFooter(context, ref),
@@ -289,6 +289,17 @@ List<_FooterAction> _footerActions(
         ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
       },
     ),
+    // 目标一级入口（Roadmap G3+）：左栏是完整工作台（清单/过滤/新建
+    // 入口），主区是选中目标的详情与 AI 讨论。
+    _FooterAction(
+      icon: Icons.flag_outlined,
+      label: '目标',
+      isActive: activeTab == SidebarTab.goal,
+      iconOnly: iconOnly,
+      onTap: () {
+        ref.read(sidebarTabProvider.notifier).set(SidebarTab.goal);
+      },
+    ),
     // 回顾入口（R1）：原「事件」域并入回顾——日视图承载当天
     // 事件明细，周/月为实时统计拼装。见
     // docs/roadmap/2026-10-15-review-and-goal-deviation-roadmap.md。
@@ -310,17 +321,6 @@ List<_FooterAction> _footerActions(
       iconOnly: iconOnly,
       onTap: () {
         ref.read(sidebarTabProvider.notifier).set(SidebarTab.sync);
-      },
-    ),
-    // 目标一级入口（Roadmap G3+）：主区只读总览，写操作仍以对话流/
-    // 弹窗面板为单一入口（见 GoalListView.readOnly 注释）。
-    _FooterAction(
-      icon: Icons.flag_outlined,
-      label: '目标',
-      isActive: activeTab == SidebarTab.goal,
-      iconOnly: iconOnly,
-      onTap: () {
-        ref.read(sidebarTabProvider.notifier).set(SidebarTab.goal);
       },
     ),
     // 移动端唯一设置入口（标题栏不再放设置图标）；桌面端点开与

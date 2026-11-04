@@ -279,8 +279,13 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                 .as_deref()
                 .map(|f| format!("，当前抓手：{f}"))
                 .unwrap_or_default();
+            let status_desc = if goal.status == crate::storage::GoalStatus::Paused {
+                "，活跃已满 3 条，已放入「暂停搁置」（可随时读档唤醒）"
+            } else {
+                ""
+            };
             Ok(format!(
-                "已成功设立目标「{}」[{}]{focus_desc}。",
+                "已成功设立目标「{}」[{}]{focus_desc}{status_desc}。",
                 goal.content,
                 goal.phase.label()
             ))

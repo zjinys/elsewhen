@@ -10925,8 +10925,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ChatDecisionDto dco_decode_chat_decision_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 9)
-      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return ChatDecisionDto(
       kind: dco_decode_String(arr[0]),
       id: dco_decode_String(arr[1]),
@@ -10937,6 +10937,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       result: dco_decode_String(arr[6]),
       action: dco_decode_String(arr[7]),
       argsJson: dco_decode_String(arr[8]),
+      startedAt: dco_decode_String(arr[9]),
     );
   }
 
@@ -14114,6 +14115,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_result = sse_decode_String(deserializer);
     var var_action = sse_decode_String(deserializer);
     var var_argsJson = sse_decode_String(deserializer);
+    var var_startedAt = sse_decode_String(deserializer);
     return ChatDecisionDto(
       kind: var_kind,
       id: var_id,
@@ -14124,6 +14126,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       result: var_result,
       action: var_action,
       argsJson: var_argsJson,
+      startedAt: var_startedAt,
     );
   }
 
@@ -18584,6 +18587,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.result, serializer);
     sse_encode_String(self.action, serializer);
     sse_encode_String(self.argsJson, serializer);
+    sse_encode_String(self.startedAt, serializer);
   }
 
   @protected

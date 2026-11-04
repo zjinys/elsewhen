@@ -2,7 +2,6 @@ part of '../rust_bridge_repository.dart';
 
 //! RustBridgeRepository 便捷薄委托（chat_and_misc 域）。
 extension RepoChatAndMisc on RustBridgeRepository {
-
   Future<bool> deleteTodo(String id) => api.deleteTodo(id: id);
 
   // ── 目标（FR-PES-005-01）──
@@ -37,25 +36,7 @@ extension RepoChatAndMisc on RustBridgeRepository {
     return dto == null ? null : Goal.fromDto(dto);
   }
 
-  /// 新建目标。活跃目标已满 3 条时后端拒绝，错误信息为可展示的中文。
-  Future<Goal> createGoal({
-    required String content,
-    required GoalPhase phase,
-    String? why,
-    String? currentFocus,
-    String? blocker,
-    String? doneCriteria,
-  }) async {
-    final dto = await api.createGoal(
-      content: content,
-      phase: phase.wire,
-      why: why,
-      currentFocus: currentFocus,
-      blocker: blocker,
-      doneCriteria: doneCriteria,
-    );
-    return Goal.fromDto(dto);
-  }
+  // createGoal 已移至类内（虚分派：被测试 Fake 覆写，见主文件的 parts 规则注释）。
 
   /// 编辑目标正文与阶段（状态不变，故不受上限限制）
   Future<void> updateGoal({
@@ -72,12 +53,12 @@ extension RepoChatAndMisc on RustBridgeRepository {
     String? blocker,
     String? doneCriteria,
   }) => api.updateGoalFacets(
-        id: id,
-        why: why,
-        currentFocus: currentFocus,
-        blocker: blocker,
-        doneCriteria: doneCriteria,
-      );
+    id: id,
+    why: why,
+    currentFocus: currentFocus,
+    blocker: blocker,
+    doneCriteria: doneCriteria,
+  );
 
   /// 完整更新目标的所有正文与切片字段
   Future<void> updateGoalFull({
@@ -89,14 +70,14 @@ extension RepoChatAndMisc on RustBridgeRepository {
     String? blocker,
     String? doneCriteria,
   }) => api.updateGoalFull(
-        id: id,
-        content: content,
-        phase: phase.wire,
-        why: why,
-        currentFocus: currentFocus,
-        blocker: blocker,
-        doneCriteria: doneCriteria,
-      );
+    id: id,
+    content: content,
+    phase: phase.wire,
+    why: why,
+    currentFocus: currentFocus,
+    blocker: blocker,
+    doneCriteria: doneCriteria,
+  );
 
   /// 暂停搁置目标，让出活跃名额但保留切片上下文作为历史以备随时复活
   Future<void> pauseGoal(String id) => api.pauseGoal(id: id);
@@ -112,11 +93,8 @@ extension RepoChatAndMisc on RustBridgeRepository {
     String id, {
     String? currentFocus,
     String? blocker,
-  }) => api.reactivateGoal(
-        id: id,
-        currentFocus: currentFocus,
-        blocker: blocker,
-      );
+  }) =>
+      api.reactivateGoal(id: id, currentFocus: currentFocus, blocker: blocker);
 
   Future<WikiPage> openTodoWorkItem(String id) async {
     final dto = await api.openTodoWorkItem(id: id);
@@ -150,7 +128,6 @@ extension RepoChatAndMisc on RustBridgeRepository {
   }
 
   // ── 知识页内 AI 处理会话 ──
-
 
   /// 归档知识页处理会话（如页面删除时）
   Future<void> archiveWikiPageChat(String pageSlug) =>

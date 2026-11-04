@@ -1,7 +1,9 @@
 //! 目标存取（FR-PES-005-01/02 & 2026-11 认知型目标升级）。
 //!
-//! 活跃目标上限 3 条由 `new_migrations.rs` 里的数据库触发器强制，本层不自己数，
-//! 只负责把触发器抛出的 `active_goal_limit_reached` 翻成用户看得懂的话。
+//! 活跃目标上限 3 条：新建时若活跃已满，主动以 `paused` 状态落库（保留
+//! 完整上下文、可随时读档唤醒），不再把创建挡在门外；`new_migrations.rs`
+//! 里的数据库触发器仍是最终防线（复活等 UPDATE 路径越限时报
+//! `active_goal_limit_reached`，由本层翻成用户看得懂的话）。
 //!
 //! `phase` 是标签不是槽位：同一阶段可以有多条活跃目标，也不要求三个阶段都有。
 //! 目标认知切片（`why`, `current_focus`, `blocker`, `done_criteria`）支持随时单字段滚动更新；
@@ -213,12 +215,15 @@ impl Store {
         )?)
     }
 
-    /// 新建一条活跃目标。达上限时由触发器拒绝，不自动顶掉既有目标。
+    /// 新建一条目标（无认知切片）。活跃名额未满时直接激活；已满 3 条时以
+    /// `paused` 状态创建，保留完整上下文供随时读档，不自动顶掉既有目标。
     pub fn create_goal(&self, content: &str, phase: GoalPhase) -> Result<Goal> {
         self.create_goal_with_facets(content, phase, None, None, None, None)
     }
 
-    /// 新建一条带认知切片的活跃目标。达上限时由触发器拒绝。
+    /// 新建一条带认知切片的目标。活跃名额未满时直接激活；已满 3 条时以
+    /// `paused` 状态创建（`superseded_at` 记为创建时刻），不报错、不顶替。
+    /// 触发器仍是最终防线（并发竞态下插入 active 仍会越限报错）。
     pub fn create_goal_with_facets(
         &self,
         content: &str,
@@ -233,11 +238,22 @@ impl Store {
             anyhow::bail!("目标内容不能为空");
         }
         let now = chrono::Utc::now().to_rfc3339();
+        // 活跃已满 → 落为暂停搁置（不再把创建挡在门外）；触发器兜底并发竞态。
+        let status = if self.count_active_goals()? >= MAX_ACTIVE_GOALS as i64 {
+            GoalStatus::Paused
+        } else {
+            GoalStatus::Active
+        };
+        let superseded_at = if status == GoalStatus::Paused {
+            Some(now.clone())
+        } else {
+            None
+        };
         let goal = Goal {
             id: Uuid::new_v4().to_string(),
             content: content.to_string(),
             phase,
-            status: GoalStatus::Active,
+            status,
             why: why.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
             current_focus: current_focus
                 .map(|s| s.trim().to_string())
@@ -250,22 +266,24 @@ impl Store {
                 .filter(|s| !s.is_empty()),
             created_at: now.clone(),
             updated_at: now.clone(),
-            superseded_at: None,
+            superseded_at,
         };
         let tx = self.begin_write_transaction()?;
         self.connection
             .execute(
                 "INSERT INTO goals(id, content, phase, status, why, current_focus, blocker, done_criteria, created_at, updated_at, superseded_at)
-                 VALUES (?1, ?2, ?3, 'active', ?4, ?5, ?6, ?7, ?8, ?8, NULL)",
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9, ?10)",
                 params![
                     goal.id,
                     goal.content,
                     phase.as_str(),
+                    status.as_str(),
                     goal.why,
                     goal.current_focus,
                     goal.blocker,
                     goal.done_criteria,
-                    now
+                    now,
+                    goal.superseded_at
                 ],
             )
             .map_err(map_write_error)?;
@@ -718,21 +736,29 @@ mod tests {
         store.store.create_goal("b", GoalPhase::Near).unwrap();
         store.store.create_goal("c", GoalPhase::Near).unwrap();
         assert_eq!(store.store.list_active_goals().unwrap().len(), 3);
-        // 第四条才被拒
-        let err = store.store.create_goal("d", GoalPhase::Near).unwrap_err();
-        assert!(err.to_string().contains("上限"), "实际: {err}");
+        // 第四条不再被拒：活跃已满 → 以暂停搁置落库，保留上下文可随时唤醒
+        let fourth = store.store.create_goal("d", GoalPhase::Near).unwrap();
+        assert_eq!(fourth.status, GoalStatus::Paused);
+        assert!(fourth.superseded_at.is_some());
+        assert_eq!(store.store.count_active_goals().unwrap(), 3);
+        let paused = store.store.list_paused_goals().unwrap();
+        assert_eq!(paused.len(), 1);
+        assert_eq!(paused[0].content, "d");
     }
 
-    /// 拒绝信息不得把触发器的下划线标识原样透给用户。
+    /// 触发器拒绝信息不得把下划线标识原样透给用户。新建路径满额时已改为
+    /// 落为 paused 不再报错，这里走「满额下唤醒暂停目标」的 UPDATE 路径覆盖翻译。
     #[test]
     fn cap_error_is_translated_for_display() {
         let store = store();
         for c in ["a", "b", "c"] {
             store.store.create_goal(c, GoalPhase::Near).unwrap();
         }
+        let fourth = store.store.create_goal("d", GoalPhase::Near).unwrap();
+        assert_eq!(fourth.status, GoalStatus::Paused);
         let err = store
             .store
-            .create_goal("d", GoalPhase::Near)
+            .reactivate_goal(&fourth.id)
             .unwrap_err()
             .to_string();
         assert!(err.contains("请先归档"), "实际: {err}");
