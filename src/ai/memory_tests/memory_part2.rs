@@ -94,7 +94,34 @@ fn goal_block_carries_guards_against_nagging() {
     let _ = std::fs::remove_file(path);
 }
 
-/// 目标认知切片（why, focus, blocker, done）正确注入到战略背景中。
+/// AI 侧定位升级（2026-11-02 review）：目标是「航向基准·主动对照」，
+/// 不再是「战略背景」；准则带工具启用时机与审阅确认纪律。
+#[test]
+fn goal_block_states_navigation_baseline_and_tool_timing() {
+    use crate::storage::GoalPhase;
+    let (store, conversation_id, path) = setup_store();
+    store.create_goal("上线 v1", GoalPhase::Near).unwrap();
+    let prompt = system_prompt_of(&store, &conversation_id);
+    assert!(prompt.contains("航向基准"), "段头应声明航向基准定位：\n{prompt}");
+    assert!(prompt.contains("默认对照"), "准则应含主动对照语义：\n{prompt}");
+    assert!(
+        !prompt.contains("战略背景"),
+        "旧「战略背景」被动定位应退场：\n{prompt}"
+    );
+    assert!(
+        prompt.contains("goal-management"),
+        "应带技能包启用时机：\n{prompt}"
+    );
+    assert!(
+        prompt.contains("list_goals")
+            && prompt.contains("update_goal_facets")
+            && prompt.contains("create_goal"),
+        "应点名核心目标工具：\n{prompt}"
+    );
+    let _ = std::fs::remove_file(path);
+}
+
+/// 目标认知切片（why, focus, blocker, done）正确注入到航向基准段中。
 #[test]
 fn goal_block_injects_cognitive_facets() {
     use crate::storage::GoalPhase;

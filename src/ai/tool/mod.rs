@@ -168,12 +168,13 @@ pub const BUILTIN_SKILLS: &[SkillDefinition] = &[
         id: "goal-management",
         title: "目标管理",
         tags: &["目标", "立项", "愿景", "抓手", "卡点", "对齐"],
-        brief: "查询目标列表、提议设立新目标或更新认知切片（抓手/卡点/动力）",
+        brief: "目标与航向：查询目标清单（含暂停/已达成历史）、提议立项或滚动抓手与卡点、暂停达成与读档复活（变更均需确认）",
         instructions: "使用要点：\n\
             - 活跃目标上限严格为 3 条。活跃目标已常驻在系统提示词中；list_goals 可查暂停或已达成目标。\n\
             - create_goal 与 update_goal_facets 均为草拟待确认制，需用户在审阅卡确认后真正落库。\n\
             - 立项时协助用户提炼愿景、核心动力(why)、近1~2周首发启动切片(current_focus)、已知卡点(blocker)与完成判据(done_criteria)。\n\
-            - 目标推进或卡点化解时，使用 update_goal_facets 滚动更新抓手或记录卡点，不要频繁重建目标。
+            - 目标推进或卡点化解时，使用 update_goal_facets 滚动更新抓手或记录卡点，不要频繁重建目标。\n\
+            - 涉及取舍、规划或知识沉淀方向时，默认对照活跃目标的当前抓手，帮他判断这件事在不在航向上；用户推进停滞或重心偏移时可提议校准，但不唠叨式催办。
 \
             - pause_goal / complete_goal / reactivate_goal 同为草拟待确认制；仅在用户明确表达暂停、达成或重启意愿时提议，不要主动劝用户放弃目标。",
         tools: &[

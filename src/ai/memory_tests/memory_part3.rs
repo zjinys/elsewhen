@@ -1,7 +1,8 @@
 #[allow(unused_imports)]
 use super::*;
 
-/// 目标与规则语义必须分离：规则是「对照检查」，目标是「仅作背景」。
+/// 目标与规则语义必须分离：规则是「对照检查」，目标是「航向基准·主动对照」
+/// （不继承规则的逐条约束措辞）。
 #[test]
 fn goals_and_rules_use_distinct_instructions() {
     use crate::storage::GoalPhase;

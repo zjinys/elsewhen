@@ -162,3 +162,19 @@ fn stable_setup_split_keeps_core_and_moves_guides_to_second_message() {
     let (_, _, events_guide) = TOOL_GUIDES[3];
     assert!(events_guide.contains("list_events_by_date"));
 }
+
+/// AI 侧定位 review（2026-11-02）：基底把目标写成幕僚定位与坐标系，
+/// 功能概览不缺目标条目（顺带补记事本）。
+#[test]
+fn base_prompt_states_goal_coordinate_positioning() {
+    assert!(SYSTEM_PROMPT_BASE.contains("幕僚"), "角色句应升级为幕僚定位");
+    assert!(
+        SYSTEM_PROMPT_BASE.contains("目标与航向"),
+        "功能概览应含「目标与航向」条目"
+    );
+    assert!(
+        SYSTEM_PROMPT_BASE.contains("服务于当前抓手"),
+        "应声明为当前抓手服务的坐标语义"
+    );
+    assert!(SYSTEM_PROMPT_BASE.contains("记事本"), "功能概览应含记事本");
+}
