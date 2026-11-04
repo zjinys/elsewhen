@@ -359,7 +359,7 @@ class _ChatProposalReviewDialogState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${args?['title'] ?? args?['content'] ?? (proposal.action == 'update_goal_facets' ? '更新目标切片 (ID: ${args?['id']})' : _actionLabel(proposal.action))}',
+                      '${args?['title'] ?? args?['content'] ?? args?['intent_text'] ?? (proposal.action == 'update_goal_facets' ? '更新目标切片 (ID: ${args?['id']})' : _actionLabel(proposal.action))}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(
@@ -485,6 +485,12 @@ class _ProposalContent extends StatelessWidget {
     final args = _args(argsJson);
     if (args == null) {
       return SelectableText('提议格式异常，不能接受；可以拒绝并重新草拟。\n$argsJson');
+    }
+
+    // P2 计划拆解草案：专属渲染（意图原文 / 评估 / 假设清单 / 里程碑步骤），
+    // 不再走通用正文 + 参数 JSON 的路径。
+    if (args.containsKey('intent_text') && args.containsKey('steps')) {
+      return _PlanDraftCard(args: args);
     }
 
     final hasGoalFacets =
@@ -708,6 +714,112 @@ class _GoalFacetsCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// P2 计划拆解草案的专属渲染：意图原文 / 现实性评估 / 假设清单 / 里程碑步骤。
+/// `create_plan` 与 `add_plan_steps` 的 args 同形（intent_text + steps）。
+class _PlanDraftCard extends StatelessWidget {
+  const _PlanDraftCard({required this.args});
+  final Map<String, dynamic> args;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final intent = args['intent_text']?.toString().trim() ?? '';
+    final vision = args['vision']?.toString().trim();
+    final assessment = args['assessment']?.toString().trim();
+    final planIntent = args['plan_intent']?.toString();
+    final assumptions = (args['assumptions'] as List?) ?? const [];
+    final steps = (args['steps'] as List?) ?? const [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (planIntent != null)
+          SelectableText(
+            '计划：$planIntent',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        if (intent.isNotEmpty)
+          SelectableText(
+            '意图：「$intent」',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        if (vision != null && vision.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          SelectableText('愿景：$vision'),
+        ],
+        if (assessment != null && assessment.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text('现实性评估', style: theme.textTheme.labelLarge),
+          const SizedBox(height: 4),
+          SelectableText(assessment),
+        ],
+        if (assumptions.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text('假设清单', style: theme.textTheme.labelLarge),
+          const SizedBox(height: 4),
+          for (final assumption in assumptions.whereType<Map>())
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text.rich(
+                TextSpan(
+                  style: theme.textTheme.bodyMedium,
+                  children: [
+                    TextSpan(
+                      text: '[${assumption['kind'] ?? '假设'}] ',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    TextSpan(text: '${assumption['text'] ?? ''}'),
+                  ],
+                ),
+              ),
+            ),
+        ],
+        if (steps.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(
+            '里程碑步骤（第一步确认后直接推进，其余排队）',
+            style: theme.textTheme.labelLarge,
+          ),
+          const SizedBox(height: 4),
+          for (var i = 0; i < steps.length; i++)
+            if (steps[i] is Map) _stepTile(context, i, steps[i] as Map),
+        ],
+      ],
+    );
+  }
+
+  Widget _stepTile(BuildContext context, int index, Map step) {
+    final theme = Theme.of(context);
+    final done = step['done_criteria']?.toString().trim();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text.rich(
+        TextSpan(
+          style: theme.textTheme.bodyMedium,
+          children: [
+            TextSpan(
+              text: '${index + 1}. ',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            TextSpan(text: '${step['content'] ?? ''}'),
+            if (done != null && done.isNotEmpty)
+              TextSpan(
+                text: '（判据：$done）',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

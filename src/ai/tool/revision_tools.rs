@@ -140,6 +140,46 @@ impl Tool for SaveWikiRevisionTool {
     }
 }
 
+/// P2：解析计划步骤载荷为落库草稿。工具侧已校验一次；这里以确认时刻的
+/// args 为准再校验一遍——不信任登记时的状态（与 run_skill_script 同纪律）。
+fn parse_plan_steps(args: &Value) -> Result<Vec<crate::storage::PlanStepDraft>> {
+    let steps = args
+        .get("steps")
+        .and_then(Value::as_array)
+        .ok_or_else(|| anyhow::anyhow!("步骤清单缺失"))?;
+    anyhow::ensure!(!steps.is_empty() && steps.len() <= 12, "步骤数需在 1~12 之间");
+    let mut drafts = Vec::with_capacity(steps.len());
+    for (i, step) in steps.iter().enumerate() {
+        let content = step
+            .get("content")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| anyhow::anyhow!("第 {} 步缺少内容", i + 1))?;
+        let phase = match step.get("phase").and_then(Value::as_str).unwrap_or("near") {
+            "mid" => crate::storage::GoalPhase::Mid,
+            "long" => crate::storage::GoalPhase::Long,
+            _ => crate::storage::GoalPhase::Near,
+        };
+        let opt = |key: &str| {
+            step.get(key)
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+        };
+        drafts.push(crate::storage::PlanStepDraft {
+            content: content.to_string(),
+            phase,
+            why: opt("why"),
+            current_focus: opt("current_focus"),
+            blocker: opt("blocker"),
+            done_criteria: opt("done_criteria"),
+        });
+    }
+    Ok(drafts)
+}
+
 // ── 待确认动作的真正执行（用户确认后调用） ─────────────────────────
 
 /// 执行一条待确认动作（写真源）。返回给用户的摘要。
@@ -288,6 +328,53 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                 "已成功设立目标「{}」[{}]{focus_desc}{status_desc}。",
                 goal.content,
                 goal.phase.label()
+            ))
+        }
+        "create_plan" => {
+            let intent_text = arg_str(&args, "intent_text")?;
+            let vision = arg_str_opt(&args, "vision").unwrap_or_default();
+            let assumptions = args
+                .get("assumptions")
+                .cloned()
+                .unwrap_or_else(|| json!([]));
+            let assumptions_json = serde_json::to_string(&assumptions)?;
+            let steps = parse_plan_steps(&args)?;
+            let plan = store.create_plan_with_steps(
+                &intent_text,
+                &vision,
+                &assumptions_json,
+                &steps,
+            )?;
+            let created = store.list_plan_steps(&plan.id)?;
+            let active = created
+                .iter()
+                .filter(|g| g.status == crate::storage::GoalStatus::Active)
+                .count();
+            let queued = created.len() - active;
+            let first = created
+                .first()
+                .map(|g| g.content.clone())
+                .unwrap_or_default();
+            let first_note = if active == 0 {
+                "第一步也已排队（活跃名额已满，随时可唤醒）"
+            } else {
+                "第一步已进入推进"
+            };
+            Ok(format!(
+                "已创建计划「{intent_text}」，共 {} 步：{first_note}（第一步「{first}」），另有 {queued} 步排队等待。",
+                created.len()
+            ))
+        }
+        "add_plan_steps" => {
+            let plan_id = arg_str(&args, "plan_id")?;
+            let steps = parse_plan_steps(&args)?;
+            let added = store.append_plan_steps(&plan_id, &steps)?;
+            let intent = args
+                .get("plan_intent")
+                .and_then(|v| v.as_str())
+                .unwrap_or(&plan_id);
+            Ok(format!(
+                "已为计划「{intent}」追加 {added} 个步骤（排队等待，名额空出时激活）。"
             ))
         }
         "update_goal_facets" => {

@@ -53,6 +53,8 @@ pub(crate) fn execute_claimed_proposal(
                 | "propose_people_relations"
                 | "archive_conversations_by_title"
                 | "import_url_to_wiki"
+                | "create_plan"
+                | "add_plan_steps"
         );
     if !atomic {
         return store.finish_chat_proposal(proposal, execute());

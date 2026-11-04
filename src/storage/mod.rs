@@ -85,7 +85,7 @@ pub use digest::{
     DigestBatch, DigestBatchOutcome, DigestJobRow, DigestJobStats, DigestRunRow,
 };
 pub use goals::{Goal, GoalCompassNudge, GoalPhase, GoalStatus, MAX_ACTIVE_GOALS};
-pub use plans::{GoalPlan, PlanStatus};
+pub use plans::{GoalPlan, PlanStatus, PlanStepDraft};
 pub use knowledge::{
     KnowledgeIssue, KnowledgeMetadata, KnowledgeProposal, RejectedSourceRow, SourceSnapshot,
 };

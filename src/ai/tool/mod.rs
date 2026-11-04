@@ -15,6 +15,7 @@ use self::goal_tools::{
     CompleteGoalTool, CreateGoalTool, ListGoalsTool, PauseGoalTool, ReactivateGoalTool,
     UpdateGoalFacetsTool,
 };
+use self::plan_tools::{AddPlanStepsTool, CreatePlanTool, ListPlansTool};
 use self::query_tools::ListEventsByDateTool;
 use self::query_tools::{ArchiveConversationsByTitleTool, ImportUrlToWikiTool, RenameWikiPageTool};
 use self::read_tools::{
@@ -168,7 +169,7 @@ pub const BUILTIN_SKILLS: &[SkillDefinition] = &[
         id: "goal-management",
         title: "目标管理",
         tags: &["目标", "立项", "愿景", "抓手", "卡点", "对齐"],
-        brief: "目标与航向：查询目标清单（含暂停/已达成历史）、提议立项或滚动抓手与卡点、暂停达成与读档复活（变更均需确认）",
+        brief: "目标与航向：查询目标清单与长程计划、把长期意图拆解为计划草案（假设清单 + 里程碑步骤）、提议立项或滚动抓手与卡点、暂停达成与读档复活（变更均需确认）",
         instructions: "使用要点：\n\
             - 活跃目标上限严格为 3 条。活跃目标已常驻在系统提示词中；list_goals 可查暂停或已达成目标。\n\
             - create_goal 与 update_goal_facets 均为草拟待确认制，需用户在审阅卡确认后真正落库。\n\
@@ -176,7 +177,10 @@ pub const BUILTIN_SKILLS: &[SkillDefinition] = &[
             - 目标推进或卡点化解时，使用 update_goal_facets 滚动更新抓手或记录卡点，不要频繁重建目标。\n\
             - 涉及取舍、规划或知识沉淀方向时，默认对照活跃目标的当前抓手，帮他判断这件事在不在航向上；用户推进停滞或重心偏移时可提议校准，但不唠叨式催办。
 \
-            - pause_goal / complete_goal / reactivate_goal 同为草拟待确认制；仅在用户明确表达暂停、达成或重启意愿时提议，不要主动劝用户放弃目标。",
+            - pause_goal / complete_goal / reactivate_goal 同为草拟待确认制；仅在用户明确表达暂停、达成或重启意愿时提议，不要主动劝用户放弃目标。\n\
+            - 用户提出长期意图/愿望（如「3 年内月入 10 万」）时，用 create_plan 一次给出计划全貌与第一步：先给现实性评估（可查知识库、必要时 web_search 核实关键事实），再列假设清单（软时间窗/现状/路径/风险），每条假设都可被用户纠正；intent_text 引用用户原话，不改写。\n\
+            - 拆解方法论：里程碑由近及远；每步 1~2 周内可启动、带可验证判据；用户给出期望步数（「用 5 步实现」）时按该数量拆。接受后第一步直接推进，其余自动排队——不要把「名额」当作拒绝理由。\n\
+            - 计划进入下一段或用户细化路径时用 add_plan_steps 追加；用 list_plans 查计划与进度，不要为同一意图重复建计划。",
         tools: &[
             "list_goals",
             "create_goal",
@@ -184,6 +188,9 @@ pub const BUILTIN_SKILLS: &[SkillDefinition] = &[
             "pause_goal",
             "complete_goal",
             "reactivate_goal",
+            "list_plans",
+            "create_plan",
+            "add_plan_steps",
         ],
     },
 ];
@@ -230,6 +237,7 @@ pub enum ToolPolicy {
 }
 
 mod history;
+mod plan_tools;
 mod skill_script;
 mod stats;
 
@@ -336,6 +344,9 @@ impl ToolRegistry {
             Box::new(PauseGoalTool),
             Box::new(CompleteGoalTool),
             Box::new(ReactivateGoalTool),
+            Box::new(ListPlansTool),
+            Box::new(CreatePlanTool),
+            Box::new(AddPlanStepsTool),
         ]
     }
 }

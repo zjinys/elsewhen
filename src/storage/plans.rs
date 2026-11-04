@@ -9,7 +9,7 @@ use anyhow::Result;
 use rusqlite::{Error as SqliteError, OptionalExtension, params};
 use uuid::Uuid;
 
-use super::Goal;
+use super::{Goal, GoalPhase, GoalStatus, MAX_ACTIVE_GOALS};
 use super::Store;
 use super::goals::{SELECT_COLUMNS, row_to_goal};
 
@@ -63,6 +63,17 @@ pub struct GoalPlan {
     pub status: PlanStatus,
     pub created_at: String,
     pub updated_at: String,
+}
+
+/// 计划步骤草稿：P2 AI 拆解提案落库时的单步载荷（与提案 args 同形）。
+#[derive(Debug, Clone)]
+pub struct PlanStepDraft {
+    pub content: String,
+    pub phase: GoalPhase,
+    pub why: Option<String>,
+    pub current_focus: Option<String>,
+    pub blocker: Option<String>,
+    pub done_criteria: Option<String>,
 }
 
 const PLAN_COLUMNS: &str =
@@ -297,6 +308,158 @@ impl Store {
         }
         Ok(())
     }
+
+    /// P2：确认落库一条完整计划——计划整行 + 全部步骤目标，单事务提交。
+    /// 第一步按活跃名额激活；其余一律落暂停排队（「同计划默认 1 步推进」，
+    /// 注意力保护由 AI 调度，触发器仍兜底全局上限）。
+    pub fn create_plan_with_steps(
+        &self,
+        intent_text: &str,
+        vision: &str,
+        assumptions_json: &str,
+        steps: &[PlanStepDraft],
+    ) -> Result<GoalPlan> {
+        if steps.is_empty() {
+            anyhow::bail!("计划至少需要一个步骤");
+        }
+        if steps.len() > 12 {
+            anyhow::bail!("单个计划最多 12 个步骤");
+        }
+        let intent_text = intent_text.trim();
+        if intent_text.is_empty() {
+            anyhow::bail!("计划意图不能为空");
+        }
+        let parsed: serde_json::Value = serde_json::from_str(assumptions_json)
+            .map_err(|_| anyhow::anyhow!("假设清单必须是合法 JSON"))?;
+        if !parsed.is_array() {
+            anyhow::bail!("假设清单必须是 JSON 数组");
+        }
+        let now = chrono::Utc::now().to_rfc3339();
+        let plan = GoalPlan {
+            id: Uuid::new_v4().to_string(),
+            intent_text: intent_text.to_string(),
+            vision: vision.trim().to_string(),
+            assumptions: assumptions_json.to_string(),
+            status: PlanStatus::Active,
+            created_at: now.clone(),
+            updated_at: now.clone(),
+        };
+        let tx = self.begin_write_transaction()?;
+        self.connection.execute(
+            "INSERT INTO goal_plans(id, intent_text, vision, assumptions, status, created_at, updated_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)",
+            params![
+                plan.id,
+                plan.intent_text,
+                plan.vision,
+                plan.assumptions,
+                plan.status.as_str(),
+                now
+            ],
+        )?;
+        self.sync_record_plan(&plan.id, false)?;
+        let activate_first = self.count_active_goals()? < MAX_ACTIVE_GOALS as i64;
+        for (i, step) in steps.iter().enumerate() {
+            let status = if i == 0 && activate_first {
+                GoalStatus::Active
+            } else {
+                GoalStatus::Paused
+            };
+            self.insert_plan_step(&plan.id, (i as i64) + 1, step, status)?;
+        }
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(plan)
+    }
+
+    /// P2：为既有计划追加步骤（追加拆解）。序号接续现有最大值；新步骤全部
+    /// 落暂停排队，活跃名额空出时再由推进循环唤醒。
+    pub fn append_plan_steps(&self, plan_id: &str, steps: &[PlanStepDraft]) -> Result<usize> {
+        if steps.is_empty() {
+            anyhow::bail!("至少要追加一个步骤");
+        }
+        if steps.len() > 12 {
+            anyhow::bail!("单次最多追加 12 个步骤");
+        }
+        let exists: bool = self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM goal_plans WHERE id=?1)",
+            [plan_id],
+            |r| r.get(0),
+        )?;
+        if !exists {
+            anyhow::bail!("计划不存在");
+        }
+        let base: i64 = self.connection.query_row(
+            "SELECT COALESCE(MAX(step_index), 0) FROM goals WHERE plan_id=?1",
+            [plan_id],
+            |r| r.get(0),
+        )?;
+        let tx = self.begin_write_transaction()?;
+        for (i, step) in steps.iter().enumerate() {
+            self.insert_plan_step(plan_id, base + (i as i64) + 1, step, GoalStatus::Paused)?;
+        }
+        // 计划本体 updated_at 随之同步（列表排序与对端感知）。
+        self.connection.execute(
+            "UPDATE goal_plans SET updated_at=?2 WHERE id=?1",
+            params![plan_id, chrono::Utc::now().to_rfc3339()],
+        )?;
+        self.sync_record_plan(plan_id, false)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(steps.len())
+    }
+
+    /// 插入一条已挂接的步骤目标（计划列随出生写入；同步在同一事务内捕获）。
+    fn insert_plan_step(
+        &self,
+        plan_id: &str,
+        step_index: i64,
+        step: &PlanStepDraft,
+        status: GoalStatus,
+    ) -> Result<()> {
+        let content = step.content.trim();
+        if content.is_empty() {
+            anyhow::bail!("步骤内容不能为空");
+        }
+        let now = chrono::Utc::now().to_rfc3339();
+        let superseded_at = if status == GoalStatus::Paused {
+            Some(now.clone())
+        } else {
+            None
+        };
+        let id = Uuid::new_v4().to_string();
+        self.connection.execute(
+            "INSERT INTO goals(id, content, phase, status, why, current_focus, blocker, done_criteria, created_at, updated_at, superseded_at, plan_id, step_index) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9, ?10, ?11, ?12)",
+            params![
+                id,
+                content,
+                step.phase.as_str(),
+                status.as_str(),
+                step.why.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+                step.current_focus
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty()),
+                step.blocker
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty()),
+                step.done_criteria
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty()),
+                now,
+                superseded_at,
+                plan_id,
+                step_index
+            ],
+        )?;
+        self.sync_record_goal(&id)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -499,5 +662,94 @@ mod tests {
         let step = store.store.get_goal(&g1.id).unwrap().unwrap();
         assert!(step.plan_id.is_none() && step.step_index.is_none());
         assert!(store.store.delete_plan("nope").is_err());
+    }
+
+    #[test]
+    fn create_plan_with_steps_activates_first_and_queues_rest() {
+        let store = store();
+        let steps = vec![
+            PlanStepDraft {
+                content: "第一步：验证付费意愿".into(),
+                phase: GoalPhase::Near,
+                why: None,
+                current_focus: Some("做 10 次访谈".into()),
+                blocker: None,
+                done_criteria: Some("10 次访谈完成".into()),
+            },
+            PlanStepDraft {
+                content: "第二步：最小可售卖方案".into(),
+                phase: GoalPhase::Near,
+                why: None,
+                current_focus: None,
+                blocker: None,
+                done_criteria: None,
+            },
+            PlanStepDraft {
+                content: "第三步：首笔收入".into(),
+                phase: GoalPhase::Mid,
+                why: None,
+                current_focus: None,
+                blocker: None,
+                done_criteria: None,
+            },
+        ];
+        let plan = store
+            .store
+            .create_plan_with_steps("3 年内月入 10 万", "可持续的独立收入", "[]", &steps)
+            .unwrap();
+        let listed = store.store.list_plan_steps(&plan.id).unwrap();
+        assert_eq!(listed.len(), 3);
+        assert_eq!(listed[0].status, crate::storage::GoalStatus::Active);
+        assert_eq!(listed[0].step_index, Some(1));
+        assert_eq!(listed[0].plan_id.as_deref(), Some(plan.id.as_str()));
+        assert_eq!(listed[1].status, crate::storage::GoalStatus::Paused);
+        assert_eq!(listed[2].status, crate::storage::GoalStatus::Paused);
+        assert_eq!(store.store.count_active_steps(&plan.id).unwrap(), 1);
+        assert_eq!(store.store.list_waiting_steps(&plan.id).unwrap().len(), 2);
+
+        // 追加：序号接续、全部排队。
+        let more = vec![PlanStepDraft {
+            content: "第四步：规模化".into(),
+            phase: GoalPhase::Long,
+            why: None,
+            current_focus: None,
+            blocker: None,
+            done_criteria: None,
+        }];
+        assert_eq!(store.store.append_plan_steps(&plan.id, &more).unwrap(), 1);
+        let listed = store.store.list_plan_steps(&plan.id).unwrap();
+        assert_eq!(listed.len(), 4);
+        assert_eq!(listed[3].step_index, Some(4));
+        assert_eq!(listed[3].status, crate::storage::GoalStatus::Paused);
+    }
+
+    #[test]
+    fn create_plan_with_steps_respects_global_active_cap() {
+        let store = store();
+        for i in 0..3 {
+            store
+                .store
+                .create_goal(&format!("满额占位 {i}"), GoalPhase::Near)
+                .unwrap();
+        }
+        let steps = vec![PlanStepDraft {
+            content: "第一步".into(),
+            phase: GoalPhase::Near,
+            why: None,
+            current_focus: None,
+            blocker: None,
+            done_criteria: None,
+        }];
+        let plan = store
+            .store
+            .create_plan_with_steps("满额时的计划", "", "[]", &steps)
+            .unwrap();
+        let listed = store.store.list_plan_steps(&plan.id).unwrap();
+        assert_eq!(
+            listed[0].status,
+            crate::storage::GoalStatus::Paused,
+            "全局活跃已满：第一步也先排队"
+        );
+        assert_eq!(store.store.list_waiting_steps(&plan.id).unwrap().len(), 1);
     }
 }

@@ -22,7 +22,7 @@
 |---|---|---|---|---|
 | 阶段 0 | P0 | 契约冻结 | 数据模型、工具契约、UI 形态、待定问题定案 | **已完成**（2026-11-04，见提案「定案记录」） |
 | 阶段 1 | P1 | 存储与协议 | goal_plans 表 + goals 扩展列（含存量清理迁移）+ PlanRecord 同步 + FRB 门面 | **已完成**（2026-11-04，证据见下） |
-| 阶段 2 | P2 | AI 拆解（主对话入口） | 拆解提示词 + create_plan 提案 + 草案审阅卡 + 端到端 | 未开始 |
+| 阶段 2 | P2 | AI 拆解（主对话入口） | 拆解提示词 + create_plan 提案 + 草案审阅卡 + 端到端 | **已完成**（2026-11-04 工程收口；真模型质量与真人验收留人工门，见落地记录） |
 | 阶段 3 | P3 | 执行循环与计划看板 | advance/激活提议 + 并发闸调度 + 目标页计划看板 | 未开始 |
 | 阶段 4 | P4 | 主动复盘与偏离扩展 | 计划层 compass + 复盘提议 | 未开始 |
 
@@ -48,12 +48,19 @@
   - FRB 与 Dart：`src/api/plans.rs`（PlanDto + 门面函数）、`GoalDto` 增 `plan_id/step_index`；`models/plan.dart`（GoalPlan/PlanStatus）+ `rust_bridge_parts/plans.dart`（RepoPlans 委托）+ Goal 模型扩展 + 对象冲突审阅计划文案；`scripts/regen.sh` 重生成后桥 hash 两侧一致（`-1437813334`）。
   - 门禁（2026-11-04）：`cargo test --all-targets` **1019 passed / 0 failed / 20 ignored**；`fvm flutter test` **521 passed / 0 failed**；`fvm flutter analyze` **0 error**。专项用例：`v68_goal_plans_migration_purges_legacy_goals_without_orphans`（v67 真造存量 → 迁移后无孤立引用）、`snapshot_carries_plans_with_steps_and_incremental_metadata`（快照携带 + PlanChanged 增量）、`src/storage/plans.rs` 6 例（CRUD / 闸门 / 删除解绑）。
 
-### P2 — AI 拆解（主对话入口）
+### P2 — AI 拆解（主对话入口）（已完成，2026-11-04）
 - 提示词：拆解方法论（里程碑由近及远 / 每步 1~2 周抓手 / 每步可验证判据）+ 可行性评估（结合知识库现状与 web_search）+ **假设清单**纪律（AI 凭什么这么拆，逐条可纠正）。
 - 工具：`create_plan`（提案：计划全貌 + 第一步 goal）、`add_plan_steps`（追加拆解）；goal-management 技能包扩章。
 - 审阅卡：草案可视化（意图原文 / 现实性评估 / 假设列表 / 里程碑 / 第一步 goal），接受或逐项纠正。
 - 端到端：主对话一句话 → 草案 → 确认落库 → 目标页出现计划。
 - 测试面：提案载荷校验、接受/纠正路径、无会话降级、红线（未确认零落库）。
+- **落地记录（2026-11-04）：**
+  - 工具与提示词（`src/ai/tool/plan_tools.rs` + goal-management 技能扩章）：`create_plan`（意图原文原话引用 / 愿景 / 现实性评估 / 假设清单（≤16 条，逐条可纠正）/ 里程碑步骤（1~12 步，由近及远、带判据））、`add_plan_steps`（追加接续）、`list_plans`（含推进 / 排队计数）；全部 WriteConfirm 确认制，方法论与「期望步数」纪律写进工具描述与技能说明。
+  - 执行（`src/ai/tool/revision_tools.rs` + `src/ai/approval.rs`）：接受后单事务落库——计划整行 + 全部步骤目标（第一步按活跃名额激活、其余暂停排队，「同计划默认 1 步推进」；`store.create_plan_with_steps / append_plan_steps`）；复用审批索赔 / 租约 / 回执与审阅目标核验。
+  - 逐项纠错（`src/storage/approvals.rs`）：`create_plan` 草案的 vision / assessment / assumptions / steps 可编辑（意图原文是身份锚，不可改）；纠正后审批 token 重新绑定，旧版本自然失效。
+  - 审阅卡（`ui/lib/widgets/chat_proposal_parts/`）：`create_plan` / `add_plan_steps` 专属草案渲染（意图原文 / 评估 / 假设清单 / 里程碑步骤；列表标题回退到意图原文）；详情面板支持愿景与现实性评估的文本纠正。假设与步骤的**结构化逐条编辑**留作后续切片（当前由「拒绝 + 对话纠偏 + 重新提议」覆盖）。
+  - 测试面与门禁：`cargo test --all-targets` **1024 passed / 0 failed / 20 ignored**；新增 5 例——计划存储 2（第一步激活 / 全局满额排队、追加序号接续）+ 工具确认流 3（未确认零落库 → 确认整计划落库 → 追加；逐项纠正 → token 重绑 → 接受采用纠正版；空步骤拒绝且不登记）；`fvm flutter test` **521 passed / 0 failed**、`fvm flutter analyze` 0 error。
+  - 剩余人工门：真模型质量（「一句话 → 可用拆解」）与真人 GUI 验收沿用既有验收路径；「无会话降级」由构造保证（提案必须挂源会话）。
 
 ### P3 — 执行循环与计划看板
 - 完成一步：AI 复盘（事实 vs 假设）→ 提议下一步 goal（`advance_plan_step` 提案）。

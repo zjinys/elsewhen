@@ -35,6 +35,8 @@ String _actionLabel(String action) =>
       'mcp_tool_call': 'MCP 工具调用',
       'create_goal': '设立认知目标',
       'update_goal_facets': '更新目标切片',
+      'create_plan': '长程计划拆解',
+      'add_plan_steps': '计划追加步骤',
     }[action] ??
     action;
 

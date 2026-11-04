@@ -119,6 +119,9 @@ fn editable_field(action: &str, key: &str) -> bool {
         "rename_wiki_page" => key == "new_title",
         "propose_people_relations" => matches!(key, "people" | "relations"),
         "import_url_to_wiki" => key == "title",
+        // P2 计划拆解：意图原文是身份锚不可改；其余草案内容可逐项纠正后重绑审批 token。
+        "create_plan" => matches!(key, "vision" | "assessment" | "assumptions" | "steps"),
+        "add_plan_steps" => key == "steps",
         _ => false,
     }
 }

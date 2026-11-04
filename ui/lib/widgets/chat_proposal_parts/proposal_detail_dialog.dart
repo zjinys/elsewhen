@@ -76,6 +76,9 @@ class _ChatProposalDetailDialogState
       'blocker',
       'done_criteria',
     ],
+    // P2 计划拆解：意图原文是身份锚不可改；假设/步骤是结构化数组，不入口
+    // 纯文本编辑（Dart toString 会污染 JSON）；本切片只放行文本型字段。
+    'create_plan' => ['vision', 'assessment'],
     _ => [],
   };
 
@@ -260,6 +263,8 @@ class _ChatProposalDetailDialogState
             minLines:
                 entry.key == 'content_md' ||
                     entry.key == 'content' ||
+                    entry.key == 'assessment' ||
+                    entry.key == 'vision' ||
                     entry.key == 'why' ||
                     entry.key == 'current_focus' ||
                     entry.key == 'blocker' ||
@@ -282,6 +287,8 @@ class _ChatProposalDetailDialogState
                     'change_note': '修改说明',
                     'new_title': '新标题',
                     'phase': '周期阶段（near/mid/long）',
+                    'vision': '愿景（可留空）',
+                    'assessment': '现实性评估（可留空）',
                     'why': '为什么做 / 核心动力',
                     'current_focus': '当前 1~2 周启动抓手',
                     'blocker': '已知卡点 / 困难预判',
