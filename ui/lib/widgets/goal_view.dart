@@ -6,53 +6,38 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/rust_bridge_repository.dart';
 import '../models/goal.dart';
-import '../models/plan.dart';
-import '../providers/conversation_provider.dart';
 import '../providers/goal_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../theme/app_theme.dart';
 import 'adaptive_panel.dart';
 import 'goal_chat_panel.dart';
 import 'goal_compass_banner.dart';
-// goalCompassChatDraftProvider / MessageArea 输入预填机制定义在此文件。
-import 'message_area.dart';
+// 目标页 AI 面板的预填草稿机制见 providers/goal_provider.dart
+// （goalPanelSeedProvider）：立项与拆解全程留在本页，不跳对话 tab。
 
 /// 活跃目标上限，与后端 `MAX_ACTIVE_GOALS` 及数据库触发器一致。
 const int maxActiveGoals = 3;
 
-/// 目标域「AI 共同立项 / 共同分解」统一入口：把指令预填到对话输入框并
-/// 切回对话 tab，**绝不自动发送**——用户可改可发（与 compass「聚焦讨论」、
-/// 习惯问候预填同一纪律）。实际分解由 AI 走 create_goal /
-/// update_goal_facets 的 WriteConfirm 提议卡完成，抓手永远由用户确认才落库。
+/// 目标域「AI 共同立项 / 共同分解」统一入口：把指令预填到**目标页** AI 面板
+/// 的输入框并确保停在「目标」tab，**绝不自动发送**——用户可改可发
+/// （与习惯问候预填同一纪律）。立项与拆解全程留在目标页：不跳对话 tab、
+/// 不混进普通对话清单与存储（工作室走保留会话 `goal-studio`）。
 ///
-/// 返回 false 表示当前没有任何可用会话（含会话列表尚未加载），调用方
-/// 应提示用户先去对话页；true 表示已预填并切换成功。
-bool startGoalCoAuthor(
-  WidgetRef ref,
-  String seed, {
-  void Function()? onSwitched,
-}) {
-  String? convId = ref.read(selectedConversationIdProvider);
-  if (convId == null) {
-    final convs = ref.read(conversationsProvider).value;
-    final main = convs?.firstOrNull;
-    if (main != null) {
-      ref.read(selectedConversationIdProvider.notifier).set(main.id);
-      convId = main.id;
-    }
-  }
-  if (convId == null) return false;
-  ref.read(goalCompassChatDraftProvider(convId).notifier).set(seed);
-  ref.read(sidebarTabProvider.notifier).set(SidebarTab.conversation);
-  onSwitched?.call();
-  return true;
+/// [goalId] 为空 = 立项工作室（新意图拆解）；非空 = 该目标的专属讨论面板。
+/// 实际落库仍由 AI 走 create_plan / update_goal_facets 的 WriteConfirm
+/// 提议卡完成，抓手与计划永远由用户确认才落库。
+void startGoalCoAuthor(WidgetRef ref, String seed, {String? goalId}) {
+  final scope = goalId ?? goalStudioId;
+  ref.read(sidebarTabProvider.notifier).set(SidebarTab.goal);
+  ref.read(selectedGoalIdProvider.notifier).set(scope);
+  ref.read(goalPanelSeedProvider(scope).notifier).set(seed);
 }
 
 /// 目标域「AI 共同立项 / 共同分解」的 Toast 文案。
 void showGoalCoAuthorToast(BuildContext context) {
   ScaffoldMessenger.of(context).showSnackBar(
     const SnackBar(
-      content: Text('已带目标上下文到对话输入框，确认或修改后发送即可共同拆解'),
+      content: Text('已带目标上下文到「目标」页的 AI 输入框，确认或修改后发送即可共同拆解'),
       behavior: SnackBarBehavior.floating,
       duration: Duration(seconds: 3),
     ),
@@ -322,41 +307,14 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
   }
 
   /// 主区：选中目标的详情卡 + AI 讨论面板（左右并排，窄则上下堆叠）。
-  /// 未选中时给占位指引。
+  /// 未选中（或选中立项工作室）时给「AI 立项工作室」——立项与拆解就在
+  /// 目标页完成，不跳对话页。
   Widget _buildDetailRegion(dynamic nudge, String? selectedId) {
-    final goal = selectedId == null ? null : _goalById(selectedId);
+    final goal = selectedId == null || selectedId == goalStudioId
+        ? null
+        : _goalById(selectedId);
     if (goal == null) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: AppTheme.surface1,
-            border: Border.all(color: AppTheme.surface3),
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.touch_app_outlined,
-                size: 26,
-                color: AppTheme.textTertiary,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '在左侧「目标」列表选择一个目标\n查看详情并与 AI 讨论',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1.6,
-                  color: AppTheme.textTertiary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildStudioRegion();
     }
     final detailContent = Column(
       key: ValueKey('goal-detail-${goal.id}'),
@@ -423,6 +381,98 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
                   key: ValueKey('goal-chat-${goal.id}'),
                   goalId: goal.id,
                   goalContent: goal.content,
+                  fillHeight: true,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// 未选中目标的默认主区：AI 立项工作室。
+  ///
+  /// 用户把一句意图交给 AI，拆解与落库（确认制提案）全在目标页完成；
+  /// 面板走保留会话 `goal-studio`，不混进普通对话清单与界面。
+  Widget _buildStudioRegion() {
+    final intro = Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.surface1,
+        border: Border.all(color: AppTheme.surface3),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.auto_awesome,
+                size: 18,
+                color: AppTheme.accentPrimary,
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                'AI 立项工作室',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '把一句意图交给 AI（例：「3 年内月收入 10 万」）：它先给现实性评估与假设清单，'
+            '再拆成一条长程计划与由近及远的里程碑步骤，每步都带可验证判据；'
+            '落库前都要你确认。',
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.6,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '计划落库后出现在左侧「长程计划」。在左侧选中某个目标，'
+            '这里会切换成那条目标的专属讨论。',
+            style: TextStyle(
+              fontSize: 11.5,
+              height: 1.6,
+              color: AppTheme.textTertiary,
+            ),
+          ),
+        ],
+      ),
+    );
+    const panelKey = ValueKey('goal-studio-panel');
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 720) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                intro,
+                const SizedBox(height: 10),
+                const GoalChatPanel(key: panelKey, studio: true),
+              ],
+            ),
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(flex: 5, child: SingleChildScrollView(child: intro)),
+              const SizedBox(width: 12),
+              const Expanded(
+                flex: 6,
+                child: GoalChatPanel(
+                  key: panelKey,
+                  studio: true,
                   fillHeight: true,
                 ),
               ),
@@ -769,6 +819,7 @@ class _GoalCreateFormState extends ConsumerState<_GoalCreateForm> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextField(
+              key: const ValueKey('goal-create-content'),
               controller: _contentController,
               enabled: !_saving,
               autofocus: true,
@@ -893,10 +944,9 @@ class _GoalCreateFormState extends ConsumerState<_GoalCreateForm> {
   }
 }
 
-/// 「和 AI 拆解 / 立新目标」：预填对话草稿并切回对话 tab（绝不自动发送）。
-/// 提及当前活跃目标作为上下文；实际落库走 create_goal /
-/// update_goal_facets 的 WriteConfirm 提议卡，这里不做任何直接写库。
-/// 会话不可用时提示用户先去对话页。
+/// 「和 AI 拆解 / 立新目标」：预填目标页立项工作室草稿（绝不自动发送），
+/// 不跳对话页。实际落库走 create_plan / update_goal_facets 的 WriteConfirm
+/// 提议卡，这里不做任何直接写库。
 void _startGoalCoAuthor(WidgetRef ref, BuildContext context, int activeCount) {
   final goals = ref.read(activeGoalsProvider).value ?? const <Goal>[];
   final goalBrief = goals.isEmpty
@@ -904,17 +954,8 @@ void _startGoalCoAuthor(WidgetRef ref, BuildContext context, int activeCount) {
       : '当前活跃目标：${goals.map((g) => '「${g.content}」（抓手：${g.currentFocus ?? "未设定"}）').join('、')}。';
   final seed = activeCount == 0
       ? '我想立一个新的长程目标。请用几个设问帮我明确：为什么做、什么算完成、近 1~2 周的第一启动抓手是什么、可能卡在哪。$goalBrief'
-      : '帮我看看这些目标的推进情况：哪个抓手该滚动到下一个切片了？或者帮我共同规划一个新的目标。$goalBrief';
-  final ok = startGoalCoAuthor(ref, seed);
-  if (!ok) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('暂无可用会话，请先在对话页新建会话后再试'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    return;
-  }
+      : '帮我看看这些目标的推进情况：哪个抓手该滚动到下一个切片了？或者帮我共同规划一个新的长程目标。$goalBrief';
+  startGoalCoAuthor(ref, seed);
   showGoalCoAuthorToast(context);
 }
 

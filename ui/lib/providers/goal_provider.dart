@@ -135,3 +135,20 @@ final planBoardProvider = FutureProvider<List<PlanBoardEntry>>((ref) async {
   }
   return entries;
 });
+
+/// 立项工作室（AI 立项/拆解专用保留会话）的 id：既作「目标页主区选中项」
+/// 的哨兵值，也作 AI 面板预填草稿的 scope 键。与后端
+/// `GOAL_STUDIO_CONVERSATION_ID` 保持一致；它不出现在普通对话清单里。
+const String goalStudioId = 'goal-studio';
+
+/// 目标页 AI 面板的预填草稿（目标讨论与立项工作室共用）。
+///
+/// 键为面板 scope（目标 id 或 [goalStudioId]）；写入后由面板填入输入框并
+/// 聚焦，**绝不自动发送**——用户可改可发。
+///
+/// 刻意不用 autoDispose：入口常在面板尚未挂载时写入（例如点「和 AI 拆解」
+/// 才把主区切到工作室），自动销毁会把还没读到的种子丢掉。
+final goalPanelSeedProvider =
+    NotifierProvider.family<StateHolder<String?>, String?, String>(
+      (scope) => StateHolder<String?>(null),
+    );

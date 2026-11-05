@@ -10418,6 +10418,18 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__goals__ensure_goal_studio(int port_) {
+    return _wire__crate__api__goals__ensure_goal_studio(port_);
+  }
+
+  late final _wire__crate__api__goals__ensure_goal_studioPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__goals__ensure_goal_studio',
+      );
+  late final _wire__crate__api__goals__ensure_goal_studio =
+      _wire__crate__api__goals__ensure_goal_studioPtr
+          .asFunction<void Function(int)>();
+
   void wire__crate__api__goals__get_active_compass_nudge(int port_) {
     return _wire__crate__api__goals__get_active_compass_nudge(port_);
   }

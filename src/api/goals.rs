@@ -122,6 +122,28 @@ pub fn ensure_goal_chat(goal_id: String) -> Result<ConversationDto> {
     })
 }
 
+/// 获取（不存在则创建）目标工作室会话：AI 立项/拆解专用，不进普通对话清单。
+pub fn ensure_goal_studio() -> Result<ConversationDto> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let conversation_id = store.ensure_goal_studio_conversation()?;
+    let conversation = store
+        .get_conversation(&conversation_id)?
+        .ok_or_else(|| anyhow::anyhow!("会话创建失败"))?;
+    Ok(ConversationDto {
+        id: conversation.id,
+        title: conversation.title,
+        tag: conversation.tag,
+        created_at: conversation.created_at,
+        updated_at: conversation.updated_at,
+        message_count: conversation.message_count,
+        last_message_preview: conversation.last_message_preview,
+        archived: conversation.archived,
+        wiki_page_slug: conversation.wiki_page_slug,
+        goal_id: conversation.goal_id,
+    })
+}
+
 pub fn list_active_goals() -> Result<Vec<GoalDto>> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
@@ -836,5 +858,55 @@ mod tests {
             evaluate_goal_compass(&store.store).unwrap().is_none(),
             "同计划 7 天内已有提醒，换一步也应被计划层降频拦住"
         );
+    }
+
+    #[test]
+    fn goal_studio_conversation_is_reserved_hidden_and_idempotent() {
+        let store = store();
+        let id = store.store.ensure_goal_studio_conversation().unwrap();
+        assert_eq!(id, crate::storage::GOAL_STUDIO_CONVERSATION_ID);
+        assert_eq!(
+            store.store.ensure_goal_studio_conversation().unwrap(),
+            id,
+            "重复调用必须收敛到同一保留会话"
+        );
+        // AI 立项/拆解不混进对话界面与存储视图：普通会话清单里没有它。
+        assert!(
+            store.store.list_conversations().unwrap().is_empty(),
+            "目标工作室不应出现在普通对话清单里"
+        );
+        let (mode, goal_id, title): (String, Option<String>, Option<String>) = store
+            .store
+            .connection
+            .query_row(
+                "SELECT assistant_mode, goal_id, title FROM conversations WHERE id=?1",
+                rusqlite::params![id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(mode, "goal_mentor");
+        assert!(goal_id.is_none(), "工作室不绑定具体目标");
+        assert_eq!(title.as_deref(), Some("目标工作室"));
+
+        // 归档后再次获取静默取回（目标页固定入口不因归档消失）。
+        store
+            .store
+            .connection
+            .execute(
+                "UPDATE conversations SET archived=1 WHERE id=?1",
+                rusqlite::params![id],
+            )
+            .unwrap();
+        assert_eq!(store.store.ensure_goal_studio_conversation().unwrap(), id);
+        let archived: bool = store
+            .store
+            .connection
+            .query_row(
+                "SELECT archived FROM conversations WHERE id=?1",
+                rusqlite::params![id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert!(!archived, "重新进入工作室应把它取回未归档");
     }
 }

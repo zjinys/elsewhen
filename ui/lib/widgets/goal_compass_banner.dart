@@ -181,19 +181,9 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
 
     onBeforeDiscuss?.call();
 
-    final ok = startGoalCoAuthor(ref, seed);
-    if (ok) {
-      showGoalCoAuthorToast(context);
-    } else {
-      // 无任何会话可落入时不静默吞掉动作：明确告知失败与替代路径。
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('暂无可用会话，请先在对话页新建会话后再试'),
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 3),
-        ),
-      );
-    }
+    // 讨论就在目标页完成：选中该目标的专属讨论面板并预填草稿，不跳对话页。
+    startGoalCoAuthor(ref, seed, goalId: nudge.goalId);
+    showGoalCoAuthorToast(context);
   }
 
   static Future<void> _rollFocus(

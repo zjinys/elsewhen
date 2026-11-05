@@ -404,14 +404,16 @@ void main() {
       expect(focusField.maxLines, 8);
     });
 
-    testWidgets('没有活跃目标：主区占位；窄轨宽度下清单退回主区左侧', (tester) async {
+    testWidgets('没有活跃目标：主区默认打开立项工作室；窄轨宽度下清单退回主区左侧', (tester) async {
       // 默认视口 800 宽：桌面平台命中 700~1024 窄轨形态
       await tester.pumpWidget(_mainView());
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('在左侧「目标」列表选择一个目标'), findsOneWidget);
+      // 立项与拆解留在目标页：未选中目标时主区是「AI 立项工作室」面板，
+      // 而不是把用户推去对话页的占位指引。
+      expect(find.text('AI 立项工作室'), findsWidgets);
+      expect(find.byType(GoalChatPanel), findsOneWidget);
       expect(find.text('目标'), findsOneWidget); // 窄轨退回的清单标题
-      expect(find.byType(GoalChatPanel), findsNothing);
       expect(tester.takeException(), isNull);
     });
   });

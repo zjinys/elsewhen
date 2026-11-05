@@ -9,7 +9,6 @@ import 'package:elsewhen_ui/providers/wiki_provider.dart';
 import 'package:elsewhen_ui/widgets/goal_chat_panel.dart';
 import 'package:elsewhen_ui/widgets/goal_view.dart';
 import 'package:elsewhen_ui/widgets/left_sidebar.dart';
-import 'package:elsewhen_ui/widgets/message_area.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -170,7 +169,7 @@ void main() {
       expect(find.byType(GoalChatPanel), findsOneWidget);
       expect(find.textContaining('当前抓手：'), findsOneWidget);
       expect(find.textContaining('网络分区下的分片停滞'), findsOneWidget);
-      expect(find.textContaining('在左侧「目标」列表选择一个目标'), findsNothing);
+      expect(find.text('AI 立项工作室'), findsNothing); // 选中目标时不显示工作室
       expect(find.byIcon(Icons.more_horiz), findsWidgets);
       // ⚙ 滚动抓手按钮已移除（入口收敛到 ⋯ 菜单与抓手条点击）
       expect(find.byIcon(Icons.tune_outlined), findsNothing);
@@ -259,9 +258,9 @@ void main() {
       await tester.pumpWidget(_goalDomain(atGoalTab: true, goalChatRepo: repo));
       await tester.pumpAndSettle();
 
-      // 左栏空态指引；主区占位（无目标可选中）
+      // 左栏空态指引；主区默认「AI 立项工作室」（立项/拆解留在目标页）
       expect(find.textContaining('还没有活跃目标'), findsOneWidget);
-      expect(find.textContaining('在左侧「目标」列表选择一个目标'), findsOneWidget);
+      expect(find.text('AI 立项工作室'), findsWidgets);
 
       await tester.tap(find.text('新建'));
       await tester.pumpAndSettle();
@@ -271,7 +270,11 @@ void main() {
       );
       expect(add.onPressed, isNotNull);
 
-      await tester.enterText(find.byType(TextField).first, '发 1.0');
+      // 底部表单的愿景输入框（工作室面板也有输入框，用 key 精确定位）。
+      await tester.enterText(
+        find.byKey(const ValueKey('goal-create-content')),
+        '发 1.0',
+      );
       await tester.tap(find.text('添加'));
       await tester.pumpAndSettle();
 
@@ -282,23 +285,22 @@ void main() {
   });
 
   group('AI 共同立项入口（目标页）', () {
-    testWidgets('点击后预填对话草稿并切回对话 tab，不自动发送', (tester) async {
+    testWidgets('点击后预填目标页工作室草稿并停在目标 tab，不自动发送', (tester) async {
       useWideSidebar(tester);
       SidebarTab? capturedTab;
       String? capturedDraft;
+      final repo = FakeGoalChatRepo();
       await tester.pumpWidget(
         _goalDomain(
           atGoalTab: true,
+          goalChatRepo: repo,
           active: [_goal('g1', '发布 Elsewhen 1.0', currentFocus: '攻克多端同步快照收敛')],
           extraChild: Consumer(
             builder: (context, ref, _) {
               capturedTab = ref.watch(sidebarTabProvider);
-              capturedDraft = ref.watch(
-                goalCompassChatDraftProvider('conv-main'),
-              );
-              // 预热会话列表：startGoalCoAuthor 同步读 .value，未加载时会走
-              // 「无会话」分支（真实应用中对话页/侧栏早已 watch 过它）。
-              ref.watch(conversationsProvider);
+              // 草稿写入后会被工作室面板消费（置空），只记最近一次非空值。
+              final seed = ref.watch(goalPanelSeedProvider(goalStudioId));
+              if (seed != null) capturedDraft = seed;
               return const SizedBox.shrink();
             },
           ),
@@ -312,11 +314,18 @@ void main() {
       await tester.tap(find.text('和 AI 拆解 / 立新目标'));
       await tester.pumpAndSettle();
 
-      // 切回对话 tab，且种子写入对话草稿（输入框监听后预填，不自动发送）
-      expect(capturedTab, SidebarTab.conversation);
+      // 立项留在目标页：仍停在目标 tab，种子预填进立项工作室输入框
+      //（不自动发送），不混进普通对话。
+      expect(capturedTab, SidebarTab.goal);
       expect(capturedDraft, isNotNull);
       expect(capturedDraft, contains('发布 Elsewhen 1.0'));
       expect(capturedDraft, contains('攻克多端同步快照收敛'));
+      expect(find.text('AI 立项工作室'), findsWidgets);
+      final input = tester.widget<TextField>(
+        find.byKey(const ValueKey('goal-panel-input')),
+      );
+      expect(input.controller?.text, contains('发布 Elsewhen 1.0'));
+      expect(repo.messages, isEmpty, reason: '草稿绝不自动发送');
       expect(tester.takeException(), isNull);
     });
 
@@ -419,13 +428,35 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('宽屏：无活跃目标时主区给占位，不自动打开讨论', (tester) async {
+    testWidgets('宽屏：无活跃目标时主区默认打开立项工作室', (tester) async {
       useWideLayout(tester);
       await tester.pumpWidget(_goalDomain(atGoalTab: true));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('在左侧「目标」列表选择一个目标'), findsOneWidget);
-      expect(find.byType(GoalChatPanel), findsNothing);
+      expect(find.text('AI 立项工作室'), findsWidgets);
+      expect(find.byType(GoalChatPanel), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('工作室发言写进保留会话，不混进普通对话', (tester) async {
+      useWideLayout(tester);
+      final repo = FakeGoalChatRepo();
+      await tester.pumpWidget(
+        _goalDomain(atGoalTab: true, goalChatRepo: repo),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const ValueKey('goal-panel-input')),
+        '3 年内月入 10 万',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.arrow_upward));
+      await tester.pumpAndSettle();
+
+      expect(repo.messages, isNotEmpty);
+      expect(repo.messages.last.conversationId, 'goal-studio');
+      expect(repo.messages.last.content, '3 年内月入 10 万');
       expect(tester.takeException(), isNull);
     });
   });

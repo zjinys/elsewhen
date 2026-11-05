@@ -17,6 +17,10 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<ConversationDto> ensureGoalChat({required String goalId}) =>
     RustLib.instance.api.crateApiGoalsEnsureGoalChat(goalId: goalId);
 
+/// 获取（不存在则创建）目标工作室会话：AI 立项/拆解专用，不进普通对话清单。
+Future<ConversationDto> ensureGoalStudio() =>
+    RustLib.instance.api.crateApiGoalsEnsureGoalStudio();
+
 Future<List<GoalDto>> listActiveGoals() =>
     RustLib.instance.api.crateApiGoalsListActiveGoals();
 

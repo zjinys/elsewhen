@@ -54,62 +54,121 @@ extension _Skills on _SettingsScreenState {
           ],
         ),
         const SizedBox(height: AppTheme.space3),
+        // 列表头：数量统计 + 「批量删除」/「全选」入口同行（与 MCP 列表同款）。
+        if (skills != null && skills.isNotEmpty)
+          Row(
+            children: [
+              Text(
+                _skillBatchMode
+                    ? '已选 ${_skillSelected.length} / ${skills.length}'
+                    : '共 ${skills.length} 个',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.4,
+                  color: AppTheme.textTertiary,
+                ),
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: () => setState(() {
+                  _skillBatchMode = !_skillBatchMode;
+                  _skillSelected.clear();
+                }),
+                icon: Icon(
+                  _skillBatchMode
+                      ? Icons.close_outlined
+                      : Icons.checklist_outlined,
+                  size: 15,
+                ),
+                label: Text(
+                  _skillBatchMode ? '退出选择' : '批量删除',
+                  style: const TextStyle(fontSize: 12.5),
+                ),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+              if (_skillBatchMode) ...[
+                const SizedBox(width: 4),
+                TextButton(
+                  onPressed: () => setState(() {
+                    if (_skillSelected.length == skills.length) {
+                      _skillSelected.clear();
+                    } else {
+                      _skillSelected
+                        ..clear()
+                        ..addAll(skills.map((s) => s.id));
+                    }
+                  }),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: Text(
+                    _skillSelected.length == skills.length ? '全不选' : '全选',
+                    style: const TextStyle(fontSize: 12.5),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        if (_skillBatchMode && skills != null && skills.isNotEmpty) ...[
+          const SizedBox(height: AppTheme.space2),
+          // 批量操作条：确认删除需二次点击（弹确认框），取消则退出选择模式。
+          Row(
+            children: [
+              FilledButton.icon(
+                onPressed: _skillSelected.isEmpty
+                    ? null
+                    : () => _batchUninstallSkills(),
+                icon: const Icon(Icons.delete_outline, size: 16),
+                label: Text('删除所选 (${_skillSelected.length})'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppTheme.error,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton(
+                onPressed: () => setState(() {
+                  _skillBatchMode = false;
+                  _skillSelected.clear();
+                }),
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Text('取消'),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTheme.space2),
+        ],
+        const SizedBox(height: AppTheme.space3),
         if (skills == null)
-          Text(
-            _userSkillsError ?? '读取中…',
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          _McpStatusLine(
+            icon: Icons.hourglass_empty_outlined,
+            text: _userSkillsError ?? '正在读取技能列表…',
           )
         else if (skills.isEmpty)
-          Text(
-            '尚未安装任何用户技能',
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          _McpStatusLine(
+            icon: Icons.extension_outlined,
+            text: '尚未安装任何用户技能\n从文件夹 / zip / Git 仓库安装第一个技能',
           )
         else
           ...skills.map(
-            (skill) => Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(skill.title, style: const TextStyle(fontSize: 14)),
-                      if (skill.brief.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            skill.brief,
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: skill.trusted ? '信任（脚本免审批，点击改为逐次审批）' : '逐次审批（点击标为信任，脚本免审批）',
-                  icon: Icon(
-                    skill.trusted
-                        ? Icons.verified_user_outlined
-                        : Icons.shield_outlined,
-                    size: 18,
-                    color: skill.trusted
-                        ? AppTheme.accentPrimary
-                        : AppTheme.textTertiary,
-                  ),
-                  onPressed: () => _toggleUserSkillTrusted(skill.id, !skill.trusted),
-                ),
-                IconButton(
-                  tooltip: '卸载（全设备同步删除）',
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                  onPressed: () => _uninstallUserSkill(skill.id),
-                ),
-                Switch(
-                  value: skill.enabled,
-                  onChanged: (value) => _toggleUserSkill(skill.id, value),
-                ),
-              ],
+            (skill) => _UserSkillCard(
+              skill: skill,
+              selecting: _skillBatchMode,
+              selected: _skillSelected.contains(skill.id),
+              onToggleSelected: () => setState(() {
+                if (!_skillSelected.remove(skill.id)) {
+                  _skillSelected.add(skill.id);
+                }
+              }),
+              onToggleEnabled: (v) => _toggleUserSkill(skill.id, v),
+              onToggleTrusted: () =>
+                  _toggleUserSkillTrusted(skill.id, !skill.trusted),
+              onUninstall: () => _uninstallUserSkill(skill.id),
             ),
           ),
       ],
@@ -256,6 +315,70 @@ extension _Skills on _SettingsScreenState {
     }
   }
 
+  /// 批量卸载：先确认，再逐项调卸载；单项失败不中断其余项，
+  /// 最后汇总报告成功/失败数并重载列表。
+  Future<void> _batchUninstallSkills() async {
+    final ids = _skillSelected.toList();
+    if (ids.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('批量卸载技能'),
+        content: Text(
+          '共 ${ids.length} 个技能将从本机删除；若已同步，其他设备也会一并删除。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('卸载'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final repository =
+        ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    var ok = 0;
+    final failures = <String>[];
+    for (final id in ids) {
+      try {
+        await repository.uninstallUserSkill(id);
+        ok++;
+      } catch (e) {
+        failures.add(id);
+        if (mounted) {
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            SnackBar(content: Text(reportUiError('卸载技能 $id', e))),
+          );
+        }
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _skillSelected.clear();
+      if (failures.isEmpty) _skillBatchMode = false;
+    });
+    await _loadUserSkills();
+    if (!mounted) return;
+    if (failures.isEmpty) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text('已卸载 $ok 个技能')),
+      );
+    } else {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(
+          content: Text('成功 $ok 个，失败 ${failures.length} 个：'
+              '${failures.take(3).join('、')}'
+              '${failures.length > 3 ? ' 等' : ''}'),
+        ),
+      );
+    }
+  }
+
   Future<void> _toggleUserSkill(String id, bool enabled) async {
     setState(() {
       _userSkills = _userSkills
@@ -361,6 +484,181 @@ extension _Skills on _SettingsScreenState {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 单个用户技能卡片（与 _McpServerCard 同款视觉，2026-11-04 统一）：
+/// - 左侧扩展图标，停用时整体降饱和；批量选择模式下图标位换成勾选框；
+/// - 标题行：名称 + 信任徽章（复用 _McpBadge）；
+/// - 副标题：一句话简介单行省略，无 description 时退回技能 id；
+/// - 尾部：溢出菜单（信任/卸载）+ 启用开关，不再横排图标。
+class _UserSkillCard extends StatelessWidget {
+  final api.UserSkillDto skill;
+  final ValueChanged<bool> onToggleEnabled;
+  final VoidCallback onToggleTrusted;
+  final VoidCallback onUninstall;
+  /// 批量选择模式：为 true 时尾部操作控件换成勾选框，整卡点击切换选中。
+  final bool selecting;
+  final bool selected;
+  final VoidCallback? onToggleSelected;
+
+  const _UserSkillCard({
+    required this.skill,
+    required this.onToggleEnabled,
+    required this.onToggleTrusted,
+    required this.onUninstall,
+    this.selecting = false,
+    this.selected = false,
+    this.onToggleSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = skill.enabled;
+    // 主色随状态：启用=强调色，停用=灰（同 MCP 卡片）；选中时边框高亮。
+    final leadColor = enabled ? AppTheme.accentPrimary : AppTheme.textTertiary;
+    final card = Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: enabled ? AppTheme.surface2 : AppTheme.surface1,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(
+          color: selected
+              ? AppTheme.accentPrimary
+              : AppTheme.surface3.withValues(alpha: enabled ? 0.7 : 0.4),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // 批量选择模式：图标位换成勾选框；否则展示扩展图标。
+          if (selecting)
+            Icon(
+              selected ? Icons.check_circle : Icons.radio_button_unchecked,
+              size: 22,
+              color: selected ? AppTheme.accentPrimary : AppTheme.textTertiary,
+            )
+          else
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: leadColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+              ),
+              child: Icon(
+                Icons.extension_outlined,
+                size: 18,
+                color: leadColor,
+              ),
+            ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        skill.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: enabled
+                              ? AppTheme.textPrimary
+                              : AppTheme.textTertiary,
+                        ),
+                      ),
+                    ),
+                    if (skill.trusted) ...[
+                      const SizedBox(width: 6),
+                      _McpBadge(
+                        label: '信任·免审批',
+                        color: AppTheme.accentPrimary,
+                        icon: Icons.verified_user_outlined,
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  skill.brief.isNotEmpty ? skill.brief : 'id: ${skill.id}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: enabled
+                        ? AppTheme.textSecondary
+                        : AppTheme.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // 批量选择模式下隐藏操作控件，避免误触；整卡点击切换选中。
+          if (!selecting) ...[
+            PopupMenuButton<String>(
+            tooltip: '更多操作',
+            icon: Icon(
+              Icons.more_horiz,
+              size: 18,
+              color: AppTheme.textTertiary,
+            ),
+            color: AppTheme.surface3,
+            onSelected: (value) => switch (value) {
+              'trusted' => onToggleTrusted(),
+              'uninstall' => onUninstall(),
+              _ => null,
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'trusted',
+                child: Row(
+                  children: [
+                    Icon(
+                      skill.trusted
+                          ? Icons.shield_outlined
+                          : Icons.verified_user_outlined,
+                      size: 16,
+                      color: skill.trusted
+                          ? AppTheme.textSecondary
+                          : AppTheme.accentPrimary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(skill.trusted ? '改为逐次审批' : '标为信任（免审批）'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'uninstall',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline, size: 16),
+                    SizedBox(width: 8),
+                    Text('卸载'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          Switch(value: enabled, onChanged: onToggleEnabled),
+          ],
+        ],
+      ),
+    );
+    // 选择模式下整卡可点，切换选中状态。
+    if (!selecting) return card;
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+      onTap: onToggleSelected,
+      child: card,
     );
   }
 }

@@ -9,6 +9,7 @@ import '../models/conversation.dart';
 import '../models/tweet_fetch.dart';
 import '../providers/chat_run_provider.dart';
 import '../providers/conversation_provider.dart';
+import '../providers/goal_provider.dart';
 import '../theme/app_theme.dart';
 import 'chat_input_queue.dart';
 import 'chat_proposal_review.dart';
@@ -16,12 +17,12 @@ import 'chat_run_status.dart';
 import 'goal_chat_ui_blocks.dart';
 import 'wiki_ai_chat_panel.dart';
 
-/// 目标专属 AI 讨论面板（goal_mentor）。
-///
-/// 每条活跃目标一个持久会话（`ensureGoalChat`），讨论上下文由
-/// system_context 的 goal_mentor 幕僚切片注入；目标页内展开，
-/// 不切对话 tab。AI 变更（暂停/达成/重启/抓手调整）全部走
-/// WriteConfirm 提议卡，本面板只负责对话与展示，不做任何直接写库。
+/// 目标页 AI 面板（goal_mentor）：每条活跃目标一个专属讨论会话
+/// （`ensureGoalChat`）；未选中目标时是 [studio] 立项工作室（保留会话
+/// `ensureGoalStudio`）。讨论上下文由 system_context 的 goal_mentor /
+/// 目标工作室切片注入；全程在目标页内展开，不切对话 tab。AI 变更
+/// （暂停/达成/重启/抓手调整、计划拆解）全部走 WriteConfirm 提议卡，
+/// 本面板只负责对话与展示，不做任何直接写库。
 ///
 /// 可操作选项 UI：AI 回复里的 ```elsewhen-choices 围栏块
 /// （JSON 数组，见 goal_mentor 幕僚提示）渲染成可点选按钮，
@@ -34,19 +35,25 @@ import 'wiki_ai_chat_panel.dart';
 class GoalChatPanel extends ConsumerStatefulWidget {
   const GoalChatPanel({
     super.key,
-    required this.goalId,
-    required this.goalContent,
+    this.goalId = '',
+    this.goalContent = '',
+    this.studio = false,
     this.initialSeed,
     this.onMinimize,
     this.onDragUpdate,
     this.fillHeight = false,
   });
 
+  /// 目标 id；[studio] 为 true 时留空（工作室不绑定具体目标）。
   final String goalId;
   final String goalContent;
 
-  /// 预填种子草稿（入口按需传入；目标页当前不传，选中即保持空白）。
-  /// 只写入输入框草稿，**绝不自动发送**；用户可改可发。
+  /// 立项工作室形态：走保留会话 `ensureGoalStudio`（AI 立项/拆解专用，
+  /// 不进普通对话界面），标题与开场白换成「AI 立项工作室」。
+  final bool studio;
+
+  /// 预填种子草稿（卡内嵌形态的入口按需传入；目标页主区走
+  /// [goalPanelSeedProvider]）。只写入输入框草稿，**绝不自动发送**。
   final String? initialSeed;
 
   final VoidCallback? onMinimize;
@@ -113,7 +120,7 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
   @override
   void didUpdateWidget(covariant GoalChatPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.goalId != widget.goalId) {
+    if (oldWidget.goalId != widget.goalId || oldWidget.studio != widget.studio) {
       _conversationId = null;
       _messages = [];
       _ready = false;
@@ -132,19 +139,38 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
     super.dispose();
   }
 
+  /// 面板 scope：目标 id，或立项工作室的保留 id（也是预填草稿的键）。
+  String get _scopeKey => widget.studio ? goalStudioId : widget.goalId;
+
+  /// 把草稿填入输入框并聚焦（不发送）。
+  void _applySeed(String seed) {
+    if (seed.trim().isEmpty) return;
+    _inputController.text = seed;
+    _inputController.selection = TextSelection.collapsed(offset: seed.length);
+    _inputFocus.requestFocus();
+  }
+
   Future<void> _ensureConversation() async {
     final goalId = widget.goalId;
+    final studio = widget.studio;
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-      final conv = await repo.ensureGoalChat(goalId);
-      if (!mounted || widget.goalId != goalId) return;
+      // 工作室走保留会话（不绑定目标），目标讨论走目标专属会话。
+      final conv = studio
+          ? await repo.ensureGoalStudio()
+          : await repo.ensureGoalChat(goalId);
+      if (!mounted || widget.studio != studio || widget.goalId != goalId) {
+        return;
+      }
       setState(() {
         _conversationId = conv.id;
         _ready = true;
       });
       await _loadMessages();
     } catch (e) {
-      if (!mounted || widget.goalId != goalId) return;
+      if (!mounted || widget.studio != studio || widget.goalId != goalId) {
+        return;
+      }
       setState(() {
         _ready = true;
         _error = '会话初始化失败：${e.toString().replaceFirst('Exception: ', '')}';
@@ -250,6 +276,18 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
   @override
   Widget build(BuildContext context) {
     final id = _conversationId;
+    // 预填种子（「和 AI 拆解」/ 航向校准「聚焦讨论」写 goalPanelSeedProvider）：
+    // 填入输入框并聚焦，绝不自动发送。post-frame 消费，兼容面板还没挂载时
+    // 就已经写入的种子。
+    final scope = _scopeKey;
+    final pendingSeed = ref.watch(goalPanelSeedProvider(scope));
+    if (pendingSeed != null && pendingSeed.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _scopeKey != scope) return;
+        _applySeed(pendingSeed);
+        ref.read(goalPanelSeedProvider(scope).notifier).set(null);
+      });
+    }
     final durable = ref.watch(conversationRepositoryProvider).supportsChatRuns;
     if (id != null && durable) {
       ref.watch(chatRunStateProvider(id).select((value) => value.value?.busy));
@@ -278,11 +316,14 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
       padding: const EdgeInsets.all(AppTheme.space3),
       children: [
         WikiChatBubble(
-          message: const ContentChatMessage(
+          message: ContentChatMessage(
             role: 'assistant',
-            content:
-                '🎯 我们来聊聊这个目标。我可以帮你拆解抓手、检视卡点、回顾完成标准；'
-                '需要暂停、标记达成或重启目标时，我会先给出提议，等你确认后才生效。',
+            content: widget.studio
+                ? '🎯 说说你想实现的长程意图（比如「3 年内月收入 10 万」）。'
+                      '我会先给现实性评估与假设清单，再拆成一条长程计划与由近及远的里程碑步骤，'
+                      '落库前都要你确认。'
+                : '🎯 我们来聊聊这个目标。我可以帮你拆解抓手、检视卡点、回顾完成标准；'
+                      '需要暂停、标记达成或重启目标时，我会先给出提议，等你确认后才生效。',
           ),
         ),
         for (final m in displayedMessages)
@@ -340,7 +381,9 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      '目标讨论 · ${_shortGoal(widget.goalContent)}',
+                      widget.studio
+                          ? 'AI 立项工作室'
+                          : '目标讨论 · ${_shortGoal(widget.goalContent)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -400,6 +443,7 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
               children: [
                 Expanded(
                   child: TextField(
+                    key: const ValueKey('goal-panel-input'),
                     controller: _inputController,
                     focusNode: _inputFocus,
                     enabled: _ready && !_inputBusy,
@@ -408,7 +452,9 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
                     maxLines: 4,
                     minLines: 1,
                     decoration: InputDecoration(
-                      hintText: '和 AI 聊聊这个目标…（草稿不会被自动发送）',
+                      hintText: widget.studio
+                          ? '说说你的长程意图…（草稿不会被自动发送）'
+                          : '和 AI 聊聊这个目标…（草稿不会被自动发送）',
                       hintStyle: TextStyle(
                         fontSize: 12,
                         color: AppTheme.textTertiary,

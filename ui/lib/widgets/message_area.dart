@@ -79,13 +79,6 @@ final habitChatDraftProvider = NotifierProvider.autoDispose
       (conversationId) => StateHolder<String?>(null),
     );
 
-/// 航向偏离校准「聚焦讨论」预填指令：校准卡/横幅写入这里，_MessageInput 监听后填入
-/// 输入框并聚焦，不直接发送（用户可改可发）。
-final goalCompassChatDraftProvider = NotifierProvider.autoDispose
-    .family<StateHolder<String?>, String?, String>(
-      (conversationId) => StateHolder<String?>(null),
-    );
-
 String? explicitTopicName(String text) {
   final match =
       RegExp(r'^/topic\s+(.+)$', caseSensitive: false).firstMatch(text) ??

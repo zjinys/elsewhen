@@ -129,6 +129,51 @@ impl Store {
         Ok(id)
     }
 
+    /// 获取（不存在则创建）目标工作室会话：AI 立项/拆解专用，保留 id。
+    ///
+    /// 不绑定 goal_id（意图尚未成为目标），提示词由 system_context 的
+    /// 「目标工作室」分支注入；不进普通对话清单（见 `list_conversations`）。
+    /// 保留 id 让多端收敛到同一行，不会出现多个工作室。
+    pub fn ensure_goal_studio_conversation(&self) -> Result<String> {
+        let id = super::GOAL_STUDIO_CONVERSATION_ID;
+        let archived: Option<bool> = self
+            .connection
+            .query_row(
+                "SELECT archived FROM conversations WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if let Some(archived) = archived {
+            if archived {
+                // 兜底：工作室是目标页固定入口，被归档过就静默取回。
+                let now = chrono::Utc::now().to_rfc3339();
+                let tx = self.begin_write_transaction()?;
+                self.connection.execute(
+                    "UPDATE conversations SET archived = 0, updated_at = ?2 WHERE id = ?1",
+                    params![id, now],
+                )?;
+                self.sync_record_conversation(id, false)?;
+                if let Some(tx) = tx {
+                    tx.commit()?;
+                }
+            }
+            return Ok(id.to_string());
+        }
+        let now = chrono::Utc::now().to_rfc3339();
+        let tx = self.begin_write_transaction()?;
+        self.connection.execute(
+            "INSERT OR IGNORE INTO conversations (id, title, tag, goal_id, assistant_mode, created_at, updated_at)
+             VALUES (?1, '目标工作室', 'idea', NULL, 'goal_mentor', ?2, ?2)",
+            params![id, now],
+        )?;
+        self.sync_record_conversation(id, false)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(id.to_string())
+    }
+
     pub fn list_conversations(&self) -> Result<Vec<ConversationSummary>> {
         let mut statement = self.connection.prepare(
             "SELECT c.id, c.title, c.tag, c.created_at, c.updated_at, c.archived,
@@ -140,6 +185,7 @@ impl Store {
          FROM conversations c
          LEFT JOIN messages m ON m.conversation_id = c.id
          WHERE c.archived = 0 AND c.wiki_page_slug IS NULL AND c.goal_id IS NULL
+           AND c.id <> 'goal-studio'
          GROUP BY c.id
          ORDER BY c.updated_at DESC, c.id DESC",
         )?;

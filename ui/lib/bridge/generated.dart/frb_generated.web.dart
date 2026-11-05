@@ -6895,6 +6895,9 @@ class RustLibWire implements BaseWire {
     String goal_id,
   ) => wasmModule.wire__crate__api__goals__ensure_goal_chat(port_, goal_id);
 
+  void wire__crate__api__goals__ensure_goal_studio(NativePortType port_) =>
+      wasmModule.wire__crate__api__goals__ensure_goal_studio(port_);
+
   void wire__crate__api__wiki_chat__ensure_wiki_page_chat(
     NativePortType port_,
     String page_slug,
@@ -9289,6 +9292,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__goals__ensure_goal_chat(
     NativePortType port_,
     String goal_id,
+  );
+
+  external void wire__crate__api__goals__ensure_goal_studio(
+    NativePortType port_,
   );
 
   external void wire__crate__api__wiki_chat__ensure_wiki_page_chat(

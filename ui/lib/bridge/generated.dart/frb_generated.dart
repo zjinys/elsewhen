@@ -114,7 +114,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -1437813334;
+  int get rustContentHash => -625712731;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -436,6 +436,8 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<ConversationDto> crateApiGoalsEnsureGoalChat({required String goalId});
+
+  Future<ConversationDto> crateApiGoalsEnsureGoalStudio();
 
   Future<ConversationDto> crateApiWikiChatEnsureWikiPageChat({
     required String pageSlug,
@@ -3614,6 +3616,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiGoalsEnsureGoalChatConstMeta =>
       const TaskConstMeta(debugName: "ensure_goal_chat", argNames: ["goalId"]);
+
+  @override
+  Future<ConversationDto> crateApiGoalsEnsureGoalStudio() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__goals__ensure_goal_studio(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_conversation_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsEnsureGoalStudioConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsEnsureGoalStudioConstMeta =>
+      const TaskConstMeta(debugName: "ensure_goal_studio", argNames: []);
 
   @override
   Future<ConversationDto> crateApiWikiChatEnsureWikiPageChat({

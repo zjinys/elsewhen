@@ -33,6 +33,17 @@ class FakeGoalChatRepo extends RustBridgeRepository {
         goalId: goalId,
       );
 
+  /// 立项工作室（保留会话）：与后端一致返回固定 id，不绑定具体目标。
+  @override
+  Future<Conversation> ensureGoalStudio() async => Conversation(
+        id: 'goal-studio',
+        title: '目标工作室',
+        tag: 'idea',
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+        messageCount: 0,
+      );
+
   @override
   Future<List<Message>> listMessages(String conversationId) async => messages;
 

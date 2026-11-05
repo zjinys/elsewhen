@@ -73,6 +73,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   String? _userSkillsError;
   List<api.McpServerDto>? _mcpServers;
   String? _mcpError;
+  // 批量删除（技能/MCP 卡片列表同款交互）：进入选择模式后卡片可勾选，
+  // 选中集合以 id 记录；删除前统一确认，逐项调后端后重载。
+  bool _skillBatchMode = false;
+  final Set<String> _skillSelected = {};
+  bool _mcpBatchMode = false;
+  final Set<String> _mcpSelected = {};
   bool _installingSkill = false;
   bool _vacuuming = false;
   // 打开密码（安全 tab）：服务 + 状态。哈希记录存系统安全存储，不落库。

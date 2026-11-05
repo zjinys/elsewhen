@@ -1,12 +1,9 @@
 import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/models/goal.dart';
-import 'package:elsewhen_ui/providers/conversation_provider.dart';
 import 'package:elsewhen_ui/providers/goal_provider.dart';
-import 'package:elsewhen_ui/providers/state_holder.dart';
 import 'package:elsewhen_ui/widgets/goal_compass_banner.dart';
 import 'package:elsewhen_ui/widgets/goal_view.dart';
-import 'package:elsewhen_ui/widgets/message_area.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -132,7 +129,7 @@ void main() {
       expect(find.text('暂不打扰（退避7天）'), findsOneWidget);
     });
 
-    testWidgets('点击「聚焦攻克此卡点」将动机卡点引导语填入对话输入框草稿', (tester) async {
+    testWidgets('点击「聚焦攻克此卡点」把引导语预填进该目标的讨论草稿（留在目标页）', (tester) async {
       final nudge = _sampleNudge();
       final goal = _sampleGoal();
       final repo = FakeGoalCompassRepo(initialNudge: nudge);
@@ -140,15 +137,12 @@ void main() {
         overrides: [
           storageRepositoryProvider.overrideWithValue(repo),
           activeGoalsProvider.overrideWith((ref) async => [goal]),
-          selectedConversationIdProvider.overrideWith(
-            () => StateHolder('conv-1'),
-          ),
         ],
       );
 
       String? capturedDraft;
       final sub = container.listen<String?>(
-        goalCompassChatDraftProvider('conv-1'),
+        goalPanelSeedProvider('goal-1'),
         (prev, next) {
           if (next != null) capturedDraft = next;
         },

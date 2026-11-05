@@ -36,6 +36,12 @@ pub(crate) mod wiki_images;
 // 唯一跨模块复用的 review 行投影（R4 报告读面 DTO 组装用）。
 pub(crate) use review::DeviationReportRow;
 
+/// 目标工作室：AI 立项/拆解专用会话的保留 id。
+///
+/// 目标页主区未选中目标时的固定入口（`ensure_goal_studio_conversation`）；
+/// 不进普通对话清单（见 `list_conversations` 的显式排除），也不绑定具体目标。
+pub const GOAL_STUDIO_CONVERSATION_ID: &str = "goal-studio";
+
 use crate::event::{EventSummary, NewEvent};
 use anyhow::{Context, Result};
 use rusqlite::{Connection, params};

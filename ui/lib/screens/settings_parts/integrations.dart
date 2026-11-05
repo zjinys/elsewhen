@@ -115,13 +115,15 @@ extension _Integrations on _SettingsScreenState {
           ),
         ),
         const SizedBox(height: AppTheme.space3),
-        // 列表头：启用统计 + 添加入口同行，服务器多时一眼看清规模
+        // 列表头：启用统计 + 批量删除/添加入口同行，服务器多时一眼看清规模
         Row(
           children: [
             Text(
-              servers == null
-                  ? '读取中…'
-                  : '已启用 $enabledCount / ${servers.length}',
+              _mcpBatchMode && servers != null
+                  ? '已选 ${_mcpSelected.length} / ${servers.length}'
+                  : servers == null
+                      ? '读取中…'
+                      : '已启用 $enabledCount / ${servers.length}',
               style: TextStyle(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
@@ -130,6 +132,48 @@ extension _Integrations on _SettingsScreenState {
               ),
             ),
             const Spacer(),
+            if (servers != null && servers.isNotEmpty) ...[
+              TextButton.icon(
+                onPressed: () => setState(() {
+                  _mcpBatchMode = !_mcpBatchMode;
+                  _mcpSelected.clear();
+                }),
+                icon: Icon(
+                  _mcpBatchMode
+                      ? Icons.close_outlined
+                      : Icons.checklist_outlined,
+                  size: 15,
+                ),
+                label: Text(
+                  _mcpBatchMode ? '退出选择' : '批量删除',
+                  style: const TextStyle(fontSize: 12.5),
+                ),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+              if (_mcpBatchMode) ...[
+                const SizedBox(width: 4),
+                TextButton(
+                  onPressed: () => setState(() {
+                    if (_mcpSelected.length == servers.length) {
+                      _mcpSelected.clear();
+                    } else {
+                      _mcpSelected
+                        ..clear()
+                        ..addAll(servers.map((s) => s.id));
+                    }
+                  }),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: Text(
+                    _mcpSelected.length == servers.length ? '全不选' : '全选',
+                    style: const TextStyle(fontSize: 12.5),
+                  ),
+                ),
+              ],
+            ],
             OutlinedButton.icon(
               onPressed: () => _showMcpServerDialog(),
               icon: const Icon(Icons.add_outlined, size: 16),
@@ -140,6 +184,37 @@ extension _Integrations on _SettingsScreenState {
             ),
           ],
         ),
+        // 批量操作条：确认删除需二次点击（弹确认框），取消则退出选择模式。
+        if (_mcpBatchMode && servers != null && servers.isNotEmpty) ...[
+          const SizedBox(height: AppTheme.space2),
+          Row(
+            children: [
+              FilledButton.icon(
+                onPressed: _mcpSelected.isEmpty
+                    ? null
+                    : () => _batchDeleteMcpServers(),
+                icon: const Icon(Icons.delete_outline, size: 16),
+                label: Text('删除所选 (${_mcpSelected.length})'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppTheme.error,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton(
+                onPressed: () => setState(() {
+                  _mcpBatchMode = false;
+                  _mcpSelected.clear();
+                }),
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Text('取消'),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTheme.space2),
+        ],
         const SizedBox(height: AppTheme.space3),
         if (servers == null)
           _McpStatusLine(
@@ -155,6 +230,13 @@ extension _Integrations on _SettingsScreenState {
           ...servers.map(
             (server) => _McpServerCard(
               server: server,
+              selecting: _mcpBatchMode,
+              selected: _mcpSelected.contains(server.id),
+              onToggleSelected: () => setState(() {
+                if (!_mcpSelected.remove(server.id)) {
+                  _mcpSelected.add(server.id);
+                }
+              }),
               onToggleEnabled: (v) => _toggleMcpServer(server.id, v),
               onToggleTrusted: () =>
                   _toggleMcpTrusted(server.id, !server.trusted),
@@ -242,6 +324,70 @@ extension _Integrations on _SettingsScreenState {
           SnackBar(content: Text(reportUiError('切换 MCP 服务器', e))),
         );
       }
+    }
+  }
+
+  /// 批量删除：先确认，再逐项调删除；单项失败不中断其余项，
+  /// 最后汇总报告成功/失败数并重载列表（与技能批量卸载同款交互）。
+  Future<void> _batchDeleteMcpServers() async {
+    final ids = _mcpSelected.toList();
+    if (ids.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('批量删除服务器'),
+        content: Text(
+          '共 ${ids.length} 台服务器将从本机删除；若已同步，其他设备也会一并删除。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final repository =
+        ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    var ok = 0;
+    final failures = <String>[];
+    for (final id in ids) {
+      try {
+        await repository.deleteMcpServer(id: id);
+        ok++;
+      } catch (e) {
+        failures.add(id);
+        if (mounted) {
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            SnackBar(content: Text(reportUiError('删除 MCP 服务器 $id', e))),
+          );
+        }
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _mcpSelected.clear();
+      if (failures.isEmpty) _mcpBatchMode = false;
+    });
+    await _loadMcpServers();
+    if (!mounted) return;
+    if (failures.isEmpty) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text('已删除 $ok 台服务器')),
+      );
+    } else {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(
+          content: Text('成功 $ok 台，失败 ${failures.length} 台：'
+              '${failures.take(3).join('、')}'
+              '${failures.length > 3 ? ' 等' : ''}'),
+        ),
+      );
     }
   }
 
@@ -571,6 +717,10 @@ class _McpServerCard extends StatelessWidget {
   final VoidCallback onToggleReadonly;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  /// 批量选择模式：为 true 时尾部操作控件换成勾选框，整卡点击切换选中。
+  final bool selecting;
+  final bool selected;
+  final VoidCallback? onToggleSelected;
 
   const _McpServerCard({
     required this.server,
@@ -579,6 +729,9 @@ class _McpServerCard extends StatelessWidget {
     required this.onToggleReadonly,
     required this.onEdit,
     required this.onDelete,
+    this.selecting = false,
+    this.selected = false,
+    this.onToggleSelected,
   });
 
   bool get _isHttp => server.transport == 'streamable-http';
@@ -589,35 +742,45 @@ class _McpServerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = server.enabled;
-    // 主色随状态：启用=强调色，停用=灰；信任中的服务器再用图标点亮。
+    // 主色随状态：启用=强调色，停用=灰；信任中的服务器再用图标点亮；
+    // 批量选择模式下选中卡边框高亮。
     final leadColor = enabled ? AppTheme.accentPrimary : AppTheme.textTertiary;
-    return Container(
+    final card = Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
       decoration: BoxDecoration(
         color: enabled ? AppTheme.surface2 : AppTheme.surface1,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
         border: Border.all(
-          color: AppTheme.surface3.withValues(alpha: enabled ? 0.7 : 0.4),
+          color: selected
+              ? AppTheme.accentPrimary
+              : AppTheme.surface3.withValues(alpha: enabled ? 0.7 : 0.4),
         ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 传输类型图标
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: leadColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+          // 传输类型图标；批量选择模式下换成勾选框。
+          if (selecting)
+            Icon(
+              selected ? Icons.check_circle : Icons.radio_button_unchecked,
+              size: 22,
+              color: selected ? AppTheme.accentPrimary : AppTheme.textTertiary,
+            )
+          else
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: leadColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+              ),
+              child: Icon(
+                _isHttp ? Icons.public_outlined : Icons.terminal_outlined,
+                size: 18,
+                color: leadColor,
+              ),
             ),
-            child: Icon(
-              _isHttp ? Icons.public_outlined : Icons.terminal_outlined,
-              size: 18,
-              color: leadColor,
-            ),
-          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -687,8 +850,10 @@ class _McpServerCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          // 溢出菜单：低频操作（编辑/审批策略/删除）收进来，列表不再横排 5 个图标
-          PopupMenuButton<String>(
+          // 溢出菜单：低频操作（编辑/审批策略/删除）收进来，列表不再横排 5 个图标；
+          // 批量选择模式下隐藏操作控件，避免误触。
+          if (!selecting) ...[
+            PopupMenuButton<String>(
             tooltip: '更多操作',
             icon: Icon(
               Icons.more_horiz,
@@ -764,8 +929,16 @@ class _McpServerCard extends StatelessWidget {
             ],
           ),
           Switch(value: enabled, onChanged: onToggleEnabled),
+          ],
         ],
       ),
+    );
+    // 选择模式下整卡可点，切换选中状态。
+    if (!selecting) return card;
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+      onTap: onToggleSelected,
+      child: card,
     );
   }
 }

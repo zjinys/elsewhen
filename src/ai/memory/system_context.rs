@@ -39,6 +39,7 @@ pub(crate) fn build_system_context(
     }
     let mut prompt = String::new();
     let mut is_knowledge_mentor = false;
+    let mut is_studio = false;
     let mut goal_chat: Option<(String, Option<String>, Option<String>, Option<String>, Option<String>)> =
         None;
     if let Some(conversation) = store.get_conversation(conversation_id)? {
@@ -86,6 +87,31 @@ pub(crate) fn build_system_context(
                 }
             }
         }
+        // 目标工作室（保留 id）：AI 是拆解幕僚，不是主对话秘书。用户来这里把
+        // 一句意图（例：「3 年内月入 10 万」）拆成长程计划——现实性评估 +
+        // 假设清单 + create_plan 草案；全部落库走确认制，未确认零落库。
+        if conversation.id == crate::storage::GOAL_STUDIO_CONVERSATION_ID {
+            is_studio = true;
+            prompt.push_str(
+                r#"
+
+你当前在「目标工作室」里工作，而不是主对话秘书，也不是普通对话窗口。用户来这里，是把一句想法拆成一条可推进的长程计划（例：「3 年内月收入 10 万」）。工作顺序：
+① 现实性评估：结合知识库里已有的现状与既往事件，指出这个意图当前最大的不确定性；需要外部事实时用 web_search 核实，不要凭记忆断言。
+② 假设清单：说清你凭什么这样拆——时间窗、起点现状、可选路径、主要风险，每条都要能被用户逐条纠正。
+③ 计划草案：用 create_plan 一次给出计划全貌（意图原文原样引用）与由近及远的里程碑步骤，每步 1~2 周内可启动、带可验证判据；用户给了期望步数就照做。
+之后持续经营：完成一步用 advance_plan_step，先复盘「事实 vs 假设」再推进；要加步骤用 add_plan_steps；用户问进展用 list_plans 看现状再回答。
+纪律：任何落库都是确认制提案，未确认前绝不声称已修改或已落库；用户只是闲聊、提问或表达想法时不要提议变更。不要把工作室的讨论记录为个人事件，也不要发起无关的联系人关系或待办提议。
+
+可操作选项 UI：需要用户二选一/确认方向时，在回复末尾输出围栏代码块（界面会渲染成可点击按钮）：
+```elsewhen-choices
+[{"label": "选项A：3 年，我接受这个时间窗"}, {"label": "选项B：先按 5 年更稳"}]
+```
+只用于真正的选择题；每个 label 是用户点击后会原样发出的完整句子，要能独立读懂。不要把开放性问题包装成选项。
+
+生成式 UI：需要结构化卡片时可用 ```elsewhen-ui 块（组件与目标讨论一致：GoalCard / GoalHeading / GoalText / GoalChip / GoalMetric / GoalChoices / GoalDivider / Row / Column），数据必须真实来自上下文，不确定的数值不要编造。
+"#,
+            );
+        }
         let title = conversation.title.as_deref().unwrap_or("未命名");
         prompt.push_str("\n\n当前对话：");
         prompt.push_str(title);
@@ -98,9 +124,10 @@ pub(crate) fn build_system_context(
     let input_already_recorded = store
         .latest_event_id_for_conversation(conversation_id)?
         .is_some();
-    // 目标专属讨论同样不记事件（讨论内容属于目标域，不属于原始记录流）。
-    let is_goal_mentor = goal_chat.is_some();
-    let allow_record_event = !is_knowledge_mentor && !is_goal_mentor && !input_already_recorded;
+    // 目标专属讨论与立项工作室同样不记事件（属于目标域，不属于原始记录流）。
+    let is_goal_mentor = goal_chat.is_some() || is_studio;
+    let allow_record_event =
+        !is_knowledge_mentor && !is_goal_mentor && !input_already_recorded;
     if input_already_recorded {
         prompt.push_str(
             "\n\n当前这条用户输入已由系统原样保存为个人事件，并已进入后台分析队列。不要再次记录，也不要把你的摘要或解读另存为事件；直接结合上下文回复即可。",

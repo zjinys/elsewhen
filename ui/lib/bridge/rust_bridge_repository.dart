@@ -643,6 +643,12 @@ class RustBridgeRepository implements StorageRepository {
     return _fromConversationDto(dto);
   }
 
+  /// 目标工作室（保留会话）：AI 立项/拆解专用，不进普通对话清单与界面。
+  Future<Conversation> ensureGoalStudio() async {
+    final dto = await api.ensureGoalStudio();
+    return _fromConversationDto(dto);
+  }
+
   // ── 目标航向与认知切片虚分派方法（支持测试 Fake 覆写）──
 
   /// 滚动更新目标抓手与卡点（最常用的轻量认知更新操作）

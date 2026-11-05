@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1437813334;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -625712731;
 
 // Section: executor
 
@@ -1899,6 +1899,27 @@ fn wire__crate__api__goals__ensure_goal_chat_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::goals::ensure_goal_chat(api_goal_id)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__goals__ensure_goal_studio_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ensure_goal_studio",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::goals::ensure_goal_studio()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -24866,6 +24887,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__goals__ensure_goal_studio(port_: i64) {
+        wire__crate__api__goals__ensure_goal_studio_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__wiki_chat__ensure_wiki_page_chat(
         port_: i64,
         page_slug: *mut wire_cst_list_prim_u_8_strict,
@@ -35306,6 +35332,13 @@ mod web {
         goal_id: String,
     ) {
         wire__crate__api__goals__ensure_goal_chat_impl(port_, goal_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__goals__ensure_goal_studio(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__goals__ensure_goal_studio_impl(port_)
     }
 
     #[wasm_bindgen]
