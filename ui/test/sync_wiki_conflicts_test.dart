@@ -1,3 +1,5 @@
+import 'package:elsewhen_ui/l10n/notice_messages.dart';
+import 'package:elsewhen_ui/l10n/app_localizations_zh.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
@@ -139,6 +141,6 @@ void main() {
     api_.listError = Exception('locked');
     await controller.refresh();
     expect(controller.conflicts, hasLength(1), reason: '失败保留旧视图');
-    expect(controller.error, contains('操作失败'));
+    expect(resolveNotice(controller.error, AppLocalizationsZh()), contains('操作失败'));
   });
 }

@@ -148,6 +148,8 @@ pub(crate) fn extract_claimed_titles(content: &str) -> Vec<String> {
     const PAIRS: &[(char, char)] = &[
         ('「', '」'),
         ('『', '』'),
+        ('“', '”'),
+        ('‘', '’'),
         ('《', '》'),
         ('"', '"'),
         ('\'', '\''),
@@ -157,6 +159,15 @@ pub(crate) fn extract_claimed_titles(content: &str) -> Vec<String> {
         let mut rest = content;
         while let Some(start) = rest.find(open) {
             let after = &rest[start + open.len_utf8()..];
+            if open == '\''
+                && rest[..start]
+                    .chars()
+                    .next_back()
+                    .is_some_and(|c| c.is_alphanumeric())
+            {
+                rest = after;
+                continue;
+            }
             if let Some(end) = after.find(close) {
                 let title = after[..end].trim();
                 // 过滤单字虚词（「好」/「不要」等多为正文引用，不是实体标题）
@@ -258,15 +269,23 @@ pub(crate) fn verify_claimed_writes(
         if any {
             return Ok(ClaimVerdict::Clean);
         }
-        return Ok(ClaimVerdict::Unproven(vec!["（未指明页面）".to_string()]));
+        return Ok(ClaimVerdict::Unproven(vec![
+            store.render_execution_instruction("claim_unspecified", &[])?,
+        ]));
     }
 
     for title in titles {
         match check_title(title)? {
             Some(true) => {}
-            Some(false) => unproven.push(format!("《{title}》是旧页面，本轮未写入")),
-            None if in_draft(title) => draft_only.push(format!("《{title}》还在待确认")),
-            None => unproven.push(format!("《{title}》库中无此页")),
+            Some(false) => unproven.push(
+                store.render_execution_instruction("claim_old", &[("title", title.clone())])?,
+            ),
+            None if in_draft(title) => draft_only.push(
+                store.render_execution_instruction("claim_pending", &[("title", title.clone())])?,
+            ),
+            None => unproven.push(
+                store.render_execution_instruction("claim_missing", &[("title", title.clone())])?,
+            ),
         }
     }
     if !unproven.is_empty() {

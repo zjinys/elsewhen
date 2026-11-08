@@ -1,3 +1,4 @@
+import '../l10n/app_localizations_zh.dart';
 import '../bridge/api.dart' as api;
 
 /// 任意 URL 抓取结果（推文或普通网页；尚未入库）
@@ -59,6 +60,6 @@ class ImportFetch {
     if (screenName != null && screenName!.trim().isNotEmpty) {
       return '@$screenName';
     }
-    return authorName ?? '未知作者';
+    return authorName ?? AppLocalizationsZh().tweetUnknownAuthor;
   }
 }

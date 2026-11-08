@@ -12,19 +12,24 @@ import 'api/chat_runs.dart';
 import 'api/companion_flow.dart';
 import 'api/conversations.dart';
 import 'api/db_maintenance.dart';
+import 'api/digest_insights.dart';
 import 'api/entities.dart';
 import 'api/event_stats.dart';
 import 'api/fonts.dart';
+import 'api/goal_grounding.dart';
 import 'api/goals.dart';
 import 'api/habit_nudges.dart';
 import 'api/import.dart';
 import 'api/knowledge.dart';
 import 'api/knowledge_digest.dart';
 import 'api/knowledge_workflows.dart';
+import 'api/language.dart';
 import 'api/mcp.dart';
+import 'api/named_secrets.dart';
 import 'api/page_marks.dart';
 import 'api/period_stats.dart';
 import 'api/plans.dart';
+import 'api/prompts.dart';
 import 'api/provider_config.dart';
 import 'api/provider_reachability.dart';
 import 'api/records.dart';
@@ -165,6 +170,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlanDto dco_decode_box_autoadd_plan_dto(dynamic raw);
 
   @protected
+  PlanningProfileDto dco_decode_box_autoadd_planning_profile_dto(dynamic raw);
+
+  @protected
   ProcessingYieldProofDto dco_decode_box_autoadd_processing_yield_proof_dto(
     dynamic raw,
   );
@@ -261,6 +269,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DeviationReportDto dco_decode_deviation_report_dto(dynamic raw);
 
   @protected
+  DigestInsightSurfacingDto dco_decode_digest_insight_surfacing_dto(
+    dynamic raw,
+  );
+
+  @protected
+  DigestInsightTickDto dco_decode_digest_insight_tick_dto(dynamic raw);
+
+  @protected
   DueReminderDto dco_decode_due_reminder_dto(dynamic raw);
 
   @protected
@@ -295,6 +311,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GoalDto dco_decode_goal_dto(dynamic raw);
+
+  @protected
+  GoalReferenceDto dco_decode_goal_reference_dto(dynamic raw);
+
+  @protected
+  GoalReferencesDto dco_decode_goal_references_dto(dynamic raw);
 
   @protected
   GuidanceDto dco_decode_guidance_dto(dynamic raw);
@@ -362,6 +384,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   KnowledgeIssue dco_decode_knowledge_issue(dynamic raw);
+
+  @protected
+  KnowledgeLanguageDto dco_decode_knowledge_language_dto(dynamic raw);
 
   @protected
   KnowledgeMetadata dco_decode_knowledge_metadata(dynamic raw);
@@ -456,6 +481,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DeviationReportDto> dco_decode_list_deviation_report_dto(dynamic raw);
 
   @protected
+  List<DigestInsightSurfacingDto> dco_decode_list_digest_insight_surfacing_dto(
+    dynamic raw,
+  );
+
+  @protected
   List<DueReminderDto> dco_decode_list_due_reminder_dto(dynamic raw);
 
   @protected
@@ -475,6 +505,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GoalDto> dco_decode_list_goal_dto(dynamic raw);
+
+  @protected
+  List<GoalReferenceDto> dco_decode_list_goal_reference_dto(dynamic raw);
 
   @protected
   List<GuidanceRefDto> dco_decode_list_guidance_ref_dto(dynamic raw);
@@ -551,6 +584,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<NamedCountDto> dco_decode_list_named_count_dto(dynamic raw);
 
   @protected
+  List<NamedSecretDto> dco_decode_list_named_secret_dto(dynamic raw);
+
+  @protected
   List<ObjectConflictDto> dco_decode_list_object_conflict_dto(dynamic raw);
 
   @protected
@@ -576,6 +612,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  List<PromptBundleDto> dco_decode_list_prompt_bundle_dto(dynamic raw);
+
+  @protected
+  List<PromptDefinitionDto> dco_decode_list_prompt_definition_dto(dynamic raw);
+
+  @protected
+  List<PromptRevisionDto> dco_decode_list_prompt_revision_dto(dynamic raw);
 
   @protected
   List<ProviderConflictProfileDto>
@@ -679,6 +724,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NamedCountDto dco_decode_named_count_dto(dynamic raw);
+
+  @protected
+  NamedSecretDto dco_decode_named_secret_dto(dynamic raw);
 
   @protected
   NetworkSettingsDto dco_decode_network_settings_dto(dynamic raw);
@@ -799,10 +847,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlanDto dco_decode_plan_dto(dynamic raw);
 
   @protected
+  PlanningProfileDto dco_decode_planning_profile_dto(dynamic raw);
+
+  @protected
   ProcessingYieldProofDto dco_decode_processing_yield_proof_dto(dynamic raw);
 
   @protected
   ProcessorHandoffStateDto dco_decode_processor_handoff_state_dto(dynamic raw);
+
+  @protected
+  PromptBundleDto dco_decode_prompt_bundle_dto(dynamic raw);
+
+  @protected
+  PromptDefinitionDto dco_decode_prompt_definition_dto(dynamic raw);
+
+  @protected
+  PromptLanguagePreferencesDto dco_decode_prompt_language_preferences_dto(
+    dynamic raw,
+  );
+
+  @protected
+  PromptRevisionDto dco_decode_prompt_revision_dto(dynamic raw);
 
   @protected
   ProviderConflictProfileDto dco_decode_provider_conflict_profile_dto(
@@ -902,6 +967,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int dco_decode_u_8(dynamic raw);
+
+  @protected
+  UiLanguagePreferenceDto dco_decode_ui_language_preference_dto(dynamic raw);
 
   @protected
   void dco_decode_unit(dynamic raw);
@@ -1056,6 +1124,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlanDto sse_decode_box_autoadd_plan_dto(SseDeserializer deserializer);
 
   @protected
+  PlanningProfileDto sse_decode_box_autoadd_planning_profile_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ProcessingYieldProofDto sse_decode_box_autoadd_processing_yield_proof_dto(
     SseDeserializer deserializer,
   );
@@ -1180,6 +1253,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DigestInsightSurfacingDto sse_decode_digest_insight_surfacing_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DigestInsightTickDto sse_decode_digest_insight_tick_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DueReminderDto sse_decode_due_reminder_dto(SseDeserializer deserializer);
 
   @protected
@@ -1220,6 +1303,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GoalDto sse_decode_goal_dto(SseDeserializer deserializer);
+
+  @protected
+  GoalReferenceDto sse_decode_goal_reference_dto(SseDeserializer deserializer);
+
+  @protected
+  GoalReferencesDto sse_decode_goal_references_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   GuidanceDto sse_decode_guidance_dto(SseDeserializer deserializer);
@@ -1307,6 +1398,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   KnowledgeIssue sse_decode_knowledge_issue(SseDeserializer deserializer);
+
+  @protected
+  KnowledgeLanguageDto sse_decode_knowledge_language_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   KnowledgeMetadata sse_decode_knowledge_metadata(SseDeserializer deserializer);
@@ -1443,6 +1539,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<DigestInsightSurfacingDto> sse_decode_list_digest_insight_surfacing_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<DueReminderDto> sse_decode_list_due_reminder_dto(
     SseDeserializer deserializer,
   );
@@ -1472,6 +1573,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GoalDto> sse_decode_list_goal_dto(SseDeserializer deserializer);
+
+  @protected
+  List<GoalReferenceDto> sse_decode_list_goal_reference_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GuidanceRefDto> sse_decode_list_guidance_ref_dto(
@@ -1570,6 +1676,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<NamedSecretDto> sse_decode_list_named_secret_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<ObjectConflictDto> sse_decode_list_object_conflict_dto(
     SseDeserializer deserializer,
   );
@@ -1603,6 +1714,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  List<PromptBundleDto> sse_decode_list_prompt_bundle_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PromptDefinitionDto> sse_decode_list_prompt_definition_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PromptRevisionDto> sse_decode_list_prompt_revision_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<ProviderConflictProfileDto>
@@ -1732,6 +1858,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NamedCountDto sse_decode_named_count_dto(SseDeserializer deserializer);
+
+  @protected
+  NamedSecretDto sse_decode_named_secret_dto(SseDeserializer deserializer);
 
   @protected
   NetworkSettingsDto sse_decode_network_settings_dto(
@@ -1880,12 +2009,35 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlanDto sse_decode_plan_dto(SseDeserializer deserializer);
 
   @protected
+  PlanningProfileDto sse_decode_planning_profile_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ProcessingYieldProofDto sse_decode_processing_yield_proof_dto(
     SseDeserializer deserializer,
   );
 
   @protected
   ProcessorHandoffStateDto sse_decode_processor_handoff_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PromptBundleDto sse_decode_prompt_bundle_dto(SseDeserializer deserializer);
+
+  @protected
+  PromptDefinitionDto sse_decode_prompt_definition_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PromptLanguagePreferencesDto sse_decode_prompt_language_preferences_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PromptRevisionDto sse_decode_prompt_revision_dto(
     SseDeserializer deserializer,
   );
 
@@ -2017,6 +2169,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_u_8(SseDeserializer deserializer);
+
+  @protected
+  UiLanguagePreferenceDto sse_decode_ui_language_preference_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
@@ -2279,6 +2436,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_box_autoadd_plan_dto(PlanDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_plan_dto(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_planning_profile_dto(PlanningProfileDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_planning_profile_dto(raw);
   }
 
   @protected
@@ -2634,6 +2797,38 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_digest_insight_surfacing_dto(DigestInsightSurfacingDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_opt_String(raw.insightId),
+      cst_encode_String(raw.pageSlug),
+      cst_encode_String(raw.kind),
+      cst_encode_String(raw.title),
+      cst_encode_String(raw.observation),
+      cst_encode_opt_String(raw.actionSuggestion),
+      cst_encode_String(raw.status),
+      cst_encode_opt_String(raw.surfacedAt),
+      cst_encode_opt_String(raw.surfacedDate),
+      cst_encode_opt_String(raw.messageId),
+      cst_encode_opt_String(raw.actionType),
+      cst_encode_String(raw.createdAt),
+      cst_encode_String(raw.updatedAt),
+      cst_encode_opt_String(raw.pageKind),
+      cst_encode_bool(raw.pageActive),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_digest_insight_tick_dto(DigestInsightTickDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_list_String(raw.messageIds),
+      cst_encode_i_32(raw.pendingCount),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_due_reminder_dto(DueReminderDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -2797,6 +2992,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.createdAt),
       cst_encode_String(raw.updatedAt),
       cst_encode_opt_String(raw.supersededAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_goal_reference_dto(GoalReferenceDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.slug),
+      cst_encode_String(raw.title),
+      cst_encode_String(raw.summary),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_goal_references_dto(GoalReferencesDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_list_goal_reference_dto(raw.pages),
+      cst_encode_opt_String(raw.updatedAt),
     ].jsify()!;
   }
 
@@ -3108,6 +3323,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_knowledge_language_dto(KnowledgeLanguageDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.outputLocale),
+      cst_encode_i_64(raw.policyVersion),
+      cst_encode_i_64(raw.generation),
+      cst_encode_bool(raw.supported),
+      cst_encode_bool(raw.canEdit),
+      cst_encode_opt_String(raw.editBlockReason),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_knowledge_metadata(KnowledgeMetadata raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -3381,6 +3609,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_digest_insight_surfacing_dto(
+    List<DigestInsightSurfacingDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_digest_insight_surfacing_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_due_reminder_dto(List<DueReminderDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_due_reminder_dto).toList().jsify()!;
@@ -3420,6 +3656,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_goal_dto(List<GoalDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_goal_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_goal_reference_dto(List<GoalReferenceDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_goal_reference_dto).toList().jsify()!;
   }
 
   @protected
@@ -3553,6 +3795,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_named_secret_dto(List<NamedSecretDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_named_secret_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_object_conflict_dto(List<ObjectConflictDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_object_conflict_dto).toList().jsify()!;
@@ -3604,6 +3852,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_list_prim_u_8_strict(Uint8List raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_prompt_bundle_dto(List<PromptBundleDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_prompt_bundle_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_prompt_definition_dto(List<PromptDefinitionDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_prompt_definition_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_prompt_revision_dto(List<PromptRevisionDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_prompt_revision_dto).toList().jsify()!;
   }
 
   @protected
@@ -3784,6 +4050,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     return [
       cst_encode_String(raw.id),
       cst_encode_String(raw.name),
+      cst_encode_String(raw.keywords),
       cst_encode_String(raw.platform),
       cst_encode_String(raw.transport),
       cst_encode_String(raw.command),
@@ -3853,6 +4120,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_named_count_dto(NamedCountDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [cst_encode_String(raw.label), cst_encode_i_64(raw.count)].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_named_secret_dto(NamedSecretDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.name),
+      cst_encode_String(raw.title),
+      cst_encode_list_String(raw.references),
+    ].jsify()!;
   }
 
   @protected
@@ -4197,6 +4474,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_planning_profile_dto(PlanningProfileDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.skills),
+      cst_encode_String(raw.resources),
+      cst_encode_String(raw.limits),
+      cst_encode_String(raw.preferences),
+      cst_encode_opt_String(raw.updatedAt),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_processing_yield_proof_dto(ProcessingYieldProofDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -4218,6 +4507,71 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_opt_String(raw.toDeviceId),
       cst_encode_opt_box_autoadd_i_64(raw.finalSequence),
       cst_encode_bool(raw.canConfirm),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_prompt_bundle_dto(PromptBundleDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.ownerKind),
+      cst_encode_String(raw.ownerId),
+      cst_encode_String(raw.createdAt),
+      cst_encode_String(raw.uiLocale),
+      cst_encode_String(raw.instructionLocale),
+      cst_encode_String(raw.responsePolicyJson),
+      cst_encode_String(raw.knowledgeOutputLocale),
+      cst_encode_String(raw.languagePolicyVersion),
+      cst_encode_list_String(raw.revisionIds),
+      cst_encode_list_String(raw.keys),
+      cst_encode_list_String(raw.bodies),
+      cst_encode_list_String(raw.requestedLocales),
+      cst_encode_list_String(raw.resolvedLocales),
+      cst_encode_list_String(raw.fallbackReasons),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_prompt_definition_dto(PromptDefinitionDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.key),
+      cst_encode_String(raw.title),
+      cst_encode_bool(raw.editable),
+      cst_encode_String(raw.locale),
+      cst_encode_String(raw.resolvedLocale),
+      cst_encode_String(raw.currentRevisionId),
+      cst_encode_String(raw.currentBody),
+      cst_encode_String(raw.builtinBody),
+      cst_encode_i_32(raw.generation),
+      cst_encode_String(raw.fallback),
+      cst_encode_i_32(raw.tokens),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_prompt_language_preferences_dto(
+    PromptLanguagePreferencesDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_opt_String(raw.instructionLocale),
+      cst_encode_String(raw.responseMode),
+      cst_encode_opt_String(raw.responseLocale),
+      cst_encode_i_64(raw.generation),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_prompt_revision_dto(PromptRevisionDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.body),
+      cst_encode_String(raw.origin),
+      cst_encode_String(raw.note),
+      cst_encode_String(raw.createdAt),
     ].jsify()!;
   }
 
@@ -4640,6 +4994,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_ui_language_preference_dto(UiLanguagePreferenceDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [cst_encode_opt_String(raw.locale)].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_unscheduled_chat_input_dto(UnscheduledChatInputDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -4957,6 +5317,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_plan_dto(PlanDto self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_planning_profile_dto(
+    PlanningProfileDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_processing_yield_proof_dto(
     ProcessingYieldProofDto self,
     SseSerializer serializer,
@@ -5125,6 +5491,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_digest_insight_surfacing_dto(
+    DigestInsightSurfacingDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_digest_insight_tick_dto(
+    DigestInsightTickDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_due_reminder_dto(
     DueReminderDto self,
     SseSerializer serializer,
@@ -5180,6 +5558,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_goal_dto(GoalDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_goal_reference_dto(
+    GoalReferenceDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_goal_references_dto(
+    GoalReferencesDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_guidance_dto(GuidanceDto self, SseSerializer serializer);
@@ -5289,6 +5679,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_knowledge_issue(
     KnowledgeIssue self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_knowledge_language_dto(
+    KnowledgeLanguageDto self,
     SseSerializer serializer,
   );
 
@@ -5464,6 +5860,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_digest_insight_surfacing_dto(
+    List<DigestInsightSurfacingDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_due_reminder_dto(
     List<DueReminderDto> self,
     SseSerializer serializer,
@@ -5498,6 +5900,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_goal_dto(List<GoalDto> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_goal_reference_dto(
+    List<GoalReferenceDto> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_guidance_ref_dto(
@@ -5620,6 +6028,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_named_secret_dto(
+    List<NamedSecretDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_object_conflict_dto(
     List<ObjectConflictDto> self,
     SseSerializer serializer,
@@ -5664,6 +6078,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prompt_bundle_dto(
+    List<PromptBundleDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prompt_definition_dto(
+    List<PromptDefinitionDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prompt_revision_dto(
+    List<PromptRevisionDto> self,
     SseSerializer serializer,
   );
 
@@ -5825,6 +6257,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_named_count_dto(NamedCountDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_named_secret_dto(
+    NamedSecretDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_network_settings_dto(
@@ -6013,6 +6451,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_plan_dto(PlanDto self, SseSerializer serializer);
 
   @protected
+  void sse_encode_planning_profile_dto(
+    PlanningProfileDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_processing_yield_proof_dto(
     ProcessingYieldProofDto self,
     SseSerializer serializer,
@@ -6021,6 +6465,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_processor_handoff_state_dto(
     ProcessorHandoffStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_prompt_bundle_dto(
+    PromptBundleDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_prompt_definition_dto(
+    PromptDefinitionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_prompt_language_preferences_dto(
+    PromptLanguagePreferencesDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_prompt_revision_dto(
+    PromptRevisionDto self,
     SseSerializer serializer,
   );
 
@@ -6190,6 +6658,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_u_8(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_ui_language_preference_dto(
+    UiLanguagePreferenceDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_unit(void self, SseSerializer serializer);
 
   @protected
@@ -6267,6 +6741,30 @@ class RustLibWire implements BaseWire {
     selected_parts,
     accept_applicability,
     resolved_issues,
+  );
+
+  void wire__crate__api__digest_insights__act_on_digest_insight(
+    NativePortType port_,
+    String message_id,
+    String action,
+  ) => wasmModule.wire__crate__api__digest_insights__act_on_digest_insight(
+    port_,
+    message_id,
+    action,
+  );
+
+  void wire__crate__api__prompts__activate_prompt_revision(
+    NativePortType port_,
+    String key,
+    String locale,
+    String? revision_id,
+    int expected_generation,
+  ) => wasmModule.wire__crate__api__prompts__activate_prompt_revision(
+    port_,
+    key,
+    locale,
+    revision_id,
+    expected_generation,
   );
 
   void wire__crate__api__entities__add_entity_alias(
@@ -6779,6 +7277,16 @@ class RustLibWire implements BaseWire {
     String id,
   ) => wasmModule.wire__crate__api__mcp__delete_mcp_server(port_, id);
 
+  void wire__crate__api__named_secrets__delete_named_secret(
+    NativePortType port_,
+    String name,
+    bool force,
+  ) => wasmModule.wire__crate__api__named_secrets__delete_named_secret(
+    port_,
+    name,
+    force,
+  );
+
   void wire__crate__api__plans__delete_plan(NativePortType port_, String id) =>
       wasmModule.wire__crate__api__plans__delete_plan(port_, id);
 
@@ -6866,6 +7374,18 @@ class RustLibWire implements BaseWire {
     args_json,
   );
 
+  void wire__crate__api__named_secrets__edit_named_secret(
+    NativePortType port_,
+    String name,
+    String title,
+    String? value,
+  ) => wasmModule.wire__crate__api__named_secrets__edit_named_secret(
+    port_,
+    name,
+    title,
+    value,
+  );
+
   void wire__crate__api__chat_runs__enqueue_chat_input(
     NativePortType port_,
     String conversation_id,
@@ -6917,6 +7437,18 @@ class RustLibWire implements BaseWire {
     String out_dir,
   ) => wasmModule.wire__crate__api__wiki__export_wiki_markdown(port_, out_dir);
 
+  void wire__crate__api__named_secrets__extract_named_secret(
+    NativePortType port_,
+    String name,
+    String title,
+    String value,
+  ) => wasmModule.wire__crate__api__named_secrets__extract_named_secret(
+    port_,
+    name,
+    title,
+    value,
+  );
+
   void wire__crate__api__import__fetch_import_url(
     NativePortType port_,
     String url,
@@ -6924,6 +7456,14 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__tweet__fetch_tweet(NativePortType port_, String url) =>
       wasmModule.wire__crate__api__tweet__fetch_tweet(port_, url);
+
+  void wire__crate__api__goal_grounding__find_goal_references(
+    NativePortType port_,
+    String query,
+  ) => wasmModule.wire__crate__api__goal_grounding__find_goal_references(
+    port_,
+    query,
+  );
 
   void wire__crate__api__tweet__find_tweet_source_page(
     NativePortType port_,
@@ -6941,6 +7481,12 @@ class RustLibWire implements BaseWire {
     wiki_page_slug,
     failed,
   );
+
+  void wire__crate__api__tweet__format_import_content(
+    NativePortType port_,
+    String content,
+  ) =>
+      wasmModule.wire__crate__api__tweet__format_import_content(port_, content);
 
   void wire__crate__api__tweet__generate_content_chat(
     NativePortType port_,
@@ -7069,6 +7615,14 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__goals__get_goal(NativePortType port_, String id) =>
       wasmModule.wire__crate__api__goals__get_goal(port_, id);
 
+  void wire__crate__api__goal_grounding__get_goal_references(
+    NativePortType port_,
+    String goal_id,
+  ) => wasmModule.wire__crate__api__goal_grounding__get_goal_references(
+    port_,
+    goal_id,
+  );
+
   void wire__crate__api__habit_nudges__get_habit_nudge(
     NativePortType port_,
     String id,
@@ -7104,6 +7658,10 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
   ) => wasmModule
       .wire__crate__api__knowledge_digest__get_knowledge_digest_stats(port_);
+
+  void wire__crate__api__language__get_knowledge_language(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__language__get_knowledge_language(port_);
 
   void wire__crate__api__knowledge__get_knowledge_page_details(
     NativePortType port_,
@@ -7182,9 +7740,19 @@ class RustLibWire implements BaseWire {
   void wire__crate__api__plans__get_plan(NativePortType port_, String id) =>
       wasmModule.wire__crate__api__plans__get_plan(port_, id);
 
+  void wire__crate__api__goal_grounding__get_planning_profile(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__goal_grounding__get_planning_profile(port_);
+
   void wire__crate__api__sync__datasets__get_processor_handoff_state(
     NativePortType port_,
   ) => wasmModule.wire__crate__api__sync__datasets__get_processor_handoff_state(
+    port_,
+  );
+
+  void wire__crate__api__language__get_prompt_language_preferences(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__language__get_prompt_language_preferences(
     port_,
   );
 
@@ -7217,6 +7785,10 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__tweet__get_tweet_fetch_service(NativePortType port_) =>
       wasmModule.wire__crate__api__tweet__get_tweet_fetch_service(port_);
+
+  void wire__crate__api__language__get_ui_language_preference(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__language__get_ui_language_preference(port_);
 
   void wire__crate__api__web_search__get_web_search_config(
     NativePortType port_,
@@ -7438,6 +8010,11 @@ class RustLibWire implements BaseWire {
         limit,
       );
 
+  void wire__crate__api__digest_insights__list_digest_insight_surfacings(
+    NativePortType port_,
+  ) => wasmModule
+      .wire__crate__api__digest_insights__list_digest_insight_surfacings(port_);
+
   void wire__crate__api__entities__list_entity_aliases(
     NativePortType port_,
     String entity_kind,
@@ -7571,6 +8148,10 @@ class RustLibWire implements BaseWire {
     conversation_id,
   );
 
+  void wire__crate__api__named_secrets__list_named_secrets(
+    NativePortType port_,
+  ) => wasmModule.wire__crate__api__named_secrets__list_named_secrets(port_);
+
   void wire__crate__api__sync__conflicts__list_object_conflicts(
     NativePortType port_,
   ) => wasmModule.wire__crate__api__sync__conflicts__list_object_conflicts(
@@ -7615,6 +8196,31 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__plans__list_plans(NativePortType port_) =>
       wasmModule.wire__crate__api__plans__list_plans(port_);
+
+  void wire__crate__api__prompts__list_prompt_bundles(
+    NativePortType port_,
+    int offset,
+  ) => wasmModule.wire__crate__api__prompts__list_prompt_bundles(port_, offset);
+
+  void wire__crate__api__prompts__list_prompt_definitions(
+    NativePortType port_,
+    String locale,
+  ) => wasmModule.wire__crate__api__prompts__list_prompt_definitions(
+    port_,
+    locale,
+  );
+
+  void wire__crate__api__prompts__list_prompt_revisions(
+    NativePortType port_,
+    String key,
+    String locale,
+    int offset,
+  ) => wasmModule.wire__crate__api__prompts__list_prompt_revisions(
+    port_,
+    key,
+    locale,
+    offset,
+  );
 
   void wire__crate__api__rules__list_recent_chat_rule_hits(
     NativePortType port_,
@@ -7779,6 +8385,11 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__goals__pause_goal(NativePortType port_, String id) =>
       wasmModule.wire__crate__api__goals__pause_goal(port_, id);
+
+  void wire__crate__api__digest_insights__pending_digest_insight_count(
+    NativePortType port_,
+  ) => wasmModule
+      .wire__crate__api__digest_insights__pending_digest_insight_count(port_);
 
   void wire__crate__api__habit_nudges__pending_habit_nudge_count(
     NativePortType port_,
@@ -8125,6 +8736,18 @@ class RustLibWire implements BaseWire {
     doh_mode,
   );
 
+  void wire__crate__api__goal_grounding__save_goal_references(
+    NativePortType port_,
+    String goal_id,
+    JSAny page_ids,
+    String? expected_updated_at,
+  ) => wasmModule.wire__crate__api__goal_grounding__save_goal_references(
+    port_,
+    goal_id,
+    page_ids,
+    expected_updated_at,
+  );
+
   void wire__crate__api__habit_nudges__save_habit_nudge(
     NativePortType port_,
     JSAny input,
@@ -8152,6 +8775,18 @@ class RustLibWire implements BaseWire {
     JSAny server,
   ) => wasmModule.wire__crate__api__mcp__save_mcp_server(port_, server);
 
+  void wire__crate__api__named_secrets__save_named_secret(
+    NativePortType port_,
+    String name,
+    String title,
+    String value,
+  ) => wasmModule.wire__crate__api__named_secrets__save_named_secret(
+    port_,
+    name,
+    title,
+    value,
+  );
+
   void wire__crate__api__web_search__save_network_proxy(
     NativePortType port_,
     String proxy_mode,
@@ -8170,6 +8805,30 @@ class RustLibWire implements BaseWire {
     port_,
     id,
     body_json,
+  );
+
+  void wire__crate__api__goal_grounding__save_planning_profile(
+    NativePortType port_,
+    JSAny profile,
+  ) => wasmModule.wire__crate__api__goal_grounding__save_planning_profile(
+    port_,
+    profile,
+  );
+
+  void wire__crate__api__prompts__save_prompt_revision(
+    NativePortType port_,
+    String key,
+    String locale,
+    String body,
+    String? parent_revision_id,
+    String note,
+  ) => wasmModule.wire__crate__api__prompts__save_prompt_revision(
+    port_,
+    key,
+    locale,
+    body,
+    parent_revision_id,
+    note,
   );
 
   void wire__crate__api__knowledge_workflows__save_suggestion_feedback(
@@ -8460,6 +9119,14 @@ class RustLibWire implements BaseWire {
     String mode,
   ) => wasmModule.wire__crate__api__rules__set_rule_trigger_mode(port_, mode);
 
+  void wire__crate__api__language__set_runtime_ui_locale(
+    NativePortType port_,
+    String locale,
+  ) => wasmModule.wire__crate__api__language__set_runtime_ui_locale(
+    port_,
+    locale,
+  );
+
   void wire__crate__api__todos__set_todo_reminder(
     NativePortType port_,
     String id,
@@ -8594,6 +9261,11 @@ class RustLibWire implements BaseWire {
     port_,
     proxy_url,
   );
+
+  void wire__crate__api__digest_insights__tick_digest_insights(
+    NativePortType port_,
+  ) =>
+      wasmModule.wire__crate__api__digest_insights__tick_digest_insights(port_);
 
   void wire__crate__api__goals__tick_goal_compass(NativePortType port_) =>
       wasmModule.wire__crate__api__goals__tick_goal_compass(port_);
@@ -8730,6 +9402,16 @@ class RustLibWire implements BaseWire {
     done_criteria,
   );
 
+  void wire__crate__api__language__update_knowledge_language(
+    NativePortType port_,
+    String output_locale,
+    JSAny expected_generation,
+  ) => wasmModule.wire__crate__api__language__update_knowledge_language(
+    port_,
+    output_locale,
+    expected_generation,
+  );
+
   void wire__crate__api__knowledge__update_knowledge_metadata(
     NativePortType port_,
     String slug,
@@ -8779,6 +9461,21 @@ class RustLibWire implements BaseWire {
     slug,
     new_path,
   );
+
+  void wire__crate__api__language__update_prompt_language_preferences(
+    NativePortType port_,
+    String? instruction_locale,
+    String response_mode,
+    String? response_locale,
+    JSAny expected_generation,
+  ) =>
+      wasmModule.wire__crate__api__language__update_prompt_language_preferences(
+        port_,
+        instruction_locale,
+        response_mode,
+        response_locale,
+        expected_generation,
+      );
 
   void wire__crate__api__rules__update_rule_essence(
     NativePortType port_,
@@ -8841,6 +9538,14 @@ class RustLibWire implements BaseWire {
     service,
   );
 
+  void wire__crate__api__language__update_ui_language_preference(
+    NativePortType port_,
+    String? locale,
+  ) => wasmModule.wire__crate__api__language__update_ui_language_preference(
+    port_,
+    locale,
+  );
+
   void wire__crate__api__wiki__update_wiki_tags(
     NativePortType port_,
     String slug,
@@ -8888,6 +9593,20 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny selected_parts,
     bool accept_applicability,
     JSAny resolved_issues,
+  );
+
+  external void wire__crate__api__digest_insights__act_on_digest_insight(
+    NativePortType port_,
+    String message_id,
+    String action,
+  );
+
+  external void wire__crate__api__prompts__activate_prompt_revision(
+    NativePortType port_,
+    String key,
+    String locale,
+    String? revision_id,
+    int expected_generation,
   );
 
   external void wire__crate__api__entities__add_entity_alias(
@@ -9208,6 +9927,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String id,
   );
 
+  external void wire__crate__api__named_secrets__delete_named_secret(
+    NativePortType port_,
+    String name,
+    bool force,
+  );
+
   external void wire__crate__api__plans__delete_plan(
     NativePortType port_,
     String id,
@@ -9275,6 +10000,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String args_json,
   );
 
+  external void wire__crate__api__named_secrets__edit_named_secret(
+    NativePortType port_,
+    String name,
+    String title,
+    String? value,
+  );
+
   external void wire__crate__api__chat_runs__enqueue_chat_input(
     NativePortType port_,
     String conversation_id,
@@ -9312,6 +10044,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String out_dir,
   );
 
+  external void wire__crate__api__named_secrets__extract_named_secret(
+    NativePortType port_,
+    String name,
+    String title,
+    String value,
+  );
+
   external void wire__crate__api__import__fetch_import_url(
     NativePortType port_,
     String url,
@@ -9320,6 +10059,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__tweet__fetch_tweet(
     NativePortType port_,
     String url,
+  );
+
+  external void wire__crate__api__goal_grounding__find_goal_references(
+    NativePortType port_,
+    String query,
   );
 
   external void wire__crate__api__tweet__find_tweet_source_page(
@@ -9332,6 +10076,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String input_id,
     String? wiki_page_slug,
     bool failed,
+  );
+
+  external void wire__crate__api__tweet__format_import_content(
+    NativePortType port_,
+    String content,
   );
 
   external void wire__crate__api__tweet__generate_content_chat(
@@ -9421,6 +10170,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String id,
   );
 
+  external void wire__crate__api__goal_grounding__get_goal_references(
+    NativePortType port_,
+    String goal_id,
+  );
+
   external void wire__crate__api__habit_nudges__get_habit_nudge(
     NativePortType port_,
     String id,
@@ -9443,6 +10197,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void wire__crate__api__knowledge_digest__get_knowledge_digest_stats(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__language__get_knowledge_language(
     NativePortType port_,
   );
 
@@ -9500,7 +10258,15 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String id,
   );
 
+  external void wire__crate__api__goal_grounding__get_planning_profile(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__sync__datasets__get_processor_handoff_state(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__language__get_prompt_language_preferences(
     NativePortType port_,
   );
 
@@ -9525,6 +10291,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__theme__get_theme_prefs(NativePortType port_);
 
   external void wire__crate__api__tweet__get_tweet_fetch_service(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__language__get_ui_language_preference(
     NativePortType port_,
   );
 
@@ -9680,6 +10450,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     int limit,
   );
 
+  external void
+  wire__crate__api__digest_insights__list_digest_insight_surfacings(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__entities__list_entity_aliases(
     NativePortType port_,
     String entity_kind,
@@ -9771,6 +10546,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String conversation_id,
   );
 
+  external void wire__crate__api__named_secrets__list_named_secrets(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__sync__conflicts__list_object_conflicts(
     NativePortType port_,
   );
@@ -9804,6 +10583,23 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void wire__crate__api__plans__list_plans(NativePortType port_);
+
+  external void wire__crate__api__prompts__list_prompt_bundles(
+    NativePortType port_,
+    int offset,
+  );
+
+  external void wire__crate__api__prompts__list_prompt_definitions(
+    NativePortType port_,
+    String locale,
+  );
+
+  external void wire__crate__api__prompts__list_prompt_revisions(
+    NativePortType port_,
+    String key,
+    String locale,
+    int offset,
+  );
 
   external void wire__crate__api__rules__list_recent_chat_rule_hits(
     NativePortType port_,
@@ -9937,6 +10733,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__goals__pause_goal(
     NativePortType port_,
     String id,
+  );
+
+  external void wire__crate__api__digest_insights__pending_digest_insight_count(
+    NativePortType port_,
   );
 
   external void wire__crate__api__habit_nudges__pending_habit_nudge_count(
@@ -10154,6 +10954,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String doh_mode,
   );
 
+  external void wire__crate__api__goal_grounding__save_goal_references(
+    NativePortType port_,
+    String goal_id,
+    JSAny page_ids,
+    String? expected_updated_at,
+  );
+
   external void wire__crate__api__habit_nudges__save_habit_nudge(
     NativePortType port_,
     JSAny input,
@@ -10173,6 +10980,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     JSAny server,
   );
 
+  external void wire__crate__api__named_secrets__save_named_secret(
+    NativePortType port_,
+    String name,
+    String title,
+    String value,
+  );
+
   external void wire__crate__api__web_search__save_network_proxy(
     NativePortType port_,
     String proxy_mode,
@@ -10183,6 +10997,20 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String id,
     String body_json,
+  );
+
+  external void wire__crate__api__goal_grounding__save_planning_profile(
+    NativePortType port_,
+    JSAny profile,
+  );
+
+  external void wire__crate__api__prompts__save_prompt_revision(
+    NativePortType port_,
+    String key,
+    String locale,
+    String body,
+    String? parent_revision_id,
+    String note,
   );
 
   external void wire__crate__api__knowledge_workflows__save_suggestion_feedback(
@@ -10360,6 +11188,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String mode,
   );
 
+  external void wire__crate__api__language__set_runtime_ui_locale(
+    NativePortType port_,
+    String locale,
+  );
+
   external void wire__crate__api__todos__set_todo_reminder(
     NativePortType port_,
     String id,
@@ -10446,6 +11279,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__web_search__test_proxy_connection(
     NativePortType port_,
     String proxy_url,
+  );
+
+  external void wire__crate__api__digest_insights__tick_digest_insights(
+    NativePortType port_,
   );
 
   external void wire__crate__api__goals__tick_goal_compass(
@@ -10539,6 +11376,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? done_criteria,
   );
 
+  external void wire__crate__api__language__update_knowledge_language(
+    NativePortType port_,
+    String output_locale,
+    JSAny expected_generation,
+  );
+
   external void wire__crate__api__knowledge__update_knowledge_metadata(
     NativePortType port_,
     String slug,
@@ -10566,6 +11409,14 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String slug,
     String new_path,
+  );
+
+  external void wire__crate__api__language__update_prompt_language_preferences(
+    NativePortType port_,
+    String? instruction_locale,
+    String response_mode,
+    String? response_locale,
+    JSAny expected_generation,
   );
 
   external void wire__crate__api__rules__update_rule_essence(
@@ -10603,6 +11454,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__tweet__update_tweet_fetch_service(
     NativePortType port_,
     String service,
+  );
+
+  external void wire__crate__api__language__update_ui_language_preference(
+    NativePortType port_,
+    String? locale,
   );
 
   external void wire__crate__api__wiki__update_wiki_tags(

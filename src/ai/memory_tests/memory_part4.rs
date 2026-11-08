@@ -2,6 +2,64 @@
 use super::*;
 
 #[test]
+fn bilingual_goal_context_preserves_user_facts_and_profile_guidance_without_forms() {
+    for locale in ["zh-Hans", "en"] {
+        let (store, _, path) = setup_store();
+        store
+            .save_prompt_language_preferences(Some(locale), "auto", None, 0)
+            .unwrap();
+        let goal = store
+            .create_goal(
+                "用户目标 <<phase>> {{secret:key}}",
+                crate::storage::GoalPhase::Near,
+            )
+            .unwrap();
+        let conversation = store
+            .create_goal_chat_conversation(&goal.id, "原始目标讨论标题")
+            .unwrap();
+        let _scope = store.prompt_scope("preview", "context-fixture").unwrap();
+        let context = build_system_context(&store, &conversation).unwrap();
+        let text = system_text(&context);
+        assert!(text.contains("用户目标 <<phase>> {{secret:key}}"));
+        assert!(text.contains("原始目标讨论标题"));
+        assert!(text.contains("profile/me"));
+        assert!(text.contains("update_personal_profile"));
+        assert!(text.contains("search_knowledge_base"));
+        assert!(text.contains("get_wiki_page"));
+        assert!(text.contains("update_goal_facets"));
+        assert!(text.contains("elsewhen-choices"));
+        assert!(text.contains("elsewhen-ui"));
+        if locale == "en" {
+            assert!(text.contains("no separate entry or required questionnaire"));
+            assert!(text.contains("one or two questions"));
+            assert!(text.contains("Every change takes effect only after review"));
+            assert!(!text.contains("你当前是"));
+            assert!(!text.contains("尚无可用个人背景"));
+            assert!(!text.contains("个人档案归集"));
+        } else {
+            assert!(text.contains("没有专门入口或必填问卷"));
+            assert!(text.contains("每轮只问最影响路线的一两个问题"));
+        }
+        let old_text = text;
+        store
+            .save_prompt_language_preferences(
+                Some(if locale == "en" { "zh-Hans" } else { "en" }),
+                "auto",
+                None,
+                1,
+            )
+            .unwrap();
+        assert_eq!(
+            system_text(&build_system_context(&store, &conversation).unwrap()),
+            old_text
+        );
+        drop(_scope);
+        drop(store);
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+#[test]
 fn system_prompt_describes_own_capabilities() {
     let (store, conversation_id, path) = setup_store();
     let context = SimpleMemory::new(10)
@@ -151,7 +209,22 @@ fn system_prompt_injects_cross_conversation_recent_messages() {
 fn stable_setup_split_keeps_core_and_moves_guides_to_second_message() {
     use crate::ai::budget::text_tokens;
     let base_tokens = text_tokens("deepseek-flash", SYSTEM_PROMPT_BASE);
-    assert!(base_tokens < 6_500, "CORE 应显著瘦身，实际 {base_tokens}");
+    let resident = crate::ai::tool::ToolRegistry::deferred_runtime().resident_tool_names();
+    let guides = TOOL_GUIDES
+        .iter()
+        .filter(|(_, tools, _)| tools.iter().any(|t| resident.contains(*t)))
+        .map(|(_, _, body)| *body)
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    let total = base_tokens + text_tokens("deepseek-flash", &guides) + 16;
+    eprintln!(
+        "stable_setup base={base_tokens}, guides={}, total={total}",
+        text_tokens("deepseek-flash", &guides)
+    );
+    assert!(
+        total < 3_000,
+        "完整常驻指令（BASE + resident guides）应低于3000，实际 {total}"
+    );
     // 全部指南文本不再出现在 BASE 里（以 web_search 句式与归档句式为样本）
     for (_, _, text) in TOOL_GUIDES {
         assert!(
@@ -167,14 +240,17 @@ fn stable_setup_split_keeps_core_and_moves_guides_to_second_message() {
 /// 功能概览不缺目标条目（顺带补记事本）。
 #[test]
 fn base_prompt_states_goal_coordinate_positioning() {
-    assert!(SYSTEM_PROMPT_BASE.contains("幕僚"), "角色句应升级为幕僚定位");
+    assert!(
+        SYSTEM_PROMPT_BASE.contains("幕僚"),
+        "角色句应升级为幕僚定位"
+    );
     assert!(
         SYSTEM_PROMPT_BASE.contains("目标与航向"),
         "功能概览应含「目标与航向」条目"
     );
     assert!(
-        SYSTEM_PROMPT_BASE.contains("服务于当前抓手"),
-        "应声明为当前抓手服务的坐标语义"
+        SYSTEM_PROMPT_BASE.contains("服务于当前行动"),
+        "应声明为当前行动服务的坐标语义"
     );
     assert!(SYSTEM_PROMPT_BASE.contains("记事本"), "功能概览应含记事本");
 }

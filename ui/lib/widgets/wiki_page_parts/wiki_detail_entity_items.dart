@@ -36,12 +36,7 @@ class _WorkItemPanel extends ConsumerWidget {
         ref.invalidate(todosProvider);
       } catch (e) {
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('更新待办失败：${e.toString()}'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        showAppError(context, context.l10n.save, e);
       }
     }
 
@@ -52,12 +47,7 @@ class _WorkItemPanel extends ConsumerWidget {
         ref.invalidate(todosProvider);
       } catch (e) {
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('更新状态失败：${e.toString()}'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        showAppError(context, context.l10n.save, e);
       }
     }
 
@@ -67,35 +57,43 @@ class _WorkItemPanel extends ConsumerWidget {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         PopupMenuButton<String>(
-          tooltip: '更新状态',
+          tooltip: context.l10n.workItemUpdateStatus,
           onSelected: (status) => updateStatus(status),
           itemBuilder: (_) => [
             for (final status in TodoStatus.values)
-              PopupMenuItem(value: status.wire, child: Text(status.label)),
+              PopupMenuItem(
+                value: status.wire,
+                child: Text(_workItemStatus(context, status)),
+              ),
           ],
           child: _WorkItemChip(
             icon: workItem.isDone
                 ? Icons.check_circle
                 : Icons.radio_button_unchecked,
-            label: workItem.status.label,
+            label: _workItemStatus(context, workItem.status),
             color: workItem.isDone ? AppTheme.success : AppTheme.accentPrimary,
           ),
         ),
         PopupMenuButton<String>(
-          tooltip: '更新优先级',
+          tooltip: context.l10n.workItemUpdatePriority,
           onSelected: (priority) => updateFields(priority: priority),
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'high', child: Text('高优先级')),
-            PopupMenuItem(value: 'normal', child: Text('普通优先级')),
-            PopupMenuItem(value: 'low', child: Text('低优先级')),
+          itemBuilder: (_) => [
+            PopupMenuItem(
+              value: 'high',
+              child: Text(context.l10n.workItemPriority('high')),
+            ),
+            PopupMenuItem(
+              value: 'normal',
+              child: Text(context.l10n.workItemPriority('normal')),
+            ),
+            PopupMenuItem(
+              value: 'low',
+              child: Text(context.l10n.workItemPriority('low')),
+            ),
           ],
           child: _WorkItemChip(
             icon: Icons.flag_outlined,
-            label: workItem.priority == 'high'
-                ? '高优先级'
-                : workItem.priority == 'low'
-                ? '低优先级'
-                : '普通优先级',
+            label: context.l10n.workItemPriority(workItem.priority),
             color: AppTheme.textSecondary,
           ),
         ),
@@ -109,7 +107,7 @@ class _WorkItemPanel extends ConsumerWidget {
                   : DateTime.tryParse(workItem.dueAt!) ?? now,
               firstDate: DateTime(now.year - 1),
               lastDate: DateTime(now.year + 5),
-              helpText: '选择截止日期',
+              helpText: context.l10n.workItemChooseDue,
             );
             if (selected != null) {
               await updateFields(dueAt: selected.toIso8601String());
@@ -119,8 +117,10 @@ class _WorkItemPanel extends ConsumerWidget {
           child: _WorkItemChip(
             icon: Icons.event_outlined,
             label: workItem.dueAt == null
-                ? '设置截止日期'
-                : '截止 ${_fmtWorkItemDate(workItem.dueAt!)}',
+                ? context.l10n.workItemSetDue
+                : context.l10n.todoDueDate(
+                    _fmtWorkItemDate(context, workItem.dueAt!),
+                  ),
             color: AppTheme.textSecondary,
           ),
         ),
@@ -161,10 +161,17 @@ class _WorkItemChip extends StatelessWidget {
   }
 }
 
-String _fmtWorkItemDate(String value) {
+String _workItemStatus(BuildContext context, TodoStatus status) =>
+    switch (status) {
+      TodoStatus.open => context.l10n.todoStatusOpen,
+      TodoStatus.done => context.l10n.completed,
+      TodoStatus.archived => context.l10n.todoStatusArchived,
+    };
+
+String _fmtWorkItemDate(BuildContext context, String value) {
   final date = DateTime.tryParse(value)?.toLocal();
   if (date == null) return value;
-  return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  return MaterialLocalizations.of(context).formatCompactDate(date);
 }
 
 class _EntityMergeControls extends ConsumerWidget {
@@ -188,25 +195,41 @@ class _EntityMergeControls extends ConsumerWidget {
           border: Border.all(color: AppTheme.warning.withValues(alpha: .3)),
           borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.merge_type, size: 17, color: AppTheme.warning),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                merge == null ? '此实体已合并' : '此实体已合并到 ${merge.targetSlug}',
-                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-              ),
+            Row(
+              children: [
+                Icon(Icons.merge_type, size: 17, color: AppTheme.warning),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    merge == null
+                        ? context.l10n.entityMerged
+                        : context.l10n.entityMergedInto(merge.targetSlug),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
             ),
             if (merge != null)
-              TextButton(
-                onPressed: () => _openTarget(ref, merge.targetSlug),
-                child: const Text('查看目标'),
-              ),
-            if (merge != null)
-              TextButton(
-                onPressed: () => _undo(context, ref, merge.targetSlug),
-                child: const Text('撤销合并'),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  TextButton(
+                    onPressed: () =>
+                        _openTarget(context, ref, merge.targetSlug),
+                    child: Text(context.l10n.entityViewTarget),
+                  ),
+                  TextButton(
+                    onPressed: () => _undo(context, ref, merge.targetSlug),
+                    child: Text(context.l10n.entityUndoMerge),
+                  ),
+                ],
               ),
           ],
         ),
@@ -217,7 +240,7 @@ class _EntityMergeControls extends ConsumerWidget {
       child: TextButton.icon(
         onPressed: () => _merge(context, ref),
         icon: const Icon(Icons.merge_type, size: 15),
-        label: const Text('合并实体'),
+        label: Text(context.l10n.entityMerge),
       ),
     );
   }
@@ -233,8 +256,9 @@ class _EntityMergeControls extends ConsumerWidget {
         .toList();
     if (!context.mounted) return;
     if (pages.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('没有可合并的同类型实体')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.entityNoMergeCandidates)),
+      );
       return;
     }
     String target = pages.first.slug;
@@ -242,11 +266,13 @@ class _EntityMergeControls extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('选择目标实体'),
+          title: Text(context.l10n.entityChooseTarget),
           content: DropdownButtonFormField<String>(
             initialValue: target,
             isExpanded: true,
-            decoration: const InputDecoration(labelText: '合并到'),
+            decoration: InputDecoration(
+              labelText: context.l10n.entityMergeInto,
+            ),
             items: [
               for (final candidate in pages)
                 DropdownMenuItem(
@@ -264,11 +290,11 @@ class _EntityMergeControls extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('取消'),
+              child: Text(dialogContext.l10n.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, target),
-              child: const Text('继续'),
+              child: Text(context.l10n.entityContinue),
             ),
           ],
         ),
@@ -281,18 +307,16 @@ class _EntityMergeControls extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('合并到“${targetPage.title}”？'),
-        content: const Text(
-          '事实、别名和关系会迁移到目标实体；重复内容会合并。原始事件不会改变。只要迁移后的内容没有被修改，就可以从旧实体页撤销。',
-        ),
+        title: Text(dialogContext.l10n.entityMergeQuestion(targetPage.title)),
+        content: Text(dialogContext.l10n.entityMergeHelp),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
+            child: Text(dialogContext.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('确认合并'),
+            child: Text(dialogContext.l10n.entityConfirmMerge),
           ),
         ],
       ),
@@ -304,21 +328,29 @@ class _EntityMergeControls extends ConsumerWidget {
       _refresh(ref, selected);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已合并到“${targetPage.title}”，原始事件仍保留')),
+          SnackBar(
+            content: Text(context.l10n.entityMergeSaved(targetPage.title)),
+          ),
         );
       }
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(reportUiError('合并实体', error))));
+        showAppError(context, context.l10n.entityMerge, error);
       }
     }
   }
 
-  Future<void> _openTarget(WidgetRef ref, String slug) async {
-    final target = await ref.read(wikiPageProvider(slug).future);
-    if (target != null) openWikiPageTab(ref, target);
+  Future<void> _openTarget(
+    BuildContext context,
+    WidgetRef ref,
+    String slug,
+  ) async {
+    try {
+      final target = await ref.read(wikiPageProvider(slug).future);
+      if (context.mounted && target != null) openWikiPageTab(ref, target);
+    } catch (error) {
+      if (context.mounted) showAppError(context, context.l10n.load, error);
+    }
   }
 
   Future<void> _undo(
@@ -329,18 +361,16 @@ class _EntityMergeControls extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('撤销这次合并？'),
-        content: const Text(
-          '只恢复本次合并迁移的事实、别名和关系。若这些内容合并后已被修改，系统会拒绝操作以保护新数据。原始事件不会改变。',
-        ),
+        title: Text(dialogContext.l10n.entityUndoMergeQuestion),
+        content: Text(dialogContext.l10n.entityUndoMergeHelp),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
+            child: Text(dialogContext.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('撤销合并'),
+            child: Text(context.l10n.entityUndoMerge),
           ),
         ],
       ),
@@ -351,14 +381,13 @@ class _EntityMergeControls extends ConsumerWidget {
       await repo.undoEntityMerge(page.slug);
       _refresh(ref, targetSlug);
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('合并已撤销，实体内容已恢复')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.entityMergeUndone)));
       }
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(reportUiError('撤销合并', error))));
+        showAppError(context, context.l10n.entityUndoMerge, error);
       }
     }
   }
@@ -394,7 +423,7 @@ class _EntityRelatedTodos extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '关联待办',
+            context.l10n.entityRelatedTodos,
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -423,14 +452,16 @@ class _EntityRelatedTodos extends ConsumerWidget {
               subtitle: todo.dueAt == null
                   ? null
                   : Text(
-                      '截止 ${todo.dueAt}',
+                      context.l10n.todoDueDate(
+                        _fmtWorkItemDate(context, todo.dueAt!),
+                      ),
                       style: TextStyle(
                         fontSize: 10.5,
                         color: AppTheme.textTertiary,
                       ),
                     ),
               secondary: IconButton(
-                tooltip: '打开工作项',
+                tooltip: context.l10n.entityOpenWorkItem,
                 icon: Icon(
                   Icons.open_in_new,
                   size: 16,
@@ -440,27 +471,37 @@ class _EntityRelatedTodos extends ConsumerWidget {
                   final repo = ref.read(
                     storageRepositoryProvider,
                   ) as RustBridgeRepository;
-                  final workItem = await repo.openTodoWorkItem(todo.id);
-                  if (!context.mounted) return;
-                  openWikiPageTab(ref, workItem);
+                  try {
+                    final workItem = await repo.openTodoWorkItem(todo.id);
+                    if (!context.mounted) return;
+                    openWikiPageTab(ref, workItem);
+                  } catch (error) {
+                    if (context.mounted) {
+                      showAppError(context, context.l10n.load, error);
+                    }
+                  }
                 },
               ),
               onChanged: todo.status == TodoStatus.archived
                   ? null
-                  : (_) => _toggle(ref, todo),
+                  : (_) => _toggle(context, ref, todo),
             ),
         ],
       ),
     );
   }
 
-  Future<void> _toggle(WidgetRef ref, Todo todo) async {
+  Future<void> _toggle(BuildContext context, WidgetRef ref, Todo todo) async {
     final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-    await repo.updateTodoStatus(
-      todo.id,
-      todo.status == TodoStatus.done ? 'open' : 'done',
-    );
-    ref.invalidate(todosProvider);
+    try {
+      await repo.updateTodoStatus(
+        todo.id,
+        todo.status == TodoStatus.done ? 'open' : 'done',
+      );
+      if (context.mounted) ref.invalidate(todosProvider);
+    } catch (error) {
+      if (context.mounted) showAppError(context, context.l10n.save, error);
+    }
   }
 }
 

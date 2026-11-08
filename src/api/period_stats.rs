@@ -331,13 +331,28 @@ pub(crate) fn generate_daily_review_with_provider(
         })
         .collect::<Result<Vec<_>>>()?
         .join("\n\n");
-    let prompt = format!(
-        "根据以下 {date_text} 的个人事实生成每日回顾。只返回 JSON 对象，不要 Markdown，不要增加字段。schema_version 固定为 daily-review-v1，date 固定为 {date_text}。字段 accomplishments、ideas_decisions、people_projects、follow_ups 都是数组；每项必须是 {{\"text\":string,\"source_event_ids\":[string]}}，来源 ID 必须来自输入。没有可靠内容的分类返回空数组，不要推测。\n\n{facts}"
-    );
+    let _scope = store.prompt_scope(
+        "background_task",
+        &format!("daily_review:{}", uuid::Uuid::new_v4()),
+    )?;
+    let prompt = store.render_knowledge_instruction(
+        "daily_review",
+        &[("date", date_text.clone()), ("facts", facts.clone())],
+    )?;
     let candidates = crate::knowledge::select_knowledge(store, &facts, "daily_review", 2500)?;
     let mut review_context = vec![
-        ContextMessage::new("system", crate::knowledge::CITATION_INSTRUCTIONS),
-        ContextMessage::new("system", crate::knowledge::context_text(&candidates)?),
+        ContextMessage::new(
+            "system",
+            format!(
+                "{}\n{}",
+                store.render_context_instruction("citation", &[])?,
+                store.output_language_directive(false)?
+            ),
+        ),
+        ContextMessage::new(
+            "system",
+            crate::knowledge::context_text_for_run(store, &candidates)?,
+        ),
         ContextMessage::new("user", prompt),
     ];
     crate::knowledge::bound_model_context(&mut review_context, 24000)?;

@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 
 import '../bridge/api.dart' as api;
@@ -39,22 +41,22 @@ class _SyncProviderConflictsSettingsState
         final conflicts = controller.conflicts;
         return SyncConflictSection(
           icon: Icons.settings_suggest_outlined,
-          title: 'Provider 同步冲突',
-          explainer:
-              '密钥已掩码。选择「保留本地」或「接受远端」整包应用，不做字段拼接；地址提示仅为静态分析，不代表实际可达。',
+          title: context.l10n.l6ProviderSyncConflicts31e02,
+          explainer: context.l10n.l6KeysAreMaskedKeepTheLocal2e55f,
           loaded: conflicts != null,
           busy: controller.busy,
           error: controller.error,
-          emptyText: '没有待审阅的 Provider 同步冲突。',
+          emptyText: context.l10n.l6NoProviderSyncConflictsNeedReview4dc86,
           onRetry: controller.refresh,
           cards: [
-            for (final conflict in conflicts ?? const []) _ConflictCard(
-              key: ValueKey(conflict.revisionId),
-              conflict: conflict,
-              busy: controller.busy,
-              onResolve: (acceptRemote) =>
-                  controller.resolve(conflict, acceptRemote: acceptRemote),
-            ),
+            for (final conflict in conflicts ?? const [])
+              _ConflictCard(
+                key: ValueKey(conflict.revisionId),
+                conflict: conflict,
+                busy: controller.busy,
+                onResolve: (acceptRemote) =>
+                    controller.resolve(conflict, acceptRemote: acceptRemote),
+              ),
           ],
         );
       },
@@ -85,19 +87,22 @@ class _ConflictCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '来自 ${conflict.senderDeviceName ?? conflict.senderDeviceId} 的修订',
+              context.l10n.l6RevisionFromArg0beef3(
+                (conflict.senderDeviceName ?? conflict.senderDeviceId)
+                    .toString(),
+              ),
               style: theme.textTheme.titleSmall,
             ),
             const SizedBox(height: 8),
             SyncConflictSides(
               children: [
                 _SideView(
-                  title: '本机当前配置',
+                  title: context.l10n.l6CurrentLocalConfiguration683a0,
                   profiles: conflict.localProfiles,
                   activeId: conflict.localActiveId,
                 ),
                 _SideView(
-                  title: '远端配置',
+                  title: context.l10n.l6RemoteConfiguration04e8c,
                   profiles: conflict.remoteProfiles,
                   activeId: conflict.remoteActiveId,
                 ),
@@ -110,12 +115,12 @@ class _ConflictCard extends StatelessWidget {
               children: [
                 OutlinedButton.icon(
                   icon: const Icon(Icons.computer_outlined),
-                  label: const Text('保留本地'),
+                  label: Text(context.l10n.l6KeepLocal6d6a5),
                   onPressed: busy ? null : () => onResolve(false),
                 ),
                 FilledButton.icon(
                   icon: const Icon(Icons.cloud_download_outlined),
-                  label: const Text('接受远端'),
+                  label: Text(context.l10n.l6AcceptRemote4546a),
                   onPressed: busy ? null : () => onResolve(true),
                 ),
               ],
@@ -147,7 +152,10 @@ class _SideView extends StatelessWidget {
         Text(title, style: theme.textTheme.labelLarge),
         const SizedBox(height: 4),
         if (profiles.isEmpty)
-          Text('（无配置）', style: theme.textTheme.bodySmall)
+          Text(
+            context.l10n.l6NoConfigurationa33dc,
+            style: theme.textTheme.bodySmall,
+          )
         else
           ...profiles.map(
             (p) => _ProfileRow(profile: p, isActive: p.id == activeId),
@@ -176,7 +184,7 @@ class _ProfileRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   '${profile.name} · ${profile.model}'
-                  '${isActive ? '（当前激活）' : ''}',
+                  '${isActive ? context.l10n.activeProviderSuffix : ''}',
                   style: theme.textTheme.bodyMedium,
                 ),
               ),
@@ -184,7 +192,9 @@ class _ProfileRow extends StatelessWidget {
           ),
           SelectableText(profile.baseUrl, style: theme.textTheme.bodySmall),
           Text(
-            profile.apiKeyPresent ? 'Key：${profile.apiKeyMasked}' : 'Key：未设置',
+            profile.apiKeyPresent
+                ? 'Key：${profile.apiKeyMasked}'
+                : context.l10n.l6KeyNotSetefd96,
             style: theme.textTheme.bodySmall,
           ),
           ...profile.reachabilityHints.map(
@@ -201,7 +211,7 @@ class _ProfileRow extends StatelessWidget {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      _hintText(hint.code),
+                      _hintText(context, hint.code),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.tertiary,
                       ),
@@ -217,11 +227,15 @@ class _ProfileRow extends StatelessWidget {
   }
 }
 
-String _hintText(String code) => switch (code) {
-  'provider_url_loopback' => '环回地址：仅本机可达，同步到其他设备后无法访问',
-  'provider_url_private_network' => '内网地址：仅同一网络内设备可达',
-  'provider_url_missing_scheme' => '缺少 http(s):// 前缀，多数客户端无法识别',
-  'provider_url_scheme_unusual' => '非常规协议，可能不被支持',
-  'provider_url_missing_host' => '缺少主机名',
-  _ => '地址提示：$code',
+String _hintText(BuildContext context, String code) => switch (code) {
+  'provider_url_loopback' =>
+    context.l10n.l6LoopbackAddressReachableOnlyFromThis5a7ca,
+  'provider_url_private_network' =>
+    context.l10n.l6PrivateNetworkAddressReachableOnlyOnf9ec8,
+  'provider_url_missing_scheme' =>
+    context.l10n.l6MissingHttpSPrefixMostClients85171,
+  'provider_url_scheme_unusual' =>
+    context.l10n.l6UnusualProtocolMayNotBeSupportedf9ae0,
+  'provider_url_missing_host' => context.l10n.l6MissingHostNameb705c,
+  _ => context.l10n.l6AddressHintArg03f1aa((code).toString()),
 };

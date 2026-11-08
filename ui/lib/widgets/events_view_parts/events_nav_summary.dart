@@ -40,10 +40,13 @@ class EventsNavSummary extends ConsumerWidget {
     return events.when(
       loading: () =>
           const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      error: (e, _) => const Center(
+      error: (e, _) => Center(
         child: Padding(
           padding: EdgeInsets.all(AppTheme.space4),
-          child: Text('事件加载失败', style: TextStyle(fontSize: 12.5)),
+          child: Text(
+            context.l10n.l6CouldNotLoadEvent7ba1f,
+            style: TextStyle(fontSize: 12.5),
+          ),
         ),
       ),
       data: (list) {
@@ -69,7 +72,7 @@ class EventsNavSummary extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: AppTheme.space2),
               child: Text(
-                '和 AI 的对话会被记录为事件，用于回顾与知识沉淀。',
+                context.l10n.l6ConversationsWithAiAreRecordedAs6eb67,
                 style: TextStyle(
                   fontSize: 12,
                   color: AppTheme.textTertiary,
@@ -77,9 +80,10 @@ class EventsNavSummary extends ConsumerWidget {
                 ),
               ),
             ),
-            _navStat('$today', '今天记录'),
-            _navStat('$week', '最近 7 天'),
-            if (pending > 0) _navStat('$pending', '待分析'),
+            _navStat('$today', context.l10n.l6TodaySRecordse0105),
+            _navStat('$week', context.l10n.l6Last7Days2a0a0),
+            if (pending > 0)
+              _navStat('$pending', context.l10n.l6AwaitingAnalysis605dc),
           ],
         );
       },

@@ -62,12 +62,7 @@ class _TodoEditDialogState extends ConsumerState<_TodoEditDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      showAppError(context, context.l10n.save, e);
     }
   }
 
@@ -76,7 +71,7 @@ class _TodoEditDialogState extends ConsumerState<_TodoEditDialog> {
     return AlertDialog(
       backgroundColor: AppTheme.surface1,
       title: Text(
-        '编辑待办',
+        context.l10n.todoEdit,
         style: TextStyle(color: AppTheme.textPrimary, fontSize: 16),
       ),
       content: SizedBox(
@@ -90,21 +85,21 @@ class _TodoEditDialogState extends ConsumerState<_TodoEditDialog> {
               autofocus: true,
               style: TextStyle(color: AppTheme.textPrimary),
               cursorColor: AppTheme.accentPrimary,
-              decoration: _inputDecoration('要跟进的事…'),
+              decoration: _inputDecoration(context.l10n.todoTitleHint),
             ),
             const SizedBox(height: AppTheme.space2),
             TextField(
               controller: _note,
               style: TextStyle(color: AppTheme.textPrimary),
               cursorColor: AppTheme.accentPrimary,
-              decoration: _inputDecoration('补充说明（可选）'),
+              decoration: _inputDecoration(context.l10n.todoNoteHint),
             ),
             const SizedBox(height: AppTheme.space2),
             TextField(
               controller: _due,
               style: TextStyle(color: AppTheme.textPrimary),
               cursorColor: AppTheme.accentPrimary,
-              decoration: _inputDecoration('截止日期（可选，YYYY-MM-DD，留空清除）'),
+              decoration: _inputDecoration(context.l10n.todoDueHint),
             ),
             const SizedBox(height: AppTheme.space2),
             // 定时提醒开关（评审：需要明确到期时刻）
@@ -114,8 +109,11 @@ class _TodoEditDialogState extends ConsumerState<_TodoEditDialog> {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    '到期提醒（到时弹横幅/通知）',
-                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                    context.l10n.todoReminderOption,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
+                    ),
                   ),
                 ),
                 Switch(
@@ -126,16 +124,18 @@ class _TodoEditDialogState extends ConsumerState<_TodoEditDialog> {
             ),
             const SizedBox(height: AppTheme.space3),
             Text(
-              '优先级',
+              context.l10n.todoPriority,
               style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
             ),
             const SizedBox(height: AppTheme.space1),
-            Row(
+            Wrap(
+              spacing: AppTheme.space2,
+              runSpacing: AppTheme.space1,
               children: [
-                for (final p in const [
-                  ('high', '高'),
-                  ('normal', '中'),
-                  ('low', '低'),
+                for (final p in [
+                  ('high', context.l10n.priorityHigh),
+                  ('normal', context.l10n.priorityNormal),
+                  ('low', context.l10n.priorityLow),
                 ])
                   Padding(
                     padding: const EdgeInsets.only(right: AppTheme.space2),
@@ -165,7 +165,10 @@ class _TodoEditDialogState extends ConsumerState<_TodoEditDialog> {
       actions: [
         TextButton(
           onPressed: _saving ? null : () => Navigator.of(context).pop(false),
-          child: Text('取消', style: TextStyle(color: AppTheme.textSecondary)),
+          child: Text(
+            context.l10n.cancel,
+            style: TextStyle(color: AppTheme.textSecondary),
+          ),
         ),
         FilledButton(
           style: FilledButton.styleFrom(
@@ -178,7 +181,7 @@ class _TodoEditDialogState extends ConsumerState<_TodoEditDialog> {
                   height: 14,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('保存'),
+              : Text(context.l10n.save),
         ),
       ],
     );

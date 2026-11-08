@@ -1,3 +1,5 @@
+import '../l10n/notice_messages.dart';
+
 import 'package:flutter/foundation.dart';
 
 import '../bridge/api.dart' as api;
@@ -100,12 +102,12 @@ class SyncWikiConflictsController extends ChangeNotifier {
   static String _describe(Object e) {
     final text = e.toString();
     if (text.contains('wiki_conflict_local_changed')) {
-      return '本端页面已变化，请刷新后重新审阅。';
+      return appNotice('l6TheLocalPageChangedRefreshAnd4e980');
     }
     if (text.contains('wiki_conflict_not_pending')) {
-      return '该冲突已裁决，请刷新列表。';
+      return appNotice('errorConflictResolved');
     }
-    return '操作失败：$text';
+    return appFailure(text);
   }
 
   @override

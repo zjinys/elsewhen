@@ -5,7 +5,8 @@ import '../bridge/api.dart' as api;
 import '../bridge/rust_bridge_repository.dart';
 import '../models/wiki_page.dart';
 import '../theme/app_theme.dart';
-import '../utils/error_report.dart';
+import '../l10n/localization.dart';
+import 'app_error_notice.dart';
 import 'habit_nudge_dialog.dart';
 
 /// 设置页「习惯提醒」列表的一行：习惯页 + 它当前的问候计划。
@@ -80,8 +81,7 @@ class _HabitNudgeSettingsContentState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '这里汇总所有未归档习惯页的定期问候。时间、问法和按钮改动会直接保存到对应习惯页；'
-          '主设备到点后把问候写进主对话，其他设备只同步显示，不会重复发问。',
+          context.l10n.habitReminderSettingsHelp,
           style: TextStyle(
             color: AppTheme.textSecondary,
             fontSize: 13,
@@ -95,7 +95,7 @@ class _HabitNudgeSettingsContentState
             child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
           ),
           error: (error, stack) => Text(
-            '习惯提醒读取失败：${_errorLine(error)}',
+            context.errorMessage(context.l10n.load, error),
             style: TextStyle(color: AppTheme.error, fontSize: 12),
           ),
           data: (entries) => _buildList(entries),
@@ -115,7 +115,7 @@ class _HabitNudgeSettingsContentState
           border: Border.all(color: AppTheme.surface3),
         ),
         child: Text(
-          '还没有未归档的习惯页。先在知识库创建「习惯」页，再回到这里设置定期问候。',
+          context.l10n.habitReminderEmpty,
           style: TextStyle(
             color: AppTheme.textTertiary,
             fontSize: 12.5,
@@ -134,7 +134,7 @@ class _HabitNudgeSettingsContentState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '运行中 $enabled · 已暂停 $paused · 未设置 $unset',
+          context.l10n.habitReminderCounts(enabled, paused, unset),
           style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
         ),
         const SizedBox(height: AppTheme.space2),
@@ -150,10 +150,10 @@ class _HabitNudgeSettingsContentState
     final plan = entry.plan;
     final isBusy = plan != null && _busy.contains(plan.id);
     final status = plan == null
-        ? ('未设置', AppTheme.textTertiary)
+        ? (context.l10n.habitReminderNotSet, AppTheme.textTertiary)
         : plan.enabled
-        ? ('运行中', AppTheme.success)
-        : ('已暂停', AppTheme.warning);
+        ? (context.l10n.habitReminderActive, AppTheme.success)
+        : (context.l10n.pausedGoalState, AppTheme.warning);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(
@@ -243,7 +243,7 @@ class _HabitNudgeSettingsContentState
                 ] else ...[
                   const SizedBox(height: 3),
                   Text(
-                    '尚未设置定期问候',
+                    context.l10n.habitReminderUnset,
                     style: TextStyle(
                       fontSize: 11.5,
                       color: AppTheme.textTertiary,
@@ -270,7 +270,11 @@ class _HabitNudgeSettingsContentState
             ),
           TextButton(
             onPressed: isBusy ? null : () => _edit(entry),
-            child: Text(plan == null ? '设置' : '调整'),
+            child: Text(
+              plan == null
+                  ? context.l10n.habitReminderSetup
+                  : context.l10n.habitReminderAdjust,
+            ),
           ),
         ],
       ),
@@ -282,8 +286,8 @@ class _HabitNudgeSettingsContentState
     if (changed == true && mounted) {
       ref.invalidate(habitReminderEntriesProvider);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('定期问候已更新'),
+        SnackBar(
+          content: Text(context.l10n.checkinsUpdated),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -312,40 +316,36 @@ class _HabitNudgeSettingsContentState
       ref.invalidate(habitReminderEntriesProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(enabled ? '定期问候已恢复' : '定期问候已暂停'),
+          content: Text(
+            enabled
+                ? context.l10n.habitReminderResumed
+                : context.l10n.habitReminderPaused,
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(reportUiError('切换定期问候', error)),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      showAppError(context, context.l10n.save, error);
     } finally {
       if (mounted) setState(() => _busy.remove(plan.id));
     }
   }
 
-  static String _scheduleSummary(api.HabitNudgeDto plan) {
+  String _scheduleSummary(api.HabitNudgeDto plan) {
     final days = _weekdaySummary(plan.weekdays);
     return '$days ${plan.localTime} · ${plan.doneLabel}/${plan.missedLabel}';
   }
 
-  static String _weekdaySummary(int mask) {
-    if (mask == 127) return '每天';
-    const names = ['一', '二', '三', '四', '五', '六', '日'];
+  String _weekdaySummary(int mask) {
+    if (mask == 127) return context.l10n.everyDay;
     final days = [
       for (var i = 0; i < 7; i++)
-        if ((mask & (1 << i)) != 0) names[i],
+        if ((mask & (1 << i)) != 0)
+          context.l10n.weekdayShort((i + 1).toString()),
     ];
-    return '每周 ${days.join('、')}';
-  }
-
-  static String _errorLine(Object error) {
-    final text = error.toString().replaceFirst('Exception: ', '');
-    return text.split('\n').first.trim();
+    return context.l10n.habitWeekSchedule(
+      days.join(context.l10n.localeName == 'zh' ? '、' : ', '),
+    );
   }
 }

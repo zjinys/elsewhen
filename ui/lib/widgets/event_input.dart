@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
@@ -62,7 +64,7 @@ class _EventInputState extends State<EventInput> {
                 height: 1.6,
               ),
               decoration: InputDecoration(
-                hintText: '记录此刻发生的事情…（可用 @人名 标注联系人、#事情 标注项目）',
+                hintText: context.l10n.l6RecordWhatIsHappeningUseName925ca,
                 hintStyle: TextStyle(
                   color: AppTheme.textTertiary,
                   fontSize: 15,
@@ -78,7 +80,7 @@ class _EventInputState extends State<EventInput> {
           ),
         ),
         IconButton(
-          tooltip: '对话格式',
+          tooltip: context.l10n.l6ConversationFormat9d903,
           onPressed: () => _showConversationGuide(context),
           icon: Icon(
             Icons.help_outline,
@@ -116,8 +118,8 @@ class _EventInputState extends State<EventInput> {
                     children: [
                       Icon(Icons.send, size: 18),
                       const SizedBox(width: AppTheme.space2),
-                      const Text(
-                        '记录',
+                      Text(
+                        context.l10n.record,
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 15,
@@ -134,25 +136,17 @@ class _EventInputState extends State<EventInput> {
   Future<void> _showConversationGuide(BuildContext context) => showDialog<void>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('怎么记录'),
-      content: const SizedBox(
+      title: Text(context.l10n.l6HowToRecord2bcbc),
+      content: SizedBox(
         width: 480,
         child: SingleChildScrollView(
-          child: Text(
-            '@人名：明确标注联系人\n'
-            '#事情：明确标注项目、事项或主题\n\n'
-            '例如：@张伟 正在负责 #付款流程\n\n'
-            '记一下：明确保存一条经历或进展\n'
-            '保存到知识库：把结论沉淀下来\n'
-            '帮我建待办：创建后续行动\n\n'
-            '联系人关系、知识页、待办和规则会先给你看草稿。请打开“审阅提议”，查看具体内容后接受或拒绝；普通聊天回复不会执行草稿。',
-          ),
+          child: Text(context.l10n.l6UseNameToIdentifyAContact6d759),
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('知道了'),
+          child: Text(context.l10n.acknowledge),
         ),
       ],
     ),

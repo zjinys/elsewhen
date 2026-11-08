@@ -6,6 +6,7 @@ pub(super) fn sample_tool(name: &str) -> McpToolInfo {
         name: format!("mcp__srv__{name}"),
         server: "srv".into(),
         server_id: "srv-id".into(),
+        keywords: String::new(),
         raw_name: name.into(),
         description: "demo".into(),
         parameters: serde_json::json!({"type": "object"}),
@@ -17,6 +18,7 @@ pub(super) fn sample_server(url: &str) -> crate::storage::McpServerConfig {
     crate::storage::McpServerConfig {
         id: "srv-id".into(),
         name: "srv".into(),
+        keywords: String::new(),
         platform: "all".into(),
         transport: "streamable-http".into(),
         command: String::new(),

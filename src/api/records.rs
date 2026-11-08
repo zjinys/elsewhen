@@ -52,8 +52,13 @@ pub fn init_bridge(database_path: Option<String>) -> Result<String> {
     // 路径、打开同一个库并随机撞出 SQLITE_BUSY。
     let config = crate::config::AppConfig::pin(database_path.as_deref())
         .map_err(|e| anyhow::anyhow!("Error resolving data directory: {e}"))?;
+    let startup = std::time::Instant::now();
     Store::open(&config.database_path)
         .and_then(|store| {
+            crate::logging::log_always(&format!(
+                "[startup] storage_ready_ms={}",
+                startup.elapsed().as_millis()
+            ));
             if !store.has_sync_authority()? && store.sync_identity()?.is_none() {
                 if let Some(_guard) = crate::sync::runtime::initialization_guard(&config)? {
                     store.recover_interrupted_analysis_jobs()?;
@@ -73,6 +78,10 @@ pub fn init_bridge(database_path: Option<String>) -> Result<String> {
             Ok(())
         })
         .map_err(|e| anyhow::anyhow!("Error recovering background queues: {e}"))?;
+    crate::logging::log_always(&format!(
+        "[startup] bridge_ready_ms={}",
+        startup.elapsed().as_millis()
+    ));
     Ok(config.database_path.display().to_string())
 }
 

@@ -38,7 +38,7 @@ pub(crate) fn usable(store: &Store, source: &crate::storage::SourceSnapshot) -> 
 // The query transports metadata only. Pagination and counts stay in SQLite.
 const QUEUE: &str = r#"
 WITH sources AS MATERIALIZED (
- SELECT c.*, (c.chars<=1400 OR EXISTS(SELECT 1 FROM knowledge_source_readings r WHERE r.snapshot_id=c.id AND r.strategy_version=?1 AND r.is_root=1)) AS ready
+ SELECT c.*, (c.chars<=1400 OR EXISTS(SELECT 1 FROM knowledge_source_readings r WHERE r.snapshot_id=c.id AND r.strategy_version=COALESCE((SELECT t.strategy FROM prompt_reading_tasks t WHERE t.snapshot_id=c.id AND t.contract_version=?1 ORDER BY t.policy_generation DESC LIMIT 1),?1) AND r.is_root=1)) AS ready
  FROM knowledge_current_sources c
 ), tasks(task) AS (VALUES('source-reading'),('source-compilation'),('wiki-integration')),
 raw AS MATERIALIZED (
@@ -54,7 +54,7 @@ raw AS MATERIALIZED (
  WHEN NOT s.ready AND t.task<>'source-reading' THEN '等待原料全文阅读完成'
  ELSE COALESCE(r.detail,r.error,'等待后台处理') END AS detail,r.retry_at AS available_at
  FROM sources s CROSS JOIN tasks t LEFT JOIN knowledge_background_runs r ON r.rowid=(
- SELECT b.rowid FROM knowledge_background_runs b WHERE b.task=t.task AND b.strategy_version=CASE WHEN t.task='source-reading' THEN ?1 ELSE 'fulltext-maintenance-v2' END AND b.input_snapshot=s.id ORDER BY b.started_at DESC,b.rowid DESC LIMIT 1)
+ SELECT b.rowid FROM knowledge_background_runs b WHERE b.task=t.task AND ((t.task='source-reading' AND b.strategy_version=COALESCE((SELECT pt.strategy FROM prompt_reading_tasks pt WHERE pt.snapshot_id=s.id AND pt.contract_version=?1 ORDER BY pt.policy_generation DESC LIMIT 1),?1)) OR (t.task<>'source-reading' AND b.strategy_version GLOB 'fulltext-maintenance-v2*')) AND b.input_snapshot=s.id ORDER BY b.started_at DESC,b.rowid DESC LIMIT 1)
  WHERE t.task<>'source-reading' OR s.chars>1400
  UNION ALL
  SELECT 'refresh:'||p.id,'knowledge-refresh',p.slug,p.title,

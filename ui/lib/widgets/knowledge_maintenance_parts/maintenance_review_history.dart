@@ -31,7 +31,15 @@ class _ReviewHistoryState extends ConsumerState<KnowledgeReviewHistorySection> {
         _more = items.length == 50;
       });
     } catch (e) {
-      if (mounted) setState(() => _error = _failure(e, '读取处理历史'));
+      if (mounted) {
+        setState(
+          () => _error = _failure(
+            context,
+            e,
+            context.l10n.l6LoadReviewHistory6b7da,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -113,14 +121,14 @@ class _ReviewHistoryState extends ConsumerState<KnowledgeReviewHistorySection> {
               color: AppTheme.accentPrimary,
             ),
           ),
-          title: const Text(
-            '知识演进',
+          title: Text(
+            context.l10n.l6KnowledgeHistory37e16,
             style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(
-              '这页内容被建议与修订的历史（采纳 / 拒绝 / 关联解决）',
+              context.l10n.l6HistoryOfProposalsAndRevisionsAccepted1535c,
               style: TextStyle(fontSize: 11.5, color: AppTheme.textTertiary),
             ),
           ),
@@ -132,12 +140,15 @@ class _ReviewHistoryState extends ConsumerState<KnowledgeReviewHistorySection> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-                child: Text(_error!),
+                child: AppErrorMessage(
+                  action: context.l10n.load,
+                  error: _error!,
+                ),
               ),
             if (_loaded && _items.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.fromLTRB(14, 4, 14, 12),
-                child: Text('这页还没有过修订记录。'),
+                child: Text(context.l10n.l6ThisPageHasNoRevisionsYet1b848),
               ),
             for (final item in _items)
               Padding(
@@ -168,10 +179,10 @@ class _ReviewHistoryState extends ConsumerState<KnowledgeReviewHistorySection> {
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(
                           '${switch (item.action) {
-                            'accepted' => '已采纳',
-                            'rejected' => '已拒绝',
-                            'resolved' => '已关联解决',
-                            'dismissed' => '已忽略',
+                            'accepted' => context.l10n.knowledgeAccepted,
+                            'rejected' => context.l10n.knowledgeRejected,
+                            'resolved' => context.l10n.l6ResolvedWithALinkedPagef44a7,
+                            'dismissed' => context.l10n.l6Dismissedbd172,
                             _ => item.action,
                           }} · ${_shortTime(item.createdAt)}',
                           style: TextStyle(
@@ -204,28 +215,46 @@ class _ReviewHistoryState extends ConsumerState<KnowledgeReviewHistorySection> {
                                       ),
                                     ),
                                   if (item.note != null)
-                                    _field('处理说明', item.note!),
+                                    _field(
+                                      context.l10n.l6ResolutionNotesca3c9,
+                                      item.note!,
+                                    ),
                                   if (item.selectedParts.isNotEmpty)
                                     _field(
-                                      '采纳的差异段',
+                                      context.l10n.l6AcceptedChanges114f5,
                                       item.selectedParts
                                           .map((n) => n.toInt() + 1)
                                           .join('、'),
                                     ),
                                   if (item.originalApplicable != null)
-                                    _field('建议适用条件', item.originalApplicable!),
+                                    _field(
+                                      context.l10n.l6SuggestedConditions5bf71,
+                                      item.originalApplicable!,
+                                    ),
                                   if (item.resultApplicable != null)
-                                    _field('保存的适用条件', item.resultApplicable!),
+                                    _field(
+                                      context.l10n.l6SavedConditions0ae9a,
+                                      item.resultApplicable!,
+                                    ),
                                   if (item.revisionId != null)
                                     _field(
-                                      '关联修订',
+                                      context.l10n.l6LinkedRevision4f2da,
                                       item.revisionId!,
                                       mono: true,
                                     ),
                                   const SizedBox(height: 6),
-                                  _text('修改前正文', item.beforeContent),
-                                  _text('原始建议', item.originalContent),
-                                  _text('实际保存的正文', item.resultContent),
+                                  _text(
+                                    context.l10n.l6PreviousContent5b344,
+                                    item.beforeContent,
+                                  ),
+                                  _text(
+                                    context.l10n.l6OriginalSuggestiondb86c,
+                                    item.originalContent,
+                                  ),
+                                  _text(
+                                    context.l10n.l6SavedContentc80ef,
+                                    item.resultContent,
+                                  ),
                                   if (item.targetSlug != null)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 6),
@@ -237,15 +266,18 @@ class _ReviewHistoryState extends ConsumerState<KnowledgeReviewHistorySection> {
                                               wikiPageProvider(item.targetSlug!)
                                                   .future,
                                             );
-                                            if (mounted && page != null)
+                                            if (mounted && page != null) {
                                               openWikiPageTab(ref, page);
+                                            }
                                           },
                                           icon: const Icon(
                                             Icons.open_in_new,
                                             size: 14,
                                           ),
-                                          label: const Text(
-                                            '打开对应知识页',
+                                          label: Text(
+                                            context
+                                                .l10n
+                                                .l6OpenLinkedKnowledgePage88f20,
                                             style: TextStyle(fontSize: 12),
                                           ),
                                         ),
@@ -266,7 +298,11 @@ class _ReviewHistoryState extends ConsumerState<KnowledgeReviewHistorySection> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: TextButton(
                   onPressed: _busy ? null : () => _load(),
-                  child: Text(_error != null ? '重新读取' : '加载更多记录'),
+                  child: Text(
+                    _error != null
+                        ? context.l10n.l6Reload77849
+                        : context.l10n.l6LoadMoreRecords37269,
+                  ),
                 ),
               ),
           ],

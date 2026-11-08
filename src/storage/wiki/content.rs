@@ -21,12 +21,14 @@ impl Store {
     ) -> Result<WikiPage> {
         let page = self
             .get_wiki_page(slug)?
-            .with_context(|| format!("知识页不存在: {slug}（可能已被改名或删除）"))?;
+            .with_context(|| format!("知识页不存在: {slug}（可能已被改名或删除）"))
+            .map_err(|error| error.context(crate::user_error::UserError::missing("wiki_page")))?;
         if matches!(page.kind.as_str(), "source" | "note") {
-            anyhow::bail!(
-                "素材页（kind={}）只读，不支持人工编辑正文；只能表态评价（认可/不认可）",
-                page.kind
-            );
+            return Err(crate::user_error::UserError::new(
+                "wiki_material_readonly",
+                serde_json::json!({}),
+            )
+            .into());
         }
         if let Some(expected) = expected_updated_at {
             // 乐观锁按毫秒精度比较解析后的时间戳，而非字符串相等：
@@ -40,20 +42,28 @@ impl Store {
                 (Ok(e), Ok(c)) if e.timestamp_millis() == c.timestamp_millis()
             );
             if !consistent {
-                anyhow::bail!(
+                return Err(anyhow::anyhow!(
                     "编辑冲突：页面在你编辑期间已被更新（加载于 {}，当前 {}）；请重新加载后合并修改，或强制覆盖",
                     expected,
                     page.updated_at
-                );
+                )
+                .context(crate::user_error::UserError::new(
+                    "wiki_page_changed",
+                    serde_json::json!({}),
+                )));
             }
         }
         let content_md = content_md.trim().to_string();
         if content_md.is_empty() {
-            anyhow::bail!("正文为空，无法保存");
+            return Err(crate::user_error::UserError::required("content").into());
         }
         let char_count = content_md.chars().count();
         if char_count > 65536 {
-            anyhow::bail!("正文超过 64k 字符上限（当前 {char_count} 字符）");
+            return Err(crate::user_error::UserError::new(
+                "wiki_content_too_long",
+                serde_json::json!({}),
+            )
+            .into());
         }
         let now = chrono::Utc::now().to_rfc3339();
         let transaction = self.begin_write_transaction()?;
@@ -299,13 +309,14 @@ impl Store {
         source_event_id: Option<&str>,
     ) -> Result<()> {
         let conn = &store.connection;
-        let revision = crate::sync::protocol::WikiRevisionRecord {
+        let mut revision = crate::sync::protocol::WikiRevisionRecord {
             id: Uuid::new_v4().to_string(),
             page_id: page_id.to_string(),
             content_md: content_md.to_string(),
             reason: reason.to_string(),
             source_event_id: source_event_id.map(|s| s.to_string()),
             created_at: chrono::Utc::now().to_rfc3339(),
+            language: None,
         };
         conn.execute(
             "INSERT INTO wiki_revisions
@@ -320,6 +331,26 @@ impl Store {
                 revision.created_at,
             ],
         )?;
+        let bundle = store.prompt_bundle.borrow().clone();
+        if let Some(bundle) = bundle {
+            let previous: Option<String> = conn.query_row(
+                "SELECT json_extract(l.metadata_json,'$.output_locale') FROM wiki_revisions r JOIN knowledge_artifact_languages l ON l.artifact_kind='wiki_revision' AND l.artifact_id=r.id WHERE r.page_id=?1 AND r.id<>?2 ORDER BY r.created_at DESC,r.rowid DESC LIMIT 1",
+                params![page_id,revision.id], |r| r.get(0),
+            ).optional()?;
+            store.record_language_artifact_with_output(
+                "wiki_revision",
+                &revision.id,
+                &bundle,
+                &[
+                    "knowledge.processing.fixed_contract",
+                    "digest.policy",
+                    "digest.fixed_contract",
+                    "task.processing.fixed_contract",
+                ],
+                previous.as_deref(),
+            )?;
+            revision.language = store.artifact_language("wiki_revision", &revision.id)?;
+        }
         store.sync_record_wiki_revision(&revision)?;
         Ok(())
     }

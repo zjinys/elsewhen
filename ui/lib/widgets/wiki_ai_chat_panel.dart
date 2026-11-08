@@ -1,3 +1,6 @@
+import 'app_error_notice.dart';
+import '../l10n/notice_messages.dart';
+
 import 'dart:math';
 
 import 'suggestion_feedback.dart';
@@ -23,10 +26,12 @@ import '../theme/content_font.dart';
 import 'markdown_view.dart';
 import 'knowledge_panel.dart';
 import 'knowledge_import.dart';
+import '../l10n/localization.dart';
 
 part 'wiki_ai_chat_panel_parts/panel_task.dart';
 part 'wiki_ai_chat_panel_parts/panel_render.dart';
 part 'wiki_ai_chat_panel_parts/panel_bubbles.dart';
+
 // ── 页内 AI 聊天面板按任务/渲染/气泡拆分（同库 part，零行为变化）──
 
 /// 页内 AI 处理面板：围绕当前页面聊天（总结/补充/改写）。
@@ -135,7 +140,13 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                 ])
               : await ChatPageTask.restore(saved, repo.getWikiChatMaterial);
         } catch (e) {
-          taskError = '原任务暂不能恢复：$e';
+          if (!mounted || widget.slug != slug) return;
+          taskError = appFailure(
+            e,
+            key: e is ChatPageTaskMaterialChanged
+                ? 'taskMaterialChanged'
+                : null,
+          );
         }
       }
       if (!mounted || widget.slug != slug) return;
@@ -150,11 +161,10 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
       if (!mounted || widget.slug != slug) return;
       setState(() {
         _ready = true;
-        _error = '会话初始化失败：${e.toString().replaceFirst('Exception: ', '')}';
+        _error = appFailure(e);
       });
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -202,9 +212,9 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
             padding: const EdgeInsets.all(AppTheme.space3),
             children: [
               WikiChatBubble(
-                message: const ContentChatMessage(
+                message: ContentChatMessage(
                   role: 'assistant',
-                  content: '👋 我可以帮你总结、提取要点、补充或改写这一页；需要写回知识库时会先给你确认。\n如果这是从本地目录导入的项目，也可以直接说“重新扫描这个项目目录”，我会按最新文件重新导入。',
+                  content: context.l10n.pageChatWelcome,
                 ),
               ),
               for (final m in displayedMessages)
@@ -222,8 +232,9 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: AppTheme.space2),
-                  child: Text(
-                    _error!,
+                  child: AppErrorMessage(
+                    action: context.l10n.load,
+                    error: _error!,
                     style: TextStyle(fontSize: 12, color: AppTheme.error),
                   ),
                 ),
@@ -255,7 +266,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'AI对话',
+                        context.l10n.wikiChat,
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -276,7 +287,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                         ),
                       if (widget.onDragUpdate != null)
                         Tooltip(
-                          message: '拖动以移动对话窗口',
+                          message: context.l10n.moveChatWindow,
                           child: Icon(
                             Icons.drag_indicator,
                             size: 17,
@@ -285,7 +296,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                         ),
                       if (widget.onMinimize != null)
                         IconButton(
-                          tooltip: '缩小对话窗口',
+                          tooltip: context.l10n.shrinkChatWindow,
                           onPressed: widget.onMinimize,
                           icon: const Icon(Icons.remove, size: 18),
                           visualDensity: VisualDensity.compact,
@@ -294,7 +305,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                         TextButton.icon(
                           onPressed: _returnToMainConversation,
                           icon: const Icon(Icons.arrow_back, size: 14),
-                          label: const Text('返回主对话'),
+                          label: Text(context.l10n.backToMainChat),
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 6),
                             visualDensity: VisualDensity.compact,
@@ -318,7 +329,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                       else
                         PopupMenuButton<String>(
                           enabled: _ready && !_busy,
-                          tooltip: 'AI 任务',
+                          tooltip: context.l10n.aiTasks,
                           color: AppTheme.surface1,
                           surfaceTintColor: Colors.transparent,
                           icon: const Icon(Icons.more_vert, size: 18),
@@ -327,43 +338,47 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                             _taskMenuItem(
                               'summary',
                               Icons.summarize_outlined,
-                              '总结这一页',
+                              context.l10n.summarizePage,
                             ),
                             _taskMenuItem(
                               'extract',
                               Icons.format_list_bulleted,
-                              '提取关键点',
+                              context.l10n.extractKeyPoints,
                             ),
                             _taskMenuItem(
                               'decisions',
                               Icons.gavel_outlined,
-                              '沉淀决定和依据',
+                              context.l10n.captureDecisions,
                             ),
                             _taskMenuItem(
                               'next',
                               Icons.checklist_outlined,
-                              '整理下一步',
+                              context.l10n.organizeNextSteps,
                             ),
                             _taskMenuDivider(),
-                            _taskMenuItem('translate', Icons.translate, '翻译片段'),
+                            _taskMenuItem(
+                              'translate',
+                              Icons.translate,
+                              context.l10n.translateSelection,
+                            ),
                             _taskMenuItem(
                               'copy',
                               Icons.campaign_outlined,
-                              '写文案',
+                              context.l10n.writeCopy,
                             ),
                             if (isProject) ...[
                               _taskMenuDivider(),
                               _taskMenuItem(
                                 'rescan',
                                 Icons.refresh,
-                                '重新扫描项目目录',
+                                context.l10n.rescanProject,
                               ),
                             ] else if (canReimport) ...[
                               _taskMenuDivider(),
                               _taskMenuItem(
                                 'reimport',
                                 Icons.refresh,
-                                '重新导入来源',
+                                context.l10n.reimportSource,
                               ),
                             ],
                           ],
@@ -387,11 +402,14 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_taskRestoreError!),
-                      const Text('重新选择将使用当前页的新版本，并清除旧选区和对照材料。'),
+                      AppErrorMessage(
+                        action: context.l10n.load,
+                        error: _taskRestoreError!,
+                      ),
+                      Text(context.l10n.taskResetDescription),
                       TextButton(
                         onPressed: _sending ? null : _resetTask,
-                        child: const Text('明确重新选择任务与材料'),
+                        child: Text(context.l10n.reselectTaskMaterial),
                       ),
                     ],
                   ),
@@ -425,7 +443,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                         maxLines: 4,
                         minLines: 1,
                         decoration: InputDecoration(
-                          hintText: '就这一页问问 AI…',
+                          hintText: context.l10n.askPageHint,
                           hintStyle: TextStyle(
                             fontSize: 12,
                             color: AppTheme.textTertiary,
@@ -471,7 +489,9 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                         disabledBackgroundColor: AppTheme.surface3,
                       ),
                       icon: const Icon(Icons.arrow_upward, size: 16),
-                      tooltip: _busy ? '保存并排队下一问' : '发送',
+                      tooltip: _busy
+                          ? context.l10n.queueNext
+                          : context.l10n.send,
                     ),
                   ],
                 ),

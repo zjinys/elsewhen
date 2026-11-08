@@ -62,7 +62,10 @@ fn create_plan_tool_is_confirm_gated_then_commits_plan_with_steps() {
     assert!(result.success, "{}", result.content);
     let pendings = store.pending_actions_for_conversation(&conv).unwrap();
     assert_eq!(pendings.len(), 1, "追加提案待确认");
-    assert!(store.list_plan_steps(&plan_id).unwrap().len() == 3, "确认前不追加");
+    assert!(
+        store.list_plan_steps(&plan_id).unwrap().len() == 3,
+        "确认前不追加"
+    );
     execute_pending_action(&store, &pendings[0]).unwrap();
     let steps = store.list_plan_steps(&plan_id).unwrap();
     assert_eq!(steps.len(), 4);
@@ -264,4 +267,30 @@ fn create_goal_tool_wraps_into_single_step_plan() {
 
     drop(store);
     let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn personal_profile_collects_explicit_fields_and_preserves_others() {
+    let (store, _path) = temp_db();
+    let conv = store.create_conversation(Some("日常聊天"), None).unwrap();
+    let registry = ToolRegistry::default();
+    let call = ToolCall::new(
+        "update_personal_profile",
+        json!({"skills":"Rust开发","limits":"每周10小时"}),
+    );
+    assert!(dispatch(&call, &registry, &store, &conv).success);
+    let call = ToolCall::new("update_personal_profile", json!({"preferences":"不做外包"}));
+    assert!(dispatch(&call, &registry, &store, &conv).success);
+    let (p, _) = store.planning_profile().unwrap();
+    assert_eq!(p.skills, "Rust开发");
+    assert_eq!(p.limits, "每周10小时");
+    assert_eq!(p.preferences, "不做外包");
+    let page = store.get_wiki_page("profile/me").unwrap().unwrap();
+    assert!(page.content_md.contains("## 能力与经验"));
+    assert!(
+        store
+            .pending_actions_for_conversation(&conv)
+            .unwrap()
+            .is_empty()
+    );
 }

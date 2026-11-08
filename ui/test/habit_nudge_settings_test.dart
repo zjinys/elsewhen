@@ -1,5 +1,6 @@
 import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/models/wiki_page.dart';
+import 'package:elsewhen_ui/l10n/app_localizations.dart';
 import 'package:elsewhen_ui/theme/app_theme.dart';
 import 'package:elsewhen_ui/widgets/habit_nudge_settings.dart';
 import 'package:flutter/material.dart';
@@ -71,6 +72,62 @@ void main() {
     expect(find.text('设置'), findsOneWidget);
     expect(find.text('调整'), findsNWidgets(2));
   });
+  testWidgets(
+    'English reminder settings preserve questions and localize weekly schedule',
+    (tester) async {
+      tester.view.physicalSize = const Size(420, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final entries = [
+        HabitReminderEntry(
+          page: _page('habit/read', '用户习惯原文😀'),
+          plan: _plan(
+            id: 'plan',
+            slug: 'habit/read',
+            question: '今天阅读了吗？',
+            weekdays: 31,
+            localTime: '21:30',
+            doneLabel: '读了',
+            missedLabel: '没读',
+            enabled: false,
+          ),
+        ),
+        HabitReminderEntry(
+          page: _page('habit/water', 'Drink water'),
+          plan: null,
+        ),
+      ];
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            habitReminderEntriesProvider.overrideWith((ref) async => entries),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const Scaffold(
+              body: SingleChildScrollView(
+                padding: EdgeInsets.all(12),
+                child: HabitNudgeSettingsContent(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('用户习惯原文😀'), findsOneWidget);
+      expect(find.text('今天阅读了吗？'), findsOneWidget);
+      expect(find.text('Active 0 · Paused 1 · Not set 1'), findsOneWidget);
+      expect(
+        find.text('Weekly: Mon, Tue, Wed, Thu, Fri 21:30 · 读了/没读'),
+        findsOneWidget,
+      );
+      expect(find.text('Set up'), findsOneWidget);
+      expect(find.text('Adjust'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 WikiPageMeta _page(String slug, String title) {

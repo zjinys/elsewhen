@@ -1,4 +1,8 @@
+import 'app_error_notice.dart';
+
 import 'package:flutter/material.dart';
+
+import '../l10n/localization.dart';
 
 /// 三类同步冲突审阅区（Provider / 知识库 / 待办目标）共用的外壳。
 ///
@@ -56,7 +60,7 @@ class SyncConflictSection extends StatelessWidget {
                   : theme.colorScheme.outline,
             ),
             const SizedBox(width: 8),
-            Text(title, style: theme.textTheme.titleSmall),
+            Expanded(child: Text(title, style: theme.textTheme.titleSmall)),
             const SizedBox(width: 4),
             Tooltip(
               triggerMode: TooltipTriggerMode.tap,
@@ -71,7 +75,6 @@ class SyncConflictSection extends StatelessWidget {
                 ),
               ),
             ),
-            const Spacer(),
             _StatusBadge(
               busy: busy && !loaded,
               reviewing: reviewing,
@@ -87,11 +90,16 @@ class SyncConflictSection extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.error_outline, size: 14, color: theme.colorScheme.error),
+                Icon(
+                  Icons.error_outline,
+                  size: 14,
+                  color: theme.colorScheme.error,
+                ),
                 const SizedBox(width: 4),
                 Expanded(
-                  child: Text(
-                    error!,
+                  child: AppErrorMessage(
+                    error: error!,
+                    action: context.l10n.load,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.error,
                     ),
@@ -104,7 +112,7 @@ class SyncConflictSection extends StatelessWidget {
                       size: 14,
                       color: theme.colorScheme.error,
                     ),
-                    label: const Text('重新拉取'),
+                    label: Text(context.l10n.syncRefresh),
                     labelStyle: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.error,
                     ),
@@ -117,7 +125,7 @@ class SyncConflictSection extends StatelessWidget {
         ],
         const SizedBox(height: 8),
         if (busy && !loaded)
-          const Row(
+          Row(
             children: [
               SizedBox(
                 width: 16,
@@ -125,7 +133,7 @@ class SyncConflictSection extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
               SizedBox(width: 8),
-              Text('正在读取冲突…'),
+              Text(context.l10n.syncLoadingConflicts),
             ],
           )
         else ...[
@@ -193,7 +201,7 @@ class _StatusBadge extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Text(
-            '正在读取…',
+            context.l10n.loading,
             style: theme.textTheme.labelSmall?.copyWith(
               color: colorScheme.outline,
             ),
@@ -206,7 +214,7 @@ class _StatusBadge extends StatelessWidget {
     );
     if (failed) {
       return _pill(
-        text: '读取失败',
+        text: context.l10n.loadFailed,
         fg: colorScheme.error,
         bg: colorScheme.error.withValues(alpha: 0.12),
         style: pillStyle!,
@@ -216,10 +224,14 @@ class _StatusBadge extends StatelessWidget {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.check_circle_outline, size: 14, color: colorScheme.outline),
+          Icon(
+            Icons.check_circle_outline,
+            size: 14,
+            color: colorScheme.outline,
+          ),
           const SizedBox(width: 4),
           Text(
-            '无需处理',
+            context.l10n.syncNoActionNeeded,
             style: theme.textTheme.labelSmall?.copyWith(
               color: colorScheme.outline,
             ),
@@ -228,7 +240,7 @@ class _StatusBadge extends StatelessWidget {
       );
     }
     return _pill(
-      text: '$count 条待审阅',
+      text: context.l10n.syncReviewCount(count),
       fg: colorScheme.onPrimaryContainer,
       bg: colorScheme.primaryContainer.withValues(alpha: 0.8),
       style: pillStyle!,
@@ -242,7 +254,10 @@ class _StatusBadge extends StatelessWidget {
     required TextStyle style,
   }) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-    decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+    decoration: BoxDecoration(
+      color: bg,
+      borderRadius: BorderRadius.circular(999),
+    ),
     child: Text(text, style: style.copyWith(color: fg)),
   );
 }
@@ -261,11 +276,7 @@ class SyncConflictSides extends StatelessWidget {
         if (constraints.maxWidth < 520) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              children[0],
-              const Divider(height: 24),
-              children[1],
-            ],
+            children: [children[0], const Divider(height: 24), children[1]],
           );
         }
         return Row(

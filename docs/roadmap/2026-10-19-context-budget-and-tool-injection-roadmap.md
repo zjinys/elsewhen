@@ -182,7 +182,7 @@
 | R2A | ✅ 完成 | 未启用 MCP 不进 tools 字段；catalog 2K 预算；tools/list 缓存指纹键+TTL（`949d0b2`）；未注册 MCP 直放侧门已堵；Round 0 tools_tokens 推断 ~2K（53 工具不再进 tools 字段） |
 | R2B | ⚠️ 部分完成 | SYSTEM_PROMPT_BASE 4,407→2,710 字（~5.9K tokens@新口径），**未达 < 3K**；偏差声明：余量主体是行为安全纪律（草拟确认制/素材锁定/铁律），削减需产品决策。TOOL_GUIDES 分节+独立第二条 message 已落地；base 前缀稳定对 prefix cache 友好；pi 式增量 diff 下发未落地（前缀稳定结构已就位） |
 | 规则库解耦（后续切片） | ✅ 完成 | 三件套（`e7e9e4b`）：① 基座瘦身——SYSTEM_PROMPT_BASE 规则段改为触发纪律，PersonalRules 段只播报规模（count_active_rules）不再全量注入规则原文，stable_setup 与规则库大小脱钩；② 规则全文按需经常驻 list_rules 工具获取（描述补触发场景）；③ 对话影子校验（迁移 54 chat_rule_hits）：主回复完成后关键词预筛落 pending（幂等、失败静默不阻塞对话），后台 worker 复用 analysis 队列 tick 判定适用性（不确定宁判 false，坏回包保持 pending 重试），回填只动 pending 行；红线：绝不改写主回复、不向对话注入；观测面为 api list_recent_chat_rule_hits + 设置页规则库区只读审查面；快照归类 local-event-reminders |
-| R2.5 | ✅ 完成 | 侦察确认分批压缩与跨次收敛已存在（树式 build+节点缓存+preheat）；死局文案区分「压缩未收敛可重试」vs「缩小范围」；未造新批量器 |
+| R2.5 | ✅ 完成（2026-11-05 通用恢复补交） | 树式摘要、缓存和预热覆盖旧历史；目录回灌以 SQL 分页修复（[修复记录](../notes/implemented/bug-fix/2026-11-05-wiki-directory-context-budget.md)）。本轮补交通用恢复：只剩最近两轮仍超限时，最大的近期工具结果带自明声明砰半重试（下限 4000 字符，写操作回执类小结果天然豁免；协议配对不动），真·必死局才诚实失败且错误含可操作建议（换更大窗口 Provider / 停用不常用 MCP / 缩短输入）。见文末实施实录（续） |
 | R3 | ✅ 完成 | 审批续跑已落地（`9e4f0a8`：注入自明续跑指令+三重封顶）；回执摘要化已落地（审阅弹窗/处理记录/批量结果三处长回执折叠预览+展开，SelectableText 保留可复制）；readOnlyHint 只读免审批已落地（迁移 53：server 级 `allow_readonly_auto` 白名单默认关 + 上游 `annotations.readOnlyHint` 双边生效才直执行，免审批仍写执行审计 `mcp/.audit.log`，白名单关或注解缺失均回审批流；设置页 MCP 区独立锁形开关，含风险文案） |
 | R4 | ✅ 完成 | upstream_context_window_rejection 检测+窗口减半重试已在；收口为重试耗尽后的可诊断语义错误 |
 | R5 | ✅ 完成 | `degrade_turn` 确定性压形：assistant/工具长消息降骨架（头 220/160 字），用户消息与协议配对原样；压形仍装不下才诚实失败；complete_originals 护栏防误标全源 |
@@ -196,3 +196,34 @@
 1. **R2B stable_setup < 3K**：余量主体是行为安全纪律文案与「情绪回应」引导，削减需产品决策；「个人经验规则库引导」的全量注入已由规则库解耦切片（`e7e9e4b`）解决——基座只播报规模与 list_rules 查询入口，规则原文不随对话注入（聊天场景由影子校验补位）。
 2. **R2B 增量 diff 下发**：前缀稳定结构已就位，pi 式 sections diff 机制未落地——对 prefix cache 命中率有进一步提升空间。
 3. **R8E 幻觉后验检测**：明确不立项（理由见上表）。
+
+## 实施实录（续）：R2.5 通用恢复（2026-11-05）
+
+| 项 | 落地 |
+|---|---|
+| R2.5 通用恢复 | `src/ai/budget.rs` 新增 `tool_result_halved` / `largest_trimmable_tool_result`：砍轮穷尽（只剩最近两轮）仍超限时，把内容最大的近期工具结果带固定声明尾巴砰半后重试——幂等、声明不叠加、下限 2000 字符（回执类小结果不参与截断）、`tool_call_id` 配对不动；最终错误文案补可操作建议。协议测试的旧式全量目录探针由「确定拒绝」改为断言「带披露截断且头部保留」 |
+
+- 证据：`cargo test --lib budget` **42 passed / 0 failed**（含新增 3 项：截断恢复不拒绝、更紧预算幂等收敛、小回执不截且错误含建议）；全量门禁随提交记录。
+- 边界：用户原文/必要证据不可截（仍是诚实失败路径）；`local_rejection` 只在「工具结果也到下限」的真·必死局出现。
+
+## 2026-11-05 代码复核：剩余为优化候选
+
+`memory/system_context.rs::build_system_context` 已把 `SYSTEM_PROMPT_BASE` 与常驻工具指南拆为独立消息，指南按 resident_tool_names 筛选；延迟工具依靠激活后的 schema description，不能再记为“工具说明书全量常驻未修”。每次组装仍发送 BASE 与所需指南，未发现 sections diff 下发实现。
+
+`budget.rs` 的 `largest_trimmable_tool_result` / `tool_result_halved` 已接到只剩最近两轮的恢复路径：披露截断、保持调用配对，达到下限后给出可操作建议。无需重复实现 R2.5。实际砰半后的内容下限为 2000 字符，前文验收表“下限 4000”表述不准确。
+
+剩余口径：R2B/R7 为常驻上下文体积与动态组织的同一组优化，不是两个独立缺陷。历史 ~5.9K 为旧版本数字；当前测试 `stable_setup_split_keeps_core_and_moves_guides_to_second_message` 只断言 BASE <6500，未证明完整 stable_setup <3000。继续实施前应实测 BASE、常驻指南、其他 Required 段与 schema 的组成，再明确精简范围。增量 diff 是未实现候选，需验证目标 provider 的消息语义和缓存收益后再定设计，不保证减少重复文字就能保持完整指令语义。
+
+本次为代码与状态复核，未运行新测试或提供新的 token 测量。R8E 仍为明确不立项。
+
+## 2026-11-05 R2B/R7 最终收口
+
+默认基础角色/风格与只读执行协议拆为资源，工具指南精简，仍按 resident 工具注入。测试 `stable_setup_split_keeps_core_and_moves_guides_to_second_message` 实测 deepseek-flash 口径 BASE 1767、指南165、消息开销16，总1948 token，并断言完整默认固定指令 <3000。自定义角色不受此默认值保证，仍走完整请求预算。
+
+此前“增量diff下发”从当前待办移除：OpenAI兼容接口每次发送独立完整messages，不能只省略前轮未变化段而期望服务端记住。稳定前缀保留以利缓存，但不声称已测得缓存命中率提升。有状态API将来另立协议能力适配。本次不以删指令实现伪增量。
+
+R1–R8 的核心修复与本次默认瘦身工程收口；真实模型质量与长期缓存收益仍需观察。Prompt 数据库化记录见 [实现记录](../notes/implemented/architecture/2026-11-05-prompt-database-and-budget.md)。
+
+### 2026-11-06 多语言请求的预算回归
+
+语言策略接线期间，204页旧式大目录的HTTP回归暴露：已截断的结果在2001–3999字符时，下一次折半低于2000而提前停止，仍可能超限。修复为已截断大结果可以收敛到原定2000字符下限；未截断且不足4000字符的回执仍完整保留，不叠加披露标记，也不提高输入预算/降低输出预留。预算29项与原204页完整请求回归通过，日志`/tmp/i18n-l3-budget-tests.log`、`/tmp/i18n-l3-budget-recovery-test.log`；多语言后续范围见[路线](2026-11-06-multilingual-support-roadmap.md)。

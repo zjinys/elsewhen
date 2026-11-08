@@ -8,7 +8,16 @@ use super::*;
 
 #[test]
 fn natural_replies_never_execute_or_discard_unbound_proposals() {
-    for reply in ["好", "好的，别保存", "可以不保存", "不用了，先放着"] {
+    for reply in [
+        "好",
+        "好的，别保存",
+        "可以不保存",
+        "不用了，先放着",
+        "yes",
+        "go ahead",
+        "Please do not save it",
+        "No, leave it for now",
+    ] {
         let (url, server) = protocol_http_fixture(vec![(
             200,
             json!({

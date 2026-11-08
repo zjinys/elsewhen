@@ -1,0 +1,3272 @@
+{
+  "@@locale": "en",
+  "appTitle": "Elsewhen",
+  "initializationFailed": "Initialization failed",
+  "initializationError": "Initialization failed: {error}",
+  "startingApp": "Starting…",
+  "language": "Language",
+  "followSystem": "Follow system",
+  "chinese": "简体中文",
+  "english": "English",
+  "save": "Save",
+  "saving": "Saving…",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "edit": "Edit",
+  "add": "Add",
+  "close": "Close",
+  "confirm": "Confirm",
+  "retry": "Retry",
+  "settings": "Settings",
+  "backToMain": "Back to main screen",
+  "conversation": "Chat",
+  "knowledge": "Knowledge",
+  "goals": "Goals",
+  "review": "Review",
+  "sync": "Sync",
+  "today": "Today",
+  "recentlyUsed": "Recent pages",
+  "noRecentPages": "No recent pages",
+  "conversationLoadFailed": "Could not load conversations",
+  "lastSevenDays": "Last 7 days",
+  "rejectedSources": "Rejected sources",
+  "noRejectedSources": "No rejected sources yet.",
+  "models": "Models",
+  "appearance": "Appearance",
+  "integrations": "Integrations",
+  "network": "Network",
+  "skills": "Skills",
+  "habits": "Habits",
+  "data": "Data",
+  "rules": "Rules",
+  "security": "Security",
+  "aiProviders": "AI providers",
+  "memoryStrategy": "Conversation memory",
+  "prompts": "Prompts",
+  "memorySaved": "Memory settings saved",
+  "strategyType": "Strategy",
+  "simpleMemory": "Recent messages (last N)",
+  "slidingWindowMemory": "Sliding window (token limit)",
+  "maximumMessages": "Maximum messages",
+  "memoryBudget": "Conversation memory budget (optional)",
+  "memoryBudgetHint": "Leave blank to derive from the provider context window",
+  "themeMode": "Theme mode",
+  "themeColors": "Color palette",
+  "lightTheme": "Light",
+  "darkTheme": "Dark",
+  "amberTheme": "Amber",
+  "indigoTheme": "Indigo",
+  "aquaTheme": "Aqua",
+  "violetTheme": "Violet",
+  "bodyFontSize": "Content font size",
+  "contentFont": "Content font",
+  "contentFontDescription": "Applies to knowledge pages and messages. Interface text uses a fixed font.",
+  "systemDefault": "System default",
+  "desktopWindow": "Desktop window",
+  "noTrayAvailable": "No system tray is available. Closing the window quits the application.",
+  "onWindowClose": "When closing the window",
+  "minimizeToTray": "Minimize to tray",
+  "quitApp": "Quit application",
+  "stayInTrayDescription": "Keep running in the background. Reopen from the tray menu.",
+  "quitDescription": "Quit the application and remove its tray icon.",
+  "pending": "Pending",
+  "processing": "Processing",
+  "waitingRetry": "Waiting to retry",
+  "completed": "Completed",
+  "failed": "Failed",
+  "skipped": "Skipped",
+  "lastSuccess": "Last success",
+  "analysisStatusFailed": "Could not load analysis queue status",
+  "digestStatusFailed": "Could not load knowledge processing status",
+  "digestDescription": "Recorded events are organized into the knowledge base automatically. Failed jobs retry after a cooldown.",
+  "viewQueueLogs": "View queue and run logs",
+  "exporting": "Exporting…",
+  "chooseExportFolder": "Choose folder and export",
+  "exportFolder": "Choose export folder",
+  "storageExportUnsupported": "The current storage backend does not support export",
+  "loading": "Loading…",
+  "compacting": "Compacting…",
+  "compactNow": "Compact now",
+  "databaseAlreadyCompact": "Compaction complete. The database is already compact.",
+  "selectSecret": "Choose a secret",
+  "noSecretsHint": "Add a secret in Settings → Security → Secret vault first.",
+  "secretLoadFailed": "Could not load the secret vault. Try again.",
+  "duplicateProvider": "Duplicate AI provider",
+  "addProvider": "Add AI provider",
+  "editProvider": "Edit provider",
+  "configurationNameRequired": "Configuration name *",
+  "configurationNameHint": "For example: Main GPT",
+  "providerType": "Provider type",
+  "openAiCompatible": "OpenAI compatible",
+  "modelRequired": "Model *",
+  "secretVault": "Secret vault",
+  "manualInput": "Manual input",
+  "apiKeyHintNew": "Enter an API key, or choose one using the key button",
+  "apiKeyHintExisting": "Leave blank to keep the current key",
+  "chooseFromVault": "Choose from secret vault",
+  "contextWindow": "Context window (tokens)",
+  "contextWindowHint": "Leave blank for a conservative default, or enter the measured limit",
+  "maximumOutput": "Maximum output (tokens)",
+  "optional": "Optional",
+  "selectSecretFirst": "Choose a secret first",
+  "saveProvider": "Save provider",
+  "noProviders": "No AI providers configured. Select Add to get started.",
+  "active": "Active",
+  "deleteConfiguration": "Delete configuration",
+  "addSecret": "Add secret",
+  "editSecret": "Edit secret",
+  "secretCodeRequired": "Unique code *",
+  "secretCodeCreateHint": "Letters, numbers, underscores or hyphens. Fixed after creation.",
+  "secretCodeEditHint": "The reference code is fixed. You can change the name.",
+  "nameRequired": "Name *",
+  "secretNameHint": "For example: Personal GitHub token",
+  "secretValueRequired": "Secret value *",
+  "newSecretValueOptional": "New secret value (optional)",
+  "keepSecretValueHint": "Leave blank to keep the secret and update only its name",
+  "replaceMatchingCredentials": "Replace matching credentials with references",
+  "matchingCredentialsHint": "Match MCP environment variables, headers and search keys exactly",
+  "notReferenced": "Not referenced",
+  "nameRequiredError": "Enter a name",
+  "secretFieldsRequired": "Enter a unique code and secret value",
+  "deleteSecretTitle": "Delete secret?",
+  "secretVaultDescription": "Secrets stay on this device. Use '{{secret:code}}' in MCP environment variables, headers or search API keys to reference them.",
+  "promptBody": "Prompt body",
+  "promptEditHint": "Saving creates a draft. Activation affects the next run. Protocols and execution permissions remain enforced by the application.",
+  "promptReadOnlyHint": "Output contracts and execution rules are read-only.",
+  "promptDraftSaved": "Draft saved. You can activate it now.",
+  "viewDefault": "View default",
+  "settingsEditNote": "Edited in settings",
+  "saveDraft": "Save draft",
+  "activateDraft": "Activate draft",
+  "builtin": "Built-in",
+  "custom": "Custom",
+  "currentlyActive": "Currently active",
+  "activateRevision": "Activate this revision",
+  "recentRunVersions": "Versions for the last 20 runs",
+  "promptLocalDescription": "Prompts stay on this device. Roles and processing methods support revisions and rollback; fixed contracts are read-only. Current resources are Chinese.",
+  "loadPrompts": "Load prompts",
+  "viewRunVersions": "View run versions",
+  "editable": "Editable",
+  "readOnlyContract": "Read-only contract",
+  "revisionHistory": "Revision history and rollback",
+  "restoreDefault": "Restore default",
+  "syncPlatformUnavailable": "Sync is not available on this platform",
+  "todos": "To-dos",
+  "drafts": "Drafts",
+  "search": "Search",
+  "lockedTitle": "Elsewhen is locked",
+  "incorrectPassword": "Incorrect password",
+  "secureStorageUnavailable": "Secure storage is unavailable. Try again later.",
+  "passwordInputHint": "Enter your password, then press Enter",
+  "verifying": "Verifying…",
+  "biometricUnlock": "Unlock with fingerprint or face",
+  "usePinEntry": "Use the 4-digit keypad",
+  "legacyPasswordEntry": "Old password is not 4 digits? Use text entry",
+  "sectionLoadFailed": "Could not load {section}: {error}",
+  "secretUsedBy": "Used by: {references}",
+  "deleteSecretConfirmation": "Delete {name}?",
+  "secretStillUsedBy": "Still referenced by {references}. Deleting it will prevent those services from connecting.",
+  "deleteProviderConfirmation": "Delete provider “{name}”?{warning}",
+  "activeProviderDeletionWarning": " The first remaining provider will become active.",
+  "providerCopyName": "{name} copy",
+  "switchProvider": "Switch provider",
+  "deleteProvider": "Delete provider",
+  "promptHistoryTitle": "{title} · Last 30 revisions",
+  "approximateTokens": "{tokens, plural, one{About 1 token} other{About {tokens} tokens}}",
+  "promptPersonalPolicy": "Conversation role and style",
+  "promptChatContract": "Conversation protocol and execution rules",
+  "promptSummaryContract": "History summary contract",
+  "promptReadingContract": "Full-text reading contract",
+  "promptDigestContract": "Knowledge processing contract",
+  "promptSummaryPolicy": "History summary focus",
+  "promptReadingPolicy": "Full-text reading focus",
+  "promptDigestPolicy": "Knowledge processing method",
+  "promptAnalysisPolicy": "Event analysis method",
+  "lastFailure": "Last failure ({time}): {error}",
+  "exportSuccess": "{count, plural, one{Exported 1 knowledge page to {folder}} other{Exported {count} knowledge pages to {folder}}}",
+  "wikiExportDescription": "Export knowledge pages as Markdown with metadata for tools such as Obsidian. Derivatives and archived or rejected pages are excluded. Repeating an export replaces files with the same names.",
+  "databaseSize": "Database: {file} MB, including {free} MB reclaimable from deleted records.{advice}",
+  "compactionRecommended": " Compaction is recommended.",
+  "databaseSpaceReclaimed": "Compaction complete. Reclaimed {size} MB.",
+  "noAiUsage": "No AI usage yet. After an AI reply, daily token usage appears here.",
+  "last30DaysTokens": "Tokens in the last 30 days",
+  "totalCalls": "Total calls",
+  "callCount": "{count, plural, one{1 call} other{{count} calls}}",
+  "listSeparator": ", ",
+  "providerConfiguration": "AI provider configuration",
+  "dailyTokenUsage": "Daily token usage",
+  "analysisQueue": "Event analysis queue",
+  "knowledgeProcessing": "Knowledge processing",
+  "ruleLibrary": "Rule library",
+  "tweetFetchService": "Post retrieval service",
+  "providerInUse": "Used for conversations",
+  "activateProvider": "Set active",
+  "duplicateProviderTooltip": "Duplicate configuration (enter the API key again)",
+  "keyNotConfigured": "Key not configured",
+  "notConfigured": "Not configured",
+  "providerNameMissing": "Enter a configuration name",
+  "providerFieldsMissing": "Enter a base URL and model",
+  "apiKeyRequiredForNew": "Enter an API key for the new configuration",
+  "chooseFont": "Choose font",
+  "searchFonts": "Search fonts…",
+  "clear": "Clear",
+  "followGlobal": "Follow global setting",
+  "useGlobalFont": "Use the global font setting",
+  "useSystemFont": "Use the operating system font",
+  "noMatchingFonts": "No matching fonts",
+  "fontPreview": "AaBbGg 1234 · ",
+  "endpointMalformed": "Check the provider URL format. The address will not be changed or tested automatically.",
+  "endpointLoopback": "This loopback address points to the device using it. On another device, it will point to that device itself. Sync preserves the address without probing it or switching providers.",
+  "endpointUnspecified": "This unspecified address is usually used for listening. Check which provider address is reachable from each device. It will not be replaced or probed automatically.",
+  "endpointPrivate": "This is a private or link-local address. Other devices need access to that network. Sync preserves the configuration without verifying reachability or sending model requests.",
+  "operationFailed": "{action} failed. Please try again.",
+  "localFontCount": "{count, plural, one{Local fonts (1)} other{Local fonts ({count})}}",
+  "secretManagement": "Secret management",
+  "appPassword": "App password",
+  "openNavigation": "Open navigation",
+  "createTopic": "Create topic",
+  "importUrl": "Import URL",
+  "hideSearch": "Hide search",
+  "searchAndDate": "Search and date",
+  "aiReplying": "Replying",
+  "aiReplyingHint": "AI is generating a reply",
+  "aiAnalyzing": "Analyzing",
+  "aiAnalyzingHint": "AI is analyzing records",
+  "aiDigesting": "Processing",
+  "aiDigestingHint": "AI is processing new records",
+  "aiOrganizing": "Organizing",
+  "aiOrganizingHint": "AI is organizing the knowledge base",
+  "aiChecking": "Checking",
+  "aiCheckingHint": "AI is checking periodic reports",
+  "goalsCount": "{count, plural, =0{Goals} other{Goals ({count})}}",
+  "todoCount": "To-dos ({count})",
+  "locateByDate": "Find by date",
+  "searchMessages": "Search your messages",
+  "clearLocation": "Clear location",
+  "backToNow": "Back to now",
+  "jumpToDate": "Jump to date",
+  "jump": "Go",
+  "showEarlierMessages": "Show earlier messages",
+  "startConversation": "Choose a conversation to start chatting",
+  "noMessages": "No messages yet",
+  "startTyping": "Start a conversation below",
+  "conversationCount": "{count, plural, one{1 conversation} other{{count} conversations}}",
+  "todoCountItems": "{count, plural, one{1 to-do} other{{count} to-dos}}",
+  "copyAll": "Copy all messages",
+  "flipPast": "Mark up to here",
+  "topics": "Topics",
+  "systemNotice": "System notice",
+  "copyMessage": "Copy",
+  "saveAsTopic": "Save as topic",
+  "saveAsTopicDescription": "Extract a title and body, then confirm to save it as a topic",
+  "regenerate": "Regenerate",
+  "recordCategory": "Record category",
+  "record": "Record",
+  "discussion": "Discussion",
+  "includeInRecords": "Include in records",
+  "asDiscussion": "Keep as discussion",
+  "reanalyze": "Analyze again",
+  "savedAsRecord": "Included in records",
+  "savedAsDiscussion": "Kept as discussion; it will not enter the daily stream or long-term facts",
+  "reanalyzeQueued": "Added to the analysis queue",
+  "saveMessageAsTopic": "Save this message as a topic",
+  "thinking": "AI is thinking…",
+  "startGenerating": "Starting generation…",
+  "readingGeneration": "Reading generation status…",
+  "generationFailedSaved": "Generation failed; input was saved",
+  "generationStopped": "Generation stopped",
+  "generationInterrupted": "Generation interrupted",
+  "stopping": "Stopping…",
+  "stopGeneration": "Stop generation",
+  "regenerateThis": "Regenerate this message",
+  "reconnect": "Reconnect",
+  "actualToolSteps": "Actual tool steps (last {count})",
+  "chooseDirectory": "Choose a directory to import",
+  "selectConversation": "Choose a conversation first",
+  "noSupplementTask": "There is no task to supplement. Choose save or queue.",
+  "sendFailed": "Send failed: {error}",
+  "savedButNotEligible": "Input saved, but generation eligibility was not confirmed. Continue from that message instead of sending it again.",
+  "enteredTopic": "Opened topic: {title}",
+  "thinkingNext": "AI is thinking. You can enter the next message…",
+  "inputMessage": "Enter a message…",
+  "closeInputFormat": "Close input format",
+  "addContent": "Add content",
+  "selectDirectory": "Choose directory",
+  "viewInputFormat": "View input format",
+  "queueNext": "Save and queue the next question",
+  "send": "Send",
+  "recordOnlyHelp": "Save as a record without requesting AI",
+  "formatDirectory": "Import a project or file",
+  "formatDirectoryHelp": "Inspect `/path/to/project` and import it into the knowledge base",
+  "formatConfirm": "Confirm / cancel",
+  "formatConfirmHelp": "Handle an AI draft",
+  "mentionPerson": "@person",
+  "tagTopic": "#topic",
+  "link": "Link",
+  "directory": "Directory",
+  "unverifiedDraft": "Unverified draft · Does not confirm successful actions or valid citations",
+  "toolRunning": "In progress",
+  "toolUncertainNoRetry": "Result unverified; will not retry automatically",
+  "toolReadCompleted": "Query completed",
+  "toolProposalReady": "Draft ready for review; not executed",
+  "toolExecuted": "Action executed (confirmed receipt)",
+  "toolFailed": "Execution failed",
+  "toolUncertain": "Result unverified",
+  "toolListRules": "Find rules",
+  "toolListPages": "Browse knowledge pages",
+  "toolReadPage": "Read knowledge page",
+  "toolUsage": "Check usage",
+  "toolSearchKnowledge": "Search knowledge base",
+  "toolReadLink": "Read link",
+  "toolReadWeb": "Read web page",
+  "toolRecordEvent": "Record event",
+  "toolDraftPage": "Draft knowledge page",
+  "toolSkillScript": "Run skill script",
+  "toolMcp": "Call MCP tool",
+  "toolListTodos": "Find to-dos",
+  "toolDraftTodo": "Draft to-do",
+  "toolDraftRelations": "Draft contact links",
+  "toolExtractRelations": "Organize contact links",
+  "toolEventsByDate": "Find events by date",
+  "toolArchiveChats": "Prepare conversation archive",
+  "toolRenamePage": "Prepare page rename",
+  "toolImportSource": "Prepare source import",
+  "toolInspectDirectory": "Inspect project directory",
+  "toolImportFiles": "Prepare directory file import",
+  "toolRevisePage": "Draft page revision",
+  "toolStep": "Process tool step",
+  "gerundPreparing0": "Reviewing memories…",
+  "gerundPreparing1": "Organizing thoughts…",
+  "gerundPreparing2": "Reviewing the conversation…",
+  "gerundPreparing3": "Looking through knowledge…",
+  "gerundPreparing4": "Gathering context…",
+  "gerundPreparing5": "Putting context together…",
+  "gerundAwaiting0": "Thinking it through…",
+  "gerundAwaiting1": "Shaping a response…",
+  "gerundAwaiting2": "Considering the details…",
+  "gerundAwaiting3": "Weighing the options…",
+  "gerundAwaiting4": "Connecting ideas…",
+  "gerundAwaiting5": "Composing a reply…",
+  "gerundAwaiting6": "Refining the wording…",
+  "gerundAwaiting7": "Working through the details…",
+  "copyThisMessage": "Copy this message",
+  "message": "Message",
+  "me": "Me",
+  "updateMessageStatus": "Update message status",
+  "eventAnalyzing": "This event is being analyzed. Try again later.",
+  "inputGuidePerson": "Mention a contact",
+  "inputGuideTopic": "Open a topic",
+  "inputGuideLink": "Import content",
+  "aiProviderMissing": "No AI provider is configured. Add one in Settings and try again.",
+  "copiedItem": "Copied {label}",
+  "importDirectoryPrompt": "Inspect the project in `{path}` and import it into the knowledge base",
+  "messageLoadFailed": "Could not load messages\n{error}",
+  "aiReplyFailed": "AI reply failed: {error}",
+  "goalCoAuthorReady": "Goal context is ready in the Goals AI input. Review or edit it, then send to plan together.",
+  "goalStudio": "AI planning studio",
+  "newItem": "New",
+  "newGoal": "New goal",
+  "goalManageInPage": "Manage and discuss goals on the Goals page",
+  "goalStudioHelp": "Describe an intention to AI. It checks feasibility and assumptions, then proposes a long-term plan with milestones and verifiable outcomes. You confirm before anything is saved.",
+  "goalTreeHelp": "Confirmed plans appear in the goal tree. Select a goal to open its dedicated discussion.",
+  "noActiveGoals": "No active goals yet. Create one or plan with AI on the Goals page.",
+  "planWithAi": "Plan together with AI",
+  "reviewGoalsWithAi": "Review or plan with AI",
+  "noGoalsInStatus": "No goals with the selected status",
+  "noActiveGoalsCreate": "No active goals. Select New or plan together with AI.",
+  "goalCapHint": "Active limit reached. The new goal will start paused.",
+  "newGoalHint": "Describe a new goal… (for example: Release Elsewhen 1.0)",
+  "collapseGoalContext": "Hide goal context",
+  "addGoalContext": "Add motivation, action or obstacle",
+  "goalWhyOptional": "💡 Why / motivation (optional)",
+  "goalWhyHint": "For example: Validate the complete personal knowledge workflow",
+  "goalActionOptional": "📍 Action for the next week or two (optional)",
+  "goalActionHint": "For example: Resolve snapshot convergence across devices",
+  "goalObstacleOptional": "🚧 Current obstacle (optional)",
+  "goalObstacleHint": "For example: Device certificate setup is complicated",
+  "goalDoneOptional": "🎯 Completion criteria (optional)",
+  "goalDoneHint": "For example: All device tests pass",
+  "collapsePhase": "Collapse phase",
+  "expandPhase": "Expand phase",
+  "currentPhase": "Current phase",
+  "moreActions": "More actions",
+  "reactivateGoal": "Reactivate goal",
+  "adjustGoalAction": "Adjust action or obstacle",
+  "completeGoal": "Complete goal (archive as achievement)",
+  "pauseGoal": "Pause goal (resume anytime)",
+  "editGoalDetails": "Edit details",
+  "currentActionLabel": "Current action: ",
+  "currentObstacleLabel": "Current obstacle: ",
+  "goalActionNotSet": "Not set. Add an action for the next week or two.",
+  "nextPhaseHint": "After completing a phase, focus on the next action to start within a week or two.",
+  "currentActionField": "📍 Current action",
+  "nextActionHint": "For example: Implement and test the initial snapshot algorithm",
+  "clearObstacleField": "🚧 Current obstacle (leave blank to clear)",
+  "nextObstacleHint": "For example: Waiting for network port confirmation",
+  "updateAction": "Update action",
+  "restartGoalHint": "To resume this goal, confirm or set the next concrete action:",
+  "restartActionField": "📍 Next concrete action",
+  "restartActionHint": "For example: Map dependencies and plan the refactor",
+  "restartObstacleField": "🚧 Current obstacle (optional)",
+  "restartObstacleHint": "For example: Required test devices are unavailable",
+  "confirmReactivate": "Confirm reactivation",
+  "editFullGoal": "Edit goal details",
+  "goalVision": "Goal vision",
+  "goalWhy": "💡 Why / motivation",
+  "goalNextAction": "📍 Action for the next week or two",
+  "goalObstacle": "🚧 Current obstacle",
+  "goalDone": "🎯 Completion criteria",
+  "saveChanges": "Save changes",
+  "goalActionSaved": "Action and obstacle updated",
+  "goalDetailsSaved": "Goal details saved",
+  "collapseDiscussion": "Collapse discussion",
+  "goalStudioInputHint": "Describe your long-term intention… (drafts are not sent automatically)",
+  "goalChatInputHint": "Discuss this goal with AI… (drafts are not sent automatically)",
+  "generateReply": "Generate reply",
+  "goalStudioWelcome": "🎯 Describe your long-term intention. I will assess feasibility and assumptions, then propose a plan and milestones. You confirm before anything is saved.",
+  "goalChatWelcome": "🎯 Let’s discuss this goal. I can help plan actions, examine obstacles and review completion criteria. Pausing, completing or resuming a goal requires your confirmation.",
+  "goalPaused": "Paused “{goal}”",
+  "goalCompletedToast": "🎉 Completed goal “{goal}”!",
+  "goalReactivated": "Reactivated “{goal}”",
+  "goalCapacity": "There are already {count} active goals. Pause or complete one before reactivating this goal.",
+  "activeGoalCount": "Active goals {count} / {maximum}",
+  "goalLoadFailed": "Could not load goals: {error}",
+  "newGoalPaused": "Active limit reached. “{goal}” was created as paused.",
+  "newGoalCreated": "Created goal “{goal}”",
+  "newGoalCapacityHint": "The limit of {count} active goals has been reached. New goals start paused and can be resumed anytime.",
+  "whyGoal": "Why: {why}",
+  "doneGoal": "Completion criteria: {done}",
+  "adjustActionTitle": "Adjust current action · {goal}",
+  "reactivateGoalTitle": "Resume goal · {goal}",
+  "motivationReview": "💡 Motivation: {why}",
+  "goalDiscussionTitle": "Goal discussion · {goal}",
+  "goalNewSeed": "I want to plan a new long-term goal. Help me clarify why, what completion means, the first concrete action for the next week or two, and likely obstacles. {brief}",
+  "goalReviewSeed": "Help review these goals: which actions are ready for the next phase? Or help me plan a new long-term goal. {brief}",
+  "goalBriefItem": "“{goal}” (action: {action})",
+  "goalBrief": "Current active goals: {goals}.",
+  "noGoalsBrief": "There are no active goals yet.",
+  "notSet": "Not set",
+  "planNewGoal": "Plan or create a goal with AI",
+  "nearTerm": "Near term",
+  "midTerm": "Mid term",
+  "longTerm": "Long term",
+  "activeGoals": "Active",
+  "pausedGoals": "Paused",
+  "achievedGoals": "Achieved",
+  "inProgressGoal": "In progress",
+  "pausedGoalState": "Paused",
+  "pausedShort": "Paused",
+  "initializingConversation": "Initialize conversation",
+  "loadMessages": "Load messages",
+  "examplePerson": "@Alex ",
+  "exampleTopic": "#payment-process",
+  "goalSummaryCount": "{count, plural, =0{Goals} other{Goals ({count})}}",
+  "supplementUnsupported": "Not added: this material cannot be safely merged. It was retained; process it separately or withdraw it.",
+  "supplementInputChanged": "Not added: the input version changed. It remains queued.",
+  "supplementContextChanged": "Not added: material version or scope differs. Retained as the next question.",
+  "supplementBudget": "Not added: request budget or protocol limits. It remains queued.",
+  "supplementClosed": "The target task ended. Generation waits until the queue resumes.",
+  "supplementWaiting": "Waiting for the tool turn to finish. The input remains eligible for the queue until added.",
+  "queueUnavailable": "Queue status is unavailable. Inputs will not be saved again.",
+  "queueActionUnconfirmed": "Queue action is unconfirmed. Refresh to check.",
+  "queuePaused": "Generation queue paused",
+  "queueOrdered": "Generation queue · Processed in saved order",
+  "resumeQueue": "Resume queue",
+  "pauseQueue": "Pause queue",
+  "queueInputDescription": "Queued inputs have not been sent to the model. Withdrawing only cancels generation eligibility.",
+  "withdrawGeneration": "Withdraw generation",
+  "moreQueuedInputs": "More inputs are queued. They appear as earlier inputs are processed.",
+  "injectedSupplements": "Supplements added to the task",
+  "injectedSupplementsHint": "Added to the next request context; delivery and model completion are not guaranteed. These inputs will not be queued again.",
+  "wikiChat": "AI chat",
+  "moveChatWindow": "Drag to move the conversation window",
+  "shrinkChatWindow": "Minimize conversation window",
+  "backToMainChat": "Back to main chat",
+  "aiTasks": "AI tasks",
+  "summarizePage": "Summarize this page",
+  "extractKeyPoints": "Extract key points",
+  "captureDecisions": "Capture decisions and reasons",
+  "organizeNextSteps": "Organize next steps",
+  "translateSelection": "Translate selection",
+  "writeCopy": "Write copy",
+  "rescanProject": "Rescan project directory",
+  "reimportSource": "Reimport source",
+  "taskResetDescription": "Reselecting uses the current page revision and clears the previous selection and comparison materials.",
+  "reselectTaskMaterial": "Reselect task and materials",
+  "askPageHint": "Ask AI about this page…",
+  "pageChatWelcome": "👋 I can summarize, extract key points, expand or rewrite this page. Changes to the knowledge base require your confirmation.\nFor a project imported from a local directory, ask to rescan it to import the latest files.",
+  "summarizePagePrompt": "Summarize this page and highlight the most important information.",
+  "keyPointsPrompt": "Extract the key facts, assessments and reusable information from this page.",
+  "decisionsPrompt": "Organize the decisions already established on this page and their reasons.",
+  "nextStepsPrompt": "Organize the next actions and unresolved questions from this page.",
+  "translateSelectionPrompt": "Translate the selected excerpt into XX, preserving structure and technical meaning. Work only on the provided excerpt; state the scope and do not claim to translate the whole page.",
+  "writeCopyPrompt": "Based on this page, draft copy for XX channel, aimed at XX audience, with a XX tone.",
+  "projectRescannedAssets": "Project directory rescanned; asset knowledge page updated",
+  "replaceProjectPage": "Replace project page content?",
+  "replaceProjectDescription": "The current AI reply will replace the entire page body. The previous content remains in revision history.",
+  "replace": "Replace",
+  "projectPageReplaced": "Current project page content replaced",
+  "pageMissing": "Page not found; it may have been deleted",
+  "projectRescanned": "Project directory rescanned; knowledge page updated",
+  "sourceReimported": "Source reimported; knowledge page updated",
+  "thinkingShort": "Thinking…",
+  "copiedMessage": "Message copied",
+  "replaceBody": "Replace content",
+  "saveAsOutput": "Save as output",
+  "aiReply": "AI reply",
+  "selectReceipt": "Select a record on the left to view its receipt",
+  "backToList": "Back to list",
+  "selectProposal": "Select a proposal on the left to view its details",
+  "pendingReview": "Pending review",
+  "decisionHistory": "Decision history",
+  "refresh": "Refresh",
+  "noDecisions": "No decision history",
+  "noProposals": "No pending proposals",
+  "previousPage": "Previous",
+  "nextPage": "Next",
+  "parametersSources": "Parameters and sources",
+  "midTermGoal": "Mid-term goal",
+  "longTermGoal": "Long-term goal",
+  "nearTermGoal": "Near-term goal",
+  "motivationLabel": "Motivation: ",
+  "completionCriteriaLabel": "Completion criteria: ",
+  "feasibilityAssessment": "Feasibility assessment",
+  "assumptions": "Assumptions",
+  "assumption": "Assumption",
+  "milestoneSteps": "Milestones (the first starts after confirmation; the rest are queued)",
+  "proposalTitle": "Title",
+  "proposalBody": "Body",
+  "goalVisionShort": "Goal vision",
+  "ruleContent": "Rule content",
+  "recordContent": "Record content",
+  "note": "Note",
+  "dueIsoOptional": "Due time (ISO 8601, optional)",
+  "priorityOptions": "Priority (low/normal/high)",
+  "changeNote": "Change note",
+  "newTitle": "New title",
+  "phaseOptions": "Phase (near/mid/long)",
+  "visionOptional": "Vision (optional)",
+  "assessmentOptional": "Feasibility assessment (optional)",
+  "whyMotivation": "Why / motivation",
+  "skillsExperience": "Skills and experience",
+  "availableResources": "Available resources",
+  "timeConstraints": "Time and practical constraints",
+  "preferencesBoundaries": "Preferences and boundaries",
+  "actionWeeks": "Concrete action for the next week or two",
+  "obstaclesExpected": "Current or expected obstacles",
+  "completionCriteria": "Completion criteria",
+  "reviewGoalBasis": "Goal revision used for review",
+  "editDraftHint": "Saving only updates the draft. Review it again and accept to execute the action.",
+  "rejectThis": "Reject this",
+  "acceptThis": "Accept this",
+  "processingEllipsis": "Processing…",
+  "saveWithoutExecution": "Save changes without executing",
+  "batchReviewDescription": "Only the listed revisions are processed. Actions run individually and may partially succeed. Each action shows its result.",
+  "targetVersionBasis": "Target revision basis",
+  "batchFinished": "Processing finished. Check each result.",
+  "rejectThese": "Reject these",
+  "acceptThese": "Accept these",
+  "processingItems": "Processing items…",
+  "reviewProposals": "Review proposals",
+  "globalRuleReview": "Legacy global rule review",
+  "conversationProposalReview": "Conversation proposal review",
+  "actionActivateRule": "Personal rule",
+  "actionCreateTodo": "Create to-do",
+  "actionSavePage": "Save knowledge page",
+  "actionRevisePage": "Revise or derive page",
+  "actionRenamePage": "Rename knowledge page",
+  "actionRecordEvent": "Save record",
+  "actionPeopleRelations": "Contacts and relations",
+  "actionArchiveChats": "Archive conversations",
+  "actionImportSource": "Import source",
+  "actionImportFiles": "Import directory files",
+  "actionImportProject": "Import project summary",
+  "actionPlanningProfile": "Personal profile",
+  "actionCreateGoal": "Create goal",
+  "actionUpdateGoal": "Update goal context",
+  "actionCreatePlan": "Long-term plan",
+  "actionAddSteps": "Add plan steps",
+  "receiptWaiting": "Waiting for execution receipt",
+  "receiptFailedRolledBack": "Execution failed (rolled back)",
+  "declined": "Rejected",
+  "reviewSelectedCount": "Review selected ({count})",
+  "reviewSelectedTitle": "Review {count} selected items",
+  "pageNumber": "Page {page}",
+  "proposalVersion": "{action} · Revision {version}",
+  "updateGoalById": "Update goal context (ID: {id})",
+  "invalidProposal": "This proposal has an invalid format and cannot be accepted. Reject it and request a new draft.\n{args}",
+  "goalId": "Goal ID: {id}",
+  "planLabel": "Plan: {plan}",
+  "intentLabel": "Intention: “{intent}”",
+  "visionLabel": "Vision: {vision}",
+  "criterionLabel": " (criterion: {done})",
+  "proposalReopen": "{error}\nClose and reopen the review. A new revision will not be accepted automatically.",
+  "fullReceiptCount": "Show full receipt ({count} characters)",
+  "batchUnconfirmed": "Completion is unconfirmed. Check decision history; this action will not retry automatically: {error}",
+  "taskRestoreFailed": "The original task cannot be restored: {error}",
+  "reloadMaterialFailed": "Could not reload materials: {error}",
+  "savedAsDerivative": "Saved as derivative: {title}",
+  "rescan": "Rescan",
+  "reimport": "Reimport",
+  "readPage": "Read page",
+  "aiSummary": "AI summary",
+  "justNow": "Just now",
+  "minutesAgo": "{count, plural, one{1 minute ago} other{{count} minutes ago}}",
+  "hoursAgo": "{count, plural, one{1 hour ago} other{{count} hours ago}}",
+  "daysAgo": "{count, plural, one{1 day ago} other{{count} days ago}}",
+  "taskLocalQuestion": "Ask about a passage",
+  "taskFullSummary": "Full-page summary",
+  "taskCompare": "Compare sources",
+  "taskLocalEdit": "Edit a passage",
+  "taskFullRevision": "Revise the full page",
+  "taskIndependent": "Independent question",
+  "taskMaterialChanged": "The task material has changed. Reselect the task and material explicitly; the new revision will not be used automatically.",
+  "chooseMaterial": "View / choose material",
+  "taskDisplayedRevision": "Task and displayed revision",
+  "taskScopeHint": "Follow-up questions use this task and revision. Reselect for a new task. Full-page revisions run in consecutive chunks and still require review.",
+  "refreshMaterialRevision": "Refresh to current revision",
+  "comparisonSlug": "Comparison material slug",
+  "readAndAdd": "Read and add",
+  "selectionAutomatic": "No selection; relevant passages will be chosen for questions",
+  "selectionTooLong": "The selection exceeds 6,000 characters. Select a shorter passage.",
+  "useDisplayedRevision": "Use the displayed revision",
+  "compassDismissHint": "Handle urgent matters; pause these reminders for 7 days",
+  "compassFocusObstacle": "Discuss this obstacle",
+  "compassDiscussProgress": "Discuss the next step",
+  "compassUpdateAction": "Update current action",
+  "compassSnooze": "Pause for 7 days",
+  "compassRealigned": "Goal action updated; direction realigned",
+  "compassDismissed": "These reminders are paused for 7 days",
+  "compassTitle": "Direction check-in",
+  "compassSnoozeHint": "Pause for 7 days",
+  "compassRollAction": "Update next action",
+  "habitDoneFallback": "Done",
+  "habitMissedFallback": "Not yet",
+  "habitDoneTextFallback": "Completed today",
+  "habitMissedTextFallback": "Not completed today",
+  "habitCheckin": "Habit check-in",
+  "changeTime": "Change time",
+  "pauseCheckins": "Pause check-ins",
+  "checkinsPaused": "Paused; resume in Settings",
+  "askLater": "Ask later",
+  "discuss": "Discuss",
+  "skipToday": "Skip today",
+  "discussReason": "Discuss why",
+  "checkinTimeUpdated": "Check-ins will continue at the new time",
+  "checkinsUpdated": "Check-ins updated",
+  "checkinDismissed": "No more check-ins today",
+  "checkinSnoozed": "Snoozed; will ask again later",
+  "checkinSuperseded": "A newer reminder was sent",
+  "checkinExpired": "This check-in has expired",
+  "checkinPlanClosed": "This check-in plan is closed",
+  "checkinRecordedEvent": "Recorded and saved as an event",
+  "askAfterHour": "Will ask again in 1 hour",
+  "cognitiveInsight": "Knowledge insight",
+  "adoptAsRule": "Adopt as rule",
+  "enableCheckins": "Enable check-ins",
+  "makeTodo": "Make a to-do",
+  "acknowledge": "Got it",
+  "insightRuleApplied": "Adopted as a personal rule ✓",
+  "insightHabitEnabled": "Habit check-ins enabled ✓",
+  "insightTodoAdded": "Added to to-do list ✓",
+  "insightHandled": "Handled ✓",
+  "insightDismissed": "Acknowledged",
+  "insightExpired": "This insight has expired",
+  "personalRuleAdopted": "Adopted as a personal rule",
+  "addedToTodoList": "Added to to-do list",
+  "recorded": "Recorded",
+  "pageNotFoundDeleted": "Page not found or deleted",
+  "habitCheckinsEnabled": "Habit check-ins enabled",
+  "contactsSuggestionInvalid": "A contact-link suggestion is available, but its data could not be read.",
+  "choose": "Choose",
+  "contactArgsInvalid": "Invalid action arguments; contacts cannot be selected",
+  "contactArgsUnreadable": "Could not read the action arguments; contacts cannot be selected",
+  "selectionCancelledUnsaved": "Selection cancelled; changes were not saved",
+  "wikiEmptyHelp": "No knowledge pages yet.\n\nPaste a URL or text in Import,\nor ask in chat to import something into the knowledge base.",
+  "sortRecentlyUpdated": "Recently updated",
+  "loadFailed": "Could not load",
+  "reminderTenMinutes": "+10 min",
+  "done": "Done",
+  "dismissReminderHint": "Dismiss without marking done",
+  "bodyRequired": "Enter some content",
+  "topicTitleHint": "Title (optional; defaults to the first 60 characters)",
+  "topicTagsHint": "Tags (optional; separate with spaces or commas)",
+  "markdownBodyHint": "Content (Markdown supported)",
+  "saveToTopics": "Save to topics",
+  "materialScope": "Material scope: {task}{range}",
+  "materialRange": " · Characters {start}–{end}",
+  "materialTitleCount": "{title} · {count, plural, one{1 character} other{{count} characters}}",
+  "selectionHint": "Select up to 6,000 characters below. Current selection: {selection}",
+  "compassPlanTitle": "Direction check-in · Plan “{plan}”",
+  "compassGoalTitle": "Direction check-in · Goal “{goal}”",
+  "compassStalled": "No progress for {days, plural, one{1 day} other{{days} days}}",
+  "compassActionStalled": "Current action “{action}” has stalled for {days, plural, one{1 day} other{{days} days}}",
+  "compassObstacle": ", obstacle: {obstacle}",
+  "compassRecentTopics": ". Recent attention has focused on “{topics}”.",
+  "compassObstacleLine": "Current obstacle: {obstacle}",
+  "compassSeedObstacle": "For goal “{goal}”, I am stuck on “{obstacle}”. My current action is “{action}”. Help me work through this.",
+  "compassSeedProgress": "For goal “{goal}”, my current action is “{action}” and progress has stalled. Help me work out the next step.",
+  "compassPlanStep": "Plan “{plan}” · Step",
+  "compassCardDetail": "{prefix} “{goal}”: current action “{action}” has not progressed for {days, plural, one{1 day} other{{days} days}}. Recent attention has focused on “{topics}”.",
+  "recordedText": "Recorded: {text}",
+  "checkinDiscussSeed": "{text}, because ",
+  "insightSuggestion": "Suggestion: {action}",
+  "insightSource": "Source: {slug}",
+  "contactsSuggestion": "Contacts found: {people}\nRelated items: {targets}\nOpen Review proposals to accept or reject this suggestion.",
+  "chooseContactName": "Choose contact “{name}”",
+  "chooseTargetName": "Choose item “{name}”",
+  "recentPageCount": "{count, plural, one{1 recent page} other{{count} recent pages}}",
+  "incubatingCount": "{count, plural, one{1 incubating item} other{{count} incubating items}} · Awaiting assessment",
+  "evidenceCount": "Evidence: {count}",
+  "reminderTitle": "Reminder: {title} ({time})",
+  "topicSavedTitle": "Saved as topic: “{title}”",
+  "copyPageTitle": "Copy title",
+  "pageTitleCopied": "Page title copied",
+  "readPageFailed": "Could not load knowledge page",
+  "pageBodyEmpty": "*(No content)*",
+  "knowledgePageMissing": "Knowledge page not found",
+  "knowledgePageMissingHelp": "This page may have been deleted or renamed. It may also be a suggested reference mentioned by AI that has not been saved to the knowledge base.",
+  "openInKnowledgeBase": "Open in knowledge base",
+  "checkinQuestionRequired": "Enter a check-in question",
+  "checkinTimeInvalid": "Use HH:MM between 07:00 and 22:00",
+  "checkinDayRequired": "Select at least one day",
+  "checkinResponsesRequired": "Enter both button labels and record text",
+  "closeCheckinsQuestion": "Turn off check-ins?",
+  "closeCheckinsHelp": "Past check-ins and responses will be kept. No further check-ins will be sent.",
+  "askRegularly": "Check in with me",
+  "adjustCheckins": "Adjust check-ins",
+  "checkinHelp": "At the scheduled time, a message appears in the main conversation. You confirm the content before it is saved; the habit page is not changed automatically.",
+  "checkinSyncHelp": "When devices sync, only the owner device creates scheduled check-ins. Other devices display the same message without sending duplicates.",
+  "inferenceBasis": "Based on",
+  "checkinQuestion": "Question",
+  "checkinQuestionHint": "For example: Did you go for a walk after lunch?",
+  "checkinTime": "Time of day",
+  "repeat": "Repeat",
+  "everyDay": "Every day",
+  "checkinDoneFields": "Done button and record",
+  "checkinMissedFields": "Not done button and record",
+  "walkDoneHint": "Went for a walk",
+  "walkDoneTextHint": "I went for a walk after lunch today",
+  "walkMissedHint": "Not yet",
+  "walkMissedTextHint": "I have not gone for a walk today",
+  "checkinRecordHelp": "Keep button labels short. The completed response creates an event using the record text. By default, a missed response stays in chat without creating an event.",
+  "closeCheckins": "Turn off check-ins",
+  "feedbackSuggestion": "Give feedback on this suggestion",
+  "feedbackHelp": "Select the original suggestion from the reply. Accepting it records agreement; any action still needs separate confirmation.",
+  "feedbackOriginal": "Original suggestion (you can select a passage)",
+  "feedbackRewrite": "My rewrite (optional)",
+  "feedbackAccept": "Accept",
+  "feedbackIgnore": "Ignore",
+  "feedbackSaveRewrite": "Save rewrite",
+  "feedbackWithdraw": "Withdraw feedback",
+  "feedbackRewritten": "Rewritten",
+  "feedbackWithdrawn": "Withdrawn",
+  "pageKindProfile": "Profile",
+  "pageKindPerson": "Contact",
+  "pageKindRecurringCost": "Recurring cost",
+  "pageKindCapability": "Capability",
+  "pageKindAsset": "Asset",
+  "pageKindProject": "Project",
+  "pageKindRelationship": "Relationship",
+  "pageKindDecision": "Decision",
+  "pageKindHabit": "Habit",
+  "pageKindConstraint": "Constraint",
+  "pageKindInsight": "Insight",
+  "pageKindTopic": "Topic",
+  "pageKindMethod": "Method",
+  "pageKindCase": "Case",
+  "pageKindPrinciple": "Principle",
+  "pageKindSeries": "Series",
+  "pageKindSource": "Source",
+  "checkinDaysPerWeek": "{count, plural, one{1 day per week} other{{count} days per week}}",
+  "weekdayShort": "{day, select, 1{Mon} 2{Tue} 3{Wed} 4{Thu} 5{Fri} 6{Sat} other{Sun}}",
+  "load": "Load",
+  "promptTemplateLanguage": "Template language",
+  "promptIncompatibleFallback": "This revision is incompatible; using the built-in default",
+  "promptParentFallback": "Using parent language: {requested} → {resolved}",
+  "promptMissingTranslation": "Translation unavailable; using built-in default: {requested} → {resolved}",
+  "aiResponseLanguage": "AI reply language",
+  "aiInstructionLanguage": "Instruction language",
+  "languageAutomatic": "Automatic",
+  "instructionFollowContext": "Use default policy",
+  "languagePolicyHelp": "Automatic replies follow this message or the most recent reliable conversation language. Default instructions follow the interface for chat and the knowledge language for background work. Changes apply to new runs.",
+  "knowledgeLanguageReadonly": "Knowledge output language: {locale} (read only)",
+  "runLanguageUi": "Interface language: {locale}",
+  "runLanguageInstructions": "Instruction language: {locale}",
+  "runLanguageResponse": "Reply language: {locale} · {source}",
+  "runLanguageKnowledge": "Knowledge output language: {locale}",
+  "runLanguageFallback": "Fallback: {reason}",
+  "languageSourceExplicit": "Explicit request",
+  "languageSourcePreference": "Fixed preference",
+  "languageSourceCurrent": "Current message",
+  "languageSourceConversation": "Conversation language",
+  "languageSourceFallback": "Default fallback",
+  "languageSourceDataset": "Dataset policy",
+  "languageSourceLegacy": "Legacy policy",
+  "promptContextContract": "Conversation context and profile contract",
+  "promptToolDescriptionsContract": "Tool descriptions contract",
+  "promptToolMetadataContract": "Skill catalog and tool activation contract",
+  "promptExecutionContract": "Runtime recovery and page processing contract",
+  "promptProcessingContract": "Background processing and analysis contract",
+  "promptReplyContract": "Conversation replies and review status",
+  "promptKnowledgeProcessingContract": "Knowledge compilation and topic maintenance contract",
+  "promptLookupContract": "Local query descriptions",
+  "promptSupplementContract": "Task supplements and page references",
+  "knowledgeLanguage": "Knowledge language",
+  "knowledgeLanguageHelp": "New knowledge uses this language. Work already started keeps its original language; existing pages and source text are preserved. Changing this setting does not reprocess the library.",
+  "knowledgeLanguageUnsupported": "Knowledge generation is paused because this version does not support the dataset’s language policy. Update the app to continue.",
+  "knowledgeLanguageOwnerOnly": "Only the dataset owner can change this setting.",
+  "knowledgeLanguageCapabilityRequired": "Connect and update all paired devices before changing the knowledge language.",
+  "title": "Title",
+  "copy": "Copy",
+  "todoInputHint": "Add something to follow up… (Enter to add)",
+  "todoNoteHint": "Additional notes (optional)",
+  "todoEmptyHelp": "No to-dos yet\n\nAdd one here, or ask AI in a conversation to suggest\nfollow-ups for you to review and create.",
+  "todoOpenGroup": "Open · {count}",
+  "todoDoneGroup": "Completed · {count}",
+  "todoEdit": "Edit to-do",
+  "todoTitleHint": "Something to follow up…",
+  "todoDueHint": "Due date (optional, YYYY-MM-DD; clear to remove)",
+  "todoReminderOption": "Remind me when due (banner or notification)",
+  "todoPriority": "Priority",
+  "priorityHigh": "High",
+  "priorityNormal": "Normal",
+  "priorityLow": "Low",
+  "todoDueDate": "Due {date}",
+  "todoReminderDate": "Reminder {date}",
+  "todoStatusOpen": "Open",
+  "todoStatusArchived": "Archived",
+  "errorFieldRequired": "{field} is required.",
+  "errorNotFound": "{resource} could not be found. Refresh and try again.",
+  "errorSettingsChanged": "Settings have changed. Refresh before editing again.",
+  "errorSyncUnlockRequired": "Unlock synchronization before changing this setting.",
+  "errorLanguageUnsupported": "This app version does not support the selected language or policy. Update the app and try again.",
+  "errorReminderTimePast": "The reminder time has passed. Choose a future time first.",
+  "errorReminderTimeRequired": "Set a due time before enabling the reminder.",
+  "errorDetails": "View details",
+  "@todoOpenGroup": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@todoDoneGroup": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@todoDueDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@todoReminderDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@errorFieldRequired": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "@errorNotFound": {
+    "placeholders": {
+      "resource": {
+        "type": "String"
+      }
+    }
+  },
+  "open": "Open",
+  "knowledgePage": "Knowledge page",
+  "habitReminderSettings": "Habit reminders",
+  "habitReminderSettingsHelp": "Manage regular check-ins for active habit pages. Changes to the time, question and buttons are saved to the habit’s plan. Only the owner device sends scheduled check-ins to the main conversation; other devices display the synced message.",
+  "habitReminderEmpty": "No active habit pages yet. Create a habit page in the knowledge base, then return here to set up check-ins.",
+  "habitReminderCounts": "Active {enabled} · Paused {paused} · Not set {unset}",
+  "habitReminderActive": "Active",
+  "habitReminderUnset": "Check-ins have not been set up",
+  "habitReminderSetup": "Set up",
+  "habitReminderAdjust": "Adjust",
+  "habitReminderResumed": "Check-ins resumed",
+  "habitReminderPaused": "Check-ins paused",
+  "habitWeekSchedule": "Weekly: {days}",
+  "@habitReminderCounts": {
+    "placeholders": {
+      "enabled": {
+        "type": "int"
+      },
+      "paused": {
+        "type": "int"
+      },
+      "unset": {
+        "type": "int"
+      }
+    }
+  },
+  "@habitWeekSchedule": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "habitReminderNotSet": "Not set",
+  "trayShowWindow": "Show main window",
+  "trayQuit": "Quit Elsewhen",
+  "syncKeepAliveDefault": "Syncing with another device. Keep the app running.",
+  "syncKeepAliveSetup": "Preparing this device for synchronization",
+  "syncKeepAlivePairOwner": "Pairing with the joining device",
+  "syncKeepAlivePairJoin": "Pairing with an existing device",
+  "syncKeepAliveEnrollment": "Completing device enrollment and initial sync",
+  "syncNotificationTitle": "Elsewhen is syncing",
+  "syncNotificationChannel": "Device synchronization",
+  "syncNotificationDescription": "Keeps the app running during pairing and initial snapshot transfer",
+  "syncObjectConflictsTitle": "To-do and goal sync conflicts",
+  "syncObjectConflictsHelp": "Review conflicting to-dos, goals, plans, rules or knowledge language policies from another device. Keep the local version or accept the incoming version; fields are not combined.",
+  "syncObjectConflictsEmpty": "No to-do, goal, plan, rule or knowledge language conflicts to review.",
+  "syncConflictFrom": "{kind} · Changes from {device}",
+  "syncKindTodo": "To-do",
+  "syncKindGoal": "Goal",
+  "syncKindPlan": "Plan",
+  "syncKindRule": "Rule",
+  "syncDeletedReason": "The other device deleted this item while further edits were still pending.",
+  "syncGoalDeletedReason": "Edits arrived after this goal was deleted on the other device; review is required.",
+  "syncBaseChangedReason": "Both devices edited this item from an older version.",
+  "syncGoalLimitReason": "The incoming goal would exceed the active goal limit.",
+  "syncLanguageChangedReason": "The knowledge language policies have diverged. Review the version signed by the dataset owner.",
+  "syncLocalDeleted": "Local (deleted)",
+  "syncLocalCurrent": "Current local version",
+  "syncIncomingVersion": "Incoming version",
+  "syncKeepLocal": "Keep local",
+  "syncAcceptIncoming": "Accept incoming",
+  "syncDeleted": "Deleted",
+  "syncEmptyValue": "(empty)",
+  "syncStatusUpdated": "Status: {status} · Updated: {updated}",
+  "syncRefresh": "Reload",
+  "syncLoadingConflicts": "Loading conflicts…",
+  "syncNoActionNeeded": "No action needed",
+  "syncReviewCount": "{count, plural, one{1 to review} other{{count} to review}}",
+  "errorConflictChanged": "The local item has changed. Refresh and review it again.",
+  "errorConflictResolved": "This conflict has already been resolved. Refresh the list.",
+  "errorGoalLimit": "The active goal limit has been reached. Archive a goal or keep the local version before continuing.",
+  "@syncConflictFrom": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "device": {
+        "type": "String"
+      }
+    }
+  },
+  "@syncStatusUpdated": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      },
+      "updated": {
+        "type": "String"
+      }
+    }
+  },
+  "@syncReviewCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "knowledgeReadingTitle": "Reading and use",
+  "knowledgeReadingHelp": "Track your reading and use. This does not change the original text or your endorsement.",
+  "readingUnread": "Unread",
+  "readingRead": "Read",
+  "readingValuable": "Worth using",
+  "readingAdopted": "Adopted",
+  "readingArchived": "Archived",
+  "libraryAllFilter": "All {filter}",
+  "librarySearchHint": "Search titles or full text",
+  "clearSearch": "Clear search",
+  "libraryArea": "Areas",
+  "libraryImported": "Sources",
+  "libraryInsight": "Knowledge",
+  "libraryNetwork": "Contacts and projects",
+  "libraryKind": "Types",
+  "libraryReadingState": "Reading states",
+  "tags": "Tags",
+  "librarySourceKind": "Source",
+  "pageKindNote": "Note",
+  "loadMore": "Load more",
+  "libraryNoMatch": "No matching knowledge pages",
+  "libraryAllShown": "All results shown",
+  "knowledgeBatchTitle": "Review revisions in a batch",
+  "knowledgeBatchHelp": "Review the content and conditions first. Confirm up to 20 revisions at a time.",
+  "knowledgeViewRevision": "View this revision",
+  "knowledgeAcceptCount": "Confirm {count, plural, one{1 revision} other{{count} revisions}}",
+  "knowledgeRejectSelected": "Reject selected",
+  "knowledgeAccepted": "Accepted",
+  "knowledgeRejected": "Rejected",
+  "priorRejectionTitle": "You previously rejected this source",
+  "priorRejectionReason": "You previously discarded this source. Your reason was:",
+  "priorRejectionHelp": "Importing again reopens this source for review. Continue?",
+  "saveAnyway": "Save anyway",
+  "sourceUpdateTitle": "Source content has changed",
+  "sourceUpdateHelp": "Save this as a new version while keeping the old original. Knowledge pages that cite it will be marked for review.",
+  "sourceSavedVersion": "Saved version",
+  "sourceIncomingVersion": "Fetched version",
+  "sourceKeepOld": "Keep the old version",
+  "sourceSaveNew": "Save the new version",
+  "wikiImportUrl": "Import from URL",
+  "wikiImportUrlHelp": "Fetch a webpage or post, then review and save it.",
+  "wikiCreateTopic": "Create a topic",
+  "wikiCreateTopicHelp": "Write content to create a knowledge page.",
+  "knowledgeReview": "Knowledge review",
+  "noPendingWork": "Nothing pending",
+  "wikiCloseConfirm": "Confirm before closing",
+  "wikiUnsavedChanges": "This page has unsaved edits. Closing it will discard those changes.",
+  "wikiDiscardClose": "Discard changes and close",
+  "wikiSaveClose": "Save and close",
+  "wikiCloseTab": "Close tab",
+  "wikiPageUnavailable": "This page does not exist or has been deleted.",
+  "wikiEditTags": "Edit tags",
+  "wikiTagsHelp": "Separate tags with spaces or commas. Leave blank to remove all tags.",
+  "wikiTagsExample": "For example: work Rust investing",
+  "wikiEnterUrl": "Paste a link first.",
+  "wikiEnterContent": "Enter some content to save first.",
+  "wikiSavedTitle": "Saved “{title}” to the knowledge base",
+  "wikiSave": "Save to knowledge base",
+  "wikiUrlHelp": "Paste a webpage or x.com/twitter.com link. Long posts and articles are supported.",
+  "wikiUrlHint": "https://x.com/… or https://example.com/…",
+  "wikiFetching": "Fetching…",
+  "wikiFetch": "Fetch",
+  "wikiPreviewHelp": "Fetched content opens in a preview tab. Review it, then choose “Save to knowledge base” to keep it.",
+  "wikiTitleHint": "Title (optional; defaults to the first 60 characters)",
+  "wikiTagsHint": "Tags (optional; separate with spaces or commas, e.g. work investing)",
+  "wikiSourceLoading": "Loading source…",
+  "wikiSourceRetry": "Could not load source. Tap to retry.",
+  "wikiSourceUnavailable": "The source page is no longer available.",
+  "wikiBasedOn": "Based on: {title}",
+  "@libraryAllFilter": {
+    "placeholders": {
+      "filter": {
+        "type": "String"
+      }
+    }
+  },
+  "@knowledgeAcceptCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@wikiSavedTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "@wikiBasedOn": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "wikiSaved": "Saved to knowledge base",
+  "wikiContent": "Content",
+  "wikiOriginal": "Original",
+  "wikiOutputs": "Outputs",
+  "wikiRelations": "Related",
+  "wikiSources": "Sources",
+  "wikiSourcesRevisions": "Sources and revisions",
+  "wikiPageChangedTitle": "This page has been updated",
+  "wikiPageChangedHelp": "This page changed while you were editing.\nReload discards your edits and shows the latest content.\nOverwrite replaces the updated content with your edits. Both versions remain in revision history.",
+  "wikiReload": "Reload",
+  "wikiOverwrite": "Overwrite",
+  "wikiCollectedOn": "Collected {date}",
+  "wikiCheckinHint": "Receive a check-in in the main chat. You confirm its question and buttons first.",
+  "wikiCheckinPaused": "Paused · {time}",
+  "wikiCheckins": "Regular check-ins",
+  "wikiCopyTitle": "Copy title",
+  "wikiTitleCopied": "Title copied",
+  "wikiNoEventOrigins": "No event origins yet",
+  "wikiEventOrigins": "Based on {count, plural, one{1 event} other{{count} events}}",
+  "wikiAddTags": "Add tags",
+  "wikiContactRelations": "Contact relationships",
+  "wikiTagsUpdated": "Tags updated",
+  "wikiImmersive": "Immersive reading",
+  "wikiImmersiveHelp": "Immersive reading (Esc to exit)",
+  "wikiExitImmersive": "Exit immersive reading (Esc)",
+  "wikiReadingSettings": "Reading settings",
+  "wikiReadingSettingsHelp": "Reading settings (font, size and line spacing)",
+  "wikiEditContent": "Edit content",
+  "wikiDeletePage": "Delete page",
+  "wikiDeleteQuestion": "Delete this page?",
+  "wikiDeleteHelp": "“{title}” and its revision history will be permanently deleted. Paired devices will also delete this page after syncing. Conflicting offline edits will be kept for review.",
+  "errorWikiPageChanged": "This page has changed. Reload it or confirm an overwrite.",
+  "errorWikiMaterialReadonly": "Source originals are read only.",
+  "errorWikiContentRequired": "Content is required.",
+  "errorWikiContentTooLong": "Content cannot exceed 65,536 characters.",
+  "@wikiCollectedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@wikiCheckinPaused": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@wikiEventOrigins": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@wikiDeleteHelp": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "wikiDiscussPage": "Discuss this page with AI",
+  "wikiAskAi": "Ask AI",
+  "wikiProjectPathCopied": "Project path copied",
+  "wikiEditProjectPath": "Change project path",
+  "wikiChooseProjectDirectory": "Choose project directory",
+  "wikiOldPath": "Previous path",
+  "wikiNewPath": "New path",
+  "wikiProjectPathUpdated": "Project path updated",
+  "wikiSourceLinkCopied": "Source link copied",
+  "wikiRelatedPages": "Related pages",
+  "wikiAddRelatedPage": "Add a related page",
+  "wikiNoRelatedCandidates": "No pages are available to add.",
+  "wikiTweet": "Post",
+  "wikiWebpage": "Webpage",
+  "wikiImportTagsHint": "Tags (optional; separate with spaces, e.g. methods investing)",
+  "wikiHome": "Home",
+  "wikiPostTab": "Post {id}",
+  "wikiRelationLabel": "{relation, select, related{Related} mentions{Mentions} mentionedBy{Mentioned by} part_of{Part of} contains{Contains this page} same_topic{Same topic} supports{Supports} supportedBy{Supported by} contradicts{Contradicts} contradictedBy{Contradicted by} other{{relation}}}",
+  "@wikiPostTab": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "@wikiRelationLabel": {
+    "placeholders": {
+      "relation": {
+        "type": "String"
+      }
+    }
+  },
+  "tweetDiscuss": "Discuss this post with AI",
+  "tweetDiscussHelp": "Discuss it with AI first. Only “Save to knowledge base” saves the content.",
+  "tweetUnknownAuthor": "Unknown author",
+  "tweetByAuthor": "Post by {author}",
+  "tweetSaved": "Saved",
+  "tweetOriginal": "Fetched content (original)",
+  "tweetLinkCopied": "Post link copied",
+  "tweetFormatting": "AI is formatting…",
+  "tweetFormat": "Format as Markdown with AI",
+  "tweetFormatAgain": "Format again",
+  "tweetDiscardFormat": "Discard formatting",
+  "tweetSeparateDraftHelp": "The original is saved; the formatted draft is saved separately.",
+  "tweetFormatPreview": "AI formatting (Markdown preview)",
+  "tweetChatHint": "Ask about this post… (Enter to send, Shift+Enter for a new line)",
+  "artifactWorks": "Derived works",
+  "artifactRefresh": "Refresh derived works",
+  "artifactEmpty": "No derived works yet. Ask AI in this page’s chat for a summary, opinion, idea or script. Saved works appear here as versions.",
+  "artifactNotAdopted": "Not adopted",
+  "artifactMetadata": "Model: {model} · Process version: {strategy}",
+  "artifactUnknownModel": "Unknown (not recorded)",
+  "artifactUnknownStrategy": "Unknown (legacy work)",
+  "artifactInstruction": "Generation instructions",
+  "artifactNoInstruction": "No generation instructions were recorded for this version.",
+  "artifactAdoptedRevision": "View the adopted revision",
+  "artifactNewerRevisionHelp": "The content has a newer revision. Adoption still refers to the revision you confirmed.",
+  "artifactOpenPage": "Open knowledge page",
+  "artifactCopyBody": "Copy full text",
+  "artifactBodyCopied": "Full text copied",
+  "artifactCompareSelect": "Add to comparison",
+  "artifactUnadopt": "Undo adoption",
+  "artifactAdopt": "Adopt this version",
+  "artifactMoreVersions": "Load more versions",
+  "artifactCompare": "Compare versions",
+  "artifactType": "{type, select, summary{Summary} opinion{Opinion} idea{Idea} script{Script} ai_summary{AI summary} other{{type}}}",
+  "workItemUpdateStatus": "Change status",
+  "workItemUpdatePriority": "Change priority",
+  "workItemPriority": "{priority, select, high{High priority} low{Low priority} other{Normal priority}}",
+  "workItemChooseDue": "Choose a due date",
+  "workItemSetDue": "Set a due date",
+  "entityMerged": "This entity has been merged",
+  "entityMergedInto": "This entity was merged into {target}",
+  "entityViewTarget": "View target",
+  "entityUndoMerge": "Undo merge",
+  "entityMerge": "Merge entities",
+  "entityNoMergeCandidates": "No entities of the same type are available to merge.",
+  "entityChooseTarget": "Choose the target entity",
+  "entityMergeInto": "Merge into",
+  "entityContinue": "Continue",
+  "entityMergeQuestion": "Merge into “{title}”?",
+  "entityMergeHelp": "Facts, aliases and relationships move to the target entity, with duplicates combined. Original events are preserved. You can undo this from the old entity page if the moved data has not changed.",
+  "entityConfirmMerge": "Confirm merge",
+  "entityMergeSaved": "Merged into “{title}”. Original events are preserved.",
+  "entityUndoMergeQuestion": "Undo this merge?",
+  "entityUndoMergeHelp": "Restore only the facts, aliases and relationships moved by this merge. If they have since changed, the operation is refused to protect newer data. Original events are preserved.",
+  "entityMergeUndone": "Merge undone; entity content restored",
+  "entityRelatedTodos": "Related to-dos",
+  "entityOpenWorkItem": "Open work item",
+  "entityFacts": "Structured facts",
+  "entityFactConflictHelp": "Some facts may conflict. Historical sources are preserved. Review the sources before removing an incorrect derived fact.",
+  "entityFactSource": "{date} · Confidence {confidence}/5 · View source {source}",
+  "entityRemoveFact": "Correct by removing this fact",
+  "entityRemoveFactQuestion": "Remove this fact?",
+  "entityRemoveFactHelp": "Only the derived fact on the knowledge page is removed. The original event is preserved.",
+  "entityRemove": "Remove",
+  "entityFactRemoved": "Fact removed; original event preserved",
+  "entitySourceMissing": "The source event no longer exists.",
+  "entitySourceEvent": "Source event",
+  "entityAiSummary": "AI summary",
+  "entityEmotionAnnotations": "Emotion annotations (text, no scores)",
+  "entityEmotionAboutEvent": "About this event: {feeling}",
+  "entityEmotionAboutTarget": "About {target}: {feeling}",
+  "entityAiGuidance": "AI guidance (derived)",
+  "entityRelatedReference": "Related: {slug} — {note}",
+  "entityAnalysisMetadata": "Recorded {date} · Analysis status: {status}",
+  "entityAnalysisStatus": "{status, select, pending{Pending} running{Running} succeeded{Completed} failed{Failed} skipped{Skipped} other{{status}}}",
+  "entityGuidance": "Related guidance",
+  "entityViewGuidance": "View guidance",
+  "entityGuidanceDetails": "{date} · View key points",
+  "entityGuidanceHelpful": "Helpful (tap again to clear)",
+  "entityGuidanceNotRelevant": "Not relevant (tap again to clear)",
+  "entityRecordedOn": "Recorded {date}",
+  "entityReusableLessons": "Reusable lessons",
+  "entityRefinedTodos": "Refined follow-ups",
+  "@tweetByAuthor": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "@artifactMetadata": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "strategy": {
+        "type": "String"
+      }
+    }
+  },
+  "@artifactType": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "@workItemPriority": {
+    "placeholders": {
+      "priority": {
+        "type": "String"
+      }
+    }
+  },
+  "@entityMergedInto": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "@entityMergeQuestion": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "@entityMergeSaved": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "@entityFactSource": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "confidence": {
+        "type": "String"
+      },
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "@entityEmotionAboutEvent": {
+    "placeholders": {
+      "feeling": {
+        "type": "String"
+      }
+    }
+  },
+  "@entityEmotionAboutTarget": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      },
+      "feeling": {
+        "type": "String"
+      }
+    }
+  },
+  "@entityRelatedReference": {
+    "placeholders": {
+      "slug": {
+        "type": "String"
+      },
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "@entityAnalysisMetadata": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "@entityAnalysisStatus": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "@entityGuidanceDetails": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@entityRecordedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "runLanguagePreserveSource": "Output policy: preserve the source language (formatting only)",
+  "l6ReviewHistoryIsNotAPersonaldee4d": "Review history is not a personal rule",
+  "l6All778fc": "All",
+  "l6RunLoga8ce4": "Run log",
+  "l6NoRunsYet022d0": "No runs yet",
+  "l6ProtectedOnlyEvidenceCanBeAddedba2bf": "Protected (only evidence can be added)",
+  "l6Savinga032e": "Saving",
+  "l6ScanInvitationQrCode4882e": "Scan invitation QR code",
+  "l6CameraAccessIsUnavailableCopyAnd95be5": "Camera access is unavailable. Copy and paste the invitation instead.",
+  "l6DeviceKeysAreHeldInSystem9ad4e": "Device keys are held in system secure storage on this device and excluded from cloud backup and sync.",
+  "l6DeviceKeyRecordsAreMissingRecover91b1e": "Device key records are missing. Recover through the original device; replacement keys will not be generated.",
+  "l6DeviceKeyRecordsAreDamagedUnlocking1284a": "Device key records are damaged. Unlocking has stopped; existing records will not be overwritten.",
+  "l6SystemSecureStorageIsUnavailableOr5cc06": "System secure storage is unavailable or locked. Unlock the system key store, then refresh.",
+  "l6CheckingDeviceKeyStorage3d187": "Checking device key storage…",
+  "l6AuthorizedDevicesb4736": "Authorized devices",
+  "l6RefreshDevices7b112": "Refresh devices",
+  "l6OwnerDevicede929": "Owner device",
+  "l6RunsAiAnalysis6697e": "Runs AI analysis",
+  "l6ThisDevice8b4c1": "This device",
+  "l6Revoke9fcef": "Revoke",
+  "l6TransferAiAnalysisResponsibilityBeforeRevoking455d7": "Transfer AI analysis responsibility before revoking access",
+  "l6RevokeThisDeviceSSyncAccess2a8d0": "Revoke this device’s sync access?",
+  "l6KnowledgeSyncConflicts67265": "Knowledge sync conflicts",
+  "l6KnowledgeChangesFromAnotherDeviceConflict5a183": "Knowledge changes from another device conflict with local changes. Keep the local version or accept the incoming version as a whole.",
+  "l6NoKnowledgeSyncConflictsNeedReview2246e": "No knowledge sync conflicts need review.",
+  "l6TheIncomingVersionDeletesThisPagec27d8": "The incoming version deletes this page, while local changes still need delivery",
+  "l6BothDevicesRenamedThisPageDifferently200f1": "Both devices renamed this page differently",
+  "l6TheIncomingPathConflictsWithAnother49464": "The incoming path conflicts with another local page",
+  "l6TheIncomingEditIsBasedOnf0ddf": "The incoming edit is based on an older version of this page",
+  "l6LocalVersionDeleted25fe7": "Local version (deleted)",
+  "l6ThisPageDoesNotExistLocallya6853": "(This page does not exist locally)",
+  "l6Untitledd8f9b": "(Untitled)",
+  "l6OrganizeTopicscabf2": "Organize topics",
+  "l6MergeSimilarTopicsOrSplitA6542f": "Merge similar topics or split a large topic. Changes take effect after preview and confirmation.",
+  "l6OldTopicsAreArchivedAfterConfirmationf5e56": "Old topics are archived after confirmation. Their sources and history remain available. New topics are reference knowledge, not personal rules.",
+  "l6SearchTopicsToMergef60aa": "Search topics to merge…",
+  "l6FindTopicsa638d": "Find topics",
+  "l6PreviewMerge6d8f5": "Preview merge",
+  "l6PreviewSplit6f910": "Preview split",
+  "l6AwaitingConfirmation27b58": "Awaiting confirmation",
+  "l6Revoked61063": "Revoked",
+  "l6UndoThisBatch7aa0a": "Undo this batch",
+  "l6ConfirmAndArchiveOldTopics37635": "Confirm and archive old topics",
+  "l6RejectPlan8b441": "Reject plan",
+  "l6LoadEarlierPlans65e31": "Load earlier plans",
+  "l6RestartTheAppAfterSwitchingToea99d": "Restart the app after switching to view all synced data.",
+  "l6EnterDatasete3665": "Enter dataset",
+  "l6CouldNotLoadSyncStatusSyncb8a20": "Could not load sync status\n(Sync may not be enabled yet)",
+  "l6Processorb4366": "Processor",
+  "l6NoSyncYet8ce44": "No sync yet",
+  "l6HeartbeatOnStandbyIdleda794": "Heartbeat on standby (idle)",
+  "l6Status62e95": "Status",
+  "l6LoadLinkableKnowledgea71cb": "Load linkable knowledge",
+  "l6LoadResolutionRevision2bf89": "Load resolution revision",
+  "l6ResolutionSavedf80e5": "Resolution saved",
+  "l6LinkedResolutionsb26bd": "Linked resolutions",
+  "l6LinkTheIssueToAKnowledge08e6c": "Link the issue to a knowledge revision covering all evidence",
+  "l6NoKnowledgePageCoversTheseSources10eed": "No knowledge page covers these sources yet. Organize the disagreement and conditions in a related topic, then return to link it.",
+  "l6KnowledgePageThatResolvesTheIssueb3d20": "Knowledge page that resolves the issue",
+  "l6ReviewRevisionContent73b70": "Review revision content",
+  "l6HowThisRevisionResolvesTheDisagreemented5c3": "How this revision resolves the disagreement",
+  "l6ConfirmLinkedResolution5427f": "Confirm linked resolution",
+  "l6RefreshLinkableKnowledge5a5b4": "Refresh linkable knowledge",
+  "l6LoadAvailableSourcesefee2": "Load available sources",
+  "l6RepairSourceEvidence7c494": "Repair source evidence",
+  "l6KeepValidSourcesOrChooseReplacementse7069": "Keep valid sources or choose replacements, then review the knowledge update.",
+  "l6RejectedOrArchivedSourcesCannotSupport758ff": "Rejected or archived sources cannot support new conclusions. Valid sources stay selected below. Existing knowledge is preserved until you confirm a revision.",
+  "l6FindReplacementSources05a6a": "Find replacement sources",
+  "l6TheFirst50SourcesAreShown7e891": "The first 50 sources are shown. Search by title for others. Selected sources are preserved.",
+  "l6UnavailableExcludedFromEvidenceForThe84882": "Unavailable; excluded from evidence for the new revision",
+  "l6SourcesForThisKnowledgec088b": "Sources for this knowledge",
+  "l6AvailableAsAReplacementSourceda692": "Available as a replacement source",
+  "l6ThereIsNotEnoughEvidenceSelect1b56c": "There is not enough evidence. Select or import valid sources. Current knowledge still needs supporting evidence.",
+  "l6ChooseUpTo8SourcesNarrow5655d": "Choose up to 8 sources. Narrow your selection.",
+  "l6PrepareRepairProposale29a1": "Prepare repair proposal",
+  "l6RefreshSources59684": "Refresh sources",
+  "l6ReloadSources59500": "Reload sources",
+  "l6LoadReviewHistory6b7da": "Load review history",
+  "l6KnowledgeHistory37e16": "Knowledge history",
+  "l6HistoryOfProposalsAndRevisionsAccepted1535c": "History of proposals and revisions (accepted, rejected or linked resolutions)",
+  "l6ThisPageHasNoRevisionsYet1b848": "This page has no revisions yet.",
+  "l6ResolutionNotesca3c9": "Resolution notes",
+  "l6AcceptedChanges114f5": "Accepted changes",
+  "l6SuggestedConditions5bf71": "Suggested conditions",
+  "l6SavedConditions0ae9a": "Saved conditions",
+  "l6LinkedRevision4f2da": "Linked revision",
+  "l6PreviousContent5b344": "Previous content",
+  "l6SavedContentc80ef": "Saved content",
+  "l6Reload77849": "Reload",
+  "l6LoadMoreRecords37269": "Load more records",
+  "l6Waiting25d23": "Waiting",
+  "l6Skipped9f38a": "Skipped",
+  "l6ProcessingQueueb0388": "Processing queue",
+  "l6ViewPendingWorkReadingProgressAnd0ed68": "View pending work, reading progress and wait reasons",
+  "l6NoTasksInThisState7922e": "No tasks in this state.",
+  "l6ReloadQueueb9f40": "Reload queue",
+  "l6LoadMoreTasks1db39": "Load more tasks",
+  "l6PrepareSourceRepair2b5a2": "Prepare source repair",
+  "l6ThereIsNotEnoughEvidenceAddfdb09": "There is not enough evidence. Add valid sources first. Current knowledge is preserved while awaiting evidence.",
+  "l6TheSelectedSourcesAreBeingReadb3e01": "The selected sources are being read in the background. Prepare a repair proposal once reading finishes.",
+  "l6UpstreamKnowledgeae238": "Upstream knowledge",
+  "l6UpstreamKnowledgeNeedsReviewOpenItsb9c0d": "Upstream knowledge needs review. Open its page to check the changes first.",
+  "l6Actionf3ea6": "Action",
+  "l6PageDoesNotExist55c9e": "Page does not exist",
+  "l6SourceRecords5bc8d": "Source records",
+  "l6SourceRecordDoesNotExist25551": "Source record does not exist",
+  "l6CouldNotLoadd9f60": "Could not load",
+  "l6LoadSourceRecordse26e1": "Load source records",
+  "l6DecideOnThisSource4e2fd": "Decide on this source",
+  "l6DiscardAsRejectedKnowledge14322": "Discard as rejected knowledge",
+  "l6RequiredReasonForDiscarding0dc5c": "Required: reason for discarding",
+  "l6OrganizeKnowledge210a3": "Organize knowledge",
+  "l6ExtractOnDemandSaveNewReference28c44": "Extract on demand; save new reference knowledge directly",
+  "l6ExtractAMethod9c1f5": "Extract a method",
+  "l6ReusableStepsAndConditions4c52e": "Reusable steps and conditions",
+  "l6OrganizeACaseac694": "Organize a case",
+  "l6ContextApproachAndOutcomeee83d": "Context, approach and outcome",
+  "l6ExtractAPrinciple14a19": "Extract a principle",
+  "l6PrinciplesEvidenceAndLimits440fe": "Principles, evidence and limits",
+  "l6ExtractKnowledge196cf": "Extract knowledge",
+  "l6IncludeInKnowledge29c9c": "Include in knowledge",
+  "l6IncludedInKnowledge9a862": "Included in knowledge",
+  "l6DiscardedRejectedKnowledge57399": "Discarded (rejected knowledge)",
+  "l6ReferenceKnowledgeIsOrganizedAutomaticallyYoucefad": "Reference knowledge is organized automatically. You confirm human edits and personal rules.",
+  "l6LoadProposal021f2": "Load proposal",
+  "l6NoChangesNeedYourConfirmationNew743fb": "No changes need your confirmation. New reference knowledge is saved directly in outputs.",
+  "l6SourceAndContentChecks5517e": "Source and content checks",
+  "l6LoadCheckse2e22": "Load checks",
+  "l6NoChecksNeedReview4053b": "No checks need review.",
+  "l6FailedAutomaticRetryScheduledc9e00": "Failed; automatic retry scheduled",
+  "l6SupportingEvidenceabba3": "Supporting evidence",
+  "l6KnowledgeCitedInThisAnswer4ad6e": "Knowledge cited in this answer",
+  "l6ThisAnswerHasNoSystemVerified0ba58": "This answer has no system-verified knowledge citations.",
+  "l6SourceVersionDoesNotExist8a671": "Source version does not exist",
+  "l6ViewSourceEvent3c3f9": "View source event",
+  "l6BackgroundProcessingOrganizesReferenceKnowledgeAnd36787": "Background processing organizes reference knowledge and shared topics. New extracted outputs are saved directly. Changes to edited or confirmed content need review. Originals are preserved; you confirm personal rules.",
+  "l6SuggestionsToReview822f0": "Suggestions to review",
+  "l6CompiledReferenceKnowledge9efb1": "Compiled reference knowledge",
+  "l6NoKnowledgeOutputsYetYouCan01967": "No knowledge outputs yet. You can use the original text. Background processing decides whether it supports new knowledge.",
+  "l6LoadChanges6cd73": "Load changes",
+  "l6ReviewProposal8e384": "Review proposal",
+  "l6Handled219bd": "Handled",
+  "l6CompareWithCurrentContenta3c20": "Compare with current content",
+  "l6CurrentContent47be3": "Current content",
+  "l6LoadPageContent3f16e": "Load page content",
+  "l6ReviewParagraphByParagraph072ad": "Review paragraph by paragraph",
+  "l6OriginalParagraphe62c3": "Original paragraph",
+  "l6SuggestedParagraphcd73c": "Suggested paragraph",
+  "l6AlsoAcceptTheSuggestedConditionsbd478": "Also accept the suggested conditions",
+  "l6WhichIssuesThisRevisionResolvesYou7c3a0": "Which issues this revision resolves (you confirm):",
+  "l6ChangesToSourceEvidenceRequireFull6139c": "Changes to source evidence require full confirmation. Partial acceptance is available when sources stay the same.",
+  "l6ViewSourceMaterialdf8d0": "View source material",
+  "l6LoadSourceSnapshot1cba8": "Load source snapshot",
+  "l6ViewEventfdcb3": "View event",
+  "l6HideComparisond3329": "Hide comparison",
+  "l6CompareWithTheCurrentContentConfirming9fbf7": "Compare with the current content. Confirming applies these changes. For a personal rule, it also confirms the revised rule and its conditions.",
+  "l6ConfirmRevision97031": "Confirm revision",
+  "l6RejectSuggestionb7fe0": "Reject suggestion",
+  "l6HandledOriginalTextPreserved3bc8e": "Handled; original text preserved",
+  "l6RejectedDecisionPreserved97f65": "Rejected; decision preserved",
+  "l6DismissHint0e8a6": "Dismiss hint",
+  "l6OperationFailed09e42": "Operation failed",
+  "l6DismissCheck617f7": "Dismiss check",
+  "l6LoadRevisions0cbe1": "Load revisions",
+  "l6GenerateRestorationProposal29825": "Generate restoration proposal",
+  "l6TheRestorationProposalIsInOutputsde198": "The restoration proposal is in Outputs. It takes effect after confirmation. Current sources and rule settings are preserved.",
+  "l6PrepareRestoration94c4c": "Prepare restoration",
+  "l6SourceAssessment7740d": "Source assessment",
+  "l6Endorse8a231": "Endorse",
+  "l6Reject802d6": "Reject",
+  "l6UseThisAsAPersonalRulefc28c": "Use this as a personal rule?",
+  "l6AiWillConsultThisRuleWhenf912f": "AI will consult this rule when its conditions apply. Confirm that the content is reliable and the conditions are accurate.",
+  "l6ConfirmUpgrade8c3fd": "Confirm upgrade",
+  "l6SaveMetadata757dd": "Save metadata",
+  "l6Conditions24481": "Conditions",
+  "l6ReferenceMaterialc3d33": "Reference material",
+  "l6ReusableMethod12837": "Reusable method",
+  "l6ConfirmedRuleba4b1": "Confirmed rule",
+  "l6SaveConditionsAndStrength46f33": "Save conditions and strength",
+  "l6SourcesLetYouVerifyEvidenceRevisionsccae6": "Sources let you verify evidence. Revisions show how knowledge changed. Normal reading and AI search need no action on each entry.",
+  "l6UpstreamBasis0fd54": "Upstream basis",
+  "l6NoVerifiableSourcesYet8b47f": "No verifiable sources yet.",
+  "l6SourceEvents2c4b3": "Source events",
+  "l6OriginalSourceVersions24704": "Original source versions",
+  "l6KnowledgeRevisions42307": "Knowledge revisions",
+  "l6ViewAndRestorePastRevisionsOfd9312": "View and restore past revisions of this page",
+  "l6SourceIsTemporarilyUnavailablecb78e": "Source is temporarily unavailable",
+  "l6DeviceInformation67298": "Device information",
+  "l6Rename1cd80": "Rename",
+  "l6DeviceId464c0": "Device ID:",
+  "l6RenameThisDevice304fd": "Rename this device",
+  "l6DeviceNamed889e": "Device name",
+  "l6RelayServiceUnlockDeviceKeysTo0103f": "Relay service: unlock device keys to view",
+  "l6RelayServiceda32a": "Relay service:",
+  "l6CopyRelayAddress61683": "Copy relay address",
+  "l6RelayAddressCopied7db6a": "Relay address copied",
+  "l6Restore79748": "Restore",
+  "l6TransferAiAnalysisResponsibilityfe457": "Transfer AI analysis responsibility",
+  "l6ThisDeviceIsNotInvolvedInaf62a": "This device is not involved in a handoff.",
+  "l6ResponsibilityHasBeenHandedOffWaitingeac50": "Responsibility has been handed off. Waiting for the target device to accept.",
+  "l6AHandoffAwaitsThisDeviceSdd081": "A handoff awaits this device’s confirmation; sync is up to date.",
+  "l6AHandoffAwaitsConfirmationButThis0f114": "A handoff awaits confirmation, but this device has not reached the handoff boundary.",
+  "l6ThisDeviceRunsAiAnalysisThe54d4b": "This device runs AI analysis (the previous handoff completed).",
+  "l6AcceptResponsibility6c220": "Accept responsibility",
+  "l6NoEligibleTargetDevicesAuthorizeAaba52": "No eligible target devices. Authorize a device to join first.",
+  "l6TargetDevice1b73f": "Target device",
+  "l6TransferAiAnalysisResponsibility2e5ba": "Transfer AI analysis responsibility",
+  "l6WaitingForTheOwnerToApprovebf73f": "Waiting for the owner to approve handoff proof.",
+  "l6ProcessingHandoffed58d": "Processing handoff…",
+  "l6TransferAiAnalysisResponsibility5d2ad": "Transfer AI analysis responsibility?",
+  "l6Transferc79cc": "Transfer",
+  "l6JoinWithAnInvitation78bca": "Join with an invitation",
+  "l6InvitationFromATrustedDeviceade9c": "Invitation from a trusted device",
+  "l6PreviewInvitationOfflinee39bc": "Preview invitation (offline)",
+  "l6JoinAnExistingDatasetb3b50": "Join an existing dataset",
+  "l6PreviewAndVerifyInvitation1afde": "Preview and verify invitation",
+  "l6SendJoinRequestd5d20": "Send join request",
+  "l6WaitingForOwnerApproval9e900": "Waiting for owner approval",
+  "l6ConfirmInstallation555cc": "Confirm installation",
+  "l6WaitingForAuthorizationAndInitialSync6cedf": "Waiting for authorization and initial sync",
+  "l6ReceivingTheInitialSnapshot032cf": "Receiving the initial snapshot",
+  "l6RelayMailboxFullDeliveryResumesAutomatically4a933": "Relay mailbox full. Delivery resumes automatically as the peer collects messages.",
+  "l6ScanQrCodeb8a8f": "Scan QR code",
+  "l6RelayToConnectTo06ef4": "Relay to connect to",
+  "l6InvitingDeviceSPublicKeyFingerprint283a5": "Inviting device’s public key fingerprint",
+  "l6ThisDeviceSPublicKeyFingerprintb7e3a": "This device’s public key fingerprint (verify on an existing device)",
+  "l6ReviewTheInvitationThenExplicitlyChoosece487": "Review the invitation, then explicitly choose to join.",
+  "l6PreparingAndVerifyingProtectedDeviceKeys60dc8": "Preparing and verifying protected device keys.",
+  "l6DeviceKeysAreReadyRequestDeliverye8427": "Device keys are ready. Request delivery is not confirmed yet.",
+  "l6WaitingForAnExistingDeviceTo330c1": "Waiting for an existing device to verify the fingerprint and approve.",
+  "l6WaitingForSystemConfirmationNoProof188b0": "Waiting for system confirmation. No proof is sent before confirmation.",
+  "l6InstallationIsSavedProofDeliveryIsf28de": "Installation is saved. Proof delivery is not confirmed yet.",
+  "l6InstallationProofDeliveredWaitingForAuthorization5d65b": "Installation proof delivered; waiting for authorization and initial sync.",
+  "l6CoordinatingTheApprovedHandoffAutomaticallyCheck9b863": "Coordinating the approved handoff automatically. Check its progress below.",
+  "l6ConfirmingHandoffRevisionsSendingResumesAftera5068": "Confirming handoff revisions. Sending resumes after confirmation.",
+  "l6TheInvitationExpiredRequestANewf2a42": "The invitation expired. Request a new one.",
+  "l6JoiningRequiresANewInvitationOr2a99d": "Joining requires a new invitation or recovery.",
+  "l6NewDeviceNamed42db": "New device name",
+  "l6IHaveCheckedTheInvitationAnd15ccd": "I have checked the invitation and relay, and agree to connect and receive all Provider settings and API keys.",
+  "l6RequestToJoinUsingASeparate835e5": "Request to join using a separate staging database",
+  "l6ResendOriginalJoinRequest97725": "Resend original join request",
+  "l6CheckForApproval58c9a": "Check for approval",
+  "l6ResendSavedInstallationProof3d80a": "Resend saved installation proof",
+  "l6StopThisDeviceSEnrollmentb3a98": "Stop this device’s enrollment",
+  "l6ApprovalCleanupIsNotConfirmedResending9fd47": "Approval cleanup is not confirmed. Resending proof checks cleanup again without reinstalling.",
+  "l6ViewRecoverableEnrollmentStagingEntriesf095c": "View recoverable enrollment staging entries",
+  "l6UnlockAndRecovere9f7c": "Unlock and recover",
+  "l6DeleteThisStagingEntrya06bf": "Delete this staging entry?",
+  "l6TheCurrentStorageBackendDoesNot2cb78": "The current storage backend does not support device sync.",
+  "l6SyncIsEnabled210fe": "Sync is enabled",
+  "l6SyncIsPausedThisDeviceS7fecc": "Sync is paused (this device’s key is locked)",
+  "l6SyncIsDisabledThisDeviceIs6aad5": "Sync is disabled (this device is not authorized)",
+  "l6SyncNeedsRepair8e4fa": "Sync needs repair",
+  "l6SyncIsNotEnabledbccba": "Sync is not enabled",
+  "l6LoadingSyncStatus861b0": "Loading sync status",
+  "l6SyncStatusIsUnavailable0971a": "Sync status is unavailable",
+  "l6OwnerDeviceRunsBackgroundAiAnalysis73dc6": "Owner device · runs background AI analysis",
+  "l6MemberDeviceRunsBackgroundAiAnalysisf055d": "Member device · runs background AI analysis",
+  "l6MemberDevicee071b": "Member device",
+  "l6Pairing6aed7": "Pairing",
+  "l6Manage4989b": "Manage",
+  "l6Clearingf54a6": "Clearing…",
+  "l6ClearThisDeviceSSyncIdentityab953": "Clear this device’s sync identity",
+  "l6SavedProviderApiKeysArePreservedb2ce9": "• Saved Provider API keys are preserved and migrated after pairing again.",
+  "l6SavedProviderApiKeysWillStop714a6": "• Saved Provider API keys will stop working and must be entered again.",
+  "l6IUnderstandThatThisDeviceMust3caf2": "I understand that this device must pair again to sync.",
+  "l6IUnderstandThatProviderApiKeys4b028": "I understand that Provider API keys must be entered again.",
+  "l6ClearThisDeviceSSyncIdentityf7c83": "Clear this device’s sync identity?",
+  "l6AfterClearing12369": "After clearing:",
+  "l6ThisDeviceLeavesTheDatasetAnd73b97": "• This device leaves the dataset and must pair or join again to sync.",
+  "l6ChangesNotYetSyncedToOther8c274": "• Changes not yet synced to other devices are not sent automatically.",
+  "l6NotesConversationsAndKnowledgeArePreserved9b3e9": "Notes, conversations and knowledge are preserved.",
+  "l6ClearAndPairAgain845d1": "Clear and pair again",
+  "l6DeviceName4433e": "Device name",
+  "l6PrepareThisDevice9d671": "Prepare this device",
+  "l6PrepareThisDeviceForSyncee24c": "Prepare this device for sync?",
+  "l6IUnderstandThatAuthorizedDevicesWill1e411": "I understand that authorized devices will receive all Provider settings and API keys.",
+  "l6IUnderstandPrepareThisDevice9598b": "I understand; prepare this device",
+  "l6DeviceSyncIsDisabledInThise1b42": "Device sync is disabled in this build (ELSEWHEN_SYNC_PREVIEW).",
+  "l6AfterPairingDeviceListsAndSync6d4f5": "After pairing, device lists and sync management appear here.",
+  "l6DeviceIdIsUnavailableRefreshAnd762d2": "Device ID is unavailable. Refresh and try again.",
+  "l6AuthorizedDevicesAppearHereAfterThey67f15": "Authorized devices appear here after they join.",
+  "l6LockDeviceKeys6ac4e": "Lock device keys",
+  "l6UnlockDeviceKeysa84f8": "Unlock device keys",
+  "l6RefreshStatus7cc7f": "Refresh status",
+  "l6Diagnostics0b673": "Diagnostics",
+  "l6DatasetId395bc": "Dataset ID",
+  "l6ConfirmDeviceEnrollment159c2": "Confirm device enrollment",
+  "l6CompareThePublicKeyFingerprintWitha360c": "Compare the public key fingerprint with the new device:",
+  "l6ConfirmThatYouTrustThisDevice20292": "Confirm that you trust this device and allow it to receive all Provider settings and API keys.",
+  "l6Back11d02": "Back",
+  "l6ApproveThisDeviced11af": "Approve this device",
+  "l6InviteADevice9f3fa": "Invite a device",
+  "l6NewDevicesCanRequestToJoinbe25a": "New devices can request to join an existing dataset. Handoff proceeds automatically after approval.",
+  "l6YourRelayUrl9ff3a": "Your relay URL",
+  "l6IUnderstandThatCreatingAnInvitation5f3db": "I understand that creating an invitation connects to this relay, and approving a device shares Provider settings and API keys.",
+  "l6CreateATemporaryInvitationa2809": "Create a temporary invitation",
+  "l6InvitationCreatedShowTheQrCode15986": "Invitation created (show the QR code or copy it)",
+  "l6ANewDeviceHasRequestedTo3129b": "A new device has requested to join",
+  "l6ApprovedDeliveringApprovalc4bcf": "Approved; delivering approval",
+  "l6ApprovalDeliveredWaitingForTheNewaeaa7": "Approval delivered; waiting for the new device to finish installation",
+  "l6NewDeviceJoinsCheckTheDevice29220": "New device joins (check the device list in Manage)",
+  "l6PreparingTheInitialSnapshotb1613": "Preparing the initial snapshot",
+  "l6WaitingForInitialSnapshotSelectione32c8": "Waiting for initial snapshot selection",
+  "l6SendingTheInitialSnapshotfa3fd": "Sending the initial snapshot",
+  "l6ShareInvitationsOnlyWithTrustedDevices47059": "Share invitations only with trusted devices.",
+  "l6CopyInvitationf7293": "Copy invitation",
+  "l6CancelInvitation17e4c": "Cancel invitation",
+  "l6VerifyAndApprove5c161": "Verify and approve",
+  "l6ResendSavedApproval48def": "Resend saved approval",
+  "l6ProviderSyncConflicts31e02": "Provider sync conflicts",
+  "l6KeysAreMaskedKeepTheLocal2e55f": "Keys are masked. Keep the local configuration or accept the remote configuration as a whole. Address hints do not confirm connectivity.",
+  "l6NoProviderSyncConflictsNeedReview4dc86": "No Provider sync conflicts need review.",
+  "l6CurrentLocalConfiguration683a0": "Current local configuration",
+  "l6RemoteConfiguration04e8c": "Remote configuration",
+  "l6KeepLocal6d6a5": "Keep local",
+  "l6AcceptRemote4546a": "Accept remote",
+  "l6NoConfigurationa33dc": "(No configuration)",
+  "l6KeyNotSetefd96": "Key: not set",
+  "l6LoopbackAddressReachableOnlyFromThis5a7ca": "Loopback address: reachable only from this device",
+  "l6PrivateNetworkAddressReachableOnlyOnf9ec8": "Private network address: reachable only on the same network",
+  "l6MissingHttpSPrefixMostClients85171": "Missing http(s):// prefix; most clients cannot use this address",
+  "l6UnusualProtocolMayNotBeSupportedf9ae0": "Unusual protocol; may not be supported",
+  "l6MissingHostNameb705c": "Missing host name",
+  "l6LastSyncSkippedLockedOrBackground113af": "Last sync: skipped (locked or background busy)",
+  "l6RelayMailboxFullWaitingForThec480e": "Relay mailbox full; waiting for the peer to collect messages",
+  "l6RelayMessageFormatMismatchUpdateThe1d3c3": "Relay message format mismatch; update the app",
+  "l6RepeatedContentValidationFailuresDeliveryPausedb04cc": "Repeated content validation failures; delivery paused",
+  "l6NetworkIsUnstableRetrying2aaa3": "Network is unstable; retrying",
+  "l6Resyncing0f8da": "Resyncing",
+  "l6DeliveredToRelayWaitingForPeer2bf3e": "Delivered to relay; waiting for peer confirmation",
+  "l6Idle837e7": "Idle",
+  "l6RetryingSoone5ae3": "Retrying soon",
+  "l6DeleteEmotionAnnotationa51b5": "Delete emotion annotation",
+  "l6DeleteRelationship16bbd": "Delete relationship",
+  "l6NoRelationshipsOrEmotionAnnotationsYetbecb5": "No relationships or emotion annotations yet. People and projects mentioned in conversations or quick capture appear after confirmation or explicit @/# tagging. Emotion annotations are brief text without scores. Deleting an entry preserves the original record.",
+  "l6LastArg0187f4": "Last {arg0}",
+  "@l6LastArg0187f4": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6DeleteThisRelationshipPreserveOriginalRecord6cc81": "Delete this relationship (preserve original record)",
+  "l6EmotionAnnotationsab8ab": "Emotion annotations",
+  "l6AboutThisEventbc042": "About this event",
+  "l6AboutArg0171b0": "About {arg0}",
+  "@l6AboutArg0171b0": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6DeleteThisEmotionAnnotationPreserveOriginal8d148": "Delete this emotion annotation (preserve original record)",
+  "l6OtherDimensionsCommitmentsReflectionPaceBoundaries873e8": "Other dimensions—commitments, reflection, pace, boundaries, health, finances, location, identity and creative work—live on knowledge pages that you can view and edit.",
+  "l6EventRemindersaa957": "Event reminders",
+  "l6ImmediateAndInReviewsd066b": "Immediate and in reviews",
+  "l6ReviewsOnly71ead": "Reviews only",
+  "l6SaveReminderPreferencese0188": "Save reminder preferences",
+  "l6EmotionalCheckIns74925": "Emotional check-ins",
+  "l63Daysb30a9": "3 days",
+  "l67Daysecfe0": "7 days",
+  "l614Days1e982": "14 days",
+  "l630Daysff788": "30 days",
+  "l6SaveRevisitPreferences8123a": "Save revisit preferences",
+  "l6RecordReminderFeedbackcfbf1": "Record reminder feedback",
+  "l6Assessingd7b92": "Assessing",
+  "l6FollowedInConversationa3d02": "Followed in conversation",
+  "l6NotApplicableeec46": "Not applicable",
+  "l6RuleContextsInConversationsEvaluatedSilently95c0c": "Rule contexts in conversations (evaluated silently in the background)",
+  "l6RecentReminderse3fba": "Recent reminders",
+  "l6HelpfulArg0NotRelevantArg18e65c": "Helpful {arg0} · Not relevant {arg1}",
+  "@l6HelpfulArg0NotRelevantArg18e65c": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "l6TriggerConditionsf5c95": "Trigger conditions",
+  "l6TriggerKeywordsCommaSeparatedBlankDisablesdae9a": "Trigger keywords (comma separated; blank disables prefiltering)",
+  "l6ForExampleProjectXDeadlinef216a": "For example: project X, deadline",
+  "l6TriggerContext02570": "Trigger context",
+  "l6AllContexts39fdd": "All contexts",
+  "l6QuickCapturecfe6c": "Quick capture",
+  "l6DailyReview6bea3": "Daily review",
+  "l6SaveTriggerConditions8e04c": "Save trigger conditions",
+  "l6DeleteRulef9ad3": "Delete rule",
+  "l6PersonalRules03b44": "Personal rules",
+  "l6UserModel88c56": "User model",
+  "l6NoRulesYetWhenYouDiscuss96049": "No rules yet. When you discuss lessons or experiences, AI may suggest a rule. Accepted rules appear here and can be consulted in similar situations.",
+  "l6TriggerConditionsConfigureda3704": "Trigger conditions (configured)",
+  "l6ConfigureTriggerConditions168ff": "Configure trigger conditions",
+  "l6PlaceEachSkillFolderWithIts94f37": "Place each skill folder with its SKILL.md in <data directory>/skills. AI loads skills as needed and asks before running scripts. Marking a skill as trusted lets its scripts run without approval. Scripts can perform arbitrary local operations; enable trust only when you understand and accept this behavior.",
+  "l6InstallFromFolder22a87": "Install from folder",
+  "l6InstallFromZip906f1": "Install from ZIP",
+  "l6InstallFromGit0882e": "Install from Git",
+  "l6OpenSkillsFoldera4437": "Open skills folder",
+  "l6SelectedArg0Arg1fd75c": "Selected {arg0} / {arg1}",
+  "@l6SelectedArg0Arg1fd75c": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "l6TotalArg01e668": "Total: {arg0}",
+  "@l6TotalArg01e668": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6ExitSelectione23ed": "Exit selection",
+  "l6DeleteMultiple362ae": "Delete multiple",
+  "l6DeselectAllba20e": "Deselect all",
+  "l6SelectAll3e44b": "Select all",
+  "l6DeleteSelectedArg0def95": "Delete selected ({arg0})",
+  "@l6DeleteSelectedArg0def95": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6LoadingSkills8d716": "Loading skills…",
+  "l6NoUserSkillsInstalledInstallAe8aea": "No user skills installed\nInstall a skill from a folder, ZIP or Git repository",
+  "l6LoadUserSkillsfb79f": "Load user skills",
+  "l6ChooseASkillZipFile0e485": "Choose a skill ZIP file",
+  "l6ChooseASkillFolderContainingSkill8789f": "Choose a skill folder containing SKILL.md",
+  "l6InstallFromZip37d9a": "Install from ZIP",
+  "l6InstallFromFolder71cd7": "Install from folder",
+  "l6InstallASkillFromGitfa921": "Install a skill from Git",
+  "l6RepositoryUrlHttpsOrLocalPath3ae69": "Repository URL (HTTPS or local path)",
+  "l6Install087db": "Install",
+  "l6InstallFromGit6d266": "Install from Git",
+  "l6InstalledArg0EnabledByDefaultdd2c2": "Installed {arg0}; enabled by default",
+  "@l6InstalledArg0EnabledByDefaultdd2c2": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6UninstallSkill053a6": "Uninstall skill",
+  "l6Arg0WillBeRemovedFromThis1a7c6": "{arg0} will be removed from this device and, if synced, other devices.",
+  "@l6Arg0WillBeRemovedFromThis1a7c6": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6Uninstall200cf": "Uninstall",
+  "l6UninstallMultipleSkills13309": "Uninstall multiple skills",
+  "l6SkillsToRemoveArg0SyncedCopiesaa41a": "Skills to remove: {arg0}. Synced copies will also be removed from other devices.",
+  "@l6SkillsToRemoveArg0SyncedCopiesaa41a": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6UninstallSkillArg0a3819": "Uninstall skill {arg0}",
+  "@l6UninstallSkillArg0a3819": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6SkillsUninstalledArg08db74": "Skills uninstalled: {arg0}",
+  "@l6SkillsUninstalledArg08db74": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6SucceededArg0FailedArg1Arg2Arg3a2cde": "Succeeded: {arg0}; failed: {arg1}: {arg2}{arg3}",
+  "@l6SucceededArg0FailedArg1Arg2Arg3a2cde": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "String"
+      },
+      "arg3": {
+        "type": "String"
+      }
+    }
+  },
+  "l6ToggleUserSkill2de88": "Toggle user skill",
+  "l6MarkedAsTrustedThisSkillS1cf36": "Marked as trusted: this skill’s scripts no longer require approval",
+  "l6ChangeTrustSetting7ce93": "Change trust setting",
+  "l6KnowledgeExport26466": "Knowledge export",
+  "l6DatabaseMaintenance60286": "Database maintenance",
+  "l6DailyTokenUsage5a651": "Daily token usage",
+  "l6TrustedNoApproval69302": "Trusted · no approval",
+  "l6RequireApprovalEachTime673dd": "Require approval each time",
+  "l6TrustNoApproval12269": "Trust (no approval)",
+  "l6EnabledAPasswordIsRequiredWhen1aee3": "Enabled: a password is required when the app starts",
+  "l6DisabledTheAppOpensDirectlycbfe4": "Disabled: the app opens directly",
+  "l6SetAnAppPassword72f45": "Set an app password",
+  "l6ChangePassword0ae20": "Change password",
+  "l6TurnOffPassword7f7cb": "Turn off password",
+  "l6OnlyASaltedPasswordHashIsd5644": "Only a salted password hash is stored in this device’s secure storage. It is never uploaded or synced. A forgotten password cannot be recovered; reset requires clearing app data.",
+  "l6FingerprintOrFaceUnlock1b96c": "Fingerprint or face unlock",
+  "l6UseSystemBiometricsForQuickUnlocking22994": "Use system biometrics for quick unlocking. The password remains available as a fallback.",
+  "l6ThisDeviceDoesNotSupportBiometrics40ff0": "This device does not support biometrics or has none enrolled.",
+  "l6EnableFingerprintOrFaceUnlockb2a8f": "Enable fingerprint or face unlock",
+  "l6TheLockScreenWillFirstOffer49b2b": "The lock screen will first offer system biometrics. Confirm with your current app password.",
+  "l6CurrentPassword33abf": "Current password",
+  "l6ConfirmEnable263d4": "Confirm enable",
+  "l6IncorrectCurrentPasswordNotEnabled691f1": "Incorrect current password; not enabled",
+  "l6BiometricUnlockEnablede15eb": "Biometric unlock enabled",
+  "l6BiometricsAreCurrentlyUnavailableNotEnabled78c56": "Biometrics are currently unavailable; not enabled",
+  "l6AppPasswordSeta5390": "App password set",
+  "l6ChangeAppPassword25e9a": "Change app password",
+  "l6AppPasswordChanged0493a": "App password changed",
+  "l6TurnOffAppPassworda80d7": "Turn off app password",
+  "l6TheAppWillNoLongerRequire00cc0": "The app will no longer require a password on startup. Confirm with your current password.",
+  "l6ConfirmDisable059b4": "Confirm disable",
+  "l6AppPasswordTurnedOff9f4c1": "App password turned off",
+  "l6IncorrectCurrentPasswordNotDisabled0660c": "Incorrect current password; not disabled",
+  "l6EnterTheCurrentPassword4b0b0": "Enter the current password",
+  "l6EnterANewPassword689e5": "Enter a new password",
+  "l6TheAppPasswordMustHave41cb25": "The app password must have 4 digits",
+  "l6TheNewPasswordsDoNotMatchd0b9c": "The new passwords do not match",
+  "l6TheCurrentPasswordIsIncorrectb0dab": "The current password is incorrect",
+  "l6CouldNotSaveTryAgainae0b2": "Could not save. Try again.",
+  "l6NewPassword4Digits51018": "New password (4 digits)",
+  "l6ConfirmNewPassworde0327": "Confirm new password",
+  "l6Confirmf526c": "Confirm",
+  "l6ExportKnowledge863fb": "Export knowledge",
+  "l6LoadDatabaseSize69850": "Load database size",
+  "l6OptimizeDatabase12519": "Optimize database",
+  "l6FetchingServicebfb3a": "Fetching service",
+  "l6PostFetchingServiceUpdated1c8a1": "Post fetching service updated",
+  "l6SavePostFetchingService23d23": "Save post fetching service",
+  "l6ChooseASecretReference6a79c": "Choose a secret reference",
+  "l6AddASecretInSecuritySecretb6b03": "Add a secret in Security → Secret management first.",
+  "l6PostFetching22fc8": "Post fetching",
+  "l6WebSearch678ed": "Web search",
+  "l6OutboundProxyabb5e": "Outbound proxy",
+  "l6EncryptedDnsDohc262a": "Encrypted DNS (DoH)",
+  "l6UserSkills748e7": "User skills",
+  "l6McpServersad57a": "MCP servers",
+  "l6ConnectModelContextProtocolServersTo6e5c7": "Connect Model Context Protocol servers to add external tools to conversations. AI calls them as needed. Local stdio servers start as subprocesses using the configured command.",
+  "l6EachToolCallRequiresApprovalBycbb3e": "Each tool call requires approval by default. Trusting a server lets its calls execute directly. MCP servers are third-party code and can perform destructive operations. Enable trust only when you accept that behavior. For read-only queries, the separate exemption applies only to tools marked readOnlyHint; other calls still require approval.",
+  "l6EnabledArg0Arg1d02a1": "Enabled {arg0} / {arg1}",
+  "@l6EnabledArg0Arg1d02a1": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "l6AddServer35085": "Add server",
+  "l6LoadingServers3023e": "Loading servers…",
+  "l6NoMcpServersAddedChooseAddac3f0": "No MCP servers added\nChoose Add server to connect an external tool source",
+  "l6LoadMcpServers1900c": "Load MCP servers",
+  "l6MarkedAsTrustedThisServerS74676": "Marked as trusted: this server’s tool calls no longer require approval",
+  "l6ReadOnlyExemptionEnabledForTools0d43a": "Read-only exemption enabled for tools marked readOnlyHint by the server. Write tools still require approval.",
+  "l6ChangeReadOnlyApprovalExemptione8168": "Change read-only approval exemption",
+  "l6ToggleMcpServer14dd0": "Toggle MCP server",
+  "l6DeleteMultipleServers13274": "Delete multiple servers",
+  "l6ServersToRemoveArg0SyncedCopiesccae5": "Servers to remove: {arg0}. Synced copies will also be removed from other devices.",
+  "@l6ServersToRemoveArg0SyncedCopiesccae5": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6DeleteMcpServerArg0f17d5": "Delete MCP server {arg0}",
+  "@l6DeleteMcpServerArg0f17d5": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6ServersDeletedArg05fc2a": "Servers deleted: {arg0}",
+  "@l6ServersDeletedArg05fc2a": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6SucceededArg0FailedArg1Arg2Arg312d85": "Succeeded: {arg0}; failed: {arg1}: {arg2}{arg3}",
+  "@l6SucceededArg0FailedArg1Arg2Arg312d85": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "String"
+      },
+      "arg3": {
+        "type": "String"
+      }
+    }
+  },
+  "l6DeleteMcpServer34624": "Delete MCP server",
+  "l6AddMcpServerc9d22": "Add MCP server",
+  "l6EditMcpServer4c8df": "Edit MCP server",
+  "l6NameLettersDigitsHyphensOrUnderscores0dc18": "Name (letters, digits, hyphens or underscores)",
+  "l6RelatedIntentKeywordsOptionalb6b1f": "Related intent keywords (optional)",
+  "l6ForExampleProductReviewsRecommendationsSales606d3": "For example: product reviews, recommendations, sales",
+  "l6SeparateKeywordsWithCommasToHelp6c10b": "Separate keywords with commas to help AI select this tool for related tasks (up to 256 characters).",
+  "l6LocalCommandaa556": "Local command",
+  "l6RemoteServer1b481": "Remote server",
+  "l6Commandb114b": "Command",
+  "l6ArgumentsJsonArray5ffa9": "Arguments (JSON array)",
+  "l6InsertASecretReference6edc7": "Insert a secret reference",
+  "l6EnvironmentVariablesJsonObject364cf": "Environment variables (JSON object)",
+  "l6EndpointUrl28548": "Endpoint URL",
+  "l6CustomHeadersJsonObjectAuthenticationEtcd9233": "Custom headers (JSON object, authentication, etc.)",
+  "l6TrustedCallsSkipApproval6254b": "Trusted (calls skip approval)",
+  "l6ToolsFromThisServerExecuteWithoutf61a4": "Tools from this server execute without individual approvals. MCP servers are third-party code; enable this only for servers you trust.",
+  "l6TestConnection10b7d": "Test connection",
+  "l6SaveMcpServer25c8a": "Save MCP server",
+  "l6EnterACommandBeforeTesting41aae": "Enter a command before testing.",
+  "l6EnterAnHttpSEndpointBeforec28cd": "Enter an HTTP(S) endpoint before testing.",
+  "l6ConnectedButTheServerProvidedNod0d33": "Connected, but the server provided no tools",
+  "l6ConnectedArg0Arg1c4ea4": "Connected: {arg0}{arg1}",
+  "@l6ConnectedArg0Arg1c4ea4": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "l6TestMcpConnection1eed1": "Test MCP connection",
+  "l6Remote80194": "Remote",
+  "l6AllPlatforms52e2a": "All platforms",
+  "l6OnlyArg064396": "Only {arg0}",
+  "@l6OnlyArg064396": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6ReadOnlyCallsSkipApproval63678": "Read-only calls skip approval",
+  "l6RelatedIntentsArg0dff5f": "Related intents: {arg0}",
+  "@l6RelatedIntentsArg0dff5f": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6DisableReadOnlyApprovalExemptioned6aa": "Disable read-only approval exemption",
+  "l6EnableReadOnlyApprovalExemption95d1c": "Enable read-only approval exemption",
+  "l6AiAnalysisec6c3": "AI analysis",
+  "l6BranchesArg079379": "Branches: {arg0}",
+  "@l6BranchesArg079379": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6Arg0MinutesAgo6b0c6": "{arg0} minutes ago",
+  "@l6Arg0MinutesAgo6b0c6": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6Arg0HoursAgoaf702": "{arg0} hours ago",
+  "@l6Arg0HoursAgoaf702": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6Arg0DaysAgo70636": "{arg0} days ago",
+  "@l6Arg0DaysAgo70636": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6ReadingSettings9033d": "Reading settings",
+  "l6TheThreeSettingsAreIndependentFollow172b0": "The three settings are independent. Follow global restores inheritance for each setting without changing the others.",
+  "l6Fontb50d4": "Font",
+  "l6InheritGlobal2a499": "Inherit global",
+  "l6OverrideGlobal93d3e": "Override global",
+  "l6FontSize576cc": "Font size",
+  "l6LineSpacing514b5": "Line spacing",
+  "l6ChooseAReadingFont8189e": "Choose a reading font",
+  "l6SetUpAnAiProviderToc8ad4": "Set up an AI Provider to enable AI chat and automatic analysis.",
+  "l6Configurea44df": "Configure",
+  "l6Queuecd354": "Queue",
+  "l6NoRecords09f60": "No records",
+  "l6FailedCoolingDown4a20e": "Failed (cooling down)",
+  "l6RecordedArg085217": "Recorded {arg0}",
+  "@l6RecordedArg085217": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6AttemptsArg0fcc38": "Attempts: {arg0}",
+  "@l6AttemptsArg0fcc38": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6AutomaticallyRequeuedArg0Times3363a": "Automatically requeued {arg0} times",
+  "@l6AutomaticallyRequeuedArg0Times3363a": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6NextAttemptArg0272da": "Next attempt: {arg0}",
+  "@l6NextAttemptArg0272da": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6EventsArg045727": "Events: {arg0}",
+  "@l6EventsArg045727": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6Updated9db0": "Update",
+  "l6NoNewKnowledgeExtractedc38ab": "No new knowledge extracted",
+  "l6DohSettingsSavedeaeea": "DoH settings saved",
+  "l6EnterADohServiceUrlBeforeff97f": "Enter a DoH service URL before testing.",
+  "l6ActivationPolicyfc94d": "Activation policy",
+  "l6DohServiceUrlae8b4": "DoH service URL",
+  "l6OffTheUrlIsSavedButa536d": "Off: the URL is saved but not used. Web search connects directly.",
+  "l6RequiredADohFailureReturnsAnaabc1": "Required: a DoH failure returns an error without falling back to direct access.",
+  "l6AutomaticPreferDohAndEchFallingfc42f": "Automatic: prefer DoH and ECH, falling back to a direct connection on failure.",
+  "l6Testingcf7e9": "Testing",
+  "l6RecordWhatIsHappeningUseName925ca": "Record what is happening… (use @name for contacts and #topic for projects)",
+  "l6ConversationFormat9d903": "Conversation format",
+  "l6HowToRecord2bcbc": "How to record",
+  "l6UseNameToIdentifyAContact6d759": "Use @name to identify a contact and #topic for a project, task or topic.\n\nFor example: @Alex is handling #payment-flow.\n\n“Remember this” saves an experience or update.\n“Save to knowledge base” keeps a conclusion.\n“Create a to-do” drafts a follow-up.\n\nRelationships, knowledge pages, to-dos and rules are shown as drafts first. Open Review proposals and accept or reject the specific draft. Ordinary chat replies do not execute drafts.",
+  "l6Arg0Revoked9671e": "{arg0} (revoked)",
+  "@l6Arg0Revoked9671e": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6DeviceArg0WillImmediatelyLoseSyncadbd3": "Device “{arg0}” will immediately lose sync access.\n\nKeys already held by the device are not removed. Revoke or rotate them in the Provider console. Remaining devices will receive the new version.",
+  "@l6DeviceArg0WillImmediatelyLoseSyncadbd3": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6ChangesFromArg0710df": "Changes from {arg0}",
+  "@l6ChangesFromArg0710df": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6RenamedFromArg0e3178": "Renamed from “{arg0}”",
+  "@l6RenamedFromArg0e3178": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6ContentLengthArg0CharactersUpdatedArg1f8788": "Content length: {arg0} characters · Updated {arg1}",
+  "@l6ContentLengthArg0CharactersUpdatedArg1f8788": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "l6ConditionsArg006edc": "Conditions: {arg0}",
+  "@l6ConditionsArg006edc": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6WebSearchSettingsSaved30dee": "Web search settings saved",
+  "l6SearchEnginee5837": "Search engine",
+  "l6SearxngInstanceUrla3267": "SearxNG instance URL",
+  "l6ApiUrlacd8a": "API URL",
+  "l6HttpLocalhost8080OrYourSearxngba754": "http://localhost:8080 or your SearxNG URL",
+  "l6SearxngIsSelfHostedMetasearchNoe6c57": "SearxNG is self-hosted metasearch. No API key is needed. Enable JSON output on your instance.",
+  "l6EnableWebSearch9ee9a": "Enable web search",
+  "l6AllowAiToSearchTheWeb1ea6a": "Allow AI to search the web for current information and news.",
+  "l6TvlyFreeAllowanceAtTavilyCom279ec": "tvly-... (free allowance at tavily.com)",
+  "l6BsaApplyAtBraveComSearch6c59c": "BSA... (apply at brave.com/search/api)",
+  "l6ConfiguredEnterAValueToReplace1d9d7": "Configured (enter a value to replace; leave blank to keep)",
+  "l6ProxySettingsSavedOutboundRequestsUseac39b": "Proxy settings saved; outbound requests use them immediately",
+  "l6EnterAProxyUrlBeforeTesting89cfb": "Enter a proxy URL before testing.",
+  "l6UseHttpsProxyOrAllProxy33ed0": "Use HTTPS_PROXY or ALL_PROXY from the environment; connect directly if unset",
+  "l6ConfigureAProxyea2d0": "Configure a proxy",
+  "l6UseTheUrlBelowInsteadOf96914": "Use the URL below instead of environment variables. The DoH tunnel yields while the proxy is active.",
+  "l6NoProxy4f187": "No proxy",
+  "l6ConnectDirectlyIgnoringProxyEnvironmentVariablesa4dbf": "Connect directly, ignoring proxy environment variables",
+  "l6Http1270017890a9d59": "http://127.0.0.1:7890 or socks5://…",
+  "l6SelectAnEventToViewItsd5e60": "Select an event to view its details",
+  "l6EventDoesNotExistf5542": "Event does not exist",
+  "l6EventRecordsbabe0": "Event records",
+  "l6RecordedAt650b3": "Recorded at",
+  "l6NoAnalysisYetPendingOrNo90172": "No analysis yet (pending or no analyzer configured).",
+  "l6AnalysisSummary83a0f": "Analysis summary",
+  "l6Peopleb755b": "People",
+  "l6NoRelatedRuleReminders24596": "No related rule reminders",
+  "l6CouldNotLoadEvent7ba1f": "Could not load event",
+  "l6ConversationsWithAiAreRecordedAs6eb67": "Conversations with AI are recorded as events for reviews and knowledge processing.",
+  "l6TodaySRecordse0105": "Today’s records",
+  "l6Last7Days2a0a0": "Last 7 days",
+  "l6NoEventsRecordedYetConversationsWithb4ac9": "No events recorded yet\nConversations with AI are recorded here automatically",
+  "l6NoRecentlyRecordedEventsf0c62": "No recently recorded events",
+  "l6TryAgainLaterb8e0d": "Try again later",
+  "l6Arg0CompletedArg1Items30653": "{arg0} completed · {arg1} items",
+  "@l6Arg0CompletedArg1Items30653": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "l6AutomaticRetryArg06d99e": "Automatic retry: {arg0}",
+  "@l6AutomaticRetryArg06d99e": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6Arg0FromThisPageSSource92ed3": "{arg0} · From this page’s source material",
+  "@l6Arg0FromThisPageSSource92ed3": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6AcceptChangesArg0a09f4": "Accept changes {arg0}",
+  "@l6AcceptChangesArg0a09f4": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6RemoveThisParagraphe26cb": "Remove this paragraph",
+  "l6HistoricalSnapshotsArg0cbbd3": "Historical snapshots: {arg0}",
+  "@l6HistoricalSnapshotsArg0cbbd3": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6LatestArg0Arg1aa89a": "Latest: {arg0} · {arg1}",
+  "@l6LatestArg0Arg1aa89a": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "l6DeviceNameArg0a02e4": "Device name: {arg0}",
+  "@l6DeviceNameArg0a02e4": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6RoleArg0f3803": "Role: {arg0}",
+  "@l6RoleArg0f3803": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6NoRelayConfiguredSetItWhenfc098": "No relay configured (set it when inviting the first device)",
+  "l6StartANewChapterHereEarliere67c8": "Start a new chapter here; earlier history moves into a chapter summary",
+  "l6ThisChapterMarkerNoLongerExistsec974": "This chapter marker no longer exists; it may have been undone.",
+  "l6NewChapterSummarycf20d": "New chapter · Summary",
+  "l6GeneratingChapterSummary277ba": "Generating chapter summary…",
+  "l6DiscardChanges1cead": "Discard changes",
+  "l6ConfirmNewChapter12069": "Confirm new chapter",
+  "l6RemoveThisEntry52142": "Remove this entry",
+  "l6AddArg03e9a8": "Add {arg0}",
+  "@l6AddArg03e9a8": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6AfterStartingANewChapterThis0bfa3": "After starting a new chapter, this summary replaces the earlier text in requests. AI can reread original messages for exact values or quotations. Edit or remove entries before confirming.",
+  "l6NoChapterHistoryInThisConversation36eaa": "No chapter history in this conversation yet",
+  "l6Day15917": "Day",
+  "l6Week451b8": "Week",
+  "l6Monthd9b59": "Month",
+  "l6PreviousDaydede7": "Previous day",
+  "l6NextDaya4161": "Next day",
+  "l6CouldNotLoadReview55475": "Could not load review",
+  "l6AiReviewbb899": "AI review",
+  "l6NoAiReviewForThisDay286ea": "No AI review for this day yet",
+  "l6EventsForThisDayfbec1": "Events for this day",
+  "l6NoEventsRecordedOnThisDay6a37a": "No events recorded on this day",
+  "l6ThisDayLastWeekfc29d": "This day last week",
+  "l6EarlierReviewsArg0f4cc0": "Earlier reviews ({arg0})",
+  "@l6EarlierReviewsArg0f4cc0": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6PeriodReviewArg0ToArg1Arg269c4d": "Period review · {arg0} to {arg1}{arg2}",
+  "@l6PeriodReviewArg0ToArg1Arg269c4d": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "String"
+      }
+    }
+  },
+  "l6Events550e3": "Events",
+  "l6ToDosCompletede1bfa": "To-dos completed",
+  "l6DeviationChecksPending648aa": "Deviation checks pending",
+  "l6NoDeviationsToReport28ee2": "No deviations to report",
+  "l6MomentsThatDivergedFromYourGoals39f82": "Moments that diverged from your goals—observations without judgment:",
+  "l6Arg0Dismissede66fc": "{arg0} · Dismissed",
+  "@l6Arg0Dismissede66fc": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6GoalArg06fb2b": "Goal: {arg0}",
+  "@l6GoalArg06fb2b": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6CouldNotLoadStatistics88ae7": "Could not load statistics",
+  "l6NoRecordsThisWeeka75a5": "No records this week",
+  "l6NoRecordsThisMonthd57d9": "No records this month",
+  "l6EventTypes40b68": "Event types",
+  "l6Activitiesb2548": "Activities",
+  "l6KnowledgeProcessingArg0ActivePagesArg179c73": "Knowledge processing · {arg0} active pages{arg1}{arg2} · {arg3} summaries in 30 days{arg4}",
+  "@l6KnowledgeProcessingArg0ActivePagesArg179c73": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "String"
+      },
+      "arg3": {
+        "type": "String"
+      },
+      "arg4": {
+        "type": "String"
+      }
+    }
+  },
+  "l6KnowledgeProcessingHealthLast30Days3bf5c": "Knowledge processing health (last 30 days)",
+  "l6Compilation8669e": "Compilation",
+  "l6PendingProposalsArg030DaysAcceptedf2e76": "Pending proposals {arg0} (30 days: accepted {arg1}, rejected {arg2}) · Failed background jobs {arg3}/{arg4}",
+  "@l6PendingProposalsArg030DaysAcceptedf2e76": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "String"
+      },
+      "arg3": {
+        "type": "String"
+      },
+      "arg4": {
+        "type": "String"
+      }
+    }
+  },
+  "l6Librarydfd6b": "Library",
+  "l6ActiveArg0ArchivedArg1NoSummaryb4539": "Active {arg0} · Archived {arg1} · No summary {arg2} · Stale {arg3} · Never shown {arg4}",
+  "@l6ActiveArg0ArchivedArg1NoSummaryb4539": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "String"
+      },
+      "arg3": {
+        "type": "String"
+      },
+      "arg4": {
+        "type": "String"
+      }
+    }
+  },
+  "l6Delivery412a9": "Delivery",
+  "l6AttachedArg0TimesArg1PagesUsageabc07": "Attached {arg0} times ({arg1} pages) · Usage records {arg2} · Cited pages {arg3}",
+  "@l6AttachedArg0TimesArg1PagesUsageabc07": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "String"
+      },
+      "arg3": {
+        "type": "String"
+      }
+    }
+  },
+  "l6Retrieval1c037": "Retrieval",
+  "l6AiSearchesArg0PageReadsArg15216f": "AI searches {arg0} · Page reads {arg1}",
+  "@l6AiSearchesArg0PageReadsArg15216f": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "l6SummaryPipeline00b38": "Summary pipeline",
+  "l6CompletedArg0UnavailableArg1Arg2ee56d": "Completed {arg0} · Unavailable {arg1}{arg2}",
+  "@l6CompletedArg0UnavailableArg1Arg2ee56d": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "String"
+      }
+    }
+  },
+  "l6SourceReviewGate877bd": "Source review gate",
+  "l6SourcesAwaitingADecisionArg0Rejected9c019": "Sources awaiting a decision {arg0} · Rejected sources {arg1}",
+  "@l6SourcesAwaitingADecisionArg0Rejected9c019": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "l6SummaryPreparationHistoryProcessedInBackground2648e": "Summary preparation history (processed in background batches)",
+  "l6NoPreparationHistoryYetBackgroundBatchescc092": "No preparation history yet. Background batches prepare large summary trees as needed.",
+  "l6LoadingHandoffStatus19264": "Loading handoff status…",
+  "l6TransferAiAnalysisResponsibilityToArg05bc00": "Transfer AI analysis responsibility to “{arg0}” ({arg1}).\n\nThis device stops claiming background tasks immediately. The target starts after syncing to the handoff boundary and explicitly accepting. This device cannot resume unilaterally.",
+  "@l6TransferAiAnalysisResponsibilityToArg05bc00": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "l6EnrollmentUsesASeparateStagingDatabase0ddf7": "Enrollment uses a separate staging database without overwriting current records or Providers. After approval and installation, the channel, roster and initial snapshot are coordinated automatically. The active dataset stays selected.",
+  "l6UsingKey99422": "Using Key",
+  "l6InvitingDeviceArg0d440c": "Inviting device: {arg0}",
+  "@l6InvitingDeviceArg0d440c": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6DatasetArg085f96": "Dataset: {arg0}",
+  "@l6DatasetArg085f96": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6InvitationExpiresArg0abd8a": "Invitation expires: {arg0}",
+  "@l6InvitationExpiresArg0abd8a": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6DatasetArg0OnlyApprovedCheckpointsCand6435": "Dataset: {arg0}\nOnly approved checkpoints can be resumed. Unapproved enrollment needs a new invitation after restart.",
+  "@l6DatasetArg0OnlyApprovedCheckpointsCand6435": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6StagedDataAndDeviceKeysFor0f456": "Staged data and device keys for “{arg0}” will be permanently deleted. Joining later requires scanning a new invitation and obtaining approval.",
+  "@l6StagedDataAndDeviceKeysFor0f456": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6ThisDeviceArg0Arg1ab420": "This device: {arg0} · {arg1}",
+  "@l6ThisDeviceArg0Arg1ab420": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "l6ThisDeviceSSyncIdentityIs46884": "This device’s sync identity is incomplete, which can follow interrupted pairing, power loss or restoring a backup. Clear the identity and pair again. Notes, conversations and knowledge are preserved.",
+  "l6SyncOperationsAwaitingConfirmationArg0224a8": "Sync operations awaiting confirmation: {arg0}",
+  "@l6SyncOperationsAwaitingConfirmationArg0224a8": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6DeviceArg0d7706": "Device: {arg0}",
+  "@l6DeviceArg0d7706": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6PlatformArg0e4ee7": "Platform: {arg0}",
+  "@l6PlatformArg0e4ee7": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6ExpiresArg0a7daf": "Expires: {arg0}",
+  "@l6ExpiresArg0a7daf": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6AwaitingReviewArg0Arg17fa78": "Awaiting review: {arg0} ({arg1})",
+  "@l6AwaitingReviewArg0Arg17fa78": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "l6RevisionFromArg0beef3": "Revision from {arg0}",
+  "@l6RevisionFromArg0beef3": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6AddressHintArg03f1aa": "Address hint: {arg0}",
+  "@l6AddressHintArg03f1aa": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6LastSyncUploadedArg0ReceivedArg120f78": "Last sync: uploaded {arg0} · received {arg1}{arg2}{arg3}{arg4}{arg5}",
+  "@l6LastSyncUploadedArg0ReceivedArg120f78": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "String"
+      },
+      "arg3": {
+        "type": "String"
+      },
+      "arg4": {
+        "type": "String"
+      },
+      "arg5": {
+        "type": "String"
+      }
+    }
+  },
+  "l6Sendingd948e": "Sending",
+  "l6RetryingLaterArg0baf89": "Retrying later: {arg0}",
+  "@l6RetryingLaterArg0baf89": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6UnknownStateArg0c8bbc": "Unknown state: {arg0}",
+  "@l6UnknownStateArg0c8bbc": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6RetryInArg0Secondsccd79": "Retry in {arg0} seconds",
+  "@l6RetryInArg0Secondsccd79": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6RetryInArg0Minutesef5e1": "Retry in {arg0} minutes",
+  "@l6RetryInArg0Minutesef5e1": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6DeliveryArg0QueuedArg1AwaitingConfirmationa5864": "Delivery {arg0} (queued {arg1} · awaiting confirmation {arg2}): {arg3}",
+  "@l6DeliveryArg0QueuedArg1AwaitingConfirmationa5864": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "String"
+      },
+      "arg3": {
+        "type": "String"
+      }
+    }
+  },
+  "l6PeerHasNotConfirmedArg0Itemsc4ccb": "Peer has not confirmed {arg0} items · {arg1}",
+  "@l6PeerHasNotConfirmedArg0Itemsc4ccb": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "l6EnterTheTargetDeviceIdb0da4": "Enter the target device ID.",
+  "l6ThisDeviceIsNotTheProcessor82939": "This device is not the processor; no handoff is needed.",
+  "l6OnlyTheDatasetOwnerCanApprovec5d36": "Only the dataset owner can approve handoff proof.",
+  "l6WaitForThisDeviceSActive1e382": "Wait for this device’s active background jobs to finish before transferring AI analysis.",
+  "l6WaitForSyncToReachThe58a6b": "Wait for sync to reach the handoff boundary before accepting responsibility.",
+  "l6NoProcessorHandoffAwaitsThisDevice12c2e": "No processor handoff awaits this device’s acceptance.",
+  "l6TheHandoffProofSignatureIsInvalid82d09": "The handoff proof signature is invalid; it may have been altered.",
+  "l6HandoffProofInformationIsOutsideIts3c0a0": "Handoff proof information is outside its valid range.",
+  "l6TheProofDoesNotMatchThe90664": "The proof does not match the current roster version. Start the handoff again on the original processor.",
+  "l6TheProofDoesNotMatchThe7ec43": "The proof does not match the current processor. Start the handoff again there.",
+  "l6TheTargetIsNotAnActivea00bf": "The target is not an active roster member.",
+  "l6TheOriginalProcessorIsNoLongerd44b7": "The original processor is no longer in the roster; this proof cannot be approved.",
+  "l6TheHandoffProofBelongsToA7b34b": "The handoff proof belongs to a different dataset.",
+  "l6AiAnalysisCannotBeTransferredTod5ffa": "AI analysis cannot be transferred to the same device.",
+  "l6TheHandoffProofDoesNotMatch31e8f": "The handoff proof does not match this device’s state.",
+  "l6HandoffProofIsMissingTheDevice668d5": "Handoff proof is missing; the device change cannot be applied.",
+  "l6TheProofSSourceDoesNot02b44": "The proof’s source does not match this device’s state.",
+  "l6TheHandoffProofHasNoSource9502a": "The handoff proof has no source device.",
+  "l6TheHandoffProofTargetsADifferent2a815": "The handoff proof targets a different device.",
+  "l6ProcessorHandoffProofIsMissingThis0e9df": "Processor handoff proof is missing; this device cannot accept the change.",
+  "l6TheRosterIncludesHandoffProofWithout363f4": "The roster includes handoff proof without changing the processor.",
+  "l6UnlockThisDeviceSSyncKeyse19a6": "Unlock this device’s sync keys before continuing.",
+  "l6ThisDeviceSSyncIdentityIs5c640": "This device’s sync identity is not ready.",
+  "l6TransferThisDeviceSAiAnalysis9e01d": "Transfer this device’s AI analysis responsibility before revoking access.",
+  "l6AnotherDeviceUpdatedTheRosterRefreshb7381": "Another device updated the roster. Refresh and review the revocation again.",
+  "l6OnlyTheDatasetOwnerCanRevoke2ce42": "Only the dataset owner can revoke a member.",
+  "l6ThisDeviceSAccessHasAlreadyb76c9": "This device’s access has already been revoked.",
+  "l6ThisDeviceIsNotInThe3f9c7": "This device is not in the roster.",
+  "l6InvalidRosterRevisione21c2": "Invalid roster revision.",
+  "l6TheRosterHasReachedItsMemberee48e": "The roster has reached its member limit.",
+  "l6DeviceIdentitiesConflictInTheRosterea7bc": "Device identities conflict in the roster (duplicate key or stream).",
+  "l6TheLocalPageChangedRefreshAnd4e980": "The local page changed. Refresh and review again.",
+  "l6ChannelAuthorizationOrRevisionChangedAutomatic779c0": "Channel authorization or revision changed; automatic handoff stopped. Check the original device and relay permissions. New revisions will not overwrite authorization.",
+  "l6TheHandoffRevisionOrIdentityCould284a1": "The handoff revision or identity could not be confirmed. Unlock this device or resume the original staging entry. Keys will not be reset.",
+  "l6TheRevisionAndReleaseOfThebd873": "The revision and release of the local session are unconfirmed. Preserve the data, restart the app, then resume.",
+  "l6TheHandoffStepIsIncompleteThe70ae7": "The handoff step is incomplete. The original request will be retried without new approval or keys.",
+  "l6Arg0Secondse612a": "{arg0} seconds",
+  "@l6Arg0Secondse612a": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6Arg0Milliseconds5f522": "{arg0} milliseconds",
+  "@l6Arg0Milliseconds5f522": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6TheSyncStepDidNotRespond28e88": "The sync step did not respond within {arg0}. It has been queued for retry; data is preserved.",
+  "@l6TheSyncStepDidNotRespond28e88": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6TheApprovedHandoffIsBeingCoordinated7e9e2": "The approved handoff is being coordinated. Initial snapshot, receipts and dataset switching are separate stages.",
+  "l6TheNativeHandoffRevisionCouldNot775d0": "The native handoff revision could not be confirmed. The local session stopped. Unlock and resume the original staging entry instead of joining again.",
+  "l6PreviewDidNotConnectToThed4c19": "Preview did not connect to the relay. Verify the invitation’s source, address and device fingerprint.",
+  "l6EnterADeviceNameAndExplicitly802c8": "Enter a device name and explicitly agree to connect to this relay and receive Provider settings and API keys.",
+  "l6JoinRequestDeliveredVerifyThisDevice8e98f": "Join request delivered. Verify this device’s fingerprint on an existing device and explicitly approve it.",
+  "l6NoUnfinishedEnrollmentStagingEntriesaa853": "No unfinished enrollment staging entries.",
+  "l6RecoveryReadsTheOriginalInstallationS770c9": "Recovery reads the original installation’s keys without creating replacements.",
+  "l6StagingEntryDeletedButKeyCleanup3ce20": "Staging entry deleted, but key cleanup failed. Check device key health later.",
+  "l6StagingEntryArg0Deleted0f067": "Staging entry “{arg0}” deleted.",
+  "@l6StagingEntryArg0Deleted0f067": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6OriginalInstallationProofResentWaitingForee8e7": "Original installation proof resent. Waiting for authorization and initial sync; no new approval or keys were created.",
+  "l6OriginalRequestResentWaitingForExplicitb70c0": "Original request resent. Waiting for explicit approval on an existing device.",
+  "l6InstallationProofDeliveredWaitingForAuthorization69cc4": "Installation proof delivered. Waiting for authorization and initial sync. The active dataset has not changed.",
+  "l6NoUsableApprovalYetVerifyAnd0b6c4": "No usable approval yet. Verify and approve on an existing device.",
+  "l6TheSameInstallationProofWasResent1abc4": "The same installation proof was resent. Delivery does not mean enrollment or sync is complete.",
+  "l6EnrollmentStoppedStagedDataAndKeys9b648": "Enrollment stopped. Staged data and keys are preserved. Temporary delivery permission will expire. Sent requests or already approved membership are not revoked.",
+  "l6DeviceKeysOrProtectedRevisionsAre5de96": "Device keys or protected revisions are missing. Recovery stopped; replacement keys will not be generated.",
+  "l6ProtectedRevisionsRolledBackEnrollmentStoppedd7e35": "Protected revisions rolled back. Enrollment stopped; original and staged data are preserved.",
+  "l6DeviceKeyRecordsAreDamagedEnrollment76c86": "Device key records are damaged. Enrollment stopped without overwriting keys.",
+  "l6SecureKeyStorageCouldNotSave6f761": "Secure key storage could not save or read back safely. Enrollment stopped. Unlock the key store and resume the staging entry.",
+  "l6ThisWorkspaceHasAnActiveSync69142": "This workspace has an active sync session or background jobs. Finish them or lock current sync before joining.",
+  "l6TheInvitationExpiredOrHasNo6c654": "The invitation expired or has no approved checkpoint to resume. Stop this enrollment and request a new invitation. Existing data is preserved.",
+  "l6TheRelayStepIsUnconfirmedCheck92aea": "The relay step is unconfirmed. Check approval or resend the original request or proof; do not generate new keys.",
+  "l6EnrollmentIsIncompleteAndHasStopped1c448": "Enrollment is incomplete and has stopped. Check the original invitation, unlock state and staging entry. The active dataset has not changed.",
+  "l6ConfirmThatTheJoiningDeviceMay8297c": "Confirm that the joining device may receive all Provider settings and API keys.",
+  "l6TheInvitationIsValidFor245be17": "The invitation is valid for 24 hours. A scanned join request appears here automatically. Verify the device and fingerprint, then approve.",
+  "l6NoJoinRequestReceivedYet10542": "No join request received yet.",
+  "l6VerifyTheDeviceAndFingerprintBefore5e3e6": "Verify the device and fingerprint before explicitly approving.",
+  "l6ExplicitlyConfirmSharingProviderApiKeysd0cdd": "Explicitly confirm sharing Provider API keys with this device.",
+  "l6ApprovalDeliveredWaitingForInstallationConfirmation8b0b8": "Approval delivered; waiting for installation confirmation. Enrollment and sync are not yet complete.",
+  "l6ApprovalDeliveredWaitingForInstallationConfirmation9b218": "Approval delivered; waiting for installation confirmation.",
+  "l6InvitationCanceled35e1b": "Invitation canceled.",
+  "l6ApprovalDeliveredWaitingForTheNew361e9": "Approval delivered; waiting for the new device to confirm installation.",
+  "l6TheInvitationOrReviewVersionExpireda53ec": "The invitation or review version expired. Create a new invitation and verify the device again.",
+  "l6TheInvitationWasCanceledLocallyRelay360d8": "The invitation was canceled locally; relay revocation is unconfirmed. Temporary sending permission expires with the invitation.",
+  "l6ApprovalIsSavedButHasNot99508": "Approval is saved but has not reached the new device because the network or relay is unavailable. Delivery retries automatically; no new approval is needed.",
+  "l6BackgroundSyncIsUsingTheRuntime0a21c": "Background sync is using the runtime. This pairing write did not execute. Try again shortly. No new device was authorized automatically.",
+  "l6PairingIsIncompleteCheckDeviceUnlock85108": "Pairing is incomplete. Check device unlock state and relay address. No new device was authorized automatically.",
+  "l6UnlockThisDeviceSSyncKeysfc734": "Unlock this device’s sync keys before reviewing conflicts.",
+  "l6LocalSettingsChangedReviewTheUpdated3cd59": "Local settings changed. Review the updated list below.",
+  "l6TheConflictChangedReviewTheUpdated936b5": "The conflict changed. Review the updated list below.",
+  "l6CouldNotReadDeviceSyncState278eb": "Could not read device sync state. Existing records are preserved.",
+  "l6DeviceSyncIsNotReady3fc30": "Device sync is not ready.",
+  "l6DeviceNamesMustContain12561d9b2": "Device names must contain 1–256 characters.",
+  "l6AnotherOperationUpdatedTheStateRefresh39e75": "Another operation updated the state. Refresh and try again.",
+  "l6UnlockDeviceKeysBeforeRenaming10735": "Unlock device keys before renaming.",
+  "l6TheDeviceNameContainsInvalidCharacters438ed": "The device name contains invalid characters. Choose another name.",
+  "l6EnterADeviceNameAndConfirm02f54": "Enter a device name and confirm that pairing shares Provider API keys.",
+  "l6StopEnrollmentBeforePreparingOrUnlocking4420c": "Stop enrollment before preparing or unlocking the current dataset.",
+  "l6LockingIsUnconfirmedTryAgainKeys6bf44": "Locking is unconfirmed. Try again; keys will not be regenerated.",
+  "l6DeviceKeysOrProtectedRevisionsAre845e9": "Device keys or protected revisions are missing. Recover through the original device; replacement keys will not be generated.",
+  "l6KeyRevisionsRolledBackUnlockingStoppedc58f3": "Key revisions rolled back. Unlocking stopped. Check the restored data; original records are preserved.",
+  "l6SystemKeyRecordsAreDamagedUnlocking23c95": "System key records are damaged. Unlocking stopped without overwriting data or keys.",
+  "l6TheSystemKeyStoreIsUnavailable8d23d": "The system key store is unavailable or locked. Unlock it and retry. You can still save local records.",
+  "l6AnotherWindowOrBackgroundTaskIs610c2": "Another window or background task is using this workspace. Wait for it to finish, then retry.",
+  "l6BackgroundJobsAreStillRunningPrepare56569": "Background jobs are still running. Prepare sync after they finish. Processor ownership has not changed.",
+  "l6TheDeviceSyncIdentityNeedsRecoveryd2a55": "The device sync identity needs recovery. Automatic initialization stopped. Preserve the original database and rejoin through an authorized device.",
+  "l6SyncPreparationDidNotFinishAnd1c512": "Sync preparation did not finish and remains locked. Try again; original records are preserved.",
+  "l6AndMore93ac7": " and more",
+  "l6SupportedServiceFxtwitterConvertsXCom0989a": "Supported service: fxTwitter converts x.com links into full articles.\nEndpoint: https://api.fxtwitter.com/status/<post-id>",
+  "l6AndArg0MoreTools52a1a": " and {arg0} more tools",
+  "@l6AndArg0MoreTools52a1a": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6Arg0YouRecordedArg1Arg2Ac3209": "{arg0}you recorded: “{arg1}”{arg2} — a moment to remember.",
+  "@l6Arg0YouRecordedArg1Arg2Ac3209": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "String"
+      }
+    }
+  },
+  "l6SupplyYourOwnEndpointNoneIsd855e": "Supply your own endpoint; none is built in. Web searches use DoH+ECH to reach services affected by DNS or SNI blocking (such as x.com). This applies only to web search.{arg0}",
+  "@l6SupplyYourOwnEndpointNoneIsd855e": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6Check40ffb": "Check",
+  "l6LoadingDevices5c6b5": "Loading devices…",
+  "l6Arg0ProposalArg1PagesArg2Pages2ee4f": "{arg0}proposal · {arg1} pages → {arg2} pages",
+  "@l6Arg0ProposalArg1PagesArg2Pages2ee4f": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "String"
+      }
+    }
+  },
+  "l6SourcesArg0EventsArg10f288": "Sources: {arg0} · Events: {arg1}",
+  "@l6SourcesArg0EventsArg10f288": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "l6SwitchedToArg0QuitAndReopenc2285": "Switched to “{arg0}”. Quit and reopen the app to load its synced data.",
+  "@l6SwitchedToArg0QuitAndReopenc2285": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6JoinedDatasetArg0ItsDataIs7a081": "Joined dataset “{arg0}”. Its data is not yet loaded in this window.",
+  "@l6JoinedDatasetArg0ItsDataIs7a081": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6DatasetsReadyToOpenArg0c5aa4": "Datasets ready to open: {arg0}",
+  "@l6DatasetsReadyToOpenArg0c5aa4": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6DevicesOnlineArg0Arg1c5eda": "Devices online: {arg0}/{arg1}",
+  "@l6DevicesOnlineArg0Arg1c5eda": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "l6HeartbeatHealthyPendingArg05c133": "Heartbeat healthy · Pending: {arg0}",
+  "@l6HeartbeatHealthyPendingArg05c133": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6FollowUpSuggestions99ccc": "Follow-up suggestions",
+  "l6Guidance79851": "Guidance",
+  "l6RelatedRuleRemindersArg05615f": "Related rule reminders ({arg0})",
+  "@l6RelatedRuleRemindersArg05615f": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6AwaitingAnalysis605dc": "Awaiting analysis",
+  "l6RecordedAwaitingAnalysis8e5e7": "Recorded; awaiting analysis",
+  "l6CurrentRevisionArg0beb34": "Current revision: {arg0}",
+  "@l6CurrentRevisionArg0beb34": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6ResolvedWithALinkedPagef44a7": "Resolved with a linked page",
+  "l6Dismissedbd172": "Dismissed",
+  "l6OriginalSuggestiondb86c": "Original suggestion",
+  "l6OpenLinkedKnowledgePage88f20": "Open linked knowledge page",
+  "l6LoadProcessingQueue079ca": "Load processing queue",
+  "l6TotalArg0PendingArg1RunningArg2a5909": "Total: {arg0} · Pending: {arg1} · Running: {arg2} · Waiting: {arg3} · Retry: {arg4} · Skipped: {arg5} · Completed: {arg6}",
+  "@l6TotalArg0PendingArg1RunningArg2a5909": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "String"
+      },
+      "arg3": {
+        "type": "String"
+      },
+      "arg4": {
+        "type": "String"
+      },
+      "arg5": {
+        "type": "String"
+      },
+      "arg6": {
+        "type": "String"
+      }
+    }
+  },
+  "l6RefreshListbd82e": "Refresh list",
+  "l6FullDocumentReadingc1da8": "Full-document reading",
+  "l6SourceProcessingfbebb": "Source processing",
+  "l6CrossSourceProcessing5240c": "Cross-source processing",
+  "l6KnowledgeReview4f5bb": "Knowledge review",
+  "l6SourceRefresh65f83": "Source refresh",
+  "l6ScheduledArg020b73": "\nScheduled: {arg0}",
+  "@l6ScheduledArg020b73": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6LastProcessedArg0NewEvidenceArg124fb9": "Last processed: {arg0} · New evidence: {arg1}",
+  "@l6LastProcessedArg0NewEvidenceArg124fb9": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "l6RecentProcessingAndInsights23cc8": "Recent processing and insights",
+  "l6LoadInsights25b9e": "Load insights",
+  "l6CheckedAutomaticallyInTheBackgroundAs34c09": "Checked automatically in the background as events accumulate.",
+  "l6SourceUpdateCheckc6668": "Source update check",
+  "l6TopicProcessingAndChecks872c6": "Topic processing and checks",
+  "l6LoadSourceEventsaaf09": "Load source events",
+  "l6LoadKnowledgeOutputs54f00": "Load knowledge outputs",
+  "l6CrossSourceTopicIncludesThisPageae2b4": "Cross-source topic · Includes this page and related sources",
+  "l6AwaitingReview28cc1": "Awaiting review",
+  "l6ConfirmAndSave706df": "Confirm and save",
+  "l6ReferenceKnowledgeSaved962eb": "Reference knowledge saved",
+  "l6RecordAnOpinionb7461": "Record an opinion",
+  "l6LoadSourcesAndRevisionsd1d70": "Load sources and revisions",
+  "l6UnnamedDevice008d5": "Unnamed device",
+  "l6Memberc1ee9": "Member",
+  "l6RuleReminders79233": "Rule reminders",
+  "l6Latest9d501": "(latest)",
+  "l6IncubatingArg07051b": " · Incubating: {arg0}",
+  "@l6IncubatingArg07051b": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6RejectedArg02115d": " · Rejected: {arg0}",
+  "@l6RejectedArg02115d": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6Arg0Unavailable85bdd": " {arg0} unavailable",
+  "@l6Arg0Unavailable85bdd": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6UnlockToVerifycd78c": "Unlock to verify",
+  "l6WaitingForDependenciesArg08ff9b": " · Waiting for dependencies: {arg0}",
+  "@l6WaitingForDependenciesArg08ff9b": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6RosterResentdba01": " · Roster resent",
+  "l6VersionMismatchesArg02d8cc": " · Version mismatches: {arg0}",
+  "@l6VersionMismatchesArg02d8cc": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6ReceiptFailedf7d93": " · Receipt failed",
+  "l6OffDirectConnection371c7": "Off (direct connection)",
+  "l6AutomaticPreferDohFallBackTo02ddb": "Automatic (prefer DoH, fall back to direct)",
+  "l6RequiredDohOnly763c2": "Required (DoH only)",
+  "l6HostedSearchOptimizedForAiWith46b67": "Hosted search optimized for AI, with a free allowance",
+  "l6HostedSearchWithAnIndependentPrivacy51ea0": "Hosted search with an independent, privacy-focused index",
+  "l6SelfHostedMetasearchNoApiKey0926f": "Self-hosted metasearch; no API key required",
+  "l6Factsb27b7": "Facts",
+  "l6Decisions13750": "Decisions",
+  "l6Unfinishedb61b0": "Unfinished",
+  "l6IdeasAndDecisionsa2d17": "Ideas and decisions",
+  "l6PeopleAndProjectse73dc": "People and projects",
+  "l6FollowUps068c6": "Follow-ups",
+  "l6Helpful2f55f": "Helpful",
+  "l6NotRelevanta8361": "Not relevant",
+  "l6ContentContainingProtocolMarkersIsHidden50ad8": "Content containing protocol markers is hidden from progress. See the original record.",
+  "l6Excerptfba71": "… (excerpt)",
+  "l6ThisStepFailedCheckTheFinal1ac2e": "This step failed. Check the final status and review receipt; it will not run again automatically.",
+  "l6NoCompletionReceiptCouldBeVerifiede00f1": "No completion receipt could be verified. Check the actual result; this step will not repeat automatically.",
+  "l6SeeTheReviewCardBelowFord5a60": "See the review card below for the proposal, target revision, and accept or reject actions.",
+  "l6EvidenceAtRetrievalArg0cb747": "Evidence at retrieval · {arg0}",
+  "@l6EvidenceAtRetrievalArg0cb747": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6SourceArg0VersionArg1SnapshotArg2d0032": "Source: {arg0} · Version: {arg1} · Snapshot: {arg2}",
+  "@l6SourceArg0VersionArg1SnapshotArg2d0032": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "String"
+      }
+    }
+  },
+  "l6PageHashAtRetrievalArg05808a": "Page hash at retrieval: {arg0}",
+  "@l6PageHashAtRetrievalArg05808a": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6UserRecordArg0Arg1902d4": "User record {arg0}: {arg1}",
+  "@l6UserRecordArg0Arg1902d4": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "l6UnverifiedPageArg01a6ef": "Unverified page · {arg0}",
+  "@l6UnverifiedPageArg01a6ef": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6NoEvidenceExcerptsWereReturned013a1": "No evidence excerpts were returned.",
+  "l6TheseAreTheResultsReturnedBy46276": "These are the results returned by this query. Sources may change later; final-answer citations are verified separately.",
+  "l6GeneratingAReplyItContinuesWhence0b9": "Generating a reply. It continues when you switch away and stops when finished.",
+  "l6CouldNotLoadGenerationStatusReconnect2eabb": "Could not load generation status. Reconnect to check; generation will not restart automatically.",
+  "l6TheStartResultIsUnconfirmedReconnecting3cc5d": "The start result is unconfirmed. Reconnecting checks the same request without saving your input again.",
+  "l6TheStopRequestIsUnconfirmedReconnectdaf8d": "The stop request is unconfirmed. Reconnect to check its status.",
+  "l6GenerationStatusIsTemporarilyUnavailableSaved71c5d": "Generation status is temporarily unavailable. Saved input will not be resent.",
+  "biometricReason": "Verify your fingerprint or face to unlock Elsewhen",
+  "l6Code33246": "Code",
+  "l6CodeCopied8df90": "Code copied",
+  "l6HeadingArg01576c": "Heading {arg0}",
+  "@l6HeadingArg01576c": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "l6Heading186e3d": "Heading 1",
+  "l6Heading222dfe": "Heading 2",
+  "l6Heading3516f9": "Heading 3",
+  "l6Boldf670b": "Bold",
+  "l6Italicaf5a2": "Italic",
+  "l6Underline9bc18": "Underline",
+  "l6Strikethroughc85de": "Strikethrough",
+  "l6InlineCode1a813": "Inline code",
+  "l6BulletedListb9e9a": "Bulleted list",
+  "l6NumberedList0deb8": "Numbered list",
+  "l6Quote23c0e": "Quote",
+  "l6Mergee5bad": "Merge",
+  "l6Split726ca": "Split",
+  "l6Reprocess796dd": "Reprocess",
+  "l6WhyIsThisExcerptUnreliableOra83f2": "Why is this excerpt unreliable or unusable? Your reason becomes negative knowledge and will be shown before importing the same source again.",
+  "l6Discardea489": "Discard",
+  "l6Processing1a5c2": "Processing…",
+  "l6CheckForUpdatesa6df3": "Check for updates",
+  "l6ReprocessThisPaged752f": "Reprocess this page",
+  "l6Unknownd9c32": "Unknown",
+  "l6RetryProcessingf8833": "Retry processing",
+  "deviationNoProgress": "No progress",
+  "deviationStalled": "Stalled",
+  "deviationConflict": "Conflicting",
+  "deviationScopeDrift": "Goal drift",
+  "initialSnapshotTransfer": "Initial snapshot transfer",
+  "legacyPeopleProjects": "People / projects",
+  "legacyArtifacts": "Artifacts",
+  "legacyPlanPending": "Pending",
+  "legacyPlanActive": "In progress",
+  "legacyNewConversation": "New conversation",
+  "reprocessingResult": "Processing finished. View the result for details.",
+  "processingDetails": "Processing details",
+  "errorKnowledgeSourceChanged": "The source changed or was rejected. Generate a new proposal.",
+  "connectionSucceeded": "Connection successful",
+  "syncLockedBacklog": "Sync paused: {count} queued · {size}. Unlock this device’s key to resume.",
+  "syncAwaitingPeer": "Sync delayed: {count} unconfirmed · {size}. Retrying.",
+  "syncGoUnlock": "Unlock",
+  "@syncLockedBacklog": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "@syncAwaitingPeer": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "legacyOperationFailed": "{action} failed. Please try again.",
+  "@legacyOperationFailed": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      }
+    }
+  },
+  "pageReprocessed": "Reprocessed the page using {count, plural, one{{count} source event} other{{count} source events}}.",
+  "@pageReprocessed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pageHumanProtected": "Human edits are protected. To revise this page with AI, create and review a proposal.",
+  "processingNotes": "Processing notes",
+  "queueDetailPending": "Waiting for background processing",
+  "queueDetailRunning": "Processing",
+  "queueDetailWaiting": "Waiting for source reading or upstream review",
+  "queueDetailRetry": "Processing failed; waiting for automatic retry",
+  "queueDetailSkipped": "Skipped; view the processing notes for the reason",
+  "queueDetailCompleted": "Processing completed",
+  "aiReplyFailedGeneric": "AI reply failed. Try again or view the error details.",
+  "manualLabel": "Manual",
+  "automaticLabel": "Automatic",
+  "activeProviderSuffix": " (active)",
+  "nodesAdvanced": "Advanced {count} nodes",
+  "@nodesAdvanced": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errorKnowledgeReviewChanged": "The page, sources or rule settings changed. Review the proposal again."
+}

@@ -13,7 +13,7 @@ class _EntityGuidance extends ConsumerStatefulWidget {
 
 class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
   List<PageGuidanceDto>? _items;
-  String? _error;
+  Object? _error;
 
   @override
   void initState() {
@@ -29,16 +29,14 @@ class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
       setState(() => _items = items);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      setState(() => _error = e);
     }
   }
 
-  String _guidanceDate(String value) {
+  String _guidanceDate(BuildContext context, String value) {
     final parsed = DateTime.tryParse(value)?.toLocal();
     if (parsed == null) return value;
-    final m = parsed.month.toString().padLeft(2, '0');
-    final d = parsed.day.toString().padLeft(2, '0');
-    return '${parsed.year}-$m-$d';
+    return MaterialLocalizations.of(context).formatCompactDate(parsed);
   }
 
   @override
@@ -47,25 +45,19 @@ class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
     if (_error != null) {
       return Padding(
         padding: const EdgeInsets.only(top: AppTheme.space4),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '相关指导加载失败',
-              style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
-            ),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () {
+            AppErrorMessage(action: context.l10n.load, error: _error!),
+            TextButton(
+              onPressed: () {
                 setState(() {
                   _error = null;
                   _items = null;
                 });
                 _load();
               },
-              child: Text(
-                '重试',
-                style: TextStyle(fontSize: 12, color: AppTheme.accentPrimary),
-              ),
+              child: Text(context.l10n.retry),
             ),
           ],
         ),
@@ -88,7 +80,7 @@ class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '相关指导',
+            context.l10n.entityGuidance,
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -99,60 +91,70 @@ class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
           for (final item in items)
             Card(
               margin: const EdgeInsets.only(bottom: 6),
-              child: ListTile(
-                dense: true,
-                title: ContentFontScope(
-                  child: SelectableText(
-                    item.note ?? item.lessons.firstOrNull ?? '查看指导',
+              child: Material(
+                type: MaterialType.transparency,
+                child: ListTile(
+                  dense: true,
+                  title: ContentFontScope(
+                    child: SelectableText(
+                      item.note ??
+                          item.lessons.firstOrNull ??
+                          context.l10n.entityViewGuidance,
+                    ),
                   ),
-                ),
-                subtitle: Text(
-                  '${_guidanceDate(item.recordedAt)} - 点击查看要点',
-                  style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      width: 30,
-                      height: 26,
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        iconSize: 14,
-                        tooltip: '有用（再点一次清除）',
-                        icon: Icon(
-                          item.feedback == 'helpful'
-                              ? Icons.thumb_up
-                              : Icons.thumb_up_outlined,
-                        ),
-                        color: item.feedback == 'helpful'
-                            ? AppTheme.accentPrimary
-                            : AppTheme.textTertiary,
-                        onPressed: () => _setFeedback(item, 'helpful'),
-                      ),
+                  subtitle: Text(
+                    context.l10n.entityGuidanceDetails(
+                      _guidanceDate(context, item.recordedAt),
                     ),
-                    const SizedBox(width: 2),
-                    SizedBox(
-                      width: 30,
-                      height: 26,
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        iconSize: 14,
-                        tooltip: '不相关（再点一次清除）',
-                        icon: Icon(
-                          item.feedback == 'not_relevant'
-                              ? Icons.thumb_down
-                              : Icons.thumb_down_outlined,
-                        ),
-                        color: item.feedback == 'not_relevant'
-                            ? AppTheme.accentPrimary
-                            : AppTheme.textTertiary,
-                        onPressed: () => _setFeedback(item, 'not_relevant'),
-                      ),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.textTertiary,
                     ),
-                  ],
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 30,
+                        height: 26,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          iconSize: 14,
+                          tooltip: context.l10n.entityGuidanceHelpful,
+                          icon: Icon(
+                            item.feedback == 'helpful'
+                                ? Icons.thumb_up
+                                : Icons.thumb_up_outlined,
+                          ),
+                          color: item.feedback == 'helpful'
+                              ? AppTheme.accentPrimary
+                              : AppTheme.textTertiary,
+                          onPressed: () => _setFeedback(item, 'helpful'),
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      SizedBox(
+                        width: 30,
+                        height: 26,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          iconSize: 14,
+                          tooltip: context.l10n.entityGuidanceNotRelevant,
+                          icon: Icon(
+                            item.feedback == 'not_relevant'
+                                ? Icons.thumb_down
+                                : Icons.thumb_down_outlined,
+                          ),
+                          color: item.feedback == 'not_relevant'
+                              ? AppTheme.accentPrimary
+                              : AppTheme.textTertiary,
+                          onPressed: () => _setFeedback(item, 'not_relevant'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  onTap: () => _showGuidance(context, item),
                 ),
-                onTap: () => _showGuidance(context, item),
               ),
             ),
         ],
@@ -185,8 +187,7 @@ class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
         _items![index] = _copyWithFeedback(item, previous);
       });
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('反馈失败: $e')));
+        showAppError(context, context.l10n.save, e);
       }
     }
   }
@@ -207,7 +208,7 @@ class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('相关指导'),
+        title: Text(dialogContext.l10n.entityGuidance),
         content: SizedBox(
           width: 480,
           child: SingleChildScrollView(
@@ -215,7 +216,9 @@ class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '记录于 ${_guidanceDate(item.recordedAt)}',
+                  dialogContext.l10n.entityRecordedOn(
+                    _guidanceDate(dialogContext, item.recordedAt),
+                  ),
                   style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
                 ),
                 if (item.note?.isNotEmpty ?? false) ...[
@@ -225,7 +228,7 @@ class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
                 if (item.lessons.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Text(
-                    '可复用经验',
+                    dialogContext.l10n.entityReusableLessons,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -244,7 +247,7 @@ class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
                 if (item.followUpsRefined.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Text(
-                    '待办精炼',
+                    dialogContext.l10n.entityRefinedTodos,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -267,7 +270,7 @@ class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('关闭'),
+            child: Text(dialogContext.l10n.close),
           ),
         ],
       ),

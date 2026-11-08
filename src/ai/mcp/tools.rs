@@ -23,9 +23,9 @@ pub fn available_tools(store: &Store) -> (Vec<McpToolInfo>, Vec<String>) {
                     continue;
                 }
                 match list_tools_for_server(&server) {
-                    Ok(mut list) => {
-                        tools.append(&mut list);
-                        mcp_tools_cache_store(fingerprint, tools.clone(), None);
+                    Ok(list) => {
+                        mcp_tools_cache_store(fingerprint, list.clone(), None);
+                        tools.extend(list);
                     }
                     Err(error) => {
                         // 失败也留缓存行（带显式错误状态），错误继续上报。

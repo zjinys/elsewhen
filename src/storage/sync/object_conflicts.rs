@@ -55,6 +55,16 @@ struct ConflictRow {
 
 fn mutation_incoming(mutation: &SyncMutation) -> Result<ObjectConflictIncoming> {
     Ok(match mutation {
+        SyncMutation::KnowledgeLanguageChanged {
+            policy,
+            base_revision,
+        } => ObjectConflictIncoming {
+            summary: policy.output_locale.clone(),
+            status: format!("v{} / {}", policy.policy_version, policy.generation),
+            deleted: false,
+            base_revision: base_revision.clone(),
+            updated_at: policy.updated_at.clone(),
+        },
         SyncMutation::TodoChanged {
             todo,
             base_revision,
@@ -133,7 +143,7 @@ impl Store {
             let mut statement = self.connection.prepare(
                 "SELECT c.op_id,c.object_kind,c.object_id,c.reason,o.origin_device_id,o.payload \
                  FROM sync_conflicts c JOIN sync_operations o ON o.op_id=c.op_id \
-                 WHERE c.object_kind IN ('todo','habit_nudge','goal','plan','rule') AND o.state='conflict' \
+                 WHERE c.object_kind IN ('todo','habit_nudge','goal','plan','rule','knowledge_language') AND o.state='conflict' \
                  ORDER BY o.origin_stream_id,o.origin_sequence",
             )?;
             statement
@@ -156,6 +166,10 @@ impl Store {
             let head = self.sync_object_head(&row.object_kind, &row.object_id)?;
             // query_row 闭包内不用 ?：先读裸值出闭包再组装（惯例）。
             let local: Option<(String, String, String)> = match row.object_kind.as_str() {
+                "knowledge_language" => {
+                    let p = self.knowledge_language_policy()?;
+                    Some((p.output_locale,format!("v{} / {}",p.policy_version,p.generation),p.updated_at))
+                },
                 "todo" => self
                     .connection
                     .query_row(
@@ -229,7 +243,7 @@ impl Store {
             .query_row(
                 "SELECT c.object_kind,c.object_id,c.reason,o.payload \
                  FROM sync_conflicts c JOIN sync_operations o ON o.op_id=c.op_id \
-                 WHERE c.op_id=?1 AND c.object_kind IN ('todo','habit_nudge','goal','plan','rule') \
+                 WHERE c.op_id=?1 AND c.object_kind IN ('todo','habit_nudge','goal','plan','rule','knowledge_language') \
                    AND o.state='conflict'",
                 [op_id],
                 |r| {
@@ -242,8 +256,35 @@ impl Store {
                 },
             )
             .optional()?
-            .ok_or_else(|| anyhow!("object_conflict_not_pending"))?;
+            .ok_or_else(|| anyhow!(crate::user_error::UserError::new("object_conflict_not_pending",serde_json::json!({}))))?;
         let op = SyncOperation::decode(payload.as_bytes())?;
+        if let SyncMutation::KnowledgeLanguageChanged { policy, .. } = &op.mutation {
+            let current = self.knowledge_language_policy()?;
+            ensure!(
+                Some(current.updated_at.as_str()) == expected_local_updated_at,
+                "object_conflict_local_changed"
+            );
+            self.verify_knowledge_language_owner(policy)?;
+            if accept_remote {
+                ensure!(
+                    policy.generation >= current.generation,
+                    "knowledge_language_stale_policy"
+                );
+                self.write_knowledge_language_policy(policy)?;
+                self.sync_set_head("knowledge_language", "dataset", &op.op_id, false)?;
+            } else {
+                ensure!(
+                    self.is_sync_owner_device()?,
+                    "knowledge_language_owner_required"
+                );
+            }
+            self.connection
+                .execute("DELETE FROM sync_conflicts WHERE op_id=?1", [op_id])?;
+            if let Some(tx) = tx {
+                tx.commit()?;
+            }
+            return Ok(());
+        }
         // 本端现状绑定：与审阅时展示的行一致才允许裁决。
         let table = match kind.as_str() {
             "todo" => "todos",
@@ -264,9 +305,10 @@ impl Store {
             if let Some(tx) = tx {
                 tx.commit()?;
             }
-            return Err(anyhow!(
-                "object_conflict_local_changed（本端记录已变化，请刷新后重新审阅）"
-            ));
+            return Err(anyhow!(crate::user_error::UserError::new(
+                "object_conflict_local_changed",
+                serde_json::json!({})
+            )));
         }
         match (&op.mutation, accept_remote) {
             (_, false) => {
@@ -297,9 +339,10 @@ impl Store {
                 if let Some(tx) = tx {
                     tx.commit()?;
                 }
-                return Err(anyhow!(
-                    "goal_active_limit（本端活跃目标已满，无法直接采纳对端；请先归档本端目标或选择保留本端）"
-                ));
+                return Err(anyhow!(crate::user_error::UserError::new(
+                    "goal_active_limit",
+                    serde_json::json!({})
+                )));
             }
             (SyncMutation::TodoChanged { todo, deleted, .. }, true) => {
                 if *deleted {

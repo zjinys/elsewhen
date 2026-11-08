@@ -11,6 +11,8 @@ pub struct WikiRevisionRecord {
     pub reason: String,
     pub source_event_id: Option<String>,
     pub created_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<crate::language::policy::ArtifactLanguage>,
 }
 
 /// 待办整行。`related_event_id` / `related_wiki_slug` 是松引用（无 FK），
@@ -237,6 +239,17 @@ pub struct AnalysisRecord {
     pub prompt_version: String,
     pub result_json: String,
     pub created_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<crate::language::policy::ArtifactLanguage>,
+}
+
+impl AnalysisRecord {
+    pub(crate) fn strategy_identity(&self) -> String {
+        match &self.language {
+            Some(language) => format!("{}:{}", self.prompt_version, language.dependency),
+            None => self.prompt_version.clone(),
+        }
+    }
 }
 
 pub fn analysis_task_id(dataset: &str, event: &str, input_hash: &str, strategy: &str) -> String {
@@ -284,8 +297,9 @@ pub struct MessageRecord {
     pub created_at: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub input_message_id: Option<String>,
-    /// `chat` / `habit_nudge` / `habit_checkin`；旧消息缺省为 chat，
-    /// 序列化时也省略，保持既有消息编码哈希不变。
+    /// `chat` / `habit_nudge` / `habit_checkin` / `habit_nudge_suggest` /
+    /// `digest_insight`；旧消息缺省为 chat，序列化时也省略，保持既有消息
+    /// 编码哈希不变。
     #[serde(
         default = "default_message_kind",
         skip_serializing_if = "is_chat_message"
@@ -316,14 +330,20 @@ impl MessageRecord {
             "sync_message_role_invalid"
         );
         ensure!(
-            matches!(self.kind.as_str(), "chat" | "habit_nudge" | "habit_checkin"),
+            matches!(
+                self.kind.as_str(),
+                "chat" | "habit_nudge" | "habit_checkin" | "habit_nudge_suggest" | "digest_insight"
+            ),
             "sync_message_kind_invalid"
         );
-        if self.kind == "habit_nudge" {
+        if self.kind == "habit_nudge" || self.kind == "habit_nudge_suggest" {
             ensure!(self.role == "assistant", "sync_habit_nudge_role_invalid");
         }
         if self.kind == "habit_checkin" {
             ensure!(self.role == "user", "sync_habit_checkin_role_invalid");
+        }
+        if self.kind == "digest_insight" {
+            ensure!(self.role == "assistant", "sync_digest_insight_role_invalid");
         }
         if self.kind != "chat" {
             let reference = self

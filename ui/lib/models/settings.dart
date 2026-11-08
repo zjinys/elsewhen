@@ -1,4 +1,8 @@
 /// Settings models for the application
+library;
+
+import '../l10n/app_localizations_zh.dart';
+
 import '../utils/system_fonts.dart';
 
 class AiProviderSettings {
@@ -86,27 +90,32 @@ enum AppThemeMode {
   String get displayName {
     switch (this) {
       case AppThemeMode.light:
-        return '浅色';
+        return AppLocalizationsZh().lightTheme;
       case AppThemeMode.dark:
-        return '深色';
+        return AppLocalizationsZh().darkTheme;
       case AppThemeMode.system:
-        return '跟随系统';
+        return AppLocalizationsZh().followSystem;
     }
   }
 }
 
 /// 主题预设（flex_color_scheme 色卡）：决定配色观感，与深浅模式正交
 enum AppThemePreset {
-  amber('amber', '琥珀'),
-  indigo('indigo', '靛蓝'),
-  aqua('aqua', '青碧'),
-  violet('violet', '郁金');
+  amber('amber'),
+  indigo('indigo'),
+  aqua('aqua'),
+  violet('violet');
 
-  const AppThemePreset(this.name, this.displayName);
+  const AppThemePreset(this.name);
 
   /// 存库用的小写机器名
   final String name;
-  final String displayName;
+  String get displayName => switch (this) {
+    amber => AppLocalizationsZh().amberTheme,
+    indigo => AppLocalizationsZh().indigoTheme,
+    aqua => AppLocalizationsZh().aquaTheme,
+    violet => AppLocalizationsZh().violetTheme,
+  };
 
   static AppThemePreset fromName(String name) {
     return AppThemePreset.values.firstWhere(
@@ -145,7 +154,7 @@ final class AppFonts {
     'WenQuanYi Micro Hei',
   ];
 
-  static const String systemDisplayName = '系统默认';
+  static final String systemDisplayName = AppLocalizationsZh().systemDefault;
 
   /// 归一化历史存值：旧机器名与空值映射到家族名；其它原样透传
   ///（主题层对非 Google Fonts 的未知值回退 [defaultFont]）。
@@ -240,7 +249,7 @@ class AppSettings {
     this.editorFontName,
     this.editorFontSize,
     this.editorLineHeight,
-    this.language,
+    this.language = 'zh-Hans',
   });
 
   AppSettings copyWith({
@@ -251,7 +260,7 @@ class AppSettings {
     AppThemePreset? themePreset,
     String? fontName,
     double? fontSize,
-    String? language,
+    Object? language = _unset,
   }) {
     return AppSettings(
       aiProvider: aiProvider ?? this.aiProvider,
@@ -261,7 +270,9 @@ class AppSettings {
       themePreset: themePreset ?? this.themePreset,
       fontName: fontName ?? this.fontName,
       fontSize: fontSize ?? this.fontSize,
-      language: language ?? this.language,
+      language: identical(language, _unset)
+          ? this.language
+          : language as String?,
       editorFontName: editorFontName,
       editorFontSize: editorFontSize,
       editorLineHeight: editorLineHeight,

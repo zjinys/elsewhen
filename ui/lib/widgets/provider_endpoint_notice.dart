@@ -3,19 +3,20 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../l10n/localization.dart';
 
 /// Describes address scope only: never resolves DNS, probes a provider or rewrites
 /// its URL. Absence of a notice is not a claim that a remote address is reachable.
-String? providerEndpointNotice(String baseUrl) {
+String? providerEndpointNotice(String baseUrl, {AppLocalizations? strings}) {
+  final text = strings ?? lookupAppLocalizations(const Locale('zh'));
   final uri = Uri.tryParse(baseUrl);
   if (uri == null ||
       !['http', 'https'].contains(uri.scheme) ||
       uri.host.isEmpty) {
-    return 'Provider 地址格式需要检查；不会自动修正地址或发送连接测试。';
+    return text.endpointMalformed;
   }
   final host = uri.host.toLowerCase().replaceFirst(RegExp(r'\.$'), '');
-  const loopback =
-      '这是本机环回地址：在另一台设备上会指向那台设备本身，而非原设备。同步保留原地址，不会自动探测或改用其他 Provider。';
+  final loopback = text.endpointLoopback;
   if (host == 'localhost' || host.endsWith('.localhost')) return loopback;
   final address = InternetAddress.tryParse(host);
   if (address == null) return null;
@@ -29,7 +30,7 @@ String? providerEndpointNotice(String baseUrl) {
     bytes = bytes.sublist(12);
   }
   if (bytes.every((b) => b == 0)) {
-    return '这是未指定地址，通常用于服务监听；请确认本机及其他设备实际可访问的 Provider 地址。不会自动替换或探测。';
+    return text.endpointUnspecified;
   }
   if (bytes.length == 4 && bytes[0] == 127) return loopback;
   final privateAddress = bytes.length == 4
@@ -40,7 +41,7 @@ String? providerEndpointNotice(String baseUrl) {
       : (bytes[0] & 0xfe) == 0xfc ||
             (bytes[0] == 0xfe && (bytes[1] & 0xc0) == 0x80);
   if (privateAddress) {
-    return '这是内网或链路本地地址，其他设备需要相应的网络连接。同步保留原配置，尚未验证可达性，也不会自动发送模型请求。';
+    return text.endpointPrivate;
   }
   return null;
 }
@@ -52,7 +53,7 @@ class ProviderEndpointNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final notice = providerEndpointNotice(baseUrl);
+    final notice = providerEndpointNotice(baseUrl, strings: context.l10n);
     if (notice == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: AppTheme.space2),

@@ -43,11 +43,7 @@ class GoalUiCatalog {
         padding: const EdgeInsets.only(bottom: 4),
         child: Row(
           children: [
-            Icon(
-              Icons.flag_outlined,
-              size: 13,
-              color: AppTheme.accentPrimary,
-            ),
+            Icon(Icons.flag_outlined, size: 13, color: AppTheme.accentPrimary),
             const SizedBox(width: 5),
             Expanded(
               child: Text(
@@ -63,11 +59,20 @@ class GoalUiCatalog {
         ),
       );
     });
-    r.register('GoalChip', (ctx) => _GoalChip(ctx.propOr<String>('label', ''),
-        tone: ctx.propOr<String>('tone', 'neutral')));
-    r.register('GoalMetric', (ctx) => _GoalMetric(
+    r.register(
+      'GoalChip',
+      (ctx) => _GoalChip(
+        ctx.propOr<String>('label', ''),
+        tone: ctx.propOr<String>('tone', 'neutral'),
+      ),
+    );
+    r.register(
+      'GoalMetric',
+      (ctx) => _GoalMetric(
         label: ctx.propOr<String>('label', ''),
-        value: ctx.propOr<String>('value', '')));
+        value: ctx.propOr<String>('value', ''),
+      ),
+    );
     r.register('GoalChoices', (ctx) {
       final raw = ctx.element.props['options'];
       final opts = <({String label, String message})>[];
@@ -78,8 +83,8 @@ class GoalUiCatalog {
             if (label.isEmpty) continue;
             final message =
                 (item['message']?.toString().trim().isNotEmpty ?? false)
-                    ? item['message'].toString().trim()
-                    : label;
+                ? item['message'].toString().trim()
+                : label;
             opts.add((label: label, message: message));
           } else if (item is String && item.trim().isNotEmpty) {
             opts.add((label: item.trim(), message: item.trim()));
@@ -89,26 +94,34 @@ class GoalUiCatalog {
       return _GoalChoices(
         options: opts,
         enabled: !(ctx.loading),
-        onSend: (message) => ctx.onAction?.call('send_message', {
-          'message': message,
-        }),
+        onSend: (message) =>
+            ctx.onAction?.call('send_message', {'message': message}),
       );
     });
-    r.register('GoalDivider', (_) => const Padding(
-          padding: EdgeInsets.symmetric(vertical: 6),
-          child: Divider(height: 1),
-        ));
-    r.register('Column', (ctx) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          spacing: (ctx.prop<num>('spacing') ?? 6).toDouble(),
-          children: ctx.children,
-        ));
-    r.register('Row', (ctx) => Wrap(
-          spacing: (ctx.prop<num>('spacing') ?? 8).toDouble(),
-          runSpacing: 6,
-          children: ctx.children,
-        ));
+    r.register(
+      'GoalDivider',
+      (_) => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 6),
+        child: Divider(height: 1),
+      ),
+    );
+    r.register(
+      'Column',
+      (ctx) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        spacing: (ctx.prop<num>('spacing') ?? 6).toDouble(),
+        children: ctx.children,
+      ),
+    );
+    r.register(
+      'Row',
+      (ctx) => Wrap(
+        spacing: (ctx.prop<num>('spacing') ?? 8).toDouble(),
+        runSpacing: 6,
+        children: ctx.children,
+      ),
+    );
     return r;
   }
 
@@ -146,17 +159,22 @@ class GoalUiCatalog {
 
 /// 语义色（guardrail：AI 只能选语义名，不能给任意色值）。
 Color _toneColor(String tone) => switch (tone) {
-      'accent' => AppTheme.accentPrimary,
-      'success' => AppTheme.success,
-      'warning' => AppTheme.warning,
-      'error' => AppTheme.error,
-      'secondary' => AppTheme.textSecondary,
-      'tertiary' => AppTheme.textTertiary,
-      _ => AppTheme.textPrimary,
-    };
+  'accent' => AppTheme.accentPrimary,
+  'success' => AppTheme.success,
+  'warning' => AppTheme.warning,
+  'error' => AppTheme.error,
+  'secondary' => AppTheme.textSecondary,
+  'tertiary' => AppTheme.textTertiary,
+  _ => AppTheme.textPrimary,
+};
 
 class _GoalText extends StatelessWidget {
-  const _GoalText(this.text, {this.size = 12.5, this.bold = false, required this.tone});
+  const _GoalText(
+    this.text, {
+    this.size = 12.5,
+    this.bold = false,
+    required this.tone,
+  });
 
   final String text;
   final double size;
@@ -324,7 +342,7 @@ class GoalUiBlock extends StatelessWidget {
 
   final UITree tree;
   final void Function(String actionName, Map<String, dynamic>? params)?
-      onAction;
+  onAction;
 
   @override
   Widget build(BuildContext context) {

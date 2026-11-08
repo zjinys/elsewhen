@@ -56,7 +56,7 @@ class WikiChatBubble extends StatelessWidget {
                           ),
                           SizedBox(width: 8),
                           Text(
-                            '思考中…',
+                            context.l10n.thinkingShort,
                             style: TextStyle(
                               fontSize: 12,
                               color: AppTheme.textSecondary,
@@ -132,7 +132,7 @@ class _AiMessageBody extends StatelessWidget {
         ),
         // 复制入口放正文右下角，轻量不占行高。
         IconButton(
-          tooltip: '复制这条消息',
+          tooltip: context.l10n.copyThisMessage,
           icon: Icon(
             Icons.copy_rounded,
             size: 13,
@@ -146,7 +146,7 @@ class _AiMessageBody extends StatelessWidget {
             if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: const Text('已复制消息'),
+                content: Text(context.l10n.copiedMessage),
                 duration: const Duration(seconds: 1),
                 behavior: SnackBarBehavior.floating,
                 shape: const RoundedRectangleBorder(

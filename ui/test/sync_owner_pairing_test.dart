@@ -1,3 +1,5 @@
+import 'package:elsewhen_ui/l10n/notice_messages.dart';
+import 'package:elsewhen_ui/l10n/app_localizations_zh.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -166,7 +168,7 @@ void main() {
         f.storage.values['elsewhen.sync.revision.v1.test-install'],
         'v1:2',
       );
-      expect(f.controller.pairingNotice, contains('不表示设备已加入'));
+      expect(resolveNotice(f.controller.pairingNotice, AppLocalizationsZh()), contains('不表示设备已加入'));
       expect(f.controller.invitation, isNull);
       await f.close();
     },
@@ -251,8 +253,8 @@ void main() {
         f.controller.pairingPreview!,
         consent: true,
       );
-      expect(f.controller.error, contains('批准已保存'));
-      expect(f.controller.error, contains('自动重试'));
+      expect(resolveNotice(f.controller.error, AppLocalizationsZh()), contains('批准已保存'));
+      expect(resolveNotice(f.controller.error, AppLocalizationsZh()), contains('自动重试'));
       expect(f.controller.error, isNot(contains('SYNTHETIC_SECRET')));
       expect(f.controller.pendingPairingId, 'invite');
       f.pairing.failSend = false;
@@ -274,7 +276,7 @@ void main() {
       await f.controller.cancelInvitation();
       expect(f.controller.invitation, isNull);
       expect(f.controller.pairingPreview, isNull);
-      expect(f.controller.error, contains('中继撤销尚未确认'));
+      expect(resolveNotice(f.controller.error, AppLocalizationsZh()), contains('中继撤销尚未确认'));
       expect(f.controller.error, isNot(contains('SYNTHETIC_SECRET')));
       await f.close();
     },

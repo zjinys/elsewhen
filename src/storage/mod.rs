@@ -8,15 +8,21 @@ pub(crate) mod chat_supplements;
 pub(crate) mod companion;
 mod conversations;
 mod digest;
+mod digest_insights;
 mod entities;
 mod events;
+mod goal_data_reset;
+pub(crate) mod goal_grounding;
 mod goals;
 mod habit_nudges;
 pub(crate) mod knowledge;
+pub(crate) mod knowledge_language;
 mod mcp_servers;
+pub mod named_secrets;
 mod new_migrations;
 pub mod page_marks;
 mod plans;
+pub(crate) mod prompts;
 mod provider;
 mod provider_keys;
 pub use mcp_servers::McpServerConfig;
@@ -90,11 +96,12 @@ pub use digest::{
     DIGEST_FAILED_COOLDOWN_SECS, DIGEST_MAX_ATTEMPTS, DIGEST_SETTLE_SECS, DIGEST_VERSION,
     DigestBatch, DigestBatchOutcome, DigestJobRow, DigestJobStats, DigestRunRow,
 };
+pub use digest_insights::DigestInsightSurfacing;
 pub use goals::{Goal, GoalCompassNudge, GoalPhase, GoalStatus, MAX_ACTIVE_GOALS};
-pub use plans::{GoalPlan, PlanStatus, PlanStepDraft};
 pub use knowledge::{
     KnowledgeIssue, KnowledgeMetadata, KnowledgeProposal, RejectedSourceRow, SourceSnapshot,
 };
+pub use plans::{GoalPlan, PlanStatus, PlanStepDraft};
 pub use reminders::DueReminder;
 pub use web_search::{DohMode, NetworkSettings, WebSearchConfig};
 

@@ -49,6 +49,9 @@ class McpServerDto {
   final String id;
   final String name;
 
+  /// 用户声明的关联意图关键词（逗号分隔，选填）。
+  final String keywords;
+
   /// 平台标签（迁移 48）：all/linux/macos/windows；空串按 all 处理。
   final String platform;
 
@@ -79,6 +82,7 @@ class McpServerDto {
   const McpServerDto({
     required this.id,
     required this.name,
+    required this.keywords,
     required this.platform,
     required this.transport,
     required this.command,
@@ -95,6 +99,7 @@ class McpServerDto {
   int get hashCode =>
       id.hashCode ^
       name.hashCode ^
+      keywords.hashCode ^
       platform.hashCode ^
       transport.hashCode ^
       command.hashCode ^
@@ -113,6 +118,7 @@ class McpServerDto {
           runtimeType == other.runtimeType &&
           id == other.id &&
           name == other.name &&
+          keywords == other.keywords &&
           platform == other.platform &&
           transport == other.transport &&
           command == other.command &&

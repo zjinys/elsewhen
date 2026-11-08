@@ -1,5 +1,6 @@
 import 'package:elsewhen_ui/sync/sync_keep_alive.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/widgets.dart';
 
 void main() {
   final calls = <String>[];
@@ -8,6 +9,7 @@ void main() {
   setUp(() {
     calls.clear();
     texts.clear();
+    SyncKeepAlive.setLocale(const Locale('zh'));
     SyncKeepAlive.debugSupportedOverride = true;
     SyncKeepAlive.debugInvoke = (method, arguments) {
       calls.add(method);
@@ -20,10 +22,10 @@ void main() {
   });
 
   tearDown(() {
+    // Clear while the supported test platform is still installed.
+    SyncKeepAlive.releaseAll();
     SyncKeepAlive.debugSupportedOverride = null;
     SyncKeepAlive.debugInvoke = null;
-    // 清掉跨用例残留的持有者。
-    SyncKeepAlive.releaseAll();
     calls.clear();
   });
 
@@ -83,5 +85,26 @@ void main() {
     await pumpEventQueue();
     expect(texts.single, isNotNull);
     expect(texts.single, isNotEmpty);
+  });
+  test('language changes update notification labels without restarting or releasing a hold', () async {
+    SyncKeepAlive.setLocale(const Locale('en'));
+    SyncKeepAlive.hold('sync-join');
+    await pumpEventQueue();
+    expect(calls, ['start']);
+    expect(texts.single, 'Pairing with an existing device');
+    SyncKeepAlive.setLocale(const Locale('zh'));
+    await pumpEventQueue();
+    expect(calls, ['start', 'update']);
+    expect(texts.last, '正在与已有设备配对');
+    expect(SyncKeepAlive.active, isTrue);
+    SyncKeepAlive.setLocale(const Locale('zh'));
+    await pumpEventQueue();
+    expect(calls, ['start', 'update']);
+    SyncKeepAlive.release('sync-join');
+    await pumpEventQueue();
+    expect(calls, ['start', 'update', 'stop']);
+    SyncKeepAlive.setLocale(const Locale('en'));
+    await pumpEventQueue();
+    expect(calls, ['start', 'update', 'stop']);
   });
 }

@@ -1,3 +1,5 @@
+import '../l10n/app_localizations_zh.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -6,18 +8,20 @@ import 'window_geometry_store.dart' show WindowGeometryStore;
 /// 「关闭窗口时」的行为（桌面壳层偏好，与业务设置正交）。
 enum CloseAction {
   /// 隐藏窗口、驻留系统托盘（默认）。
-  minimizeToTray('tray', '最小化到托盘'),
+  minimizeToTray('tray'),
 
   /// 直接退出应用。
-  quit('quit', '退出应用');
+  quit('quit');
 
-  const CloseAction(this.stored, this.displayName);
+  const CloseAction(this.stored);
 
   /// 存盘用的小写机器名
   final String stored;
 
   /// 设置页展示名
-  final String displayName;
+  String get displayName => this == quit
+      ? AppLocalizationsZh().quitApp
+      : AppLocalizationsZh().minimizeToTray;
 
   static CloseAction fromStored(String? value) =>
       value == quit.stored ? quit : minimizeToTray;

@@ -1,48 +1,38 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/widgets/message_area.dart';
+import 'package:elsewhen_ui/l10n/app_localizations.dart';
+import 'package:elsewhen_ui/l10n/notice_messages.dart';
+import 'package:flutter/widgets.dart';
 
-/// AI 失败文案整理：只展示一行根因，不打印 Anyhow 的 Caused by 调用链。
 void main() {
-  test('Anyhow 调用链只保留根因一行（不含 stacktrace）', () {
-    final err = _FakeAnyhow(
-      'Failed to send request to AI provider\n'
-      '\n'
-      'Caused by:\n'
-      '    0: error sending request for url (https://api.example.com/v1/chat/completions)\n'
-      '    1: client error (Connect)\n'
-      '    2: Connection timed out (os error 110)',
-    );
-    expect(aiFailureNotice(err), 'AI 回复失败：Connection timed out (os error 110)');
+  final en = lookupAppLocalizations(const Locale('en'));
+  final zh = lookupAppLocalizations(const Locale('zh'));
+  test('provider guidance remains localized', () {
+    final error = _FakeAnyhow('No active AI provider');
+    expect(aiFailureNotice(error, strings: en), en.aiProviderMissing);
+    expect(aiFailureNotice(error), zh.aiProviderMissing);
   });
-
-  test('无 Caused by 链时取首行', () {
-    expect(
-      aiFailureNotice(Exception('网络请求失败\n第二行细节')),
-      'AI 回复失败：Exception: 网络请求失败',
-    );
-  });
-
-  test('单行 AnyhowException 去掉外壳', () {
-    expect(
-      aiFailureNotice(_FakeAnyhow('401 Unauthorized')),
-      'AI 回复失败：401 Unauthorized',
-    );
-  });
-
-  test('未配置 provider：引导去设置页', () {
-    expect(
-      aiFailureNotice(_FakeAnyhow('No active AI provider')),
-      '尚未配置 AI Provider，请到设置页填写后重试',
-    );
+  test('unknown AI failures have localized summary and retain every diagnostic line', () {
+    for (final error in [
+      _FakeAnyhow('401 Unauthorized'),
+      Exception('网络请求失败\n第二行细节'),
+      _FakeAnyhow(
+        'Failed to send request\nCaused by:\n0: Connect\n1: Connection timed out',
+      ),
+    ]) {
+      expect(aiFailureNotice(error, strings: en), en.aiReplyFailedGeneric);
+      expect(aiFailureNotice(error), zh.aiReplyFailedGeneric);
+      final token = appFailure(error, key: 'aiReplyFailedGeneric');
+      expect(resolveNotice(token, en), en.aiReplyFailedGeneric);
+      expect(resolveNotice(token, zh), zh.aiReplyFailedGeneric);
+      expect(noticeDiagnostic(token), error.toString());
+    }
   });
 }
 
-/// 模拟 flutter_rust_bridge 的 AnyhowException（其 toString 形如
-/// `AnyhowException(<anyhow Debug 链>)`，含 Caused by 逐级原因）。
 class _FakeAnyhow implements Exception {
   final String message;
   _FakeAnyhow(this.message);
-
   @override
   String toString() => 'AnyhowException($message)';
 }

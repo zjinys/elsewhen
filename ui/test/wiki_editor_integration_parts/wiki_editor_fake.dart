@@ -1,6 +1,5 @@
 part of '../wiki_editor_integration_test.dart';
 
-
 const _testMd = '# 测试标题\n\n正文段落提到[[人物/张三|张三]]';
 
 /// 带代码块的正文字样（§11 Q4 降级展示）
@@ -84,7 +83,11 @@ final _codePage = WikiPage(
 late _FakeRepo repo;
 late ProviderContainer container;
 
-Future<void> pumpDetail(WidgetTester tester, {WikiPage? page}) async {
+Future<void> pumpDetail(
+  WidgetTester tester, {
+  WikiPage? page,
+  ValueNotifier<Locale>? locale,
+}) async {
   final p = page ?? _testPage;
   repo = _FakeRepo(page: p, wikilinkTarget: _wikilinkTarget);
   container = ProviderContainer(
@@ -101,23 +104,28 @@ Future<void> pumpDetail(WidgetTester tester, {WikiPage? page}) async {
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
+  final fallbackLocale = ValueNotifier(const Locale('zh'));
+  addTearDown(fallbackLocale.dispose);
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: MaterialApp(
-        localizationsDelegates: const [
-          DefaultMaterialLocalizations.delegate,
-          DefaultWidgetsLocalizations.delegate,
-          AppFlowyEditorLocalizations.delegate,
-        ],
-        home: const Scaffold(body: WikiPageDetailView()),
+      child: ValueListenableBuilder<Locale>(
+        valueListenable: locale ?? fallbackLocale,
+        builder: (_, value, _) => MaterialApp(
+          locale: value,
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: const [
+            ...AppLocalizations.localizationsDelegates,
+            AppFlowyEditorLocalizations.delegate,
+          ],
+          home: const Scaffold(body: WikiPageDetailView()),
+        ),
       ),
     ),
   );
   await tester.pump(); // wikiPageProvider 等异步 provider 落地
   await tester.pumpAndSettle();
 }
-
 
 /// 在正文首段落末尾插入文本（模拟用户输入，绕开 IME 层）
 Future<void> insertText(WidgetTester tester, String text) async {
@@ -130,4 +138,3 @@ Future<void> insertText(WidgetTester tester, String text) async {
   await editorState.apply(t);
   await tester.pump();
 }
-

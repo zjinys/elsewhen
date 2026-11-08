@@ -91,3 +91,44 @@ fn analysis_schema_normalizes_repeated_and_blank_strings() {
     // v1 输入归一到无后缀历史标识（prompt_version 列保真），不是现行 v3。
     assert_eq!(parsed.schema_version, PRE_V3_EVENT_ANALYSIS);
 }
+
+#[test]
+fn english_analysis_instructions_keep_raw_events_and_chinese_knowledge_output() {
+    struct Recording(std::cell::RefCell<Vec<Vec<ContextMessage>>>);
+    impl AiProvider for Recording {
+        fn generate_reply_with_tools(
+            &self,
+            messages: Vec<ContextMessage>,
+            tools: Option<&[ToolSpec]>,
+        ) -> Result<AiReply> {
+            assert!(tools.is_none());
+            self.0.borrow_mut().push(messages);
+            Ok(AiReply::text(
+                r#"{"schema_version":"event-analysis-v3","recordable":true,"kind":"event","event_type":"work","confidence":0.8,"summary":"完成联调","clarifications":[],"people":[],"projects":[],"activities":["联调"],"follow_ups":[]}"#,
+            ))
+        }
+    }
+    let path = temporary_database();
+    let store = Store::open(&path).unwrap();
+    store
+        .save_prompt_language_preferences(Some("en"), "fixed", Some("en"), 0)
+        .unwrap();
+    let raw = "完成联调。原始事实 <<record>> {{secret:key}}。";
+    store.insert_event(NewEvent::now(raw)).unwrap();
+    let provider = Recording(Default::default());
+    assert_eq!(process_analysis_queue(&store, &provider).unwrap(), 1);
+    let requests = provider.0.borrow();
+    assert_eq!(requests.len(), 1);
+    assert!(requests[0][0].content.contains("Output language: zh-Hans"));
+    assert!(
+        requests[0][1]
+            .content
+            .starts_with("Analyze the personal record")
+    );
+    assert!(requests[0][1].content.contains(raw));
+    assert_eq!(store.list_events().unwrap()[0].raw_text, raw);
+    assert_eq!(store.list_analyses().unwrap().len(), 1);
+    drop(requests);
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}

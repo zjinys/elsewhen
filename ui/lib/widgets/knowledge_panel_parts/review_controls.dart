@@ -10,8 +10,16 @@ class _RevisionList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) => ref
       .watch(knowledgeRevisionsProvider(slug))
       .when(
-        error: (error, _) =>
-            Center(child: Text(_error(error, context: '读取修订记录'))),
+        error: (error, _) => Center(
+          child: AppErrorMessage(
+            action: context.l10n.load,
+            error: _error(
+              context,
+              error,
+              context: context.l10n.l6LoadRevisions0cbe1,
+            ),
+          ),
+        ),
         loading: () => const Center(
           child: Padding(
             padding: EdgeInsets.all(16),
@@ -90,7 +98,11 @@ class _RevisionList extends ConsumerWidget {
                               alignment: Alignment.centerRight,
                               child: FilledButton.tonalIcon(
                                 icon: const Icon(Icons.restore, size: 16),
-                                label: const Text('生成恢复提案'),
+                                label: Text(
+                                  context
+                                      .l10n
+                                      .l6GenerateRestorationProposal29825,
+                                ),
                                 style: FilledButton.styleFrom(
                                   visualDensity: VisualDensity.compact,
                                   textStyle: const TextStyle(fontSize: 12),
@@ -102,29 +114,37 @@ class _RevisionList extends ConsumerWidget {
                                         .restore(slug, revision.id);
                                     if (context.mounted) {
                                       _refresh(ref, slug);
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                '恢复提案已放入产出页，确认后生效；当前来源和规则设置保留。',
-                                              ),
-                                            ),
-                                          );
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            context
+                                                .l10n
+                                                .l6TheRestorationProposalIsInOutputsde198,
+                                          ),
+                                        ),
+                                      );
                                     }
                                   } catch (error) {
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                _error(
-                                                  error,
-                                                  context: '准备恢复',
-                                                  showDetail: true,
-                                                ),
-                                              ),
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: AppErrorMessage(
+                                            action: context.l10n.load,
+                                            error: _error(
+                                              context,
+                                              error,
+                                              context: context
+                                                  .l10n
+                                                  .l6PrepareRestoration94c4c,
+                                              showDetail: true,
                                             ),
-                                          );
+                                          ),
+                                        ),
+                                      );
                                     }
                                   }
                                 },
@@ -149,7 +169,7 @@ class _OpinionControl extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) => Row(
     children: [
       Text(
-        '材料评价',
+        context.l10n.l6SourceAssessment7740d,
         style: TextStyle(
           fontSize: 12.5,
           fontWeight: FontWeight.w600,
@@ -159,7 +179,11 @@ class _OpinionControl extends ConsumerWidget {
       const SizedBox(width: 10),
       for (final value in ['endorse', 'reject']) ...[
         ChoiceChip(
-          label: Text(value == 'endorse' ? '认可' : '不认可'),
+          label: Text(
+            value == 'endorse'
+                ? context.l10n.l6Endorse8a231
+                : context.l10n.l6Reject802d6,
+          ),
           avatar: Icon(
             value == 'endorse'
                 ? (opinion == value ? Icons.thumb_up : Icons.thumb_up_outlined)
@@ -195,8 +219,12 @@ class _OpinionControl extends ConsumerWidget {
               if (context.mounted) {
                 await showKnowledgeText(
                   context,
-                  '操作失败',
-                  _error(error, context: '记录观点'),
+                  context.l10n.l6OperationFailed09e42,
+                  _error(
+                    context,
+                    error,
+                    context: context.l10n.l6RecordAnOpinionb7461,
+                  ),
                 );
               }
             }
@@ -234,16 +262,16 @@ class _MetadataEditorState extends ConsumerState<_MetadataEditor> {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('确认作为规则使用？'),
-          content: const Text('AI 会在符合适用条件时对照这条规则。请确认内容可靠且适用条件准确。'),
+          title: Text(context.l10n.l6UseThisAsAPersonalRulefc28c),
+          content: Text(context.l10n.l6AiWillConsultThisRuleWhenf912f),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('取消'),
+              child: Text(context.l10n.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('确认升级'),
+              child: Text(context.l10n.l6ConfirmUpgrade8c3fd),
             ),
           ],
         ),
@@ -260,7 +288,15 @@ class _MetadataEditorState extends ConsumerState<_MetadataEditor> {
           .metadata(widget.slug, _conditions.text, _strength);
       if (mounted) _refresh(ref, widget.slug);
     } catch (error) {
-      if (mounted) setState(() => _failure = _error(error, context: '保存元数据'));
+      if (mounted) {
+        setState(
+          () => _failure = _error(
+            context,
+            error,
+            context: context.l10n.l6SaveMetadata757dd,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -276,23 +312,35 @@ class _MetadataEditorState extends ConsumerState<_MetadataEditor> {
           controller: _conditions,
           maxLines: 3,
           maxLength: 600,
-          decoration: const InputDecoration(labelText: '适用条件'),
+          decoration: InputDecoration(
+            labelText: context.l10n.l6Conditions24481,
+          ),
         ),
         DropdownButton<String>(
           value: _strength,
           onChanged: _busy
               ? null
               : (value) => setState(() => _strength = value!),
-          items: const [
-            DropdownMenuItem(value: 'reference', child: Text('参考材料')),
-            DropdownMenuItem(value: 'method', child: Text('可复用方法')),
-            DropdownMenuItem(value: 'rule', child: Text('已确认规则')),
+          items: [
+            DropdownMenuItem(
+              value: 'reference',
+              child: Text(context.l10n.l6ReferenceMaterialc3d33),
+            ),
+            DropdownMenuItem(
+              value: 'method',
+              child: Text(context.l10n.l6ReusableMethod12837),
+            ),
+            DropdownMenuItem(
+              value: 'rule',
+              child: Text(context.l10n.l6ConfirmedRuleba4b1),
+            ),
           ],
         ),
-        if (_failure != null) Text(_failure!),
+        if (_failure != null)
+          AppErrorMessage(action: context.l10n.load, error: _failure!),
         FilledButton(
           onPressed: _busy ? null : _save,
-          child: const Text('保存适用条件与强度'),
+          child: Text(context.l10n.l6SaveConditionsAndStrength46f33),
         ),
       ],
     ),

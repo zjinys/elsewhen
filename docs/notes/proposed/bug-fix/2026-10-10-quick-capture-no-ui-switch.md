@@ -1,6 +1,6 @@
 # Agent Note: 快速捕获（tray 菜单 / 单实例转发）切不到 CaptureScreen UI
 
-Status: 待解决
+Status: superseded（2026-11-05 复核：2026-11-01 已删除 Capture 模式、独立捕获 UI 与运行期切换入口；不再按本提案增加 mode provider。现行约束见根目录 CLAUDE.md“快速捕获的演进”）
 
 ## Problem
 

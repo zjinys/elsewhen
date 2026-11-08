@@ -22,9 +22,9 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
           child: pagesAsync.when(
             data: (pages) {
               if (pages.isEmpty) {
-                return const _EmptyState(
+                return _EmptyState(
                   icon: Icons.menu_book_outlined,
-                  message: '知识库还没有页面\n\n去「导入」tab 粘贴网址或文本，\n或在对话里说「导入 xxx 到知识库」',
+                  message: context.l10n.wikiEmptyHelp,
                 );
               }
 
@@ -44,12 +44,9 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
               // 孵化中（摘录闭环，提案 2026-10-19）独立置顶分组：导入后
               // 不入编不召回，必须有一个「待定论」库位，否则闭环走不动。
               // 纳入/丢弃（详见页动作）后随 opinion 非 null 自然离开此组。
-              final incubating =
-                  filtered
-                      .where(
-                        (page) => isIncubatingPage(page.kind, page.opinion),
-                      )
-                      .toList();
+              final incubating = filtered
+                  .where((page) => isIncubatingPage(page.kind, page.opinion))
+                  .toList();
               // 平铺列表：只按最近更新排序，不再按主题/来源分组（用户反馈分组
               // 没必要，反而割裂浏览）。
               return Column(
@@ -65,7 +62,7 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
                     child: Row(
                       children: [
                         Text(
-                          '最近 ${recent.length} 条',
+                          context.l10n.recentPageCount(recent.length),
                           style: TextStyle(
                             fontSize: 11,
                             color: AppTheme.textTertiary,
@@ -73,7 +70,7 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
                         ),
                         const Spacer(),
                         Text(
-                          '按最近更新',
+                          context.l10n.sortRecentlyUpdated,
                           style: TextStyle(
                             fontSize: 11,
                             color: AppTheme.textTertiary,
@@ -103,7 +100,9 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  '孵化中 ${incubating.length} 条 · 待定论',
+                                  context.l10n.incubatingCount(
+                                    incubating.length,
+                                  ),
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
@@ -142,7 +141,7 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
             loading: () => const SizedBox.expand(),
             error: (error, stack) => Center(
               child: Text(
-                '加载失败',
+                context.l10n.loadFailed,
                 style: TextStyle(color: AppTheme.textSecondary),
               ),
             ),
@@ -151,15 +150,6 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
       ],
     );
   }
-}
-
-/// 相对时间（列表元数据用）
-String _formatRelative(DateTime time) {
-  final diff = DateTime.now().difference(time);
-  if (diff.inMinutes < 60) return '${diff.inMinutes}分钟前';
-  if (diff.inHours < 24) return '${diff.inHours}小时前';
-  if (diff.inDays < 7) return '${diff.inDays}天前';
-  return DateFormat('MM-dd').format(time);
 }
 
 /// 每种 kind 一个主题色：让「分组 + 条目」的颜色形成双重视觉索引
@@ -257,7 +247,10 @@ class _WikiPageItem extends StatelessWidget {
                     // kind 色点徽标：与分组标题同色，形成双重视觉索引
                     Padding(
                       padding: const EdgeInsets.only(right: AppTheme.space2),
-                      child: _KindBadge(kind: page.kind, label: page.kindLabel),
+                      child: _KindBadge(
+                        kind: page.kind,
+                        label: context.pageKindLabel(page.kind),
+                      ),
                     ),
                     Expanded(
                       child: Text(
@@ -295,7 +288,7 @@ class _WikiPageItem extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        '证据 ${page.evidenceCount}',
+                        context.l10n.evidenceCount(page.evidenceCount),
                         style: TextStyle(
                           fontSize: 10,
                           color: AppTheme.accentPrimary,
@@ -346,7 +339,7 @@ class _WikiPageItem extends StatelessWidget {
                     ),
                     const SizedBox(width: AppTheme.space2),
                     Text(
-                      _formatRelative(page.updatedAt),
+                      prettyTime(page.updatedAt, strings: context.l10n),
                       style: TextStyle(
                         fontSize: 10.5,
                         color: AppTheme.textTertiary,

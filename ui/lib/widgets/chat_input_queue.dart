@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/api.dart';
 import '../providers/conversation_provider.dart';
+import '../l10n/localization.dart';
 
 /// Read-only queue observation. Dispatch belongs to the repository lifecycle,
 /// so changing pages neither stops an authorized queue nor resumes a paused one.
@@ -16,18 +17,21 @@ class ChatInputQueue extends ConsumerStatefulWidget {
   ConsumerState<ChatInputQueue> createState() => _ChatInputQueueState();
 }
 
-String _supplementLabel(String? reason) => switch (reason) {
-  'unsupported_context' => '未补充：材料不能安全合并，已完整保留；请单独处理或撤回',
-  'input_changed' => '未补充：输入版本已变化，仍在队列',
-  'context_changed' => '未补充：材料版本或任务范围不同，已保留为下一问',
-  'budget_or_protocol' => '未补充：当前请求预算或协议不足，仍在队列',
-  'target_closed' => '目标任务已结束；继续队列前不会生成',
-  _ => '等待工具轮结束后补充；未加入时仍保留排队资格',
-};
+enum _QueueError { unavailable, actionUnconfirmed }
+
+String _supplementLabel(BuildContext context, String? reason) =>
+    switch (reason) {
+      'unsupported_context' => context.l10n.supplementUnsupported,
+      'input_changed' => context.l10n.supplementInputChanged,
+      'context_changed' => context.l10n.supplementContextChanged,
+      'budget_or_protocol' => context.l10n.supplementBudget,
+      'target_closed' => context.l10n.supplementClosed,
+      _ => context.l10n.supplementWaiting,
+    };
 
 class _ChatInputQueueState extends ConsumerState<ChatInputQueue> {
   ChatInputQueueDto? _queue;
-  String? _error;
+  _QueueError? _error;
   bool _loading = false;
   Timer? _timer;
 
@@ -63,7 +67,7 @@ class _ChatInputQueueState extends ConsumerState<ChatInputQueue> {
       });
     } catch (_) {
       if (mounted && widget.conversationId == id) {
-        setState(() => _error = '队列状态暂不可用；输入不会重新保存。');
+        setState(() => _error = _QueueError.unavailable);
       }
     } finally {
       _loading = false;
@@ -79,7 +83,7 @@ class _ChatInputQueueState extends ConsumerState<ChatInputQueue> {
       await action();
       await _tick();
     } catch (_) {
-      if (mounted) setState(() => _error = '队列操作未确认，请刷新核实。');
+      if (mounted) setState(() => _error = _QueueError.actionUnconfirmed);
     }
   }
 
@@ -94,7 +98,13 @@ class _ChatInputQueueState extends ConsumerState<ChatInputQueue> {
     final repository = ref.watch(conversationRepositoryProvider);
     if (!repository.supportsChatQueue) return const SizedBox.shrink();
     final queue = _queue;
-    if (_error != null) return Text(_error!);
+    if (_error != null) {
+      return Text(
+        _error == _QueueError.unavailable
+            ? context.l10n.queueUnavailable
+            : context.l10n.queueActionUnconfirmed,
+      );
+    }
     if (queue == null ||
         (queue.items.isEmpty && queue.recentInjections.isEmpty)) {
       return const SizedBox.shrink();
@@ -109,18 +119,26 @@ class _ChatInputQueueState extends ConsumerState<ChatInputQueue> {
             crossAxisAlignment: WrapCrossAlignment.center,
             spacing: 8,
             children: [
-              Text(queue.paused ? '待生成队列已暂停' : '待生成队列 · 按保存顺序处理'),
+              Text(
+                queue.paused
+                    ? context.l10n.queuePaused
+                    : context.l10n.queueOrdered,
+              ),
               TextButton(
                 onPressed: () => _change(
                   () => queue.paused
                       ? repository.resumeChatInputQueue(id)
                       : repository.pauseChatInputQueue(id),
                 ),
-                child: Text(queue.paused ? '继续队列' : '暂停队列'),
+                child: Text(
+                  queue.paused
+                      ? context.l10n.resumeQueue
+                      : context.l10n.pauseQueue,
+                ),
               ),
             ],
           ),
-          if (queue.items.isNotEmpty) const Text('待生成列表中的输入尚未发送给模型；撤回只取消生成资格。'),
+          if (queue.items.isNotEmpty) Text(context.l10n.queueInputDescription),
           for (final item in queue.items.take(10))
             Row(
               children: [
@@ -135,7 +153,7 @@ class _ChatInputQueueState extends ConsumerState<ChatInputQueue> {
                       ),
                       if (item.mode == 'steer')
                         Text(
-                          _supplementLabel(item.deferReason),
+                          _supplementLabel(context, item.deferReason),
                           style: const TextStyle(fontSize: 12),
                         ),
                     ],
@@ -145,16 +163,16 @@ class _ChatInputQueueState extends ConsumerState<ChatInputQueue> {
                   onPressed: () => _change(() async {
                     await repository.withdrawChatInput(id, item.id);
                   }),
-                  child: const Text('撤回生成'),
+                  child: Text(context.l10n.withdrawGeneration),
                 ),
               ],
             ),
-          if (queue.items.length > 10) const Text('另有待生成输入；前面的输入处理后会依次显示。'),
+          if (queue.items.length > 10) Text(context.l10n.moreQueuedInputs),
           if (queue.recentInjections.isNotEmpty)
             ExpansionTile(
-              title: const Text('已加入任务的补充'),
+              title: Text(context.l10n.injectedSupplements),
               children: [
-                const Text('仅表示已加入下一请求上下文，不保证网络送达或模型完成；不会再次排队。'),
+                Text(context.l10n.injectedSupplementsHint),
                 for (final item in queue.recentInjections)
                   ListTile(
                     dense: true,

@@ -1,0 +1,140 @@
+{
+  "generation_failed": {
+    "text": "生成没有产出可用答复；你的问题还挂着，可以重试一次。",
+    "variables": []
+  },
+  "retry_exhausted": {
+    "text": "连续几轮都没有产出可用内容，本轮到此为止；你的问题还挂着，说「继续」或换个问法即可，不需要重新输入原话。",
+    "variables": []
+  },
+  "previous_request": {
+    "text": "刚才的要求",
+    "variables": []
+  },
+  "task": {
+    "text": "关于你刚才的要求「<<request>>」",
+    "variables": [
+      "request"
+    ]
+  },
+  "confirmed_result": {
+    "text": "<<task>>，确认操作的实际结果是：\n<<result>>",
+    "variables": [
+      "result",
+      "task"
+    ]
+  },
+  "query_result": {
+    "text": "<<task>>，查到的结果如下：\n<<result>>",
+    "variables": [
+      "result",
+      "task"
+    ]
+  },
+  "step_failed": {
+    "text": "有一步没有完成：<<reason>>",
+    "variables": [
+      "reason"
+    ]
+  },
+  "available_result": {
+    "text": "已取得的结果：\n<<result>>",
+    "variables": [
+      "result"
+    ]
+  },
+  "previous_reply": {
+    "text": "<<task>>，上一条答复是：\n<<reply>>\n目前没有新的处理结果。",
+    "variables": [
+      "reply",
+      "task"
+    ]
+  },
+  "unfinished": {
+    "text": "<<task>>，这件事还没有完成，我还没有交付可用结果。当前没有后台任务继续处理；原要求仍保留在这段对话里，你不需要重新输入。",
+    "variables": [
+      "task"
+    ]
+  },
+  "pending_action": {
+    "text": "待确认操作",
+    "variables": []
+  },
+  "draft_preview": {
+    "text": "「<<title>>」<<preview>>",
+    "variables": [
+      "preview",
+      "title"
+    ]
+  },
+  "pending_notice": {
+    "text": "当前会话有 <<count>> 项操作等待确认，尚未执行保存：\n<<drafts>>\n请在审阅卡逐项接受或拒绝；接受并执行成功后才算保存。",
+    "variables": [
+      "count",
+      "drafts"
+    ]
+  },
+  "confirmation_failed": {
+    "text": "你刚才确认的「保存」这一轮没有生效：<<reason>>。要保存的内容（关于「<<request>>」）还在对话里，请在审阅卡查看并重试。",
+    "variables": [
+      "reason",
+      "request"
+    ]
+  },
+  "promise_unfulfilled": {
+    "text": "另外，我之前说过要接着处理这件事，这次同样没有做到；它还挂着，不会被当作已完成。",
+    "variables": []
+  },
+  "failure": {
+    "text": "<<task>>，这一轮还没有完成：<<reason>><<promise>>",
+    "variables": [
+      "promise",
+      "reason",
+      "task"
+    ]
+  },
+  "failure_without_request": {
+    "text": "这一轮还没有完成：<<reason>>",
+    "variables": [
+      "reason"
+    ]
+  },
+  "continue_hint": {
+    "text": "现在还没有交付可用结果；原要求仍保留在这段对话里，说「继续」或换个问法即可。",
+    "variables": []
+  },
+  "page": {
+    "text": "知识页",
+    "variables": []
+  },
+  "unverified": {
+    "text": "来源尚未核验",
+    "variables": []
+  },
+  "existing_record": {
+    "text": "已有记录：<<body>>",
+    "variables": [
+      "body"
+    ]
+  },
+  "no_material": {
+    "text": "没有找到可用的材料。",
+    "variables": []
+  },
+  "revision_ready": {
+    "text": "已完成 <<count>> 个连续片段（共 <<total>> 字）的全页修订草稿，尚未保存到页面。请在审阅卡检查全文后接受或拒绝；<<discipline>>。分块处理不能保证模型改写质量，需检查段间衔接和事实保留。",
+    "variables": [
+      "count",
+      "discipline",
+      "total"
+    ]
+  },
+  "revision_protected": {
+    "text": "原文受保护，接受后保存为派生产物",
+    "variables": []
+  },
+  "revision_basis": {
+    "text": "接受前会再次核验页面和来源版本",
+    "variables": []
+  }
+}

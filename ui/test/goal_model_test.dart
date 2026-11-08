@@ -75,7 +75,7 @@ void main() {
       expect(goal.supersededAt, isNull);
     });
 
-    test('转换认知切片字段', () {
+    test('转换目标背景字段', () {
       final goal = Goal.fromDto(
         api.GoalDto(
           id: 'g-facet',
@@ -83,7 +83,7 @@ void main() {
           phase: 'near',
           status: 'active',
           why: '满足第一批核心用户',
-          currentFocus: '完成目标切片化',
+          currentFocus: '完成目标阶段化',
           blocker: 'UI组件待改造',
           doneCriteria: '测试全绿',
           createdAt: '2026-09-28T10:00:00+00:00',
@@ -91,7 +91,7 @@ void main() {
         ),
       );
       expect(goal.why, '满足第一批核心用户');
-      expect(goal.currentFocus, '完成目标切片化');
+      expect(goal.currentFocus, '完成目标阶段化');
       expect(goal.blocker, 'UI组件待改造');
       expect(goal.doneCriteria, '测试全绿');
     });

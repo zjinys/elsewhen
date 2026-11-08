@@ -144,7 +144,7 @@ impl Store {
             params![slug, chrono::Utc::now().to_rfc3339(), id],
         )?;
         if changed == 0 {
-            anyhow::bail!("未找到待办（id={id}）");
+            anyhow::bail!(crate::user_error::UserError::missing("todo"));
         }
         self.sync_record_todo(id, false)?;
         if let Some(tx) = tx {
@@ -166,7 +166,7 @@ impl Store {
     ) -> Result<()> {
         let title = title.trim();
         if title.is_empty() {
-            anyhow::bail!("待办内容不能为空");
+            anyhow::bail!(crate::user_error::UserError::required("title"));
         }
         let priority = priority.unwrap_or("normal");
         let now = chrono::Utc::now().to_rfc3339();

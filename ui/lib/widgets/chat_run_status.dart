@@ -1,3 +1,5 @@
+import 'app_error_notice.dart';
+
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -6,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/chat_run_provider.dart';
 import '../providers/conversation_provider.dart';
 import '../theme/app_theme.dart';
+import '../l10n/localization.dart';
 
 /// Shared presentation for both chat entrances. Tool labels are allowlisted;
 /// provider protocol, raw arguments/results and private reasoning are not UI.
@@ -19,7 +22,7 @@ class ChatRunStatus extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     final view = ref.watch(chatRunStateProvider(conversationId)).value;
-    if (view == null) return const Text('正在读取生成状态…');
+    if (view == null) return Text(context.l10n.readingGeneration);
     final run = view.run;
     if (run == null && !view.busy && view.connectionError == null) {
       return const SizedBox.shrink();
@@ -30,21 +33,23 @@ class ChatRunStatus extends ConsumerWidget {
     if (status == 'completed') {
       return const SizedBox.shrink();
     }
-final label = view.starting
-    ? '正在启动生成…'
-    : view.restoring
-    ? '正在读取生成状态…'
-    : switch (status) {
-        'failed' => '生成失败，输入已保存',
-        'cancelled' => '已停止生成',
-        'interrupted' => '生成已中断',
-        'cancelling' => '正在停止…',
-        _ => ref.watch(
-          _gerundPickProvider(
-            '$conversationId|${run?.id ?? 'pending'}|${_gerundPhase(view)}',
-          ),
-        ),
-      };
+    final preparing = _gerundPhase(view) == 'preparing';
+    final gerundIndex = ref.watch(
+      _gerundPickProvider(
+        '$conversationId|${run?.id ?? 'pending'}|${_gerundPhase(view)}',
+      ),
+    );
+    final label = view.starting
+        ? context.l10n.startGenerating
+        : view.restoring
+        ? context.l10n.readingGeneration
+        : switch (status) {
+            'failed' => context.l10n.generationFailedSaved,
+            'cancelled' => context.l10n.generationStopped,
+            'interrupted' => context.l10n.generationInterrupted,
+            'cancelling' => context.l10n.stopping,
+            _ => _gerundLabel(context, preparing, gerundIndex),
+          };
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -74,7 +79,7 @@ final label = view.starting
                         ? null
                         : controller.stop,
                     icon: const Icon(Icons.stop_circle_outlined, size: 16),
-                    label: const Text('停止生成'),
+                    label: Text(context.l10n.stopGeneration),
                     style: TextButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -86,7 +91,7 @@ final label = view.starting
                   TextButton.icon(
                     onPressed: controller.retry,
                     icon: const Icon(Icons.refresh, size: 16),
-                    label: const Text('重新生成本条'),
+                    label: Text(context.l10n.regenerateThis),
                     style: TextButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -104,23 +109,26 @@ final label = view.starting
                       minimumSize: const Size(0, 32),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: const Text('重新连接'),
+                    child: Text(context.l10n.reconnect),
                   ),
               ],
             ),
             if (view.connectionError != null)
               Text(
-                view.connectionError!,
+                context.notice(view.connectionError!),
                 style: TextStyle(fontSize: 12, color: AppTheme.error),
               ),
             if (run?.errorText != null && !view.active)
-              Text(run!.errorText!, style: const TextStyle(fontSize: 12)),
+              AppErrorMessage(
+                error: run!.errorText!,
+                action: context.l10n.load,
+              ),
             if (view.tools.isNotEmpty)
               ExpansionTile(
                 tilePadding: EdgeInsets.zero,
                 dense: true,
                 title: Text(
-                  '实际工具步骤（最近 ${view.tools.length} 项）',
+                  context.l10n.actualToolSteps(view.tools.length),
                   style: const TextStyle(fontSize: 12),
                 ),
                 children: [
@@ -129,16 +137,18 @@ final label = view.starting
                       dense: true,
                       contentPadding: EdgeInsets.zero,
                       title: Text(
-                        _toolLabel(tool.name),
+                        _toolLabel(context, tool.name),
                         style: const TextStyle(fontSize: 12),
                       ),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(_outcomeLabel(tool.outcome, view.active)),
+                          Text(
+                            _outcomeLabel(context, tool.outcome, view.active),
+                          ),
                           if (tool.details.isNotEmpty)
                             SelectableText(
-                              tool.details,
+                              tool.localizedDetails(context.l10n),
                               style: const TextStyle(fontSize: 11),
                             ),
                         ],
@@ -148,8 +158,8 @@ final label = view.starting
               ),
             if (view.draft.isNotEmpty && status != 'completed') ...[
               const SizedBox(height: 6),
-              const Text(
-                '未核验草稿 · 不代表操作成功或引用有效',
+              Text(
+                context.l10n.unverifiedDraft,
                 style: TextStyle(fontSize: 11),
               ),
               ConstrainedBox(
@@ -169,71 +179,72 @@ final label = view.starting
   }
 }
 
-String _outcomeLabel(String outcome, bool active) => switch (outcome) {
-  'running' => active ? '进行中' : '结果待核实；不会自动重做',
-  'read' => '查询已完成',
-  'proposal_ready' => '草稿已生成，等待审阅；尚未执行',
-  'executed' => '操作已执行（业务回执）',
-  'failed' => '执行失败',
-  _ => '结果待核实',
+String _outcomeLabel(BuildContext context, String outcome, bool active) =>
+    switch (outcome) {
+      'running' =>
+        active ? context.l10n.toolRunning : context.l10n.toolUncertainNoRetry,
+      'read' => context.l10n.toolReadCompleted,
+      'proposal_ready' => context.l10n.toolProposalReady,
+      'executed' => context.l10n.toolExecuted,
+      'failed' => context.l10n.toolFailed,
+      _ => context.l10n.toolUncertain,
+    };
+
+String _toolLabel(BuildContext context, String name) => switch (name) {
+  'list_rules' => context.l10n.toolListRules,
+  'list_wiki_pages' => context.l10n.toolListPages,
+  'get_wiki_page' => context.l10n.toolReadPage,
+  'get_daily_token_usage' => context.l10n.toolUsage,
+  'search_knowledge_base' => context.l10n.toolSearchKnowledge,
+  'fetch_tweet' => context.l10n.toolReadLink,
+  'fetch_page' => context.l10n.toolReadWeb,
+  'record_event' => context.l10n.toolRecordEvent,
+  'save_knowledge_draft' => context.l10n.toolDraftPage,
+  'run_skill_script' => context.l10n.toolSkillScript,
+  'mcp_tool_call' => context.l10n.toolMcp,
+  'list_todos' => context.l10n.toolListTodos,
+  'create_todo' => context.l10n.toolDraftTodo,
+  'propose_people_relations' => context.l10n.toolDraftRelations,
+  'batch_extract_people_relations' => context.l10n.toolExtractRelations,
+  'list_events_by_date' => context.l10n.toolEventsByDate,
+  'archive_conversations_by_title' => context.l10n.toolArchiveChats,
+  'rename_wiki_page' => context.l10n.toolRenamePage,
+  'import_url_to_wiki' => context.l10n.toolImportSource,
+  'import_directory_as_project' => context.l10n.toolInspectDirectory,
+  'import_directory_files' => context.l10n.toolImportFiles,
+  'save_wiki_revision' => context.l10n.toolRevisePage,
+  _ => context.l10n.toolStep,
 };
-
-String _toolLabel(String name) =>
-    const {
-      'list_rules': '查询规则',
-      'list_wiki_pages': '浏览知识页',
-      'get_wiki_page': '读取知识页',
-      'get_daily_token_usage': '查询用量',
-      'search_knowledge_base': '检索知识库',
-      'fetch_tweet': '读取链接',
-      'fetch_page': '读取网页',
-      'record_event': '记录事件',
-      'save_knowledge_draft': '草拟知识页',
-      'run_skill_script': '执行技能脚本',
-      'mcp_tool_call': 'MCP 工具调用',
-      'list_todos': '查询待办',
-      'create_todo': '草拟待办',
-      'propose_people_relations': '草拟联系人关联',
-      'batch_extract_people_relations': '整理联系人关联',
-      'list_events_by_date': '按日期查询事件',
-      'archive_conversations_by_title': '准备归档对话',
-      'rename_wiki_page': '准备知识页重命名',
-      'import_url_to_wiki': '准备来源导入',
-      'import_directory_as_project': '分析项目目录',
-      'import_directory_files': '准备目录文件导入',
-      'save_wiki_revision': '草拟知识页修订',
-    }[name] ??
-    '处理工具步骤';
-
-/// 生成中状态词。按阶段取随机短语（Claude Code 风），同一 run 内稳定
-/// 不闪变，新一轮生成换词；技术阶段细节不再面向用户。
-const _gerundPreparing = [
-  '翻阅记忆中',
-  '整理思路中',
-  '回顾对话中',
-  '翻检知识库中',
-  '搜集线索中',
-  '梳理上下文中',
-];
-
-const _gerundAwaiting = [
-  '正在酝酿',
-  '正在构思',
-  '正在推敲',
-  '正在斟酌',
-  '灵感涌现中',
-  '编织回复中',
-  '打磨措辞中',
-  '抽丝剥茧中',
-];
 
 String _gerundPhase(ChatRunView view) =>
     view.phase == 'requesting' ? 'awaiting' : 'preparing';
 
-final _gerundPickProvider = Provider.autoDispose.family<String, String>((
-  ref,
-  key,
-) {
-  final pool = key.endsWith('|awaiting') ? _gerundAwaiting : _gerundPreparing;
-  return '${pool[Random().nextInt(pool.length)]}…';
-});
+// Keep the choice stable within a run, while allowing locale changes to render
+// the same semantic phrase without starting or replacing a run.
+final _gerundPickProvider = Provider.autoDispose.family<int, String>(
+  (ref, key) => Random().nextInt(key.endsWith('|awaiting') ? 8 : 6),
+);
+
+String _gerundLabel(BuildContext context, bool preparing, int index) {
+  final s = context.l10n;
+  final pool = preparing
+      ? [
+          s.gerundPreparing0,
+          s.gerundPreparing1,
+          s.gerundPreparing2,
+          s.gerundPreparing3,
+          s.gerundPreparing4,
+          s.gerundPreparing5,
+        ]
+      : [
+          s.gerundAwaiting0,
+          s.gerundAwaiting1,
+          s.gerundAwaiting2,
+          s.gerundAwaiting3,
+          s.gerundAwaiting4,
+          s.gerundAwaiting5,
+          s.gerundAwaiting6,
+          s.gerundAwaiting7,
+        ];
+  return pool[index % pool.length];
+}

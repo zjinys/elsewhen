@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../bridge/api.dart' as api;
 import '../sync/sync_object_conflicts_controller.dart';
 import 'sync_conflict_section.dart';
+import '../l10n/localization.dart';
+import '../utils/pretty_time.dart';
 
 /// 待办/目标/计划/规则同步冲突的只读审阅列表 + 显式裁决入口（与 wiki 页冲突同款）。
 ///
@@ -39,21 +41,21 @@ class _SyncObjectConflictsSettingsState
         final conflicts = controller.conflicts;
         return SyncConflictSection(
           icon: Icons.checklist_outlined,
-          title: '待办与目标同步冲突',
-          explainer:
-              '来自其他设备的待办、目标、计划、规则与本端互相冲突。选择「保留本端」或「采纳对端」，不做字段拼接。',
+          title: context.l10n.syncObjectConflictsTitle,
+          explainer: context.l10n.syncObjectConflictsHelp,
           loaded: conflicts != null,
           busy: controller.busy,
           error: controller.error,
-          emptyText: '没有待审阅的待办/目标/计划/规则冲突。',
+          emptyText: context.l10n.syncObjectConflictsEmpty,
           cards: [
-            for (final conflict in conflicts ?? const []) _ObjectConflictCard(
-              key: ValueKey(conflict.opId),
-              conflict: conflict,
-              busy: controller.busy,
-              onResolve: (acceptRemote) =>
-                  controller.resolve(conflict, acceptRemote: acceptRemote),
-            ),
+            for (final conflict in conflicts ?? const [])
+              _ObjectConflictCard(
+                key: ValueKey(conflict.opId),
+                conflict: conflict,
+                busy: controller.busy,
+                onResolve: (acceptRemote) =>
+                    controller.resolve(conflict, acceptRemote: acceptRemote),
+              ),
           ],
         );
       },
@@ -61,21 +63,24 @@ class _SyncObjectConflictsSettingsState
   }
 }
 
-String _kindText(String kind) => switch (kind) {
-  'todo' => '待办',
-  'goal' => '目标',
-  'plan' => '计划',
-  'rule' => '规则',
+String _kindText(BuildContext context, String kind) => switch (kind) {
+  'todo' => context.l10n.syncKindTodo,
+  'goal' => context.l10n.syncKindGoal,
+  'plan' => context.l10n.syncKindPlan,
+  'rule' => context.l10n.syncKindRule,
+  'knowledge_language' => context.l10n.knowledgeLanguage,
   _ => kind,
 };
 
-String _reasonText(String reason) => switch (reason) {
-  'todo_deleted' => '对端已删除本条，而之后仍有改动要送达',
-  'goal_deleted' => '对端已删除本条（目标无删除语义，删除后收到编辑必审）',
-  'plan_deleted' => '对端已删除本条，而之后仍有改动要送达',
-  'rule_deleted' => '对端已删除本条，而之后仍有改动要送达',
-  'base_revision_changed' => '两端都修改了同一条，各自基于旧版本',
-  'goal_active_limit' => '对端目标会使本端活跃目标超出上限',
+String _reasonText(BuildContext context, String reason) => switch (reason) {
+  'todo_deleted' => context.l10n.syncDeletedReason,
+  'goal_deleted' => context.l10n.syncGoalDeletedReason,
+  'plan_deleted' => context.l10n.syncDeletedReason,
+  'rule_deleted' => context.l10n.syncDeletedReason,
+  'base_revision_changed' => context.l10n.syncBaseChangedReason,
+  'goal_active_limit' => context.l10n.syncGoalLimitReason,
+  'knowledge_language_generation_changed' =>
+    context.l10n.syncLanguageChangedReason,
   _ => reason,
 };
 
@@ -102,12 +107,15 @@ class _ObjectConflictCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${_kindText(conflict.objectKind)} · 来自 ${conflict.senderDeviceName ?? conflict.senderDeviceId} 的改动',
+              context.l10n.syncConflictFrom(
+                _kindText(context, conflict.objectKind),
+                conflict.senderDeviceName ?? conflict.senderDeviceId,
+              ),
               style: theme.textTheme.titleSmall,
             ),
             const SizedBox(height: 4),
             Text(
-              _reasonText(conflict.reason),
+              _reasonText(context, conflict.reason),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.tertiary,
               ),
@@ -116,14 +124,16 @@ class _ObjectConflictCard extends StatelessWidget {
             SyncConflictSides(
               children: [
                 _SideView(
-                  title: conflict.localHeadDeleted ? '本端（已删除状态）' : '本端当前',
+                  title: conflict.localHeadDeleted
+                      ? context.l10n.syncLocalDeleted
+                      : context.l10n.syncLocalCurrent,
                   summary: conflict.localSummary,
                   status: conflict.localStatus,
                   updatedAt: conflict.localUpdatedAt,
                   deleted: conflict.localHeadDeleted,
                 ),
                 _SideView(
-                  title: '对端送来的版本',
+                  title: context.l10n.syncIncomingVersion,
                   summary: conflict.incomingSummary,
                   status: conflict.incomingStatus,
                   updatedAt: conflict.incomingUpdatedAt,
@@ -138,12 +148,12 @@ class _ObjectConflictCard extends StatelessWidget {
               children: [
                 OutlinedButton.icon(
                   icon: const Icon(Icons.computer_outlined),
-                  label: const Text('保留本端'),
+                  label: Text(context.l10n.syncKeepLocal),
                   onPressed: busy ? null : () => onResolve(false),
                 ),
                 FilledButton.icon(
                   icon: const Icon(Icons.cloud_download_outlined),
-                  label: const Text('采纳对端'),
+                  label: Text(context.l10n.syncAcceptIncoming),
                   onPressed: busy ? null : () => onResolve(true),
                 ),
               ],
@@ -179,12 +189,21 @@ class _SideView extends StatelessWidget {
         Text(title, style: theme.textTheme.labelLarge),
         const SizedBox(height: 4),
         Text(
-          deleted ? '已删除' : (summary ?? '（空）'),
+          deleted
+              ? context.l10n.syncDeleted
+              : (summary ?? context.l10n.syncEmptyValue),
           style: theme.textTheme.bodyMedium,
         ),
         if (!deleted && status != null)
           Text(
-            '状态 $status · 更新 ${updatedAt ?? '-'}',
+            context.l10n.syncStatusUpdated(switch (status) {
+              'open' => context.l10n.todoStatusOpen,
+              'done' => context.l10n.completed,
+              'archived' => context.l10n.todoStatusArchived,
+              'active' => context.l10n.active,
+              'paused' => context.l10n.pausedGoalState,
+              _ => status!,
+            }, prettyTimestamp(updatedAt, strings: context.l10n) ?? '-'),
             style: theme.textTheme.bodySmall,
           ),
       ],

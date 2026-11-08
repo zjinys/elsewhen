@@ -5,6 +5,7 @@ import '../bridge/api.dart' as api;
 import '../bridge/rust_bridge_repository.dart';
 import '../models/wiki_page.dart';
 import '../theme/app_theme.dart';
+import '../l10n/localization.dart';
 
 /// 打开「定期问我」设置。习惯页头部入口与空状态共用。
 Future<bool?> showHabitNudgeDialog(
@@ -26,6 +27,8 @@ class HabitNudgeDialog extends ConsumerStatefulWidget {
   ConsumerState<HabitNudgeDialog> createState() => _HabitNudgeDialogState();
 }
 
+enum _HabitDialogError { question, time, days, responses, load, save, close }
+
 class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
   final _question = TextEditingController();
   final _time = TextEditingController();
@@ -38,14 +41,16 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
   bool _enabled = true;
   bool _loading = true;
   bool _saving = false;
-  String? _error;
+  _HabitDialogError? _error;
   String? _existingId;
   String _basisExcerpt = '';
 
   @override
   void initState() {
     super.initState();
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
   }
 
   @override
@@ -87,9 +92,10 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
       setState(() => _loading = false);
     } catch (e) {
       if (!mounted) return;
+      context.errorMessage(context.l10n.edit, e);
       setState(() {
         _loading = false;
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _error = _HabitDialogError.load;
       });
     }
   }
@@ -115,22 +121,22 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
     final missedLabel = _missedLabel.text.trim();
     final missedText = _missedText.text.trim();
     if (question.isEmpty) {
-      setState(() => _error = '问法不能为空');
+      setState(() => _error = _HabitDialogError.question);
       return;
     }
     if (!_validTime(time)) {
-      setState(() => _error = '时间需在 07:00–22:00 之间，格式 HH:MM');
+      setState(() => _error = _HabitDialogError.time);
       return;
     }
     if (_days.isEmpty) {
-      setState(() => _error = '至少选择一天');
+      setState(() => _error = _HabitDialogError.days);
       return;
     }
     if (doneLabel.isEmpty ||
         doneText.isEmpty ||
         missedLabel.isEmpty ||
         missedText.isEmpty) {
-      setState(() => _error = '按钮和记录句都不能为空');
+      setState(() => _error = _HabitDialogError.responses);
       return;
     }
     setState(() {
@@ -156,9 +162,10 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
+      context.errorMessage(context.l10n.edit, e);
       setState(() {
         _saving = false;
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _error = _HabitDialogError.save;
       });
     }
   }
@@ -170,17 +177,17 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppTheme.surface1,
-        title: const Text('关闭定期问候？'),
-        content: const Text('已产生的历史问候和回答会保留，之后不再主动问你。'),
+        title: Text(context.l10n.closeCheckinsQuestion),
+        content: Text(context.l10n.closeCheckinsHelp),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppTheme.error),
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('关闭'),
+            child: Text(context.l10n.close),
           ),
         ],
       ),
@@ -193,7 +200,8 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      context.errorMessage(context.l10n.edit, e);
+      setState(() => _error = _HabitDialogError.close);
     }
   }
 
@@ -229,7 +237,9 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              _existingId == null ? '定期问我' : '调整定期问候',
+                              _existingId == null
+                                  ? context.l10n.askRegularly
+                                  : context.l10n.adjustCheckins,
                               style: TextStyle(
                                 color: AppTheme.textPrimary,
                                 fontSize: 17,
@@ -241,8 +251,7 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        '到点后我会在主对话里发一条消息。所有内容先由你确认，'
-                        '不会自动修改习惯页。',
+                        context.l10n.checkinHelp,
                         style: TextStyle(
                           fontSize: 12,
                           color: AppTheme.textTertiary,
@@ -251,8 +260,7 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '多设备同步时只有主设备会在到点后写入问候；'
-                        '其他设备同步显示，不会重复发问。',
+                        context.l10n.checkinSyncHelp,
                         style: TextStyle(
                           fontSize: 11,
                           color: AppTheme.textTertiary,
@@ -277,7 +285,7 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '推断依据',
+                                context.l10n.inferenceBasis,
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
@@ -298,13 +306,15 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                         ),
                       ],
                       const SizedBox(height: 16),
-                      _label('问法'),
+                      _label(context.l10n.checkinQuestion),
                       TextField(
                         controller: _question,
                         maxLines: 2,
                         minLines: 1,
                         style: TextStyle(color: AppTheme.textPrimary),
-                        decoration: _inputDecoration('例如：今天午饭后散步了吗？'),
+                        decoration: _inputDecoration(
+                          context.l10n.checkinQuestionHint,
+                        ),
                       ),
                       const SizedBox(height: 14),
                       Row(
@@ -313,7 +323,7 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _label('每天什么时候问'),
+                                _label(context.l10n.checkinTime),
                                 TextField(
                                   controller: _time,
                                   style: TextStyle(color: AppTheme.textPrimary),
@@ -327,11 +337,13 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _label('重复'),
+                                _label(context.l10n.repeat),
                                 Text(
                                   _days.length == 7
-                                      ? '每天'
-                                      : '每周 ${_days.length} 天',
+                                      ? context.l10n.everyDay
+                                      : context.l10n.checkinDaysPerWeek(
+                                          _days.length,
+                                        ),
                                   style: TextStyle(
                                     color: AppTheme.textSecondary,
                                     fontSize: 13,
@@ -356,7 +368,7 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                         children: [
                           for (var day = 1; day <= 7; day++)
                             FilterChip(
-                              label: Text(_dayName(day)),
+                              label: Text(_dayName(context, day)),
                               selected: _days.contains(day),
                               onSelected: (selected) {
                                 setState(() {
@@ -371,7 +383,7 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      _label('完成按钮与记录'),
+                      _label(context.l10n.checkinDoneFields),
                       Row(
                         children: [
                           SizedBox(
@@ -379,7 +391,9 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                             child: TextField(
                               controller: _doneLabel,
                               style: TextStyle(color: AppTheme.textPrimary),
-                              decoration: _inputDecoration('走了'),
+                              decoration: _inputDecoration(
+                                context.l10n.walkDoneHint,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -387,13 +401,15 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                             child: TextField(
                               controller: _doneText,
                               style: TextStyle(color: AppTheme.textPrimary),
-                              decoration: _inputDecoration('今天午饭后散步了'),
+                              decoration: _inputDecoration(
+                                context.l10n.walkDoneTextHint,
+                              ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 10),
-                      _label('未完成按钮与记录'),
+                      _label(context.l10n.checkinMissedFields),
                       Row(
                         children: [
                           SizedBox(
@@ -401,7 +417,9 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                             child: TextField(
                               controller: _missedLabel,
                               style: TextStyle(color: AppTheme.textPrimary),
-                              decoration: _inputDecoration('没走'),
+                              decoration: _inputDecoration(
+                                context.l10n.walkMissedHint,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -409,15 +427,16 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                             child: TextField(
                               controller: _missedText,
                               style: TextStyle(color: AppTheme.textPrimary),
-                              decoration: _inputDecoration('今天还没走'),
+                              decoration: _inputDecoration(
+                                context.l10n.walkMissedTextHint,
+                              ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        '按钮文字尽量短；记录句会作为一条真实记录写入，'
-                        '「没完成」默认只留在对话里，不生成事件。',
+                        context.l10n.checkinRecordHelp,
                         style: TextStyle(
                           fontSize: 11,
                           color: AppTheme.textTertiary,
@@ -427,29 +446,31 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                       if (_error != null) ...[
                         const SizedBox(height: 12),
                         Text(
-                          _error!,
+                          _errorText(context),
                           style: TextStyle(color: AppTheme.error, fontSize: 12),
                         ),
                       ],
                       const SizedBox(height: 18),
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        alignment: WrapAlignment.end,
                         children: [
                           if (_existingId != null)
                             TextButton.icon(
                               onPressed: _saving ? null : _delete,
                               icon: const Icon(Icons.delete_outline, size: 16),
-                              label: const Text('关闭定期问候'),
+                              label: Text(context.l10n.closeCheckins),
                               style: TextButton.styleFrom(
                                 foregroundColor: AppTheme.error,
                               ),
                             ),
-                          const Spacer(),
                           TextButton(
                             onPressed: _saving
                                 ? null
                                 : () => Navigator.of(context).pop(),
                             child: Text(
-                              '取消',
+                              context.l10n.cancel,
                               style: TextStyle(color: AppTheme.textSecondary),
                             ),
                           ),
@@ -467,7 +488,7 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                                       strokeWidth: 2,
                                     ),
                                   )
-                                : const Text('保存'),
+                                : Text(context.l10n.save),
                           ),
                         ],
                       ),
@@ -478,6 +499,16 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
       ),
     );
   }
+
+  String _errorText(BuildContext context) => switch (_error!) {
+    _HabitDialogError.question => context.l10n.checkinQuestionRequired,
+    _HabitDialogError.time => context.l10n.checkinTimeInvalid,
+    _HabitDialogError.days => context.l10n.checkinDayRequired,
+    _HabitDialogError.responses => context.l10n.checkinResponsesRequired,
+    _HabitDialogError.load => context.l10n.operationFailed(context.l10n.load),
+    _HabitDialogError.save => context.l10n.operationFailed(context.l10n.save),
+    _HabitDialogError.close => context.l10n.operationFailed(context.l10n.close),
+  };
 
   Widget _label(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 6),
@@ -506,6 +537,6 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
     ),
   );
 
-  static String _dayName(int day) =>
-      const ['一', '二', '三', '四', '五', '六', '日'][day - 1];
+  String _dayName(BuildContext context, int day) =>
+      context.l10n.weekdayShort(day.toString());
 }

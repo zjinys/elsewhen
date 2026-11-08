@@ -5,8 +5,13 @@ part of '../markdown_view.dart';
 class _BlockWidget extends StatefulWidget {
   final _Block block;
   final TextStyle base;
+  final void Function(String slug)? onTapWikiPage;
 
-  const _BlockWidget({required this.block, required this.base});
+  const _BlockWidget({
+    required this.block,
+    required this.base,
+    this.onTapWikiPage,
+  });
 
   @override
   State<_BlockWidget> createState() => _BlockWidgetState();
@@ -31,10 +36,37 @@ class _BlockWidgetState extends State<_BlockWidget> {
 
   /// 链接用：登记到本 element 的识别器表，dispose 时统一释放。
   TapGestureRecognizer _linkRecognizer(String url) {
+    final isHttp =
+        url.startsWith('http://') ||
+        url.startsWith('https://') ||
+        url.startsWith('mailto:');
     final recognizer = TapGestureRecognizer()
-      ..onTap = () => launchUrl(Uri.parse(url));
+      ..onTap = () {
+        if (isHttp) {
+          launchUrl(Uri.parse(url));
+        } else {
+          final slug = url.startsWith('wiki:') ? url.substring(5) : url;
+          _handleWikiTap(slug);
+        }
+      };
     _recognizers.add(recognizer);
     return recognizer;
+  }
+
+  /// 知识页 slug / 维基链接用：点击弹窗或交给外层回调
+  TapGestureRecognizer _wikiRecognizer(String slug) {
+    final recognizer = TapGestureRecognizer()
+      ..onTap = () => _handleWikiTap(slug);
+    _recognizers.add(recognizer);
+    return recognizer;
+  }
+
+  void _handleWikiTap(String slug) {
+    if (widget.onTapWikiPage != null) {
+      widget.onTapWikiPage!(slug);
+    } else {
+      showKnowledgePageDialog(context, slug: slug);
+    }
   }
 
   @override
@@ -283,12 +315,28 @@ class _BlockWidgetState extends State<_BlockWidget> {
     );
   }
 
-  /// 行内解析：~~删除线~~、**粗体**、*斜体*、`代码`、[[wikilink]]、[文字](url)
+  static const _slugPrefixes =
+      'kb|topic|source|tweet|note|person|project|profile|habit|decision|insight|method|case|principle|series|capability|asset';
+
+  static final _inlinePattern = RegExp(
+    r'(~~.+?~~|\*\*.+?\*\*|`[^`]+`|\[\[[^\]]+\]\]|\[[^\]]+\]\([^)]+\)|\*[^*]+\*|'
+    r'(?<![a-zA-Z0-9_\-\/])(?:'
+    '$_slugPrefixes'
+    r')[-_/][a-zA-Z0-9_\-\u4e00-\u9fa5]*[a-zA-Z0-9\u4e00-\u9fa5])',
+  );
+
+  static final _slugPattern = RegExp(
+    r'^(?:' +
+        _slugPrefixes +
+        r')[-_/][a-zA-Z0-9_\-\u4e00-\u9fa5]*[a-zA-Z0-9\u4e00-\u9fa5]$',
+  );
+
+  static bool _isSlug(String str) => _slugPattern.hasMatch(str.trim());
+
+  /// 行内解析：~~删除线~~、**粗体**、*斜体*、`代码`、[[wikilink]]、[文字](url)、知识页 slug
   TextSpan _inlineSpans(String text, TextStyle base) {
-    const pattern =
-        r'(~~.+?~~|\*\*.+?\*\*|`[^`]+`|\[\[[^\]]+\]\]|\[[^\]]+\]\([^)]+\)|\*[^*]+\*)';
     final spans = <TextSpan>[];
-    final re = RegExp(pattern);
+    final re = _inlinePattern;
     var last = 0;
 
     for (final m in re.allMatches(text)) {
@@ -326,21 +374,37 @@ class _BlockWidgetState extends State<_BlockWidget> {
           ),
         );
       } else if (raw.startsWith('[[')) {
+        final content = raw.substring(2, raw.length - 2);
+        final pipeIndex = content.indexOf('|');
+        final target = pipeIndex >= 0
+            ? content.substring(0, pipeIndex).trim()
+            : content.trim();
+        final label = pipeIndex >= 0
+            ? content.substring(pipeIndex + 1).trim()
+            : target;
+        final cleanSlug = target.startsWith('kb:')
+            ? target.substring(3)
+            : target;
         spans.add(
           TextSpan(
-            text: raw.substring(2, raw.length - 2),
+            text: label,
             style: base.copyWith(
               color: AppTheme.accentPrimary,
               decoration: TextDecoration.underline,
               decorationColor: AppTheme.accentMuted,
               fontWeight: FontWeight.w600,
             ),
+            recognizer: _wikiRecognizer(cleanSlug),
           ),
         );
       } else if (raw.startsWith('[')) {
         // [文字](url) → 只展示文字
         final label = raw.substring(1, raw.indexOf(']'));
         final url = raw.substring(raw.indexOf('](') + 2, raw.length - 1);
+        final isHttp =
+            url.startsWith('http://') ||
+            url.startsWith('https://') ||
+            url.startsWith('mailto:');
         spans.add(
           TextSpan(
             text: label,
@@ -349,7 +413,11 @@ class _BlockWidgetState extends State<_BlockWidget> {
               decoration: TextDecoration.underline,
               decorationColor: AppTheme.accentMuted,
             ),
-            recognizer: _linkRecognizer(url),
+            recognizer: isHttp
+                ? _linkRecognizer(url)
+                : _wikiRecognizer(
+                    url.startsWith('wiki:') ? url.substring(5) : url,
+                  ),
           ),
         );
       } else if (raw.startsWith('*') && raw.endsWith('*')) {
@@ -357,6 +425,19 @@ class _BlockWidgetState extends State<_BlockWidget> {
           TextSpan(
             text: raw.substring(1, raw.length - 1),
             style: base.copyWith(fontStyle: FontStyle.italic),
+          ),
+        );
+      } else if (_isSlug(raw)) {
+        spans.add(
+          TextSpan(
+            text: raw,
+            style: base.copyWith(
+              color: AppTheme.accentPrimary,
+              decoration: TextDecoration.underline,
+              decorationColor: AppTheme.accentMuted,
+              fontWeight: FontWeight.w500,
+            ),
+            recognizer: _wikiRecognizer(raw),
           ),
         );
       }

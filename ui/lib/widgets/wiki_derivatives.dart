@@ -1,4 +1,5 @@
 import 'artifact_versions.dart';
+import '../l10n/localization.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,17 +24,17 @@ class WikiSourceLink extends ConsumerWidget {
     // 同 wiki_page_detail_view：知识号 bump 触发的 reload 不重回 loading。
     return source.when(
       skipLoadingOnReload: true,
-      loading: () => const Text('正在读取来源…'),
+      loading: () => Text(context.l10n.wikiSourceLoading),
       error: (_, _) => TextButton(
         onPressed: () => ref.invalidate(wikiPageProvider(slug)),
-        child: const Text('来源读取失败，点击重试'),
+        child: Text(context.l10n.wikiSourceRetry),
       ),
       data: (page) => page == null
-          ? const Text('来源页已不可用')
+          ? Text(context.l10n.wikiSourceUnavailable)
           : TextButton.icon(
               onPressed: () => openWikiPageTab(ref, page),
               icon: const Icon(Icons.subdirectory_arrow_left),
-              label: Text('基于：${page.title}'),
+              label: Text(context.l10n.wikiBasedOn(page.title)),
             ),
     );
   }

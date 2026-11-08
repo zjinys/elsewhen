@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 
 import '../sync/sync_backlog_notice.dart';
@@ -72,13 +74,13 @@ class _SyncBacklogBannerState extends State<SyncBacklogBanner> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        notice.message,
+                        notice.localizedMessage(context.l10n),
                         style: TextStyle(fontSize: 12, color: color),
                       ),
                     ),
                     if (notice.actionable)
                       Text(
-                        '${notice.actionLabel} ›',
+                        '${context.l10n.syncGoUnlock} ›',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,

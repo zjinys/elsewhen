@@ -28,7 +28,7 @@ static MCP_TOOLS_CACHE: std::sync::LazyLock<
 
 pub(crate) fn mcp_server_fingerprint(server: &crate::storage::McpServerConfig) -> String {
     crate::storage::knowledge::content_hash(&format!(
-        "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+        "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
         server.id,
         server.name,
         server.platform,
@@ -38,7 +38,8 @@ pub(crate) fn mcp_server_fingerprint(server: &crate::storage::McpServerConfig) -
         server.env_json,
         server.url,
         server.headers_json,
-        server.enabled
+        server.enabled,
+        server.keywords
     ))
 }
 

@@ -87,9 +87,13 @@ impl Store {
                 prompt_version,
                 result_json,
                 created_at,
+                language,
             } => {
                 validate_id(id)?;
                 self.connection.execute("INSERT INTO event_analyses(id,event_id,prompt_version,result_json,created_at) VALUES(?1,?2,?3,?4,?5)",params![id,event_id,prompt_version,result_json,created_at])?;
+                if let Some(language) = language {
+                    self.put_artifact_language("analysis", id, language)?;
+                }
             }
             Record::Classification {
                 id,
@@ -111,11 +115,19 @@ impl Store {
                 // revision_id 即 op_id（形如 stream:N，含冒号），不能过
                 // validate_id；真正的闸门是领域表存在性复核。
                 let table = domain_table(object_kind)?;
-                let exists: bool = self.connection.query_row(
-                    &format!("SELECT EXISTS(SELECT 1 FROM {table} WHERE id=?1)"),
-                    [object_id],
-                    |r| r.get(0),
-                )?;
+                let exists: bool = if object_kind == "knowledge_language" {
+                    ensure!(
+                        object_id == "dataset" && !deleted,
+                        "sync_snapshot_language_head_invalid"
+                    );
+                    true
+                } else {
+                    self.connection.query_row(
+                        &format!("SELECT EXISTS(SELECT 1 FROM {table} WHERE id=?1)"),
+                        [object_id],
+                        |r| r.get(0),
+                    )?
+                };
                 ensure!(exists != *deleted, "sync_snapshot_head_mismatch");
                 self.sync_set_head(object_kind, object_id, revision_id, *deleted)?;
             }
@@ -180,6 +192,7 @@ impl Store {
                 reason,
                 source_event_id,
                 created_at,
+                language,
             } => {
                 validate_id(id)?;
                 if let Some(event) = source_event_id {
@@ -196,6 +209,9 @@ impl Store {
                     "sync_snapshot_wiki_revision_orphaned"
                 );
                 self.connection.execute("INSERT INTO wiki_revisions(id,page_id,content_md,reason,source_event_id,created_at) VALUES(?1,?2,?3,?4,?5,?6)",params![id,page_id,content_md,reason,source_event_id,created_at])?;
+                if let Some(language) = language {
+                    self.put_artifact_language("wiki_revision", id, language)?;
+                }
             }
             Record::KnowledgeReview {
                 fingerprint,
@@ -358,7 +374,10 @@ impl Store {
                 validate_id(id)?;
                 ensure!(
                     matches!(phase.as_str(), "near" | "mid" | "long")
-                        && matches!(status.as_str(), "active" | "paused" | "completed" | "superseded"),
+                        && matches!(
+                            status.as_str(),
+                            "active" | "paused" | "completed" | "superseded"
+                        ),
                     "sync_snapshot_goal_status_invalid"
                 );
                 let normalized_status = if status == "superseded" {
@@ -385,7 +404,10 @@ impl Store {
                 validate_id(id)?;
                 ensure!(
                     !intent_text.trim().is_empty()
-                        && matches!(status.as_str(), "proposed" | "active" | "paused" | "completed"),
+                        && matches!(
+                            status.as_str(),
+                            "proposed" | "active" | "paused" | "completed"
+                        ),
                     "sync_snapshot_plan_invalid"
                 );
                 let assumptions_json: serde_json::Value = serde_json::from_str(&assumptions)

@@ -1,3 +1,5 @@
+import '../l10n/app_localizations_zh.dart';
+
 /// Conversation model
 class Conversation {
   final String id;
@@ -9,6 +11,7 @@ class Conversation {
   final String? lastMessagePreview;
   final bool archived;
   final String? wikiPageSlug;
+
   /// 目标专属讨论会话绑定（goal_mentor）；null 为非目标会话
   final String? goalId;
 
@@ -39,7 +42,8 @@ class Conversation {
     );
   }
 
-  String get displayTitle => title ?? '新对话';
+  String get displayTitle =>
+      title ?? AppLocalizationsZh().legacyNewConversation;
 
   /// 是否为知识页处理会话（关联了知识页）
   bool get isWikiChat => wikiPageSlug != null;
@@ -120,6 +124,7 @@ class Message {
   bool get isHabitNudge => kind == 'habit_nudge';
   bool get isHabitNudgeSuggest => kind == 'habit_nudge_suggest';
   bool get isHabitCheckin => kind == 'habit_checkin';
+  bool get isDigestInsight => kind == 'digest_insight';
 
   /// 展示序比较器：assistant 回复锚定到其输入消息（inputMessageId），
   /// 队列连发场景保证一问一答交错；锚条缺失时退回自身时间。

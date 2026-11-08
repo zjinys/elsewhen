@@ -30,6 +30,23 @@ if [ -z "$FRB_CLANG_INCLUDE" ]; then
 fi
 FRB_SHIM_DIR="${TMPDIR:-/tmp}/elsewhen-frb-tools"
 mkdir -p "$FRB_SHIM_DIR"
+export FRB_ORIGINAL_CC="$(command -v "${CC:-cc}")"
+export FRB_ORIGINAL_CXX="$(command -v "${CXX:-c++}")"
+# Resolve through FVM itself: .fvm/flutter_sdk can be a stale symlink after a
+# pin upgrade, even when `fvm flutter` already uses the new SDK correctly.
+export FRB_UI_DIR="$PWD/ui"
+cat > "$FRB_SHIM_DIR/flutter" <<'WRAPPER'
+#!/bin/sh
+cd "$FRB_UI_DIR"
+exec fvm flutter "$@"
+WRAPPER
+cat > "$FRB_SHIM_DIR/dart" <<'WRAPPER'
+#!/bin/sh
+cd "$FRB_UI_DIR"
+exec fvm dart "$@"
+WRAPPER
+chmod +x "$FRB_SHIM_DIR/flutter" "$FRB_SHIM_DIR/dart"
+export PATH="$FRB_SHIM_DIR:$PATH"
 cat > "$FRB_SHIM_DIR/cc" <<'WRAPPER'
 #!/bin/sh
 exec env -u CPATH "$FRB_ORIGINAL_CC" "$@"
@@ -39,8 +56,6 @@ cat > "$FRB_SHIM_DIR/cxx" <<'WRAPPER'
 exec env -u CPATH "$FRB_ORIGINAL_CXX" "$@"
 WRAPPER
 chmod +x "$FRB_SHIM_DIR/cc" "$FRB_SHIM_DIR/cxx"
-export FRB_ORIGINAL_CC="${CC:-cc}"
-export FRB_ORIGINAL_CXX="${CXX:-c++}"
 export CC="$FRB_SHIM_DIR/cc" CXX="$FRB_SHIM_DIR/cxx"
 export CPATH="$FRB_CLANG_INCLUDE${CPATH:+:$CPATH}"
 echo "[1/3] Clang headers: $FRB_CLANG_INCLUDE; C compiler header paths isolated"
@@ -72,7 +87,9 @@ if [ -n "$FRB_WANT_VER" ] && [ -n "$FRB_GOT_VER" ] && [ "$FRB_GOT_VER" != "$FRB_
 fi
 echo "     codegen 版本 $FRB_GOT_VER（与 Cargo.toml 一致）"
 
-flutter_rust_bridge_codegen generate
+# Bootstrap installs the pinned SDK. Codegen still invokes FVM, but should not
+# repeat `fvm install` for every Dart subprocess (including from the Rust root).
+flutter_rust_bridge_codegen generate --skip-fvm-install
 echo "     生成完成"
 
 # ---------- 3. 重编 Rust release 库（保持 hash 一致） ----------

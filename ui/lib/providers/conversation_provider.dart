@@ -38,10 +38,12 @@ class ConversationRepository {
   Future<List<Message>> getMessages(String conversationId) async {
     final active = await _bridge.listConversations();
     final archived = await _bridge.listArchivedConversations();
-    final ordinary = [
-      ...active,
-      ...archived,
-    ].where((conversation) => !conversation.isWikiChat && !conversation.isGoalChat).toList();
+    final ordinary = [...active, ...archived]
+        .where(
+          (conversation) =>
+              !conversation.isWikiChat && !conversation.isGoalChat,
+        )
+        .toList();
     final isMain = ordinary.any(
       (conversation) =>
           conversation.id == conversationId && conversation.title == '主对话流',

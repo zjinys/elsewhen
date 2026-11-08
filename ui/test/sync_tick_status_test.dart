@@ -73,7 +73,7 @@ void main() {
     final ticks = ValueNotifier<api.SyncTickResultDto?>(tick());
     final errors = ValueNotifier<Object?>('relay unreachable');
     await pump(tester, ticks: ticks, errors: errors);
-    expect(find.textContaining('最近同步错误'), findsOneWidget);
+    expect(find.textContaining('失败'), findsOneWidget);
     expect(find.textContaining('最近同步：'), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });

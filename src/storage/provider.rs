@@ -135,7 +135,9 @@ impl Store {
         })?;
         let mut configs = rows.collect::<rusqlite::Result<Vec<_>>>()?;
         for config in &mut configs {
-            config.api_key = self.read_provider_key(&config.id)?.unwrap_or_default();
+            config.api_key = self.resolve_secret_placeholders(
+                &self.read_provider_key(&config.id)?.unwrap_or_default(),
+            )?;
         }
         if let Some(tx) = tx {
             tx.commit()?;
@@ -424,9 +426,10 @@ impl Store {
         };
         let mut config = self.active_ai_provider_metadata()?;
         if let Some(config) = &mut config {
-            config.api_key = self
+            let template = self
                 .read_provider_key(&config.id)?
                 .ok_or_else(|| anyhow::anyhow!("provider_key_missing"))?;
+            config.api_key = self.resolve_secret_placeholders(&template)?;
         }
         if let Some(tx) = tx {
             tx.commit()?;

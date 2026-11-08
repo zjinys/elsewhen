@@ -1,4 +1,5 @@
 part of '../settings_screen.dart';
+
 // ignore_for_file: invalid_use_of_protected_member — setState 从 State 子类方法平移至 extension，receiver 类型不变
 
 //! 用户技能安装/卸载/信任/开关操作与内容面板。
@@ -10,10 +11,7 @@ extension _Skills on _SettingsScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '把技能目录放进 <数据目录>/skills（每个技能一个子目录，含 SKILL.md），'
-          '对话中由模型按需加载；脚本执行前会单独向你确认。'
-          '把某个技能标为「信任」后，它的脚本调用直接执行、不再审批——脚本可在'
-          '本机执行任意操作，开启即视为你了解并自担风险。',
+          context.l10n.l6PlaceEachSkillFolderWithIts94f37,
           style: TextStyle(
             color: AppTheme.textSecondary,
             fontSize: 13,
@@ -30,26 +28,26 @@ extension _Skills on _SettingsScreenState {
                   ? null
                   : () => _pickInstallSkill(false),
               icon: const Icon(Icons.folder_open_outlined, size: 18),
-              label: const Text('从文件夹安装'),
+              label: Text(context.l10n.l6InstallFromFolder22a87),
             ),
             OutlinedButton.icon(
               onPressed: _installingSkill
                   ? null
                   : () => _pickInstallSkill(true),
               icon: const Icon(Icons.archive_outlined, size: 18),
-              label: const Text('从 zip 安装'),
+              label: Text(context.l10n.l6InstallFromZip906f1),
             ),
             if (!Platform.isAndroid && !Platform.isIOS)
               OutlinedButton.icon(
                 onPressed: _installingSkill ? null : _promptGitInstall,
                 icon: const Icon(Icons.commit_outlined, size: 18),
-                label: const Text('从 Git 安装'),
+                label: Text(context.l10n.l6InstallFromGit0882e),
               ),
             if (!Platform.isAndroid && !Platform.isIOS)
               TextButton.icon(
                 onPressed: _openSkillsDirectory,
                 icon: const Icon(Icons.output_outlined, size: 18),
-                label: const Text('打开技能目录'),
+                label: Text(context.l10n.l6OpenSkillsFoldera4437),
               ),
           ],
         ),
@@ -60,8 +58,11 @@ extension _Skills on _SettingsScreenState {
             children: [
               Text(
                 _skillBatchMode
-                    ? '已选 ${_skillSelected.length} / ${skills.length}'
-                    : '共 ${skills.length} 个',
+                    ? context.l10n.l6SelectedArg0Arg1fd75c(
+                        (_skillSelected.length).toString(),
+                        (skills.length).toString(),
+                      )
+                    : context.l10n.l6TotalArg01e668((skills.length).toString()),
                 style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
@@ -82,7 +83,9 @@ extension _Skills on _SettingsScreenState {
                   size: 15,
                 ),
                 label: Text(
-                  _skillBatchMode ? '退出选择' : '批量删除',
+                  _skillBatchMode
+                      ? context.l10n.l6ExitSelectione23ed
+                      : context.l10n.l6DeleteMultiple362ae,
                   style: const TextStyle(fontSize: 12.5),
                 ),
                 style: TextButton.styleFrom(
@@ -105,7 +108,9 @@ extension _Skills on _SettingsScreenState {
                     visualDensity: VisualDensity.compact,
                   ),
                   child: Text(
-                    _skillSelected.length == skills.length ? '全不选' : '全选',
+                    _skillSelected.length == skills.length
+                        ? context.l10n.l6DeselectAllba20e
+                        : context.l10n.l6SelectAll3e44b,
                     style: const TextStyle(fontSize: 12.5),
                   ),
                 ),
@@ -122,7 +127,11 @@ extension _Skills on _SettingsScreenState {
                     ? null
                     : () => _batchUninstallSkills(),
                 icon: const Icon(Icons.delete_outline, size: 16),
-                label: Text('删除所选 (${_skillSelected.length})'),
+                label: Text(
+                  context.l10n.l6DeleteSelectedArg0def95(
+                    (_skillSelected.length).toString(),
+                  ),
+                ),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppTheme.error,
                   visualDensity: VisualDensity.compact,
@@ -137,7 +146,7 @@ extension _Skills on _SettingsScreenState {
                 style: OutlinedButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                 ),
-                child: const Text('取消'),
+                child: Text(context.l10n.cancel),
               ),
             ],
           ),
@@ -147,12 +156,13 @@ extension _Skills on _SettingsScreenState {
         if (skills == null)
           _McpStatusLine(
             icon: Icons.hourglass_empty_outlined,
-            text: _userSkillsError ?? '正在读取技能列表…',
+            text: context.l10n.l6LoadingSkills8d716,
+            error: _userSkillsError,
           )
         else if (skills.isEmpty)
           _McpStatusLine(
             icon: Icons.extension_outlined,
-            text: '尚未安装任何用户技能\n从文件夹 / zip / Git 仓库安装第一个技能',
+            text: context.l10n.l6NoUserSkillsInstalledInstallAe8aea,
           )
         else
           ...skills.map(
@@ -180,33 +190,44 @@ extension _Skills on _SettingsScreenState {
     if (repository is! RustBridgeRepository) return;
     try {
       final skills = await repository.listUserSkills();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _userSkills = skills;
           _userSkillsError = null;
         });
+      }
     } catch (e) {
-      if (mounted)
-        setState(() => _userSkillsError = reportUiError('读取用户技能', e));
+      if (mounted) {
+        setState(
+          () => _userSkillsError = _settingsFailure(
+            context.l10n.l6LoadUserSkillsfb79f,
+            e,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _pickInstallSkill(bool asZip) async {
     final path = asZip
         ? (await FilePicker.pickFiles(
-            dialogTitle: '选择技能 zip 包',
+            dialogTitle: context.l10n.l6ChooseASkillZipFile0e485,
             type: FileType.custom,
             allowedExtensions: ['zip'],
           )).first.path
-        : await FilePicker.getDirectoryPath(dialogTitle: '选择包含 SKILL.md 的技能目录');
-    if (path == null) return;
+        : await FilePicker.getDirectoryPath(
+            dialogTitle: context.l10n.l6ChooseASkillFolderContainingSkill8789f,
+          );
+    if (path == null || !mounted) return;
     final repository =
         ref.read(storageRepositoryProvider) as RustBridgeRepository;
     await _installSkill(
       asZip
           ? () => repository.installUserSkillFromZip(path)
           : () => repository.installUserSkillFromDirectory(path),
-      what: asZip ? 'zip 安装' : '目录安装',
+      what: asZip
+          ? context.l10n.l6InstallFromZip37d9a
+          : context.l10n.l6InstallFromFolder71cd7,
     );
   }
 
@@ -215,34 +236,34 @@ extension _Skills on _SettingsScreenState {
     final url = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('从 Git 仓库安装技能'),
+        title: Text(context.l10n.l6InstallASkillFromGitfa921),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             hintText: 'https://github.com/user/skill-repo.git',
-            labelText: '仓库地址（https 或本地路径）',
+            labelText: context.l10n.l6RepositoryUrlHttpsOrLocalPath3ae69,
           ),
           onSubmitted: (v) => Navigator.of(context).pop(v.trim()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('安装'),
+            child: Text(context.l10n.l6Install087db),
           ),
         ],
       ),
     );
-    if (url == null || url.isEmpty) return;
+    if (url == null || url.isEmpty || !mounted) return;
     final repository =
         ref.read(storageRepositoryProvider) as RustBridgeRepository;
     await _installSkill(
       () => repository.installUserSkillFromGit(url),
-      what: 'Git 安装',
+      what: context.l10n.l6InstallFromGit6d266,
     );
   }
 
@@ -255,12 +276,25 @@ extension _Skills on _SettingsScreenState {
       final dto = await install();
       await _loadUserSkills();
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('已安装 ${dto.title}，默认启用')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.l10n.l6InstalledArg0EnabledByDefaultdd2c2(
+              (dto.title).toString(),
+            ),
+          ),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(reportUiError(what, e))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppErrorMessage(
+            action: context.l10n.load,
+            error: _settingsFailure(what, e),
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _installingSkill = false);
     }
@@ -279,8 +313,14 @@ extension _Skills on _SettingsScreenState {
       await Process.run(binary, [dir]);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(reportUiError('打开技能目录', e))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppErrorMessage(
+            action: context.l10n.load,
+            error: _settingsFailure(context.l10n.l6OpenSkillsFoldera4437, e),
+          ),
+        ),
+      );
     }
   }
 
@@ -288,16 +328,18 @@ extension _Skills on _SettingsScreenState {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('卸载技能'),
-        content: Text('$id 将从本机删除；若已同步，其他设备也会一并删除。'),
+        title: Text(context.l10n.l6UninstallSkill053a6),
+        content: Text(
+          context.l10n.l6Arg0WillBeRemovedFromThis1a7c6((id).toString()),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('卸载'),
+            child: Text(context.l10n.l6Uninstall200cf),
           ),
         ],
       ),
@@ -310,8 +352,14 @@ extension _Skills on _SettingsScreenState {
       await _loadUserSkills();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(reportUiError('卸载技能', e))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppErrorMessage(
+            action: context.l10n.load,
+            error: _settingsFailure(context.l10n.l6UninstallSkill053a6, e),
+          ),
+        ),
+      );
     }
   }
 
@@ -323,18 +371,20 @@ extension _Skills on _SettingsScreenState {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('批量卸载技能'),
+        title: Text(context.l10n.l6UninstallMultipleSkills13309),
         content: Text(
-          '共 ${ids.length} 个技能将从本机删除；若已同步，其他设备也会一并删除。',
+          context.l10n.l6SkillsToRemoveArg0SyncedCopiesaa41a(
+            (ids.length).toString(),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('卸载'),
+            child: Text(context.l10n.l6Uninstall200cf),
           ),
         ],
       ),
@@ -352,7 +402,15 @@ extension _Skills on _SettingsScreenState {
         failures.add(id);
         if (mounted) {
           ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-            SnackBar(content: Text(reportUiError('卸载技能 $id', e))),
+            SnackBar(
+              content: AppErrorMessage(
+                action: context.l10n.load,
+                error: _settingsFailure(
+                  context.l10n.l6UninstallSkillArg0a3819((id).toString()),
+                  e,
+                ),
+              ),
+            ),
           );
         }
       }
@@ -366,14 +424,24 @@ extension _Skills on _SettingsScreenState {
     if (!mounted) return;
     if (failures.isEmpty) {
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text('已卸载 $ok 个技能')),
+        SnackBar(
+          content: Text(
+            context.l10n.l6SkillsUninstalledArg08db74((ok).toString()),
+          ),
+        ),
       );
     } else {
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         SnackBar(
-          content: Text('成功 $ok 个，失败 ${failures.length} 个：'
-              '${failures.take(3).join('、')}'
-              '${failures.length > 3 ? ' 等' : ''}'),
+          content: Text(
+            context.l10n.l6SucceededArg0FailedArg1Arg2Arg3a2cde(
+              (ok).toString(),
+              (failures.length).toString(),
+              (failures.take(3).join('、')).toString(),
+              (failures.length > 3 ? context.l10n.l6AndMore93ac7 : '')
+                  .toString(),
+            ),
+          ),
         ),
       );
     }
@@ -391,7 +459,12 @@ extension _Skills on _SettingsScreenState {
       await repository.setUserSkillEnabled(id: id, enabled: enabled);
     } catch (e) {
       if (mounted) {
-        setState(() => _userSkillsError = reportUiError('切换用户技能', e));
+        setState(
+          () => _userSkillsError = _settingsFailure(
+            context.l10n.l6ToggleUserSkill2de88,
+            e,
+          ),
+        );
       }
       await _loadUserSkills();
     }
@@ -409,12 +482,19 @@ extension _Skills on _SettingsScreenState {
       await repository.setUserSkillTrusted(id: id, trusted: trusted);
       if (mounted && trusted) {
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          const SnackBar(content: Text('已标为信任：该技能的脚本调用不再弹审批卡')),
+          SnackBar(
+            content: Text(context.l10n.l6MarkedAsTrustedThisSkillS1cf36),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _userSkillsError = reportUiError('切换信任状态', e));
+        setState(
+          () => _userSkillsError = _settingsFailure(
+            context.l10n.l6ChangeTrustSetting7ce93,
+            e,
+          ),
+        );
       }
       await _loadUserSkills();
     }
@@ -424,15 +504,14 @@ extension _Skills on _SettingsScreenState {
     api.UserSkillDto s, {
     bool? enabled,
     bool? trusted,
-  }) =>
-      api.UserSkillDto(
-        id: s.id,
-        title: s.title,
-        brief: s.brief,
-        enabled: enabled ?? s.enabled,
-        trusted: trusted ?? s.trusted,
-        hasSkillMd: s.hasSkillMd,
-      );
+  }) => api.UserSkillDto(
+    id: s.id,
+    title: s.title,
+    brief: s.brief,
+    enabled: enabled ?? s.enabled,
+    trusted: trusted ?? s.trusted,
+    hasSkillMd: s.hasSkillMd,
+  );
 
   /// 设备同步独立 tab：本地密钥/移交/名册/冲突态势都聚在区块内。
   /// 知识管道仪表（主循环吞吐与产物）：分析队列 → 消化 → 导出。
@@ -444,19 +523,19 @@ extension _Skills on _SettingsScreenState {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSection(
-            title: '事件分析队列',
+            title: context.l10n.analysisQueue,
             icon: Icons.sync_outlined,
             child: _buildAnalysisJobStatsContent(),
           ),
           const SizedBox(height: AppTheme.space6),
           _buildSection(
-            title: '知识消化',
+            title: context.l10n.knowledgeProcessing,
             icon: Icons.auto_stories_outlined,
             child: _buildDigestStatsContent(),
           ),
           const SizedBox(height: AppTheme.space6),
           _buildSection(
-            title: '知识导出',
+            title: context.l10n.l6KnowledgeExport26466,
             icon: Icons.ios_share_outlined,
             child: _buildWikiExportContent(),
           ),
@@ -472,13 +551,13 @@ extension _Skills on _SettingsScreenState {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSection(
-            title: '数据库维护',
+            title: context.l10n.l6DatabaseMaintenance60286,
             icon: Icons.cleaning_services_outlined,
             child: _buildDbMaintenanceContent(),
           ),
           const SizedBox(height: AppTheme.space6),
           _buildSection(
-            title: '每日 Token 使用',
+            title: context.l10n.l6DailyTokenUsage5a651,
             icon: Icons.analytics_outlined,
             child: _buildTokenUsageContent(),
           ),
@@ -498,6 +577,7 @@ class _UserSkillCard extends StatelessWidget {
   final ValueChanged<bool> onToggleEnabled;
   final VoidCallback onToggleTrusted;
   final VoidCallback onUninstall;
+
   /// 批量选择模式：为 true 时尾部操作控件换成勾选框，整卡点击切换选中。
   final bool selecting;
   final bool selected;
@@ -548,11 +628,7 @@ class _UserSkillCard extends StatelessWidget {
                 color: leadColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
               ),
-              child: Icon(
-                Icons.extension_outlined,
-                size: 18,
-                color: leadColor,
-              ),
+              child: Icon(Icons.extension_outlined, size: 18, color: leadColor),
             ),
           const SizedBox(width: 10),
           Expanded(
@@ -578,7 +654,7 @@ class _UserSkillCard extends StatelessWidget {
                     if (skill.trusted) ...[
                       const SizedBox(width: 6),
                       _McpBadge(
-                        label: '信任·免审批',
+                        label: context.l10n.l6TrustedNoApproval69302,
                         color: AppTheme.accentPrimary,
                         icon: Icons.verified_user_outlined,
                       ),
@@ -604,51 +680,55 @@ class _UserSkillCard extends StatelessWidget {
           // 批量选择模式下隐藏操作控件，避免误触；整卡点击切换选中。
           if (!selecting) ...[
             PopupMenuButton<String>(
-            tooltip: '更多操作',
-            icon: Icon(
-              Icons.more_horiz,
-              size: 18,
-              color: AppTheme.textTertiary,
+              tooltip: context.l10n.moreActions,
+              icon: Icon(
+                Icons.more_horiz,
+                size: 18,
+                color: AppTheme.textTertiary,
+              ),
+              color: AppTheme.surface3,
+              onSelected: (value) => switch (value) {
+                'trusted' => onToggleTrusted(),
+                'uninstall' => onUninstall(),
+                _ => null,
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'trusted',
+                  child: Row(
+                    children: [
+                      Icon(
+                        skill.trusted
+                            ? Icons.shield_outlined
+                            : Icons.verified_user_outlined,
+                        size: 16,
+                        color: skill.trusted
+                            ? AppTheme.textSecondary
+                            : AppTheme.accentPrimary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        skill.trusted
+                            ? context.l10n.l6RequireApprovalEachTime673dd
+                            : context.l10n.l6TrustNoApproval12269,
+                      ),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                PopupMenuItem(
+                  value: 'uninstall',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_outline, size: 16),
+                      SizedBox(width: 8),
+                      Text(context.l10n.l6Uninstall200cf),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            color: AppTheme.surface3,
-            onSelected: (value) => switch (value) {
-              'trusted' => onToggleTrusted(),
-              'uninstall' => onUninstall(),
-              _ => null,
-            },
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                value: 'trusted',
-                child: Row(
-                  children: [
-                    Icon(
-                      skill.trusted
-                          ? Icons.shield_outlined
-                          : Icons.verified_user_outlined,
-                      size: 16,
-                      color: skill.trusted
-                          ? AppTheme.textSecondary
-                          : AppTheme.accentPrimary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(skill.trusted ? '改为逐次审批' : '标为信任（免审批）'),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: 'uninstall',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_outline, size: 16),
-                    SizedBox(width: 8),
-                    Text('卸载'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          Switch(value: enabled, onChanged: onToggleEnabled),
+            Switch(value: enabled, onChanged: onToggleEnabled),
           ],
         ],
       ),

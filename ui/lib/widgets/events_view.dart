@@ -1,3 +1,6 @@
+import 'app_error_notice.dart';
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,6 +13,7 @@ import '../theme/app_theme.dart';
 part 'events_view_parts/events_stream.dart';
 part 'events_view_parts/events_detail.dart';
 part 'events_view_parts/events_nav_summary.dart';
+
 // ── 事件视图按流/详情/摘要拆分（纯类段平移，零行为变化）──
 
 /// 事件详情视图（遗留收口切片 C）：主工作区第三态。
@@ -40,7 +44,7 @@ class EventsView extends ConsumerWidget {
           child: selectedId == null
               ? Center(
                   child: Text(
-                    '左侧选择事件查看详情',
+                    context.l10n.l6SelectAnEventToViewItsd5e60,
                     style: TextStyle(
                       fontSize: 12.5,
                       color: AppTheme.textTertiary,

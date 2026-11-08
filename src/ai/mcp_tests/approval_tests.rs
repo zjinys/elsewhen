@@ -38,6 +38,7 @@ for line in sys.stdin:
     let server = crate::storage::McpServerConfig {
         id: "approval-server".into(),
         name: "approvalsrv".to_string(),
+        keywords: "回声".to_string(),
         platform: "all".to_string(),
         transport: "stdio".into(),
         command: python,
@@ -60,6 +61,7 @@ for line in sys.stdin:
         .save_mcp_server(
             None,
             &server.name,
+            &server.keywords,
             "all",
             &server.transport,
             &server.command,
@@ -145,6 +147,7 @@ for line in sys.stdin:
         .save_mcp_server(
             None,
             "trustedsrv",
+            "回声",
             "all",
             "stdio",
             &python,
@@ -217,6 +220,7 @@ for line in sys.stdin:
         name: format!("{MCP_PREFIX}roa__echo"),
         server: "roa".into(),
         server_id: "roa-id".into(),
+        keywords: "回声".into(),
         raw_name: "echo".into(),
         description: "echo".into(),
         parameters: serde_json::json!({
@@ -235,6 +239,7 @@ for line in sys.stdin:
         .save_mcp_server(
             None,
             "roa",
+            "回声",
             "all",
             "stdio",
             &python,
@@ -285,6 +290,7 @@ for line in sys.stdin:
         .save_mcp_server(
             None,
             "roa",
+            "回声",
             "all",
             "stdio",
             &python,

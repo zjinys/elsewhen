@@ -47,12 +47,12 @@ impl Store {
             .sync_event_record(&event_id)?
             .context("sync_event_missing")?;
         let input_hash = hash(event.raw_text.as_bytes());
-        let task_id = analysis_task_id(
-            &identity.dataset_id,
-            &event_id,
-            &input_hash,
-            &prompt_version,
-        );
+        let language = self.artifact_language("analysis", id)?;
+        let strategy = match &language {
+            Some(language) => format!("{prompt_version}:{}", language.dependency),
+            None => prompt_version.clone(),
+        };
+        let task_id = analysis_task_id(&identity.dataset_id, &event_id, &input_hash, &strategy);
         self.append_sync_mutation(SyncMutation::AnalysisCompleted {
             analysis: AnalysisRecord {
                 id: id.into(),
@@ -62,6 +62,7 @@ impl Store {
                 prompt_version,
                 result_json,
                 created_at,
+                language,
             },
         })?;
         Ok(())
@@ -98,7 +99,7 @@ impl Store {
                         &identity.dataset_id,
                         &analysis.event_id,
                         &analysis.input_hash,
-                        &analysis.prompt_version
+                        &analysis.strategy_identity()
                     ),
             "sync_analysis_input_mismatch"
         );
@@ -120,6 +121,9 @@ impl Store {
         } else {
             self.connection.execute("INSERT INTO event_analyses(id,event_id,prompt_version,result_json,created_at) VALUES(?1,?2,?3,?4,?5)",
                 params![analysis.id,analysis.event_id,analysis.prompt_version,analysis.result_json,analysis.created_at])?;
+        }
+        if let Some(language) = &analysis.language {
+            self.put_artifact_language("analysis", &analysis.id, language)?;
         }
         // Project completion for event detail queries without creating a claim,
         // dispatch, AI run or approval. The source operation order determines the

@@ -7,7 +7,7 @@ class KnowledgeMaintenanceButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => TextButton.icon(
     icon: const Icon(Icons.fact_check_outlined, size: 18),
-    label: const Text('知识审阅'),
+    label: Text(context.l10n.knowledgeReview),
     onPressed: () => showKnowledgeMaintenance(context),
   );
 }
@@ -26,8 +26,12 @@ class _MaintenanceDialog extends ConsumerWidget {
         child: Column(
           children: [
             ListTile(
-              title: const Text('知识审阅'),
-              subtitle: const Text('后台自动整理参考知识；人工修改与规则确认由你决定'),
+              title: Text(context.l10n.knowledgeReview),
+              subtitle: Text(
+                context
+                    .l10n
+                    .l6ReferenceKnowledgeIsOrganizedAutomaticallyYoucefad,
+              ),
               trailing: IconButton(
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.close),
@@ -39,7 +43,14 @@ class _MaintenanceDialog extends ConsumerWidget {
                 children: [
                   proposals.when(
                     loading: () => const LinearProgressIndicator(),
-                    error: (e, _) => Text(_error(e, context: '读取提案')),
+                    error: (e, _) => AppErrorMessage(
+                      action: context.l10n.load,
+                      error: _error(
+                        context,
+                        e,
+                        context: context.l10n.l6LoadProposal021f2,
+                      ),
+                    ),
                     data: (items) => Column(
                       children: [
                         if (items.any(
@@ -53,7 +64,11 @@ class _MaintenanceDialog extends ConsumerWidget {
                             preview: (p) => KnowledgeProposalCard(proposal: p),
                           ),
                         if (!items.any((p) => p.status == 'pending'))
-                          const Text('暂无需要你确认的修改。新增参考知识已直接保存在产出中。'),
+                          Text(
+                            context
+                                .l10n
+                                .l6NoChangesNeedYourConfirmationNew743fb,
+                          ),
                         for (final p in items.where(
                           (p) => p.status == 'pending',
                         ))
@@ -62,13 +77,21 @@ class _MaintenanceDialog extends ConsumerWidget {
                     ),
                   ),
                   const Divider(),
-                  const Text('来源与内容检查'),
+                  Text(context.l10n.l6SourceAndContentChecks5517e),
                   issues.when(
                     loading: () => const LinearProgressIndicator(),
-                    error: (e, _) => Text(_error(e, context: '读取检查项')),
+                    error: (e, _) => AppErrorMessage(
+                      action: context.l10n.load,
+                      error: _error(
+                        context,
+                        e,
+                        context: context.l10n.l6LoadCheckse2e22,
+                      ),
+                    ),
                     data: (items) => Column(
                       children: [
-                        if (items.isEmpty) const Text('暂无待核对提示。'),
+                        if (items.isEmpty)
+                          Text(context.l10n.l6NoChecksNeedReview4053b),
                         for (final issue in items) _IssueTile(issue: issue),
                       ],
                     ),
@@ -77,13 +100,25 @@ class _MaintenanceDialog extends ConsumerWidget {
                   KnowledgeWorkQueueSection(
                     onOpenPage: (slug) => _openPage(context, ref, slug),
                   ),
-                  const Text('最近自动整理与洞察记录'),
+                  Text(context.l10n.l6RecentProcessingAndInsights23cc8),
                   runs.when(
                     loading: () => const LinearProgressIndicator(),
-                    error: (e, _) => Text(_error(e, context: '读取洞察记录')),
+                    error: (e, _) => AppErrorMessage(
+                      action: context.l10n.load,
+                      error: _error(
+                        context,
+                        e,
+                        context: context.l10n.l6LoadInsights25b9e,
+                      ),
+                    ),
                     data: (items) => Column(
                       children: [
-                        if (items.isEmpty) const Text('积累事件后由后台自动检查，无需手动触发。'),
+                        if (items.isEmpty)
+                          Text(
+                            context
+                                .l10n
+                                .l6CheckedAutomaticallyInTheBackgroundAs34c09,
+                          ),
                         for (final run in items)
                           ListTile(
                             onTap: run.sourceSlug == null
@@ -92,26 +127,52 @@ class _MaintenanceDialog extends ConsumerWidget {
                                       _openPage(context, ref, run.sourceSlug!),
                             title: Text(
                               run.status == 'succeeded'
-                                  ? '${switch (run.task) {
-                                      'source-compilation' => '原料整理',
-                                      'source-reading' => '全文阅读',
-                                      'knowledge-refresh' => '来源更新检查',
-                                      'wiki-integration' => '主题整理与检查',
-                                      _ => '洞察',
-                                    }}完成 · ${run.resultCount} 项'
+                                  ? context.l10n.l6Arg0CompletedArg1Items30653(
+                                      (switch (run.task) {
+                                        'source-compilation' =>
+                                          context.l10n.l6SourceProcessingfbebb,
+                                        'source-reading' =>
+                                          context
+                                              .l10n
+                                              .l6FullDocumentReadingc1da8,
+                                        'knowledge-refresh' =>
+                                          context.l10n.l6SourceUpdateCheckc6668,
+                                        'wiki-integration' =>
+                                          context
+                                              .l10n
+                                              .l6TopicProcessingAndChecks872c6,
+                                        _ => context.l10n.pageKindInsight,
+                                      }).toString(),
+                                      (run.resultCount).toString(),
+                                    )
                                   : run.status == 'running'
-                                  ? '处理中'
-                                  : '失败，稍后自动重试',
+                                  ? context.l10n.processing
+                                  : context
+                                        .l10n
+                                        .l6FailedAutomaticRetryScheduledc9e00,
                             ),
-                            subtitle: Text(
-                              [
-                                if (run.sourceTitle != null)
-                                  '${run.sourceTitle}${run.sourceVersion == null ? '' : ' · v${run.sourceVersion}'}',
-                                run.startedAt,
-                                if (run.detail != null) run.detail!,
-                                if (run.error != null) run.error!,
-                                if (run.retryAt != null) '自动重试：${run.retryAt}',
-                              ].join('\n'),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  [
+                                    if (run.sourceTitle != null)
+                                      '${run.sourceTitle}${run.sourceVersion == null ? '' : ' · v${run.sourceVersion}'}',
+                                    run.startedAt,
+                                    if (run.retryAt != null)
+                                      context.l10n.l6AutomaticRetryArg06d99e(
+                                        run.retryAt!,
+                                      ),
+                                  ].join('\n'),
+                                ),
+                                if (run.detail != null)
+                                  ProcessingNotes(note: run.detail!),
+                                if (run.error != null)
+                                  AppErrorMessage(
+                                    error: run.error!,
+                                    action: context.l10n.knowledgeProcessing,
+                                  ),
+                              ],
                             ),
                           ),
                       ],
@@ -133,7 +194,7 @@ class KnowledgeCitationsButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => TextButton.icon(
     icon: const Icon(Icons.source_outlined, size: 14),
-    label: const Text('引用依据'),
+    label: Text(context.l10n.l6SupportingEvidenceabba3),
     onPressed: () async {
       try {
         final citations = await ref
@@ -143,14 +204,15 @@ class KnowledgeCitationsButton extends ConsumerWidget {
         await showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('本条回答实际引用的知识'),
+            title: Text(context.l10n.l6KnowledgeCitedInThisAnswer4ad6e),
             content: SizedBox(
               width: 680,
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (citations.isEmpty) const Text('这条回答没有经过系统核验的知识引用。'),
+                    if (citations.isEmpty)
+                      Text(context.l10n.l6ThisAnswerHasNoSystemVerified0ba58),
                     for (final citation in citations) ...[
                       TextButton(
                         onPressed: () =>
@@ -159,7 +221,11 @@ class KnowledgeCitationsButton extends ConsumerWidget {
                       ),
                       Text('${citation.category} · ${citation.reason}'),
                       if (citation.applicableWhen.isNotEmpty)
-                        Text('适用条件：${citation.applicableWhen}'),
+                        Text(
+                          context.l10n.l6ConditionsArg006edc(
+                            (citation.applicableWhen).toString(),
+                          ),
+                        ),
                       SelectionArea(child: Text(citation.excerpt)),
                       for (final source in citation.sources)
                         TextButton(
@@ -173,15 +239,18 @@ class KnowledgeCitationsButton extends ConsumerWidget {
                                 await showKnowledgeText(
                                   context,
                                   source.title,
-                                  snapshot?.contentMd ?? '来源版本不存在',
+                                  snapshot?.contentMd ??
+                                      context
+                                          .l10n
+                                          .l6SourceVersionDoesNotExist8a671,
                                 );
                               }
                             } catch (error) {
                               if (context.mounted) {
                                 await showKnowledgeText(
                                   context,
-                                  '读取失败',
-                                  _error(error),
+                                  context.l10n.l6CouldNotLoadd9f60,
+                                  _error(context, error),
                                 );
                               }
                             }
@@ -190,7 +259,7 @@ class KnowledgeCitationsButton extends ConsumerWidget {
                       for (final id in citation.eventIds)
                         TextButton(
                           onPressed: () => _showEvent(context, ref, id),
-                          child: const Text('查看来源事件'),
+                          child: Text(context.l10n.l6ViewSourceEvent3c3f9),
                         ),
                       const Divider(),
                     ],
@@ -204,8 +273,12 @@ class KnowledgeCitationsButton extends ConsumerWidget {
         if (context.mounted) {
           await showKnowledgeText(
             context,
-            '读取失败',
-            _error(error, context: '读取来源事件'),
+            context.l10n.l6CouldNotLoadd9f60,
+            _error(
+              context,
+              error,
+              context: context.l10n.l6LoadSourceEventsaaf09,
+            ),
           );
         }
       }

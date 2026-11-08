@@ -87,15 +87,19 @@ const PROTOCOL_FALLBACK_SLEEP_MS: u64 = 300;
 const MAX_EMPTY_RETRIES: usize = 1;
 
 /// 回炉提示：只讲唯一合法格式，不解释、不啰嗦，让模型重发一行调用。
+#[cfg(test)]
 const PROTOCOL_REPAIR_NUDGE: &str = "系统提示：你上一轮回复疑似包含一次工具调用，但格式无法识别，没有执行。工具调用必须独占一行，只允许唯一格式（其他任何格式都会被丢弃）：\n[工具调用]{\"name\":\"工具名\",\"arguments\":{...}}\n请重新只输出这一行调用，不要输出其他内容。";
 /// 回炉提示：模型预告了未来动作却没动手。承诺不是答案。
 /// 真实案例（2026-09-29 知识页「Omni flash 视频 prompt」）：用户贴入新 prompt，
 /// 模型回「我准备一个更新版本…我将为你草拟更新后的版本，稍等片刻。」——零工具调用、
 /// 零写入，用户等来的是一句预告。承诺检测抓的就是这一类。
+#[cfg(test)]
 const PROMISE_REPAIR_NUDGE: &str = "系统提示：你上一轮只预告了接下来要做什么（稍等片刻／我准备…），但没有调用任何工具，用户实际上什么都没拿到。承诺不是答案：要么现在调用工具把事情做完，要么直接把你已经能给出的内容说清楚。不要预告等待。";
 
 /// 回炉提示：上游返回空内容。空回复等价于把对话交给用户自己猜。
+#[cfg(test)]
 const EMPTY_REPLY_NUDGE: &str = "系统提示：你上一轮返回了空内容，用户什么也没看到。请直接输出给用户看的文字；需要写入知识库就现在调用对应工具。不要返回空回复。";
+#[cfg(test)]
 const TEXT_PROTOCOL_NUDGE: &str = "系统提示：本轮改用文本工具协议，后续不再发送原生 tools。需要执行工具时，在正文中独占一行输出 [工具调用]{\"name\":\"工具名\",\"arguments\":{...}}，等待真实结果后再回答。缺失调用内容的那次响应没有执行任何操作；之前已返回的工具结果仍然有效，不要重复执行。能直接回答就给出结果，不要承诺稍后回复。";
 
 /// Generate AI reply for a conversation
@@ -299,6 +303,7 @@ pub(crate) use continuity::failure_notice;
 mod agent;
 mod claim_detection;
 mod content_chat;
+pub(crate) mod english;
 mod generate_pipeline;
 mod parse_tools;
 mod tool_protocol;
@@ -310,6 +315,7 @@ pub(crate) use claim_detection::{
     future_promise_detected, turn_grounding, user_text_wants_write, write_claim_detected,
     write_claim_repair_nudge,
 };
+pub(crate) use content_chat::format_import_content;
 #[cfg(test)]
 pub(crate) use content_chat::trim_noise;
 pub use content_chat::{ContentChatMessage, generate_content_chat};

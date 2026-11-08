@@ -11,6 +11,7 @@ import '../providers/conversation_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/window_service.dart';
 import 'glass.dart';
+import '../l10n/localization.dart';
 
 /// Custom title bar。
 ///
@@ -170,8 +171,27 @@ class _AiActivityIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final (label, tooltip) = switch (activity) {
+      AiActivity.chat => (context.l10n.aiReplying, context.l10n.aiReplyingHint),
+      AiActivity.analysis => (
+        context.l10n.aiAnalyzing,
+        context.l10n.aiAnalyzingHint,
+      ),
+      AiActivity.digest => (
+        context.l10n.aiDigesting,
+        context.l10n.aiDigestingHint,
+      ),
+      AiActivity.insights => (
+        context.l10n.aiOrganizing,
+        context.l10n.aiOrganizingHint,
+      ),
+      AiActivity.periodReport => (
+        context.l10n.aiChecking,
+        context.l10n.aiCheckingHint,
+      ),
+    };
     return Tooltip(
-      message: activity.tooltip,
+      message: tooltip,
       child: Center(
         child: Container(
           height: 26,
@@ -198,7 +218,7 @@ class _AiActivityIndicator extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                activity.label,
+                label,
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,

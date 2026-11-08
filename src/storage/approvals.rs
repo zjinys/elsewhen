@@ -111,6 +111,9 @@ fn collect_slugs(value: &Value, slugs: &mut BTreeSet<String>) {
 fn editable_field(action: &str, key: &str) -> bool {
     match action {
         "activate_rule" => key == "content",
+        "propose_planning_profile" => {
+            matches!(key, "skills" | "resources" | "limits" | "preferences")
+        }
         "create_todo" => matches!(key, "title" | "note" | "due_at" | "priority"),
         "record_event" => key == "raw_text",
         "save_knowledge_draft" | "save_wiki_revision" => {

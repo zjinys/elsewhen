@@ -1,3 +1,4 @@
+import 'package:elsewhen_ui/l10n/app_localizations.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/models/goal.dart';
@@ -82,6 +83,65 @@ class FakeGoalCompassRepo extends FakeGoalChatRepo {
 }
 
 void main() {
+  for (final locale in [const Locale('zh'), const Locale('en')]) {
+    testWidgets(
+      '${locale.languageCode}: narrow compass card keeps facts and goal discussion identity',
+      (tester) async {
+        tester.view.physicalSize = const Size(360, 800);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final nudge = _sampleNudge(stalledDays: 1);
+        final repo = FakeGoalCompassRepo(initialNudge: nudge);
+        final container = ProviderContainer(
+          overrides: [
+            storageRepositoryProvider.overrideWithValue(repo),
+            activeGoalsProvider.overrideWith((ref) async => [_sampleGoal()]),
+          ],
+        );
+        addTearDown(container.dispose);
+        final strings = lookupAppLocalizations(locale);
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              locale: locale,
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              home: Scaffold(
+                body: SingleChildScrollView(
+                  child: GoalCompassNudgeCard(nudge: nudge),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text(strings.compassStalled(1)), findsOneWidget);
+        expect(find.textContaining(nudge.goalContent), findsOneWidget);
+        expect(find.textContaining(nudge.currentFocus), findsOneWidget);
+        expect(
+          find.text(strings.compassObstacleLine('等待网络穿透端口确认')),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.text(strings.compassFocusObstacle));
+        await tester.pumpAndSettle();
+        expect(
+          container.read(goalPanelSeedProvider('goal-1')),
+          strings.compassSeedObstacle(
+            nudge.goalContent,
+            '等待网络穿透端口确认',
+            nudge.currentFocus,
+          ),
+        );
+        expect(repo.updatedFocuses, isEmpty);
+        expect(repo.realignedNudgeIds, isEmpty);
+        expect(repo.dismissedNudgeIds, isEmpty);
+      },
+    );
+  }
+
   group('GoalCompassNudgeBanner (消息区顶部横幅)', () {
     testWidgets('无活跃偏离提醒时不展示横幅', (tester) async {
       final repo = FakeGoalCompassRepo(initialNudge: null);
@@ -102,7 +162,7 @@ void main() {
       expect(find.textContaining('航向校准'), findsNothing);
     });
 
-    testWidgets('有偏离提醒时展示目标、抓手、停滞天数、卡点与分散精力话题', (tester) async {
+    testWidgets('有偏离提醒时展示目标、行动、停滞天数、困难与分散精力话题', (tester) async {
       final nudge = _sampleNudge();
       final goal = _sampleGoal();
       final repo = FakeGoalCompassRepo(initialNudge: nudge);
@@ -122,14 +182,17 @@ void main() {
 
       expect(find.text('航向校准 · 目标「发布 Elsewhen 1.0」'), findsOneWidget);
       expect(find.textContaining('已停滞 4 天'), findsOneWidget);
-      expect(find.textContaining('卡点：等待网络穿透端口确认'), findsOneWidget);
-      expect(find.textContaining('近期注意力多在「配置反向代理, 排查桌面端UI偶发崩溃」'), findsOneWidget);
-      expect(find.text('聚焦攻克此卡点'), findsOneWidget);
-      expect(find.text('更新当前抓手'), findsOneWidget);
+      expect(find.textContaining('困难：等待网络穿透端口确认'), findsOneWidget);
+      expect(
+        find.textContaining('近期注意力多在「配置反向代理, 排查桌面端UI偶发崩溃」'),
+        findsOneWidget,
+      );
+      expect(find.text('聚焦攻克此困难'), findsOneWidget);
+      expect(find.text('更新当前行动'), findsOneWidget);
       expect(find.text('暂不打扰（退避7天）'), findsOneWidget);
     });
 
-    testWidgets('点击「聚焦攻克此卡点」把引导语预填进该目标的讨论草稿（留在目标页）', (tester) async {
+    testWidgets('点击「聚焦攻克此困难」把引导语预填进该目标的讨论草稿（留在目标页）', (tester) async {
       final nudge = _sampleNudge();
       final goal = _sampleGoal();
       final repo = FakeGoalCompassRepo(initialNudge: nudge);
@@ -141,12 +204,12 @@ void main() {
       );
 
       String? capturedDraft;
-      final sub = container.listen<String?>(
-        goalPanelSeedProvider('goal-1'),
-        (prev, next) {
-          if (next != null) capturedDraft = next;
-        },
-      );
+      final sub = container.listen<String?>(goalPanelSeedProvider('goal-1'), (
+        prev,
+        next,
+      ) {
+        if (next != null) capturedDraft = next;
+      });
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -161,20 +224,20 @@ void main() {
       // 此时草稿应为空
       expect(capturedDraft, isNull);
 
-      // 点击聚焦攻克此卡点
-      await tester.tap(find.text('聚焦攻克此卡点'));
+      // 点击聚焦攻克此困难
+      await tester.tap(find.text('聚焦攻克此困难'));
       await tester.pumpAndSettle();
 
       // 验证草稿已被注入
       expect(capturedDraft, isNotNull);
       expect(capturedDraft, contains('关于目标「发布 Elsewhen 1.0」卡在「等待网络穿透端口确认」'));
-      expect(capturedDraft, contains('当前抓手是「完成首版同步快照算法」'));
+      expect(capturedDraft, contains('当前行动是「完成首版同步快照算法」'));
       expect(capturedDraft, contains('我们聊聊怎么破局？'));
 
       sub.close();
     });
 
-    testWidgets('点击「更新当前抓手」弹窗更新抓手与卡点，成功后校准偏离横幅消除', (tester) async {
+    testWidgets('点击「更新当前行动」弹窗更新行动与困难，成功后校准偏离横幅消除', (tester) async {
       final nudge = _sampleNudge();
       final goal = _sampleGoal();
       final repo = FakeGoalCompassRepo(initialNudge: nudge);
@@ -192,26 +255,26 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 点击更新抓手按钮
-      await tester.tap(find.text('更新当前抓手'));
+      // 点击更新行动按钮
+      await tester.tap(find.text('更新当前行动'));
       await tester.pumpAndSettle();
 
       // 弹出 GoalRollFocusDialog 对话框
-      expect(find.text('滚动抓手 · 发布 Elsewhen 1.0'), findsOneWidget);
+      expect(find.text('调整当前行动 · 发布 Elsewhen 1.0'), findsOneWidget);
       expect(find.widgetWithText(TextField, '完成首版同步快照算法'), findsOneWidget);
 
-      // 键入新抓手
+      // 键入新行动
       await tester.enterText(
         find.widgetWithText(TextField, '完成首版同步快照算法'),
-        '新抓手：调试移动端无线 ADB 传输',
+        '新行动：调试移动端无线 ADB 传输',
       );
-      await tester.tap(find.text('更新抓手'));
+      await tester.tap(find.text('更新行动'));
       await tester.pumpAndSettle();
 
       // 验证 repo 记录与横幅已消除
       expect(repo.updatedFocuses.length, 1);
       expect(repo.updatedFocuses.first.$1, 'goal-1');
-      expect(repo.updatedFocuses.first.$2, '新抓手：调试移动端无线 ADB 传输');
+      expect(repo.updatedFocuses.first.$2, '新行动：调试移动端无线 ADB 传输');
       expect(repo.realignedNudgeIds, contains('nudge-1'));
       expect(find.textContaining('航向校准'), findsNothing);
     });
@@ -243,7 +306,7 @@ void main() {
   });
 
   group('GoalCompassNudgeCard (目标工作台卡片)', () {
-    testWidgets('工作台顶部呈现偏离提醒卡片并支持滚动更新抓手与暂不打扰', (tester) async {
+    testWidgets('工作台顶部呈现偏离提醒卡片并支持滚动更新行动与暂不打扰', (tester) async {
       final nudge = _sampleNudge();
       final goal = _sampleGoal();
       final repo = FakeGoalCompassRepo(initialNudge: nudge);
@@ -257,9 +320,7 @@ void main() {
             pausedGoalsProvider.overrideWith((ref) async => const []),
             completedGoalsProvider.overrideWith((ref) async => const []),
           ],
-          child: const MaterialApp(
-            home: Scaffold(body: GoalListView()),
-          ),
+          child: const MaterialApp(home: Scaffold(body: GoalListView())),
         ),
       );
       await tester.pumpAndSettle();
@@ -267,20 +328,20 @@ void main() {
       expect(find.byType(GoalCompassNudgeCard), findsOneWidget);
       expect(find.text('航向偏离提醒'), findsOneWidget);
       expect(find.text('停滞 4 天'), findsOneWidget);
-      expect(find.textContaining('当前抓手「完成首版同步快照算法」已连续 4 天未推进'), findsOneWidget);
+      expect(find.textContaining('当前行动「完成首版同步快照算法」已连续 4 天未推进'), findsOneWidget);
       expect(
         find.descendant(
           of: find.byType(GoalCompassNudgeCard),
-          matching: find.text('已知卡点：等待网络穿透端口确认'),
+          matching: find.text('当前困难：等待网络穿透端口确认'),
         ),
         findsOneWidget,
       );
 
-      // 点击滚动更新抓手
-      await tester.tap(find.text('滚动更新抓手'));
+      // 点击滚动更新行动
+      await tester.tap(find.text('滚动更新行动'));
       await tester.pumpAndSettle();
 
-      expect(find.text('滚动抓手 · 发布 Elsewhen 1.0'), findsOneWidget);
+      expect(find.text('调整当前行动 · 发布 Elsewhen 1.0'), findsOneWidget);
       await tester.tap(find.text('取消'));
       await tester.pumpAndSettle();
 

@@ -1,3 +1,4 @@
+import '../l10n/app_localizations_zh.dart';
 import '../bridge/api.dart' as api;
 
 /// 待办状态
@@ -23,11 +24,11 @@ enum TodoStatus {
   String get label {
     switch (this) {
       case TodoStatus.open:
-        return '进行中';
+        return AppLocalizationsZh().todoStatusOpen;
       case TodoStatus.done:
-        return '已完成';
+        return AppLocalizationsZh().completed;
       case TodoStatus.archived:
-        return '已归档';
+        return AppLocalizationsZh().todoStatusArchived;
     }
   }
 }

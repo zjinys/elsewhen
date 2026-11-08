@@ -1,3 +1,5 @@
+import 'package:elsewhen_ui/l10n/notice_messages.dart';
+import 'package:elsewhen_ui/l10n/app_localizations_zh.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -279,7 +281,7 @@ void main() {
 
       await Future<void>.delayed(const Duration(milliseconds: 60));
       // 看门狗把这一轮判定失联：给出可读原因，并重新排下一轮。
-      expect(f.controller.error, contains('没有响应'));
+      expect(resolveNotice(f.controller.error, AppLocalizationsZh()), contains('没有响应'));
       // 后面的轮次不再卡住（hang 只影响已挂上的那次调用）。
       f.bridge.advanceGate = null;
       await Future<void>.delayed(const Duration(milliseconds: 400));
@@ -319,7 +321,7 @@ void main() {
       f.bridge.authorizationChanged = true;
       await f.controller.arm(operationId: 'request-1');
       expect(f.controller.paused, isTrue);
-      expect(f.controller.error, contains('授权或修订已改变'));
+      expect(resolveNotice(f.controller.error, AppLocalizationsZh()), contains('授权或修订已改变'));
       expect(f.controller.error, isNot(contains('SYNTHETIC_SECRET')));
       await tester.pump(const Duration(minutes: 1));
       expect(f.bridge.advances, hasLength(1));

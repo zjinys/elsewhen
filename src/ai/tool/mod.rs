@@ -12,8 +12,8 @@ use anyhow::Result;
 use self::dispatch::user_skills_roster;
 use self::dispatch::{ImportDirectoryFilesTool, ImportDirectoryProjectTool};
 use self::goal_tools::{
-    CompleteGoalTool, CreateGoalTool, ListGoalsTool, PauseGoalTool, ReactivateGoalTool,
-    UpdateGoalFacetsTool,
+    CompleteGoalTool, CreateGoalTool, ListGoalsTool, PauseGoalTool, ProposePlanningProfileTool,
+    ReactivateGoalTool, UpdateGoalFacetsTool,
 };
 use self::plan_tools::{AddPlanStepsTool, AdvancePlanStepTool, CreatePlanTool, ListPlansTool};
 use self::query_tools::ListEventsByDateTool;
@@ -168,14 +168,14 @@ pub const BUILTIN_SKILLS: &[SkillDefinition] = &[
     SkillDefinition {
         id: "goal-management",
         title: "目标管理",
-        tags: &["目标", "立项", "愿景", "抓手", "卡点", "对齐"],
-        brief: "目标与航向：查询目标清单与长程计划、把长期意图拆解为计划草案（假设清单 + 里程碑步骤）、提议立项或滚动抓手与卡点、暂停达成与读档复活（变更均需确认）",
+        tags: &["目标", "立项", "愿景", "行动", "困难", "对齐"],
+        brief: "目标与航向：查询目标清单与长程计划、把长期意图拆解为计划草案（假设清单 + 里程碑步骤）、提议立项或调整当前行动与困难、暂停达成与读档复活（变更均需确认）",
         instructions: "使用要点：\n\
             - 活跃目标上限严格为 3 条。活跃目标已常驻在系统提示词中；list_goals 可查暂停或已达成目标。\n\
             - create_goal 与 update_goal_facets 均为草拟待确认制，需用户在审阅卡确认后真正落库。\n\
-            - 立项时协助用户提炼愿景、核心动力(why)、近1~2周首发启动切片(current_focus)、已知卡点(blocker)与完成判据(done_criteria)。\n\
-            - 目标推进或卡点化解时，使用 update_goal_facets 滚动更新抓手或记录卡点，不要频繁重建目标。\n\
-            - 涉及取舍、规划或知识沉淀方向时，默认对照活跃目标的当前抓手，帮他判断这件事在不在航向上；用户推进停滞或重心偏移时可提议校准，但不唠叨式催办。
+            - 立项时协助用户提炼愿景、核心动力(why)、近1~2周首发启动阶段(current_focus)、当前困难(blocker)与完成判据(done_criteria)。\n\
+            - 目标推进或困难化解时，使用 update_goal_facets 滚动更新行动或记录困难，不要频繁重建目标。\n\
+            - 涉及取舍、规划或知识沉淀方向时，默认对照活跃目标的当前行动，帮他判断这件事在不在航向上；用户推进停滞或重心偏移时可提议校准，但不唠叨式催办。
 \
             - pause_goal / complete_goal / reactivate_goal 同为草拟待确认制；仅在用户明确表达暂停、达成或重启意愿时提议，不要主动劝用户放弃目标。\n\
             - 用户提出长期意图/愿望（如「3 年内月入 10 万」）时，用 create_plan 一次给出计划全貌与第一步：先给现实性评估（可查知识库、必要时 web_search 核实关键事实），再列假设清单（软时间窗/现状/路径/风险），每条假设都可被用户纠正；intent_text 引用用户原话，不改写。\n\
@@ -187,6 +187,7 @@ pub const BUILTIN_SKILLS: &[SkillDefinition] = &[
             "list_goals",
             "create_goal",
             "update_goal_facets",
+            "update_personal_profile",
             "pause_goal",
             "complete_goal",
             "reactivate_goal",
@@ -272,6 +273,8 @@ pub trait Tool {
 /// 工具注册表：持有全部可用工具，供分发、清单注入
 pub struct ToolRegistry {
     tools: Vec<Box<dyn Tool>>,
+    description_catalog: Option<localization::DescriptionCatalog>,
+    metadata: Option<crate::storage::prompts::render::TextResources>,
     defer_tools: bool,
     /// MCP sidecar：外部 server 的动态工具，不符 `Tool` trait（动态名/描述），
     /// 由装配层拉取后注入；分发在 dispatch 的前缀路由完成。
@@ -299,6 +302,8 @@ impl ToolRegistry {
     fn build_with_deferral(defer_tools: bool) -> Self {
         Self {
             tools: Self::all_tools(),
+            description_catalog: None,
+            metadata: None,
             defer_tools,
             mcp_tools: Vec::new(),
         }
@@ -344,6 +349,7 @@ impl ToolRegistry {
             Box::new(ListGoalsTool),
             Box::new(CreateGoalTool),
             Box::new(UpdateGoalFacetsTool),
+            Box::new(ProposePlanningProfileTool),
             Box::new(PauseGoalTool),
             Box::new(CompleteGoalTool),
             Box::new(ReactivateGoalTool),
@@ -366,11 +372,7 @@ impl ToolRegistry {
             .iter()
             .filter(|tool| allow_record_event || tool.name() != "record_event")
             .filter(|tool| !self.defer_tools || !tool.deferred() || enabled.contains(tool.name()))
-            .map(|t| ToolSpec {
-                name: t.name().to_string(),
-                description: t.description().to_string(),
-                parameters: t.parameters_schema(),
-            })
+            .map(|t| self.builtin_spec(t.as_ref()))
             // R2A：MCP 工具与内置延迟工具同构——未启用（enable_tools 登记）
             // 不进 tools 字段，只以 catalog 形式出现在 enable_tools 花名册里；
             // defer_tools=false（旧协议）保持全量注入。
@@ -416,22 +418,17 @@ impl ToolRegistry {
         if !self.defer_tools {
             return None;
         }
+        let builtin = self.skill_roster_text();
+        let user = user_skills_roster(self);
+        let mcp = self.mcp_catalog_text();
         Some(ToolSpec {
             name: "enable_tools".to_string(),
-            description: format!(
-                "按需加载技能包（一次可多个），调用后返回技能使用说明与其打包工具的完整参数定义，\
-                 同一轮稍后即可调用这些工具。可用技能包：\n{}{}{}",
-                self.skill_roster_text(),
-                user_skills_roster(),
-                self.mcp_catalog_text(),
-            ),
+            description: self.meta_render("meta_description", format!("按需加载技能包（一次可多个），调用后返回技能使用说明与其打包工具的完整参数定义，同一轮稍后即可调用这些工具。可用技能包：\n{builtin}{user}{mcp}"),
+                &[("builtin", builtin), ("user", user), ("mcp", mcp)]),
             parameters: serde_json::json!({
-                "type":"object",
-                "properties":{
-                    "skills":{"type":"array","items":{"type":"string"},"description":"要启用的技能包 id，至少一个，必须来自上面的名单"}
-                },
-                "required":["skills"],
-                "additionalProperties":false
+                "type":"object", "properties":{
+                    "skills":{"type":"array","items":{"type":"string"},"description":self.meta_literal("meta_skills", "要启用的技能包 id，至少一个，必须来自上面的名单")}
+                }, "required":["skills"], "additionalProperties":false
             }),
         })
     }
@@ -440,12 +437,19 @@ impl ToolRegistry {
     pub fn skill_roster_text(&self) -> String {
         let mut out = String::new();
         for skill in BUILTIN_SKILLS {
-            out.push_str(&format!(
-                "- {}（{}）：{}。tags: {}",
-                skill.id,
-                skill.title,
-                skill.brief,
-                skill.tags.join("/")
+            let title = self.meta_literal(&format!("skill_{}_title", skill.id), skill.title);
+            let brief = self.meta_literal(&format!("skill_{}_brief", skill.id), skill.brief);
+            let tags =
+                self.meta_literal(&format!("skill_{}_tags", skill.id), &skill.tags.join("/"));
+            out.push_str(&self.meta_render(
+                "skill_roster",
+                format!("- {}（{}）：{}。tags: {}", skill.id, title, brief, tags),
+                &[
+                    ("id", skill.id.into()),
+                    ("title", title),
+                    ("brief", brief),
+                    ("tags", tags),
+                ],
             ));
             out.push('\n');
         }
@@ -472,17 +476,61 @@ impl ToolRegistry {
                 .unwrap_or_default();
             groups.entry(server).or_default().push(tool);
         }
-        let mut out = String::from("\n第三方 MCP 工具（调用前必须先 enable_tools 登记全名）：\n");
+        let mut out = self.meta_literal(
+            "mcp_catalog_header",
+            "\n第三方 MCP 工具（调用前必须先 enable_tools 登记全名）：\n",
+        );
         let mut used = super::budget::text_tokens("deepseek-flash", &out);
+        let footer = |count: usize| {
+            self.meta_render(
+                "mcp_catalog_footer",
+                format!("  …（还有 {count} 个工具未列出；enable_tools 登记全名后返回完整定义）\n"),
+                &[("count", count.to_string())],
+            )
+        };
+        // 分组头、关联意图和省略提示都计入预算，避免大量服务绕过工具行限额。
+        let content_limit = Self::MAX_CATALOG_TOKENS.saturating_sub(super::budget::text_tokens(
+            "deepseek-flash",
+            &footer(self.mcp_tools.len()),
+        ));
         let mut truncated = 0usize;
         for (server, tools) in &groups {
-            let header = format!("- {server}（{} 个工具）：\n", tools.len());
-            used += crate::ai::budget::text_tokens("deepseek-flash", &header);
+            let keywords: std::collections::BTreeSet<_> = tools
+                .iter()
+                .flat_map(|tool| tool.keywords.split(','))
+                .map(str::trim)
+                .filter(|keyword| !keyword.is_empty())
+                .collect();
+            let intent = if keywords.is_empty() {
+                String::new()
+            } else {
+                let keywords = keywords.into_iter().collect::<Vec<_>>().join("/");
+                self.meta_render(
+                    "mcp_intent",
+                    format!("【关联意图：{keywords}】"),
+                    &[("keywords", keywords)],
+                )
+            };
+            let header = self.meta_render(
+                "mcp_group",
+                format!("- {server}（{} 个工具）{intent}：\n", tools.len()),
+                &[
+                    ("server", (*server).into()),
+                    ("count", tools.len().to_string()),
+                    ("intent", intent),
+                ],
+            );
+            let header_cost = super::budget::text_tokens("deepseek-flash", &header);
+            if used + header_cost > content_limit {
+                truncated += tools.len();
+                continue;
+            }
+            used += header_cost;
             out.push_str(&header);
             for tool in tools {
                 let line = self.catalog_line(tool);
                 let line_cost = super::budget::text_tokens("deepseek-flash", &line);
-                if used + line_cost > Self::MAX_CATALOG_TOKENS {
+                if used + line_cost > content_limit {
                     truncated += 1;
                     continue;
                 }
@@ -491,9 +539,7 @@ impl ToolRegistry {
             }
         }
         if truncated > 0 {
-            out.push_str(&format!(
-                "  …（还有 {truncated} 个工具未列出；enable_tools 登记全名后返回完整定义）\n"
-            ));
+            out.push_str(&footer(truncated));
         }
         out
     }
@@ -540,7 +586,11 @@ impl ToolRegistry {
                 if let Ok(body) = crate::ai::skills::load_body(dir, id) {
                     if crate::ai::skills::is_enabled(dir, id) {
                         enabled.insert("run_skill_script".to_string());
-                        user_skill_bodies.push(format!("【用户技能 {id}】\n{body}"));
+                        user_skill_bodies.push(self.meta_render(
+                            "user_skill_body",
+                            format!("【用户技能 {id}】\n{body}"),
+                            &[("id", id.clone()), ("body", body)],
+                        ));
                         continue;
                     }
                 }
@@ -551,9 +601,17 @@ impl ToolRegistry {
             if id.starts_with(crate::ai::mcp::MCP_PREFIX) {
                 if let Some(tool) = self.mcp_tools.iter().find(|t| &t.name == id) {
                     enabled.insert(id.clone());
-                    mcp_schemas.push(format!(
-                        "== MCP 工具 {} 已启用 ==\n{}\n参数 JSON Schema：{}\n\n",
-                        tool.name, tool.description, tool.parameters
+                    mcp_schemas.push(self.meta_render(
+                        "mcp_enabled",
+                        format!(
+                            "== MCP 工具 {} 已启用 ==\n{}\n参数 JSON Schema：{}\n\n",
+                            tool.name, tool.description, tool.parameters
+                        ),
+                        &[
+                            ("name", tool.name.clone()),
+                            ("description", tool.description.clone()),
+                            ("schema", tool.parameters.to_string()),
+                        ],
                     ));
                 } else {
                     unknown.push(id.clone());
@@ -577,9 +635,17 @@ impl ToolRegistry {
                 if !group.is_empty() {
                     for tool in group {
                         enabled.insert(tool.name.clone());
-                        mcp_schemas.push(format!(
-                            "== MCP 工具 {} 已启用 ==\n{}\n参数 JSON Schema：{}\n\n",
-                            tool.name, tool.description, tool.parameters
+                        mcp_schemas.push(self.meta_render(
+                            "mcp_enabled",
+                            format!(
+                                "== MCP 工具 {} 已启用 ==\n{}\n参数 JSON Schema：{}\n\n",
+                                tool.name, tool.description, tool.parameters
+                            ),
+                            &[
+                                ("name", tool.name.clone()),
+                                ("description", tool.description.clone()),
+                                ("schema", tool.parameters.to_string()),
+                            ],
                         ));
                     }
                     continue;
@@ -589,7 +655,11 @@ impl ToolRegistry {
         for id in skill_ids {
             match BUILTIN_SKILLS.iter().find(|s| s.id == id) {
                 Some(skill) => {
-                    activated_skills.push(format!("{}（{}）", skill.id, skill.title));
+                    activated_skills.push(format!(
+                        "{}（{}）",
+                        skill.id,
+                        self.meta_literal(&format!("skill_{}_title", skill.id), skill.title)
+                    ));
                     for name in skill.tools {
                         if self.is_deferred(name) {
                             enabled.insert((*name).to_string());
@@ -602,24 +672,46 @@ impl ToolRegistry {
         }
         let mut text = String::new();
         if !activated_skills.is_empty() {
-            text.push_str(&format!(
-                "已启用技能包：{}。\n\n",
-                activated_skills.join("、")
+            let skills = activated_skills.join(", ");
+            text.push_str(&self.meta_render(
+                "skills_enabled",
+                format!("已启用技能包：{skills}。\n\n"),
+                &[("skills", skills)],
             ));
         }
         for id in skill_ids {
             if let Some(skill) = BUILTIN_SKILLS.iter().find(|s| s.id == id) {
-                text.push_str(&format!(
-                    "== {}（{}）使用说明 ==\n{}\n",
-                    skill.id, skill.title, skill.instructions
+                let title = self.meta_literal(&format!("skill_{}_title", skill.id), skill.title);
+                let instructions = self.meta_literal(
+                    &format!("skill_{}_instructions", skill.id),
+                    skill.instructions,
+                );
+                text.push_str(&self.meta_render(
+                    "skill_instructions",
+                    format!(
+                        "== {}（{}）使用说明 ==\n{}\n",
+                        skill.id, title, instructions
+                    ),
+                    &[
+                        ("id", skill.id.into()),
+                        ("title", title),
+                        ("instructions", instructions),
+                    ],
                 ));
                 for name in skill.tools {
                     if let Some(tool) = self.get(name) {
-                        text.push_str(&format!(
-                            "工具 {}: {}\n参数 JSON Schema：{}\n\n",
-                            tool.name(),
-                            tool.description(),
-                            tool.parameters_schema()
+                        let spec = self.builtin_spec(tool);
+                        text.push_str(&self.meta_render(
+                            "tool_schema",
+                            format!(
+                                "工具 {}: {}\n参数 JSON Schema：{}\n\n",
+                                spec.name, spec.description, spec.parameters
+                            ),
+                            &[
+                                ("name", spec.name),
+                                ("description", spec.description),
+                                ("schema", spec.parameters.to_string()),
+                            ],
                         ));
                     }
                 }
@@ -647,10 +739,8 @@ impl ToolRegistry {
                 .cloned()
                 .collect();
             if !truly_unknown.is_empty() {
-                text.push_str(&format!(
-                    "未知的技能包：{}（可用技能包见 enable_tools 描述；MCP 工具可传服务器名整组启用，或传全名 mcp__<服务器>__<工具> 单个启用）。",
-                    truly_unknown.join("、")
-                ));
+                let skills = truly_unknown.join(", ");
+                text.push_str(&self.meta_render("unknown_skills", format!("未知的技能包：{skills}（可用技能包见 enable_tools 描述；MCP 工具可传服务器名整组启用，或传全名 mcp__<服务器>__<工具> 单个启用）。"), &[("skills", skills)]));
             }
         }
         text
@@ -685,3 +775,5 @@ pub(crate) use write_tools::store_create_pending;
 
 #[cfg(test)]
 mod tests;
+
+mod localization;

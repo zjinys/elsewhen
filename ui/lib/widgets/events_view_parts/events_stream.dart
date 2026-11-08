@@ -18,11 +18,14 @@ class _EventStream extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('事件加载失败', style: TextStyle(color: AppTheme.textTertiary)),
+            Text(
+              context.l10n.l6CouldNotLoadEvent7ba1f,
+              style: TextStyle(color: AppTheme.textTertiary),
+            ),
             const SizedBox(height: AppTheme.space2),
             TextButton(
               onPressed: () => ref.invalidate(recentEventsProvider),
-              child: const Text('重试'),
+              child: Text(context.l10n.retry),
             ),
           ],
         ),
@@ -33,7 +36,7 @@ class _EventStream extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.all(AppTheme.space4),
               child: Text(
-                '还没有记录过事件\n和 AI 的对话会自动作为事件记录在这里',
+                context.l10n.l6NoEventsRecordedYetConversationsWithb4ac9,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12.5,
@@ -88,11 +91,14 @@ class _EventList extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('事件加载失败', style: TextStyle(color: AppTheme.textTertiary)),
+            Text(
+              context.l10n.l6CouldNotLoadEvent7ba1f,
+              style: TextStyle(color: AppTheme.textTertiary),
+            ),
             SizedBox(height: AppTheme.space2),
             TextButton(
               onPressed: () => ref.invalidate(recentEventsProvider),
-              child: const Text('重试'),
+              child: Text(context.l10n.retry),
             ),
           ],
         ),
@@ -103,7 +109,7 @@ class _EventList extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.all(AppTheme.space4),
               child: Text(
-                '最近没有记录的事件',
+                context.l10n.l6NoRecentlyRecordedEventsf0c62,
                 style: TextStyle(fontSize: 12.5, color: AppTheme.textTertiary),
               ),
             ),
@@ -194,7 +200,7 @@ class _EventCard extends StatelessWidget {
                     ),
                     if (event.status == 'pending')
                       Tooltip(
-                        message: '已记录，待分析',
+                        message: context.l10n.l6RecordedAwaitingAnalysis8e5e7,
                         child: Icon(
                           Icons.schedule,
                           size: 14,

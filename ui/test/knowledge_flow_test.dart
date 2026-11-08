@@ -151,7 +151,7 @@ class FakeKnowledge extends KnowledgeRepository {
   @override
   Future<api.WikiPageDto?> resolve(String id, bool accept) async {
     decisions.add(accept);
-    if (fail) throw Exception('来源已更新，请重新生成建议');
+    if (fail) throw Exception('elsewhen-error-v1:{"version":1,"code":"knowledge_source_changed","params":{}}');
     return accept && returnPage ? page : null;
   }
 
@@ -286,7 +286,7 @@ void main() {
     await pump(tester, repo, const KnowledgeProposalCard(proposal: proposal));
     await tester.tap(find.text('确认保存'));
     await tester.pumpAndSettle();
-    expect(find.text('来源已更新，请重新生成建议'), findsOneWidget);
+    expect(find.text('来源已更新或被拒绝，请重新生成建议'), findsOneWidget);
     expect(find.text('确认保存'), findsOneWidget);
   });
   testWidgets('采纳后保留当前上下文，不跳到另一个同名页', (tester) async {

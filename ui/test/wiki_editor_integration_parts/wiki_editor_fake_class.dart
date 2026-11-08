@@ -50,7 +50,9 @@ class _FakeRepo extends RustBridgeRepository {
     savedContent.add((slug, contentMd, reason));
     savedExpectedUpdatedAt.add(expectedUpdatedAt);
     if (conflictOnLockedSave && expectedUpdatedAt != null) {
-      throw Exception('编辑冲突：页面在你编辑期间已被更新（模拟）');
+      throw Exception(
+        'elsewhen-error-v1:{"version":1,"code":"wiki_page_changed","params":{}}',
+      );
     }
     if (saveThrows) throw Exception('模拟保存失败');
     return page;

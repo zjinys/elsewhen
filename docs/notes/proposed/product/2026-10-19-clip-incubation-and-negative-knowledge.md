@@ -1,7 +1,7 @@
 # 摘录孵化闭环（讨论 → 纳入知识 / 丢弃为负知识）
 
 - 日期：2026-10-19
-- 状态：accepted→首版已实施（2026-10-20，Rust 侧全链 + 同步面；Flutter 分组/按钮后置）。评审澄清两项：①孵化闸门只作用于导入流，`save_text_page` 随手记生而入册（缺省 endorse）；②闸门只拦「自动投递」（编译/召回/引用挂载/依据校验），「按需读取」豁免（get_wiki_page 工具、`citation_for_page_explicit` 通道、派生稿采用核对——否则「先采用后纳入」死锁）
+- 状态：accepted→首版工程已实施（2026-11-05 复核：Rust 存储/同步面，以及 Flutter 孵化分组、纳入/否定按钮均存在；不再标“Flutter 后置”。界面锚点：`sidebar_wiki_tab.dart`、`sidebar_misc.dart`、`knowledge_panel.dart`）。评审澄清两项：①孵化闸门只作用于导入流，`save_text_page` 随手记生而入册（缺省 endorse）；②闸门只拦「自动投递」（编译/召回/引用挂载/依据校验），「按需读取」豁免（get_wiki_page 工具、`citation_for_page_explicit` 通道、派生稿采用核对——否则「先采用后纳入」死锁）
 - 范围：把「导入摘录 → 页内 AI 讨论 → 定论」串成显式生命周期；补两个缺口——**孵化闸门**与**负知识**；AI 改动只落派生稿
 - 性质：复用现有 `opinion` / 派生稿 / 版本采用 / 阅读状态，收紧一处缺省语义 + 扩展 `knowledge_sources`
 - 关联：[FR-PES-004 LLM-Wiki 知识库闭环](../../../requirements/product/FR-PES-004-LLM-Wiki知识库闭环.md)、[docs/llm-wiki.md](../../../llm-wiki.md)、[CLAUDE.md LLM Wiki 维护](../../../CLAUDE.md)

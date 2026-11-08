@@ -37,6 +37,7 @@ pub(crate) fn generate_with_provider_configs(
     // 生产与测试统一走延迟加载：同一套链路，测试直接守护生产行为，
     // 包括 enable_tools 与请求预算的相互作用（零余量窗口不能被工具化挤爆）。
     let mut registry = ToolRegistry::deferred_runtime();
+    registry.configure_language(store)?;
     // MCP sidecar：拉取启用 server 的工具清单拼进注册表；单个 server 失败
     // 不拖垮生成，错误记入事件供设置页/报表观测（红线上抛不适用于插件缺失）。
     let (mcp_tools, mcp_errors) = super::mcp::available_tools(store);
@@ -177,12 +178,21 @@ pub(crate) fn generate_with_provider_configs(
         None => None,
     };
     if let Some((label, data)) = &direct_query_result {
-        context.push(ContextMessage::new(
-            "system",
-            format!(
-                "（本机数据直查：系统已直接查好「{label}」的真实数据，请直接引用回答，无需再调用工具）\n{data}"
+        context.push(
+            ContextMessage::new(
+                "system",
+                store.render_execution_instruction(
+                    "direct_query",
+                    &[("label", label.clone()), ("data", data.clone())],
+                )?,
+            )
+            .with_segment(
+                SegmentPurpose::SelectedEvidence,
+                SegmentOrigin::ToolExecution,
+                None,
+                OmissionPolicy::Required,
             ),
-        ).with_segment(SegmentPurpose::SelectedEvidence, SegmentOrigin::ToolExecution, None, OmissionPolicy::Required));
+        );
     }
 
     let page_task = super::page_tasks::task_for_run(store, conversation_id)?;
@@ -200,7 +210,7 @@ pub(crate) fn generate_with_provider_configs(
     // 保证检索结果可溯源。
     context.push(ContextMessage::new(
         "system",
-        crate::knowledge::CITATION_INSTRUCTIONS,
+        store.render_context_instruction("citation", &[])?,
     ));
 
     // 相关知识的确定性摘要挂载（2026-10-18/19 事故档案「投递侧不设防」
@@ -222,7 +232,7 @@ pub(crate) fn generate_with_provider_configs(
         let has_pending = !store
             .pending_actions_for_conversation(conversation_id)?
             .is_empty();
-        context.push(followup.context(has_pending));
+        context.push(followup.context(store, has_pending)?);
     }
 
     super::time_context::refresh_current_time(&mut context, &super::time_context::SystemClock);
@@ -303,9 +313,8 @@ pub(crate) fn generate_with_provider_configs(
     // 渠道冷却预扫：上次失败仍在冷却期的渠道直接跳过，不让死渠道每轮
     // 烧满 60s 超时；全部冷却时照常全试（与 FailoverProvider 同一纪律）。
     let now = std::time::Instant::now();
-    for (provider_id, provider_name, provider) in ai_providers
-        .into_iter()
-        .filter(|(id, name, _)| match id {
+    for (provider_id, provider_name, provider) in
+        ai_providers.into_iter().filter(|(id, name, _)| match id {
             Some(id) if super::provider::failover::provider_in_cooldown(id, now) => {
                 skipped_cooldown.push(format!("[{name}] 冷却中，跳过"));
                 false

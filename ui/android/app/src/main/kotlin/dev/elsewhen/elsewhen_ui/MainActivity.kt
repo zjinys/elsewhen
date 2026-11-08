@@ -21,7 +21,15 @@ class MainActivity : FlutterFragmentActivity() {
                 when (call.method) {
                     "start" -> {
                         ensureNotificationPermission()
-                        KeepAliveService.start(this, call.argument<String>("text"))
+                        KeepAliveService.start(this, call.argument<String>("text"),
+                            call.argument<String>("title"), call.argument<String>("channelName"),
+                            call.argument<String>("channelDescription"))
+                        result.success(true)
+                    }
+                    "update" -> {
+                        KeepAliveService.update(call.argument<String>("text"),
+                            call.argument<String>("title"), call.argument<String>("channelName"),
+                            call.argument<String>("channelDescription"))
                         result.success(true)
                     }
                     "stop" -> {

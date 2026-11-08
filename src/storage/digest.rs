@@ -218,9 +218,9 @@ impl Store {
             return Ok(None);
         }
         // 可领取：已到期；且有人工分类，或分析已终态（succeeded/failed/无分析任务）。
-        let rows: Vec<(String, EventRecord)> = {
+        let rows: Vec<(String, EventRecord, Option<String>)> = {
             let mut statement = tx.prepare(
-                "SELECT j.id, e.id, e.recorded_at, e.raw_text
+                "SELECT j.id, e.id, e.recorded_at, e.raw_text, j.prompt_bundle_id
              FROM knowledge_digest_jobs j
              JOIN events e ON e.id=j.event_id
              LEFT JOIN analysis_jobs aj ON aj.event_id=j.event_id
@@ -241,13 +241,24 @@ impl Store {
                             recorded_at: row.get(2)?,
                             raw_text: row.get(3)?,
                         },
+                        row.get(4)?,
                     ))
                 })?;
             rows.collect::<rusqlite::Result<Vec<_>>>()?
         };
         let mut picked: Vec<(String, EventRecord)> = Vec::new();
         let mut used = 0usize;
-        for (job_id, event) in rows {
+        let mut pinned_bundle: Option<Option<String>> = None;
+        for (job_id, event, bundle) in rows {
+            // Retry the original logical work with its original policy. Do not
+            // combine a failed Chinese batch with a newly claimed English job.
+            if let Some(pinned) = &pinned_bundle {
+                if pinned != &bundle {
+                    continue;
+                }
+            } else {
+                pinned_bundle = Some(bundle);
+            }
             let cost = event.raw_text.chars().count();
             if !picked.is_empty() && used + cost > max_chars {
                 break;
@@ -260,18 +271,22 @@ impl Store {
             return Ok(None);
         }
         let batch_id = Uuid::new_v4().to_string();
+        let bundle = match pinned_bundle.flatten() {
+            Some(bundle) => bundle,
+            None => self.capture_prompt_bundle("background_task", &format!("digest:{batch_id}"))?,
+        };
         for (job_id, _) in &picked {
             tx.execute(
                 "UPDATE knowledge_digest_jobs
-             SET status='running', attempts=attempts+1, batch_id=?2, updated_at=?3
+             SET status='running', attempts=attempts+1, batch_id=?2, updated_at=?3, prompt_bundle_id=?4
              WHERE id=?1",
-                params![job_id, batch_id, now],
+                params![job_id, batch_id, now, bundle],
             )?;
         }
         tx.execute(
-            "INSERT INTO knowledge_digest_runs (id,started_at,status,event_count,model)
-         VALUES (?1,?2,'running',?3,?4)",
-            params![batch_id, now, picked.len() as i64, model],
+            "INSERT INTO knowledge_digest_runs (id,started_at,status,event_count,model,prompt_bundle_id)
+         VALUES (?1,?2,'running',?3,?4,?5)",
+            params![batch_id, now, picked.len() as i64, model, bundle],
         )?;
         tx.commit()?;
         Ok(Some(DigestBatch {
@@ -279,6 +294,38 @@ impl Store {
             started_at: now,
             events: picked.into_iter().map(|(_, event)| event).collect(),
         }))
+    }
+
+    /// Return the unsubmitted suffix to the queue without charging a failed
+    /// attempt. Its original prompt bundle remains pinned for the next tick.
+    pub(crate) fn resize_digest_batch(
+        &self,
+        batch: &mut DigestBatch,
+        selected: usize,
+    ) -> Result<()> {
+        anyhow::ensure!(
+            selected > 0 && selected <= batch.events.len(),
+            "invalid digest batch size"
+        );
+        if selected == batch.events.len() {
+            return Ok(());
+        }
+        let tx = Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
+        self.require_background_processor()?;
+        for event in &batch.events[selected..] {
+            let changed = tx.execute(
+                "UPDATE knowledge_digest_jobs SET status='pending',batch_id=NULL,attempts=MAX(0,attempts-1) WHERE event_id=?1 AND batch_id=?2 AND status='running'",
+                params![event.id, batch.id])?;
+            anyhow::ensure!(changed == 1, "digest batch changed during preparation");
+        }
+        let changed = tx.execute(
+            "UPDATE knowledge_digest_runs SET event_count=?2 WHERE id=?1 AND status='running'",
+            params![batch.id, selected as i64],
+        )?;
+        anyhow::ensure!(changed == 1, "digest run changed during preparation");
+        tx.commit()?;
+        batch.events.truncate(selected);
+        Ok(())
     }
 
     /// 把一批校验通过的页面草案写入知识库，并在同一事务里写 wiki_log、确认任务、
@@ -292,6 +339,17 @@ impl Store {
         let now_text = now.to_rfc3339();
         let tx = Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
         self.require_background_processor()?;
+        let bundle = self.digest_prompt_bundle(&batch.id)?;
+        self.record_language_artifact(
+            "digest",
+            &batch.id,
+            &bundle,
+            &[
+                "digest.policy",
+                "digest.fixed_contract",
+                "task.processing.fixed_contract",
+            ],
+        )?;
         let mut outcome = DigestBatchOutcome::default();
         for draft in drafts {
             let result = self.upsert_wiki_page_in_tx(draft, ContentPolicy::PreserveHumanEdits)?;
@@ -305,6 +363,26 @@ impl Store {
             if !bucket.contains(&draft.slug) {
                 bucket.push(draft.slug.clone());
             }
+        }
+        // 洞见浮现候选（2026-11-05 提案 §5/§7-P1）：新成立的习惯页与识别出
+        // 的重复固定成本页登记为浮现候选（pending 本机排队；同页终身一次，
+        // 由存储层台账去重）。只认本批新建的页面，普通更新不反复排队。
+        for draft in drafts {
+            if !outcome.created.contains(&draft.slug) {
+                continue;
+            }
+            let candidate_kind = match draft.kind.as_str() {
+                "habit" | "recurring_cost" => draft.kind.as_str(),
+                _ => continue,
+            };
+            self.record_digest_insight_candidate(
+                candidate_kind,
+                &draft.slug,
+                &draft.title,
+                &draft.summary,
+                None,
+                None,
+            )?;
         }
         if !outcome.created.is_empty() || !outcome.updated.is_empty() {
             let date = now.format("%Y-%m-%d");

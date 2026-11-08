@@ -61,7 +61,7 @@ pub fn create_todo(
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
     if title.trim().is_empty() {
-        anyhow::bail!("待办内容不能为空");
+        anyhow::bail!(crate::user_error::UserError::required("title"));
     }
     let t = store.create_todo(
         title.trim(),
@@ -88,12 +88,12 @@ pub fn open_todo_work_item(id: String) -> Result<WikiPageDto> {
     let store = Store::open(&config.database_path)?;
     let todo = store
         .get_todo(&id)?
-        .ok_or_else(|| anyhow::anyhow!("未找到待办（id={id}）"))?;
+        .ok_or_else(|| anyhow::anyhow!(crate::user_error::UserError::missing("todo")))?;
     if let Some(slug) = todo.related_wiki_slug.as_deref() {
         return store
             .get_wiki_page(slug)?
             .map(|p| WikiPageDto::serve(&store, p))
-            .ok_or_else(|| anyhow::anyhow!("待办关联页面不存在（slug={slug}）"));
+            .ok_or_else(|| anyhow::anyhow!(crate::user_error::UserError::missing("wiki_page")));
     }
     let marker = format!("work-item-id:{}", todo.id);
     if let Some(existing) = store.find_wiki_page_by_tag(&marker)? {

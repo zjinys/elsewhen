@@ -77,6 +77,7 @@ fn streamable_http_roundtrip_with_session_id_and_headers() {
     let server = crate::storage::McpServerConfig {
         id: "http-server".into(),
         name: "httpsrv".to_string(),
+        keywords: "回声,echo".to_string(),
         platform: "all".to_string(),
         transport: "streamable-http".into(),
         command: String::new(),
@@ -94,6 +95,7 @@ fn streamable_http_roundtrip_with_session_id_and_headers() {
     let tools = list_tools_for_server(&server).unwrap();
     assert_eq!(tools.len(), 1);
     assert_eq!(tools[0].raw_name, "http_echo");
+    assert_eq!(tools[0].keywords, "回声,echo");
     assert_eq!(tools[0].name, format!("{MCP_PREFIX}httpsrv__http_echo"));
 
     // tools/call 走同会话（session id 已缓存）+ Bearer 透传；call_tool
@@ -105,6 +107,7 @@ fn streamable_http_roundtrip_with_session_id_and_headers() {
         .save_mcp_server(
             None,
             &server.name,
+            &server.keywords,
             "all",
             &server.transport,
             &server.command,

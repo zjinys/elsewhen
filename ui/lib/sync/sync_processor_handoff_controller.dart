@@ -1,3 +1,5 @@
+import '../l10n/notice_messages.dart';
+
 import 'package:flutter/foundation.dart';
 
 import '../bridge/api.dart' as api;
@@ -77,7 +79,7 @@ class SyncProcessorHandoffController extends ChangeNotifier {
     required bool isOwnerDevice,
   }) async {
     if (toDeviceId.trim().isEmpty) {
-      error = '请填写目标设备 ID。';
+      error = appNotice('l6EnterTheTargetDeviceIdb0da4');
       _changed();
       return;
     }
@@ -134,28 +136,57 @@ String handoffErrorText(String raw) {
   return matched ?? raw;
 }
 
-const Map<String, String> _handoffErrors = {
-  'sync_membership_not_processor': '本机当前不是加工设备，无需让出。',
-  'sync_membership_owner_required': '只有 owner 设备才能审批移交证明。',
-  'sync_background_processing_must_finish_before_enable':
-      '本机仍有进行中的后台任务，必须等它们完成后才能让出 AI 分析职责。',
-  'sync_frontier_lagging': '本机尚未同步到移交边界，请先等待同步追平再确认接管。',
-  'sync_processor_not_in_pending_takeover': '本机没有待确认的加工接管。',
-  'sync_handoff_signature_invalid': '移交证明签名无效，可能已被篡改。',
-  'sync_handoff_revision_invalid': '移交证明信息超出有效范围。',
-  'sync_handoff_revision_mismatch': '移交证明版本与当前名册不一致，请重新在原加工设备上让出。',
-  'sync_handoff_source_mismatch': '移交证明与当前加工设备不符，请重新在原加工设备上让出。',
-  'sync_handoff_target_missing': '移交目标不是当前名册中的活跃设备。',
-  'sync_handoff_old_processor_inactive': '原加工设备已不在名册中，无法审批此证明。',
-  'sync_handoff_dataset_mismatch': '移交证明与当前数据集不符。',
-  'sync_handoff_self_transfer_invalid': 'AI 分析职责不能移交给本机自己。',
-  'sync_handoff_proof_target_mismatch': '移交证明与本机状态不符。',
-  'sync_handoff_proof_required': '缺少移交证明，无法应用此设备变更。',
-  'sync_handoff_proof_source_mismatch': '移交证明来源与本机状态不符。',
-  'sync_handoff_source_missing': '移交证明缺少来源设备。',
-  'sync_handoff_target_mismatch': '移交证明目标与本机不符。',
-  'sync_processing_handoff_required': '缺少加工移交证明，本设备无法采纳此变更。',
-  'sync_handoff_unexpected_without_processor_change': '名册未变更加工设备却携带移交证明。',
-  'sync_runtime_locked': '本机同步密钥已锁定，请先解锁后再操作。',
-  'sync_not_initialized': '本机尚未准备同步身份。',
+final Map<String, String> _handoffErrors = {
+  'sync_membership_not_processor': appNotice(
+    'l6ThisDeviceIsNotTheProcessor82939',
+  ),
+  'sync_membership_owner_required': appNotice(
+    'l6OnlyTheDatasetOwnerCanApprovec5d36',
+  ),
+  'sync_background_processing_must_finish_before_enable': appNotice(
+    'l6WaitForThisDeviceSActive1e382',
+  ),
+  'sync_frontier_lagging': appNotice('l6WaitForSyncToReachThe58a6b'),
+  'sync_processor_not_in_pending_takeover': appNotice(
+    'l6NoProcessorHandoffAwaitsThisDevice12c2e',
+  ),
+  'sync_handoff_signature_invalid': appNotice(
+    'l6TheHandoffProofSignatureIsInvalid82d09',
+  ),
+  'sync_handoff_revision_invalid': appNotice(
+    'l6HandoffProofInformationIsOutsideIts3c0a0',
+  ),
+  'sync_handoff_revision_mismatch': appNotice('l6TheProofDoesNotMatchThe90664'),
+  'sync_handoff_source_mismatch': appNotice('l6TheProofDoesNotMatchThe7ec43'),
+  'sync_handoff_target_missing': appNotice('l6TheTargetIsNotAnActivea00bf'),
+  'sync_handoff_old_processor_inactive': appNotice(
+    'l6TheOriginalProcessorIsNoLongerd44b7',
+  ),
+  'sync_handoff_dataset_mismatch': appNotice(
+    'l6TheHandoffProofBelongsToA7b34b',
+  ),
+  'sync_handoff_self_transfer_invalid': appNotice(
+    'l6AiAnalysisCannotBeTransferredTod5ffa',
+  ),
+  'sync_handoff_proof_target_mismatch': appNotice(
+    'l6TheHandoffProofDoesNotMatch31e8f',
+  ),
+  'sync_handoff_proof_required': appNotice(
+    'l6HandoffProofIsMissingTheDevice668d5',
+  ),
+  'sync_handoff_proof_source_mismatch': appNotice(
+    'l6TheProofSSourceDoesNot02b44',
+  ),
+  'sync_handoff_source_missing': appNotice('l6TheHandoffProofHasNoSource9502a'),
+  'sync_handoff_target_mismatch': appNotice(
+    'l6TheHandoffProofTargetsADifferent2a815',
+  ),
+  'sync_processing_handoff_required': appNotice(
+    'l6ProcessorHandoffProofIsMissingThis0e9df',
+  ),
+  'sync_handoff_unexpected_without_processor_change': appNotice(
+    'l6TheRosterIncludesHandoffProofWithout363f4',
+  ),
+  'sync_runtime_locked': appNotice('l6UnlockThisDeviceSSyncKeyse19a6'),
+  'sync_not_initialized': appNotice('l6ThisDeviceSSyncIdentityIs5c640'),
 };

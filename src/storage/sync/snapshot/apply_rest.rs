@@ -11,6 +11,25 @@ impl Store {
         provider_seen: &mut bool,
     ) -> Result<()> {
         match record {
+            Record::KnowledgeLanguage { value } => {
+                value.validate()?;
+                if self.has_sync_authority()? {
+                    if value.generation == 0 {
+                        ensure!(
+                            value.output_locale == "zh-Hans"
+                                && value.policy_version == 1
+                                && value.authority_revision == 0
+                                && value.changed_by.is_none()
+                                && value.dataset_id.is_none()
+                                && value.owner_signature.is_none(),
+                            "knowledge_language_unsigned_policy_invalid"
+                        );
+                    } else {
+                        self.verify_knowledge_language_owner(value)?;
+                    }
+                }
+                self.write_knowledge_language_policy(value)?;
+            }
             Record::SkillFile {
                 skill_id,
                 rel,
@@ -72,6 +91,7 @@ impl Store {
             Record::McpServer {
                 id,
                 name,
+                keywords,
                 platform,
                 transport,
                 command,
@@ -103,14 +123,16 @@ impl Store {
                 );
                 validate_json_arg(args_json, "sync_snapshot_mcp_server_invalid")?;
                 validate_json_arg(env_json, "sync_snapshot_mcp_server_invalid")?;
+                let keywords = crate::storage::mcp_servers::normalize_keywords(keywords)
+                    .map_err(|_| anyhow::anyhow!("sync_snapshot_mcp_server_invalid"))?;
                 // 本机获胜：同 id 或同 (name,platform) 已有行 → 忽略远端行
                 // （INSERT OR IGNORE 对主键与唯一索引两个目标都会静默跳过）。
                 // trusted 强制 0：同步到达的 server 回到逐次审批，用户看过、
                 // 信任了再开——URL 可以搭车，豁免不搭车。
                 self.connection.execute(
                     "INSERT OR IGNORE INTO mcp_servers
-                        (id,name,platform,transport,command,args_json,env_json,url,headers_json,enabled,trusted,created_at,updated_at)
-                     VALUES(?1,?2,?3,?4,?5,?6,?7,?8,'{}',?9,0,?10,?11)",
+                        (id,name,platform,transport,command,args_json,env_json,url,headers_json,enabled,trusted,created_at,updated_at,keywords)
+                     VALUES(?1,?2,?3,?4,?5,?6,?7,?8,'{}',?9,0,?10,?11,?12)",
                     params![
                         id,
                         name,
@@ -118,11 +140,12 @@ impl Store {
                         transport,
                         command,
                         args_json,
-                        env_json,
+                        "{}",
                         url,
                         *enabled as i64,
                         created_at,
-                        updated_at
+                        updated_at,
+                        keywords
                     ],
                 )?;
             }

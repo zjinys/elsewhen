@@ -6,9 +6,12 @@ import '../models/todo.dart';
 import '../providers/todo_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../theme/app_theme.dart';
+import '../l10n/localization.dart';
+import 'app_error_notice.dart';
 
 part 'todo_view_parts/todo_item.dart';
 part 'todo_view_parts/todo_edit_dialog.dart';
+
 // ── 待办视图按条目/编辑对话框拆分（纯类段平移，零行为变化）──
 
 /// 侧栏「待办」tab：新建/勾选/删除待办 + 按状态分组
@@ -45,12 +48,7 @@ class _TodoListViewState extends ConsumerState<TodoListView> {
       ref.invalidate(todosProvider);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      showAppError(context, context.l10n.save, e);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -67,19 +65,18 @@ class _TodoListViewState extends ConsumerState<TodoListView> {
       ref.invalidate(todosProvider);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      showAppError(context, context.l10n.save, e);
     }
   }
 
   Future<void> _delete(Todo todo) async {
     final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-    final ok = await repo.deleteTodo(todo.id);
-    if (ok && mounted) ref.invalidate(todosProvider);
+    try {
+      final ok = await repo.deleteTodo(todo.id);
+      if (ok && mounted) ref.invalidate(todosProvider);
+    } catch (error) {
+      if (mounted) showAppError(context, context.l10n.delete, error);
+    }
   }
 
   /// 编辑待办：标题 / 说明 / 优先级 / 截止时间（截止留空即清除）
@@ -112,7 +109,7 @@ class _TodoListViewState extends ConsumerState<TodoListView> {
                 enabled: !_saving,
                 onSubmitted: (_) => _add(),
                 decoration: InputDecoration(
-                  hintText: '记一条要跟进的事…（回车添加）',
+                  hintText: context.l10n.todoInputHint,
                   hintStyle: TextStyle(
                     fontSize: 12.5,
                     color: AppTheme.textTertiary,
@@ -148,7 +145,7 @@ class _TodoListViewState extends ConsumerState<TodoListView> {
                 controller: _noteController,
                 enabled: !_saving,
                 decoration: InputDecoration(
-                  hintText: '补充说明（可选）',
+                  hintText: context.l10n.todoNoteHint,
                   hintStyle: TextStyle(
                     fontSize: 12,
                     color: AppTheme.textTertiary,
@@ -177,9 +174,9 @@ class _TodoListViewState extends ConsumerState<TodoListView> {
           child: todosAsync.when(
             data: (todos) {
               if (todos.isEmpty) {
-                return const _EmptyHint(
+                return _EmptyHint(
                   icon: Icons.fact_check_outlined,
-                  message: '还没有待办\n\n可以手动添加，或在对话里让 AI 分析出\n需要跟进的事（需确认后创建）',
+                  message: context.l10n.todoEmptyHelp,
                 );
               }
               final open = todos.where((t) => !t.isDone).toList()
@@ -189,16 +186,16 @@ class _TodoListViewState extends ConsumerState<TodoListView> {
                 padding: const EdgeInsets.symmetric(vertical: AppTheme.space1),
                 children: [
                   if (open.isNotEmpty)
-                    _buildGroup('进行中 · ${open.length}', open),
+                    _buildGroup(context.l10n.todoOpenGroup(open.length), open),
                   if (done.isNotEmpty)
-                    _buildGroup('已完成 · ${done.length}', done),
+                    _buildGroup(context.l10n.todoDoneGroup(done.length), done),
                 ],
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, stack) => Center(
               child: Text(
-                '加载失败',
+                context.l10n.loadFailed,
                 style: TextStyle(color: AppTheme.textSecondary),
               ),
             ),
@@ -262,12 +259,7 @@ class _TodoListViewState extends ConsumerState<TodoListView> {
                 ref.invalidate(todosProvider);
               } catch (e) {
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(e.toString()),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+                showAppError(context, context.l10n.open, e);
               }
             },
           ),

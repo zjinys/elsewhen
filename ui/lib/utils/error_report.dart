@@ -13,6 +13,8 @@
 /// 启动时并不会留下任何记录，那种提示是假的。
 library;
 
+import '../l10n/app_localizations_zh.dart';
+
 import 'dart:io' show Platform, stderr;
 
 import 'package:flutter/foundation.dart';
@@ -123,9 +125,11 @@ String reportUiError(
   if (userMessage != null) return userMessage;
   if (showDetail) {
     final clean = stripErrorShell(error);
-    return clean.isNotEmpty ? clean : '$context失败，请重试一次';
+    return clean.isNotEmpty
+        ? clean
+        : AppLocalizationsZh().legacyOperationFailed(context);
   }
-  return '$context失败，请重试一次';
+  return AppLocalizationsZh().legacyOperationFailed(context);
 }
 
 /// 装上兜底的全局异常处理，让**没人 try/catch 的**异常也走同一条诊断通道。

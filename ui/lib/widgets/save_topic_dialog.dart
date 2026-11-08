@@ -5,6 +5,7 @@ import '../bridge/rust_bridge_repository.dart';
 import '../providers/wiki_provider.dart';
 import '../theme/app_theme.dart';
 import 'glass.dart';
+import '../l10n/localization.dart';
 
 /// 「存为主题」对话框：复用知识库「文本导入」的字段与交互（标题 / 标签 / 正文），
 /// 但保存为 topic 页。点消息气泡上的书签按钮弹出，预填从消息提取的内容，
@@ -33,12 +34,14 @@ class SaveTopicDialog extends ConsumerStatefulWidget {
   ConsumerState<SaveTopicDialog> createState() => _SaveTopicDialogState();
 }
 
+enum _SaveTopicError { body, save }
+
 class _SaveTopicDialogState extends ConsumerState<SaveTopicDialog> {
   late final TextEditingController _titleController;
   late final TextEditingController _textController;
   final _tagsController = TextEditingController();
   bool _busy = false;
-  String? _error;
+  _SaveTopicError? _error;
 
   @override
   void initState() {
@@ -65,7 +68,7 @@ class _SaveTopicDialogState extends ConsumerState<SaveTopicDialog> {
   Future<void> _save() async {
     final text = _textController.text.trim();
     if (text.isEmpty) {
-      setState(() => _error = '正文不能为空');
+      setState(() => _error = _SaveTopicError.body);
       return;
     }
     setState(() {
@@ -86,13 +89,14 @@ class _SaveTopicDialogState extends ConsumerState<SaveTopicDialog> {
       Navigator.of(context).pop(true);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('已存为主题：《${page.title}》'),
+          content: Text(context.l10n.topicSavedTitle(page.title)),
           behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      context.errorMessage(context.l10n.save, e);
+      setState(() => _error = _SaveTopicError.save);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -102,7 +106,7 @@ class _SaveTopicDialogState extends ConsumerState<SaveTopicDialog> {
   Widget build(BuildContext context) {
     return GlassDialog(
       maxWidth: 560,
-      title: const Text('存为主题'),
+      title: Text(context.l10n.saveAsTopic),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,7 +114,7 @@ class _SaveTopicDialogState extends ConsumerState<SaveTopicDialog> {
           TextField(
             controller: _titleController,
             enabled: !_busy,
-            decoration: _deco('标题（可选，留空自动取正文首行前 60 字）'),
+            decoration: _deco(context.l10n.topicTitleHint),
           ),
           const SizedBox(height: AppTheme.space3),
           TextField(
@@ -118,7 +122,7 @@ class _SaveTopicDialogState extends ConsumerState<SaveTopicDialog> {
             enabled: !_busy,
             style: TextStyle(fontSize: 13.5, color: AppTheme.textPrimary),
             decoration: _deco(
-              '标签（可选，空格或逗号分隔，例如：理财 副业）',
+              context.l10n.topicTagsHint,
               prefix: Icon(Icons.sell_outlined, size: 16),
             ),
           ),
@@ -132,13 +136,15 @@ class _SaveTopicDialogState extends ConsumerState<SaveTopicDialog> {
               expands: true,
               textAlignVertical: TextAlignVertical.top,
               style: TextStyle(color: AppTheme.textPrimary),
-              decoration: _deco('正文（Markdown 支持）'),
+              decoration: _deco(context.l10n.markdownBodyHint),
             ),
           ),
           if (_error != null) ...[
             const SizedBox(height: AppTheme.space2),
             Text(
-              _error!,
+              _error == _SaveTopicError.body
+                  ? context.l10n.bodyRequired
+                  : context.l10n.operationFailed(context.l10n.save),
               style: TextStyle(fontSize: 12, color: AppTheme.error),
             ),
           ],
@@ -147,7 +153,10 @@ class _SaveTopicDialogState extends ConsumerState<SaveTopicDialog> {
       actions: [
         TextButton(
           onPressed: _busy ? null : () => Navigator.of(context).pop(false),
-          child: Text('取消', style: TextStyle(color: AppTheme.textSecondary)),
+          child: Text(
+            context.l10n.cancel,
+            style: TextStyle(color: AppTheme.textSecondary),
+          ),
         ),
         FilledButton.icon(
           onPressed: _busy ? null : _save,
@@ -158,7 +167,7 @@ class _SaveTopicDialogState extends ConsumerState<SaveTopicDialog> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.bookmark_add_outlined, size: 16),
-          label: Text(_busy ? '保存中…' : '保存到主题库'),
+          label: Text(_busy ? context.l10n.saving : context.l10n.saveToTopics),
           style: FilledButton.styleFrom(
             backgroundColor: AppTheme.accentPrimary,
           ),

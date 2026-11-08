@@ -1,3 +1,6 @@
+import 'app_error_notice.dart';
+import '../l10n/localization.dart';
+
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -40,7 +43,7 @@ class JoinerSyncPairingSettings extends StatefulWidget {
 
 class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
   final _code = TextEditingController();
-  final _name = TextEditingController(text: '这台设备');
+  final _name = TextEditingController(text: 'This device');
   bool _consent = false;
 
   @override
@@ -48,7 +51,7 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
     super.initState();
     // 缺省设备名用真机器名；用户已改过名将保持原值。
     defaultDeviceName().then((name) {
-      if (name != null && mounted && _name.text == '这台设备') {
+      if (name != null && mounted && _name.text == 'This device') {
         setState(() => _name.text = name);
       }
     });
@@ -84,7 +87,7 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
     final code = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('通过邀请码加入'),
+        title: Text(context.l10n.l6JoinWithAnInvitation78bca),
         content: TextField(
           controller: _code,
           autofocus: true,
@@ -92,19 +95,19 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
           enableSuggestions: false,
           maxLength: 4200,
           maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: '来自可信设备的邀请码',
+          decoration: InputDecoration(
+            labelText: context.l10n.l6InvitationFromATrustedDeviceade9c,
             counterText: '',
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('取消'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(_code.text),
-            child: const Text('预览邀请（不联网）'),
+            child: Text(context.l10n.l6PreviewInvitationOfflinee39bc),
           ),
         ],
       ),
@@ -136,20 +139,19 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
           const Divider(height: 32),
           // 这一段只是背景说明，日常操作时不需要读；折叠起来，让输入框和
           // 进度直接暴露，需要时再点开。
-          const _SyncExplanation(
-            title: '加入现有数据集',
-            body: '使用独立暂存库，原记录和 Provider 不会覆盖。明确批准并安装后，'
-                '自动协调正式通道、成员名册及初始快照；当前数据集不会切换。',
+          _SyncExplanation(
+            title: context.l10n.l6JoinAnExistingDatasetb3b50,
+            body: context.l10n.l6EnrollmentUsesASeparateStagingDatabase0ddf7,
           ),
           if (phase != null) ...[
             const SizedBox(height: 8),
             SyncPairingSteps(
-              steps: const [
-                '预览并核对邀请',
-                '发送加入请求',
-                '等待主设备批准',
-                '安装确认',
-                '等待成员授权与初始同步',
+              steps: [
+                context.l10n.l6PreviewAndVerifyInvitation1afde,
+                context.l10n.l6SendJoinRequestd5d20,
+                context.l10n.l6WaitingForOwnerApproval9e900,
+                context.l10n.l6ConfirmInstallation555cc,
+                context.l10n.l6WaitingForAuthorizationAndInitialSync6cedf,
               ],
               current: joinerStageFor(phase),
             ),
@@ -158,14 +160,16 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
               SyncSnapshotProgress(
                 received: snapshotState.receivedChunks,
                 total: snapshotState.totalChunks,
-                label: '正在接收初始快照',
+                label: context.l10n.l6ReceivingTheInitialSnapshot032cf,
               ),
               const SizedBox(height: 8),
             ],
             if (enrollment?.states.any((s) => s.storageBlocked) == true) ...[
               const SizedBox(height: 8),
               Text(
-                '中继信箱已满：对方正在取件腾出空间，稍候会自动继续，无需操作。',
+                context
+                    .l10n
+                    .l6RelayMailboxFullDeliveryResumesAutomatically4a933,
                 style: TextStyle(fontSize: 12, color: AppTheme.warning),
               ),
             ],
@@ -193,12 +197,12 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
                 FilledButton.icon(
                   onPressed: controller.busy ? null : _pasteCode,
                   icon: const Icon(Icons.key_outlined),
-                  label: const Text('通过 Key'),
+                  label: Text(context.l10n.l6UsingKey99422),
                 ),
                 OutlinedButton.icon(
                   onPressed: controller.busy ? null : () => _scanCode(),
                   icon: const Icon(Icons.qr_code_scanner),
-                  label: const Text('扫码'),
+                  label: Text(context.l10n.l6ScanQrCodeb8a8f),
                 ),
               ],
             ),
@@ -213,7 +217,12 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
               childrenPadding: const EdgeInsets.only(bottom: 8),
               initiallyExpanded: phase == 'preview',
               title: Text(
-                '邀请设备：${state.ownerName.isEmpty ? '解锁后核验' : state.ownerName}',
+                context.l10n.l6InvitingDeviceArg0d440c(
+                  (state.ownerName.isEmpty
+                          ? context.l10n.l6UnlockToVerifycd78c
+                          : state.ownerName)
+                      .toString(),
+                ),
               ),
               children: [
                 Align(
@@ -221,25 +230,39 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('数据集：${state.datasetId}'),
+                      Text(
+                        context.l10n.l6DatasetArg085f96(
+                          (state.datasetId).toString(),
+                        ),
+                      ),
                       if (state.relayUrl.isNotEmpty) ...[
                         const SizedBox(height: 8),
-                        const Text('将连接的中继'),
+                        Text(context.l10n.l6RelayToConnectTo06ef4),
                         SelectableText(state.relayUrl),
                       ],
                       if (state.ownerFingerprint.isNotEmpty) ...[
                         const SizedBox(height: 8),
-                        const Text('邀请设备公钥指纹'),
+                        Text(
+                          context
+                              .l10n
+                              .l6InvitingDeviceSPublicKeyFingerprint283a5,
+                        ),
                         SelectableText(state.ownerFingerprint),
                       ],
                       if (state.localFingerprint != null) ...[
                         const SizedBox(height: 8),
-                        const Text('本机公钥指纹（请在已有设备核对）'),
+                        Text(
+                          context.l10n.l6ThisDeviceSPublicKeyFingerprintb7e3a,
+                        ),
                         SelectableText(state.localFingerprint!),
                       ],
                       if (state.expiresAtMs > 0)
                         Text(
-                          '邀请到期：${DateTime.fromMillisecondsSinceEpoch(state.expiresAtMs).toLocal()}',
+                          context.l10n.l6InvitationExpiresArg0abd8a(
+                            (DateTime.fromMillisecondsSinceEpoch(
+                              state.expiresAtMs,
+                            ).toLocal()).toString(),
+                          ),
                         ),
                     ],
                   ),
@@ -248,17 +271,32 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
             ),
             const SizedBox(height: 8),
             Text(switch (phase) {
-              'preview' => '请核对邀请后明确选择加入。',
-              'key_required' || 'key_confirmation' => '正在准备并确认本机受保护密钥。',
-              'ready_to_request' => '本机密钥已准备，尚未确认请求投递。',
-              'awaiting_approval' => '等待已有设备核对指纹并明确批准。',
-              'installation_confirmation' => '等待系统确认，确认前不发送证明。',
-              'awaiting_membership' => '安装已保存，尚未确认安装证明投递。',
-              'proof_sent' => '安装证明已投递，等待授权与初始同步。',
-              'enrollment' => '正在自动协调已批准的初始交接，请查看交接进度。',
-              'enrollment_confirmation' => '正在确认交接修订，确认前不继续发送。',
-              'expired' => '邀请已过期，需重新邀请。',
-              _ => '加入需要重新邀请或恢复。',
+              'preview' =>
+                context.l10n.l6ReviewTheInvitationThenExplicitlyChoosece487,
+              'key_required' || 'key_confirmation' =>
+                context.l10n.l6PreparingAndVerifyingProtectedDeviceKeys60dc8,
+              'ready_to_request' =>
+                context.l10n.l6DeviceKeysAreReadyRequestDeliverye8427,
+              'awaiting_approval' =>
+                context.l10n.l6WaitingForAnExistingDeviceTo330c1,
+              'installation_confirmation' =>
+                context.l10n.l6WaitingForSystemConfirmationNoProof188b0,
+              'awaiting_membership' =>
+                context.l10n.l6InstallationIsSavedProofDeliveryIsf28de,
+              'proof_sent' =>
+                context
+                    .l10n
+                    .l6InstallationProofDeliveredWaitingForAuthorization5d65b,
+              'enrollment' =>
+                context
+                    .l10n
+                    .l6CoordinatingTheApprovedHandoffAutomaticallyCheck9b863,
+              'enrollment_confirmation' =>
+                context
+                    .l10n
+                    .l6ConfirmingHandoffRevisionsSendingResumesAftera5068,
+              'expired' => context.l10n.l6TheInvitationExpiredRequestANewf2a42,
+              _ => context.l10n.l6JoiningRequiresANewInvitationOr2a99d,
             }),
             if (phase == 'preview') ...[
               const SizedBox(height: 12),
@@ -269,16 +307,14 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
                 style: AppTheme.fieldTextStyle,
                 cursorColor: AppTheme.accentPrimary,
                 decoration: AppTheme.fieldDecoration(
-                  labelText: '新设备名称',
+                  labelText: context.l10n.l6NewDeviceNamed42db,
                 ).copyWith(counterText: ''),
               ),
               CheckboxListTile(
                 value: _consent,
                 enabled: !controller.busy,
                 contentPadding: EdgeInsets.zero,
-                title: const Text(
-                  '我已核对邀请和中继，明确同意连接该地址，并接收全部 Provider 配置和 API Key。',
-                ),
+                title: Text(context.l10n.l6IHaveCheckedTheInvitationAnd15ccd),
                 onChanged: (value) => setState(() => _consent = value ?? false),
               ),
               FilledButton(
@@ -290,7 +326,7 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
                         Platform.operatingSystem,
                         consent: _consent,
                       ),
-                child: const Text('在独立暂存库发起加入'),
+                child: Text(context.l10n.l6RequestToJoinUsingASeparate835e5),
               ),
             ],
             Wrap(
@@ -300,28 +336,30 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
                 if (phase == 'ready_to_request' || phase == 'awaiting_approval')
                   OutlinedButton(
                     onPressed: controller.busy ? null : controller.sendRequest,
-                    child: const Text('重发原加入请求'),
+                    child: Text(context.l10n.l6ResendOriginalJoinRequest97725),
                   ),
                 if (phase == 'awaiting_approval')
                   FilledButton(
                     onPressed: controller.busy
                         ? null
                         : controller.inspectApproval,
-                    child: const Text('检查已有设备审批'),
+                    child: Text(context.l10n.l6CheckForApproval58c9a),
                   ),
                 if (phase == 'awaiting_membership' || phase == 'proof_sent')
                   OutlinedButton(
                     onPressed: controller.busy ? null : controller.sendProof,
-                    child: const Text('重发已保存的安装证明'),
+                    child: Text(
+                      context.l10n.l6ResendSavedInstallationProof3d80a,
+                    ),
                   ),
                 TextButton(
                   onPressed: controller.busy ? null : controller.cancel,
-                  child: const Text('停止本机加入流程'),
+                  child: Text(context.l10n.l6StopThisDeviceSEnrollmentb3a98),
                 ),
               ],
             ),
             if (state.approvalAckPending && phase == 'proof_sent')
-              const Text('审批邮件的清理尚未确认；重发证明可再次确认清理，不会重新安装。'),
+              Text(context.l10n.l6ApprovalCleanupIsNotConfirmedResending9fd47),
           ],
           if (controller.busy) ...[
             const SizedBox(height: 12),
@@ -331,28 +369,33 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
             const SizedBox(height: 8),
             Semantics(
               liveRegion: true,
-              child: Text(
-                controller.error!,
+              child: AppErrorMessage(
+                error: controller.error!,
+                action: context.l10n.load,
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),
           ],
           if (controller.notice != null) ...[
             const SizedBox(height: 8),
-            Text(controller.notice!),
+            Text(context.notice(controller.notice!)),
           ],
           if (!controller.active) ...[
             const SizedBox(height: 12),
             TextButton(
               onPressed: controller.busy ? null : controller.refreshEntries,
-              child: const Text('查看可恢复的加入暂存项'),
+              child: Text(
+                context.l10n.l6ViewRecoverableEnrollmentStagingEntriesf095c,
+              ),
             ),
             for (final entry in controller.entries)
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(entry.name),
                 subtitle: Text(
-                  '数据集：${entry.datasetId}\n仅恢复已审批检查点；未审批状态重启后需新邀请。',
+                  context.l10n.l6DatasetArg0OnlyApprovedCheckpointsCand6435(
+                    (entry.datasetId).toString(),
+                  ),
                 ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -361,13 +404,13 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
                       onPressed: controller.busy
                           ? null
                           : () => controller.resume(entry),
-                      child: const Text('解锁恢复'),
+                      child: Text(context.l10n.l6UnlockAndRecovere9f7c),
                     ),
                     TextButton(
                       onPressed: controller.busy
                           ? null
                           : () => _discardStaging(context, controller, entry),
-                      child: const Text('删除'),
+                      child: Text(context.l10n.delete),
                     ),
                   ],
                 ),
@@ -413,19 +456,18 @@ Future<void> _discardStaging(
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('删除这条暂存项？'),
+      title: Text(context.l10n.l6DeleteThisStagingEntrya06bf),
       content: Text(
-        '「${entry.name}」的暂存数据和本机密钥会被删除，且不可恢复。'
-        '如果还想加入这个数据集，之后需要重新扫码并经对方批准。',
+        context.l10n.l6StagedDataAndDeviceKeysFor0f456((entry.name).toString()),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: const Text('取消'),
+          child: Text(context.l10n.cancel),
         ),
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: const Text('删除'),
+          child: Text(context.l10n.delete),
         ),
       ],
     ),

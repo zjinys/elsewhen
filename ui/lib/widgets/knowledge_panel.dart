@@ -1,3 +1,7 @@
+import '../l10n/processing_result.dart';
+import '../l10n/notice_messages.dart';
+import 'app_error_notice.dart';
+import '../l10n/localization.dart';
 import 'knowledge_workflows.dart';
 import 'topic_organization_section.dart';
 import 'knowledge_maintenance_sections.dart';
@@ -16,7 +20,6 @@ import '../providers/knowledge_provider.dart';
 import '../providers/wiki_provider.dart';
 import 'markdown_view.dart';
 import 'wiki_derivatives.dart';
-import '../utils/error_report.dart';
 import '../theme/app_theme.dart';
 
 // ── 知识面板拆分为 part（行为零变化，见 knowledge_panel_parts/）──
@@ -26,16 +29,13 @@ part 'knowledge_panel_parts/proposal_card.dart';
 part 'knowledge_panel_parts/review_controls.dart';
 part 'knowledge_panel_parts/maintenance_buttons.dart';
 
-/// 异常出口：诊断进日志，界面只见通用文案。
-///
-/// [context] 是中文短动作标签，只进日志和通用文案，不放细节——
-/// 异常原文（SQL 语句、数据库绝对路径、provider 返回体）一律不进界面。
-///
-/// [showDetail] 逐站点显式开：只给「Rust 侧这条路径只 bail 可读领域文案」
-/// 的站点用（见 [reportUiError] 的说明）。目前全仓只有两处：保存 Provider
-/// 的三条表单校验、处理提案的来源变更提示。
-String _error(Object error, {String context = '操作', bool showDetail = false}) =>
-    reportUiError(context, error, showDetail: showDetail);
+/// Buffered errors retain the original cause and resolve the UI locale at render.
+String _error(
+  BuildContext viewContext,
+  Object error, {
+  String? context,
+  bool showDetail = false,
+}) => appFailure(error);
 
 /// 产出 tab 内各小节的统一节标题样式（待审建议 / 已整理的参考知识 / 产物版本）。
 Widget _outputsSectionTitle(BuildContext context, String text, {int? count}) =>
@@ -95,15 +95,24 @@ Future<void> _openPage(BuildContext context, WidgetRef ref, String slug) async {
   try {
     final page = await ref.read(wikiPageProvider(slug).future);
     if (!context.mounted) return;
-    if (page == null) throw StateError('页面不存在');
+    if (page == null) throw StateError(context.l10n.l6PageDoesNotExist55c9e);
     openWikiPageTab(ref, page);
     ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
     if (ModalRoute.of(context) is PopupRoute) Navigator.of(context).pop();
   } catch (error) {
     if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(_error(error, context: '打开知识页'))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppErrorMessage(
+            action: context.l10n.load,
+            error: _error(
+              context,
+              error,
+              context: context.l10n.artifactOpenPage,
+            ),
+          ),
+        ),
+      );
     }
   }
 }
@@ -115,13 +124,17 @@ Future<void> _showEvent(BuildContext context, WidgetRef ref, String id) async {
     final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
     final event = await repo.getEventAnalysisDetail(id);
     if (!context.mounted) return;
-    await showKnowledgeText(context, '来源记录', event?.rawText ?? '来源记录不存在');
+    await showKnowledgeText(
+      context,
+      context.l10n.l6SourceRecords5bc8d,
+      event?.rawText ?? context.l10n.l6SourceRecordDoesNotExist25551,
+    );
   } catch (error) {
     if (context.mounted) {
       await showKnowledgeText(
         context,
-        '读取失败',
-        _error(error, context: '读取来源记录'),
+        context.l10n.l6CouldNotLoadd9f60,
+        context.errorMessage(context.l10n.l6LoadSourceRecordse26e1, error),
       );
     }
   }
@@ -172,6 +185,7 @@ class KnowledgePageActions extends ConsumerStatefulWidget {
 class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
   bool _busy = false;
   String? _failure;
+  String? _processingResult;
   String? _lastKind;
 
   /// 摘录定论（孵化闭环，提案 2026-10-19）：仅 material 且未定论时显示。
@@ -190,7 +204,14 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
       if (mounted) _refresh(ref, widget.page.slug);
     } catch (error) {
       if (mounted) {
-        setState(() => _failure = _error(error, context: '摘录定论', showDetail: true));
+        setState(
+          () => _failure = _error(
+            context,
+            error,
+            context: context.l10n.l6DecideOnThisSource4e2fd,
+            showDetail: true,
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -208,11 +229,18 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
           .read(knowledgeRepositoryProvider)
           .reconsolidate(widget.page.slug);
       if (!mounted) return;
-      setState(() => _failure = result);
+      setState(() => _processingResult = result);
       _refresh(ref, widget.page.slug);
     } catch (error) {
       if (mounted) {
-        setState(() => _failure = _error(error, context: '重整理', showDetail: true));
+        setState(
+          () => _failure = _error(
+            context,
+            error,
+            context: context.l10n.l6Reprocess796dd,
+            showDetail: true,
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -225,21 +253,25 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppTheme.surface1,
-        title: const Text('丢弃为负知识', style: TextStyle(fontSize: 16)),
+        title: Text(
+          context.l10n.l6DiscardAsRejectedKnowledge14322,
+          style: TextStyle(fontSize: 16),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              '这条摘录为什么不可信/不可用？原因会成为负知识一部分，'
-              '下次同源导入会提前提示。',
+            Text(
+              context.l10n.l6WhyIsThisExcerptUnreliableOra83f2,
               style: TextStyle(fontSize: 12),
             ),
             const SizedBox(height: AppTheme.space2),
             TextField(
               controller: controller,
               autofocus: true,
-              decoration: const InputDecoration(hintText: '必填：丢弃原因'),
+              decoration: InputDecoration(
+                hintText: context.l10n.l6RequiredReasonForDiscarding0dc5c,
+              ),
               onSubmitted: (v) => Navigator.of(context).pop(v),
             ),
           ],
@@ -247,11 +279,11 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('丢弃'),
+            child: Text(context.l10n.l6Discardea489),
           ),
         ],
       ),
@@ -275,7 +307,13 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
       widget.onShowOutputs();
     } catch (error) {
       if (mounted) {
-        setState(() => _failure = _error(error, context: '整理知识'));
+        setState(
+          () => _failure = _error(
+            context,
+            error,
+            context: context.l10n.l6OrganizeKnowledge210a3,
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -304,10 +342,10 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
             style: style,
             onPressed: widget.onShowSources,
             icon: const Icon(Icons.source_outlined, size: 16),
-            label: const Text('来源与修订'),
+            label: Text(context.l10n.wikiSourcesRevisions),
           ),
         if (_busy)
-          const SizedBox(
+          SizedBox(
             height: 36,
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -318,37 +356,41 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
                 SizedBox(width: 8),
-                Text('正在整理…'),
+                Text(context.l10n.l6Processing1a5c2),
               ],
             ),
           )
         else if (material)
           PopupMenuButton<String>(
-            tooltip: '按需提炼，新增参考知识直接保存',
+            tooltip: context.l10n.l6ExtractOnDemandSaveNewReference28c44,
             onSelected: _propose,
-            itemBuilder: (_) => const [
+            itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'method',
                 child: ListTile(
                   dense: true,
-                  title: Text('提炼方法'),
-                  subtitle: Text('可复用的步骤与适用条件'),
+                  title: Text(context.l10n.l6ExtractAMethod9c1f5),
+                  subtitle: Text(
+                    context.l10n.l6ReusableStepsAndConditions4c52e,
+                  ),
                 ),
               ),
               PopupMenuItem(
                 value: 'case',
                 child: ListTile(
                   dense: true,
-                  title: Text('整理案例'),
-                  subtitle: Text('具体情境、做法与结果'),
+                  title: Text(context.l10n.l6OrganizeACaseac694),
+                  subtitle: Text(context.l10n.l6ContextApproachAndOutcomeee83d),
                 ),
               ),
               PopupMenuItem(
                 value: 'principle',
                 child: ListTile(
                   dense: true,
-                  title: Text('提炼规律'),
-                  subtitle: Text('规律、依据与适用边界'),
+                  title: Text(context.l10n.l6ExtractAPrinciple14a19),
+                  subtitle: Text(
+                    context.l10n.l6PrinciplesEvidenceAndLimits440fe,
+                  ),
                 ),
               ),
             ],
@@ -366,7 +408,7 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '提炼知识',
+                      context.l10n.l6ExtractKnowledge196cf,
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.primary,
                       ),
@@ -383,7 +425,7 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
             style: style,
             onPressed: () => _propose('revision'),
             icon: const Icon(Icons.fact_check_outlined, size: 16),
-            label: const Text('检查更新'),
+            label: Text(context.l10n.l6CheckForUpdatesa6df3),
           ),
         // 手动重整理（提案 P1）：全量来源重看后增量修补，人工页会被拒。
         if (!_busy)
@@ -391,21 +433,37 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
             style: style,
             onPressed: _reconsolidate,
             icon: const Icon(Icons.autorenew, size: 16),
-            label: const Text('重新整理此页'),
+            label: Text(context.l10n.l6ReprocessThisPaged752f),
           ),
         if (consolidation != null)
           Text(
-            '最近整理 '
-            '${consolidation.lastConsolidatedAt == null ? '未知' : _shortTime(consolidation.lastConsolidatedAt!)}'
-            ' · 新增证据 ${consolidation.newEvidence} 条',
+            context.l10n.l6LastProcessedArg0NewEvidenceArg124fb9(
+              (consolidation.lastConsolidatedAt == null
+                      ? context.l10n.l6Unknownd9c32
+                      : _shortTime(consolidation.lastConsolidatedAt!))
+                  .toString(),
+              (consolidation.newEvidence).toString(),
+            ),
             style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
           ),
-        if (_failure != null) Text(_failure!),
+        if (_processingResult != null)
+          ProcessingNotes(
+            note:
+                ProcessingResult.decode(_processingResult!)?.detail ??
+                _processingResult!,
+            status:
+                ProcessingResult.decode(_processingResult!)
+                    ?.message(context.l10n) ??
+                context.l10n.reprocessingResult,
+          ),
+        if (_failure != null)
+          AppErrorMessage(action: context.l10n.load, error: _failure!),
         if (_failure != null && !_busy)
           TextButton.icon(
-            onPressed: () => _propose(_lastKind!),
+            onPressed: () =>
+                _lastKind == null ? _reconsolidate() : _propose(_lastKind!),
             icon: const Icon(Icons.refresh, size: 16),
-            label: const Text('重试整理'),
+            label: Text(context.l10n.l6RetryProcessingf8833),
           ),
         // 孵化定论动作（与「提炼」同区，互不替代：先提炼派生稿，纳
         // 入时服务端校验已采用）。
@@ -418,7 +476,7 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
             onPressed: () => _decide('endorse', ''),
             // 服务端校验：未采用派生稿的纳入会被拒并给原因，直接展示。
             icon: const Icon(Icons.verified_outlined, size: 16),
-            label: const Text('纳入知识'),
+            label: Text(context.l10n.l6IncludeInKnowledge29c9c),
           ),
           TextButton.icon(
             style: TextButton.styleFrom(
@@ -427,12 +485,18 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
             ),
             onPressed: _confirmReject,
             icon: const Icon(Icons.block_outlined, size: 16),
-            label: const Text('丢弃'),
+            label: Text(context.l10n.l6Discardea489),
           ),
         ] else if (widget.page.opinion == 'endorse')
-          const _OpinionBadge(label: '已纳入知识', color: Color(0xFF9ECE6A))
+          _OpinionBadge(
+            label: context.l10n.l6IncludedInKnowledge9a862,
+            color: Color(0xFF9ECE6A),
+          )
         else if (widget.page.opinion == 'reject')
-          const _OpinionBadge(label: '已丢弃（负知识）', color: Color(0xFFF7768E)),
+          _OpinionBadge(
+            label: context.l10n.l6DiscardedRejectedKnowledge57399,
+            color: Color(0xFFF7768E),
+          ),
       ],
     );
   }
@@ -449,10 +513,7 @@ class _OpinionBadge extends StatelessWidget {
     children: [
       Icon(Icons.check_circle_outline, size: 14, color: color),
       const SizedBox(width: 4),
-      Text(
-        label,
-        style: TextStyle(fontSize: 11, color: color),
-      ),
+      Text(label, style: TextStyle(fontSize: 11, color: color)),
     ],
   );
 }

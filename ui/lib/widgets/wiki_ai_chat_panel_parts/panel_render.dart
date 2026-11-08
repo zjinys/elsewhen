@@ -23,7 +23,7 @@ extension _PanelRender on _WikiAiChatPanelState {
             onPressed: () => ref
                 .read(chatRunControllerProvider(message.conversationId))
                 .start(message.id),
-            child: const Text('生成回复'),
+            child: Text(context.l10n.generateReply),
           ),
         ],
       );
@@ -58,7 +58,11 @@ extension _PanelRender on _WikiAiChatPanelState {
                       : Icons.bookmark_add_outlined,
                   size: 14,
                 ),
-                label: Text(isProject ? '替换正文' : '保存为产出'),
+                label: Text(
+                  isProject
+                      ? context.l10n.replaceBody
+                      : context.l10n.saveAsOutput,
+                ),
                 style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -87,9 +91,9 @@ extension _PanelRender on _WikiAiChatPanelState {
                 padding: const EdgeInsets.fromLTRB(20, 12, 12, 8),
                 child: Row(
                   children: [
-                    const Expanded(child: Text('AI 回复')),
+                    Expanded(child: Text(context.l10n.aiReply)),
                     IconButton(
-                      tooltip: '关闭',
+                      tooltip: context.l10n.close,
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.close),
                     ),

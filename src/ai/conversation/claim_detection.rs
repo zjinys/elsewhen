@@ -63,7 +63,9 @@ pub(crate) fn write_claim_detected(content: &str) -> bool {
         "抱歉",
         "对不起",
     ];
-    CLAIMS.iter().any(|c| content.contains(c)) && !GUARDS.iter().any(|g| content.contains(g))
+    super::english::completed_write(content)
+        || (CLAIMS.iter().any(|c| content.contains(c))
+            && !GUARDS.iter().any(|g| content.contains(g)))
 }
 /// 未完成宣告检测：回复预告了「接下来我要做」，但本轮并没有动手。
 ///
@@ -131,7 +133,8 @@ pub(crate) fn future_promise_detected(content: &str) -> bool {
         })
         .collect::<Vec<_>>()
         .join("\n");
-    PROMISES.iter().any(|p| prose.contains(p)) && !GUARDS.iter().any(|g| prose.contains(g))
+    super::english::future_promise(content)
+        || (PROMISES.iter().any(|p| prose.contains(p)) && !GUARDS.iter().any(|g| prose.contains(g)))
 }
 /// 用户文本是否表达写意图（存/建/记/归档类）。疑问句式（…吗/？）是在问状态，不是下指令。
 pub(crate) fn user_text_wants_write(text: &str) -> bool {
@@ -143,6 +146,7 @@ pub(crate) fn user_text_wants_write(text: &str) -> bool {
     // 原测试 natural_replies_never_execute 的「好的，别保存」「可以不保存」靠这个排除。
     const NEGATIVE: &[&str] = &[
         "不保存",
+        "不要保存",
         "别保存",
         "不用",
         "别存",
@@ -161,7 +165,7 @@ pub(crate) fn user_text_wants_write(text: &str) -> bool {
     const WANT: &[&str] = &[
         "存", "保存", "记住", "记下", "创建", "新建", "归档", "入库", "提交",
     ];
-    WANT.iter().any(|w| t.contains(w))
+    WANT.iter().any(|w| t.contains(w)) || super::english::write_request(text)
 }
 /// 宽声明面：比 write_claim_detected 更松的「声称完成」信号，用于收敛前接地重发。
 /// 不含守卫——这里不是判定撒谎，只是决定「要不要给模型看一眼事实清单」，误报代价
@@ -188,7 +192,7 @@ pub(crate) fn broad_write_claim(content: &str) -> bool {
         "处理好了",
         "整理好了",
     ];
-    SIGNALS.iter().any(|s| content.contains(s))
+    SIGNALS.iter().any(|s| content.contains(s)) || super::english::completed_write(content)
 }
 /// 接地注入（治本）：把本轮「行为事实」结构化摆进模型上下文。
 ///
@@ -204,9 +208,9 @@ pub(crate) fn turn_grounding(
     turn_start: chrono::DateTime<chrono::Utc>,
 ) -> Result<String> {
     // 第一层：工具执行清单（含成败），写/读分开说。
-    let mut lines = vec!["【本轮事实——回复必须与此一致】".to_string()];
+    let mut lines = vec![store.render_execution_instruction("grounding_header", &[])?];
     if results.is_empty() {
-        lines.push("本轮未执行任何工具调用，没有任何写入发生。".to_string());
+        lines.push(store.render_execution_instruction("grounding_empty", &[])?);
     } else {
         for r in results {
             let policy = registry
@@ -214,12 +218,23 @@ pub(crate) fn turn_grounding(
                 .map(|t| t.policy())
                 .unwrap_or(ToolPolicy::Read);
             let kind = match policy {
-                ToolPolicy::Read => "查询",
-                ToolPolicy::WriteDirect => "写入",
-                ToolPolicy::WriteConfirm => "草拟（待确认）",
+                ToolPolicy::Read => "grounding_read",
+                ToolPolicy::WriteDirect => "grounding_write",
+                ToolPolicy::WriteConfirm => "grounding_draft",
             };
-            let outcome = if r.success { "成功" } else { "失败" };
-            lines.push(format!("- {} {}：{}", r.call_name, kind, outcome));
+            let outcome = if r.success {
+                "grounding_success"
+            } else {
+                "grounding_failure"
+            };
+            lines.push(store.render_execution_instruction(
+                "grounding_result",
+                &[
+                    ("name", r.call_name.clone()),
+                    ("kind", store.render_execution_instruction(kind, &[])?),
+                    ("outcome", store.render_execution_instruction(outcome, &[])?),
+                ],
+            )?);
         }
     }
     // 第二层：库内本轮新增（卡时间窗，与写声明核验同一事实源）。
@@ -228,19 +243,23 @@ pub(crate) fn turn_grounding(
         if touched_this_turn(&pa.created_at, &turn_start) {
             if let Ok(v) = serde_json::from_str::<serde_json::Value>(&pa.args_json) {
                 if let Some(t) = v.get("title").and_then(|x| x.as_str()) {
-                    drafts.push(format!("「{t}」（{}）", pa.action));
+                    drafts.push(store.render_execution_instruction(
+                        "grounding_draft_item",
+                        &[("title", t.into()), ("action", pa.action)],
+                    )?);
                 }
             }
         }
     }
     if !drafts.is_empty() {
-        lines.push(format!("本轮登记的待确认草稿：{}。", drafts.join("、")));
+        lines.push(
+            store.render_execution_instruction(
+                "grounding_drafts",
+                &[("drafts", drafts.join("、"))],
+            )?,
+        );
     }
-    lines.push(
-        "如实说明：什么做成了、什么失败了及原因、哪些仍在等用户确认。\
-         未执行的不得说成已完成；失败的要给出原因。"
-            .to_string(),
-    );
+    lines.push(store.render_execution_instruction("grounding_footer", &[])?);
     Ok(lines.join("\n"))
 }
 /// 写声明回炉提示：把库内事实（缺页/旧页/待确认）摆出来，让模型无法再编。
@@ -262,22 +281,16 @@ pub(crate) fn write_claim_repair_nudge(
                 .or_else(|| v.get("project_name"))
                 .and_then(|t| t.as_str())
             {
-                draft_slugs.push(format!("《{t}》(待确认，未入库)"));
+                draft_slugs.push(
+                    store.render_execution_instruction("claim_draft", &[("title", t.into())])?,
+                );
             }
         }
     }
     let drafts = if draft_slugs.is_empty() {
-        "当前没有待确认草稿".to_string()
+        store.render_execution_instruction("claim_no_drafts", &[])?
     } else {
-        format!("当前待确认：{}", draft_slugs.join("、"))
+        store.render_execution_instruction("claim_drafts", &[("drafts", draft_slugs.join("、"))])?
     };
-    Ok(format!(
-        "系统核实（以知识库为准，你的上一句与事实不符）：{detail}。{drafts}。\
-         你有两个选择，必须二选一，不得再用文字声称已保存：\
-         (1) 现在调用工具实际执行（如 save_knowledge_draft），拿到成功结果后才能说已保存；\
-         (2) 明确告诉用户「我还没有保存」，并说明原因或需要用户提供什么。\
-         请区分：待确认草稿仅存于对话，尚未入库；确认执行并返回真实结果才算已保存。\
-         若已有草稿，告知用户可在“今天”栏打开待入库草稿列表查看并单独保存或删除，\
-         不要重新草拟同名页，更不要声称草稿已在知识库。"
-    ))
+    store.render_execution_instruction("claim_repair", &[("detail", detail), ("drafts", drafts)])
 }

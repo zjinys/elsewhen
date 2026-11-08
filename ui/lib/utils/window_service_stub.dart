@@ -1,5 +1,7 @@
 import 'window_service.dart';
 
+import 'package:flutter/widgets.dart' show Locale;
+
 /// 移动端 no-op 实现：桌面窗口插件（window_manager）只有桌面原生库，
 /// Android AOT 编译器打崩（Class with illegal cid），因此移动端不链接、全部空转。
 class StubWindowService implements WindowService {
@@ -11,6 +13,8 @@ class StubWindowService implements WindowService {
 
   @override
   Future<void> initialize() async {}
+  @override
+  Future<void> updateLocale(Locale locale) async {}
 
   @override
   Future<void> switchToMainMode() async {}

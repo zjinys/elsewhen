@@ -1,0 +1,276 @@
+{
+  "add_plan_steps": {
+    "description": "为既有长程计划追加拆解步骤（需用户确认；确认后全部进入等待队列，活跃名额空出时激活）。计划推进到下一里程碑、用户细化路径、或原拆解需要补步时使用。plan_id 来自上下文中的计划清单或 list_plans；不要重复追加已有步骤，不要为同一意图重复建计划。",
+    "parameters": {
+      "/properties/plan_id/description": "目标计划 ID，必填",
+      "/properties/steps/description": "追加的步骤（接在现有步骤之后，由近及远）",
+      "/properties/steps/items/properties/content/description": "这一步要达成什么，必填"
+    }
+  },
+  "advance_plan_step": {
+    "description": "计划推进提案（需用户确认）：先复盘——对照该步的完成判据与假设清单，向用户说明「事实 vs 假设」；再推进——完成当前步骤（completed_step_goal_id，可选）、激活队列中既有步骤（activate_goal_id，取自 list_plans 的等待名单）或追加一个新步骤（new_step）。活跃名额已满时新步骤会自动保持排队，不要因此拒绝推进。",
+    "parameters": {
+      "/properties/activate_goal_id/description": "要激活的等待步骤（可选；取自 list_plans 的等待名单）",
+      "/properties/completed_step_goal_id/description": "已达成的那一步的目标 ID（可选；给出即标记为已达成）",
+      "/properties/new_step/description": "要追加并激活的新步骤（可选；队列空或路径调整时用）",
+      "/properties/plan_id/description": "计划 ID，必填"
+    }
+  },
+  "archive_conversations_by_title": {
+    "description": "按标题归档对话（只归档主对话列表里的对话，不含知识页内聊天）。「把所有标题为 X 的对话归档」→ title=X 精确匹配；「把所有标题包含 X 的对话归档」→ contains=X 子串匹配（大小写不敏感）。标题为空（界面显示为「新对话」）的会话按标题「新对话」参与匹配。草拟确认制：调用后用户确认才真正归档。",
+    "parameters": {
+      "/properties/contains/description": "标题包含的子串匹配（与 title 至少提供一个）",
+      "/properties/title/description": "标题精确匹配（与 contains 至少提供一个）"
+    }
+  },
+  "batch_extract_people_relations": {
+    "description": "扫描知识库里全部已保存事件，批量提取联系人与「联系人 ↔ 事情/项目」关系。事件里 @人名 标注的一定是人、#事情/项目 标注的一定是事情（权威实体，必须纳入）；AI 再根据事件上下文补全角色与关系。只产草拟，用户确认后才保存。",
+    "parameters": {}
+  },
+  "complete_goal": {
+    "description": "提议把一条活跃目标标记为达成（需用户在审阅卡确认）。仅在用户明确表示目标已经完成、或达成判据已满足时使用。",
+    "parameters": {
+      "/properties/goal_id/description": "要标记达成的目标 ID，必填"
+    }
+  },
+  "create_goal": {
+    "description": "为用户设立新的认知型目标（需用户在审阅卡确认）。活跃目标严格上限为 3 个，满额时新目标会以「暂停搁置」状态创建、可随时读档唤醒。请在对话中协助用户明确：阶段、愿景、为什么做(why)、近1~2周第一具体行动(current_focus)、可能困难(blocker)以及达成判据(done_criteria)。",
+    "parameters": {
+      "/properties/blocker/description": "当前困难 / 困难预判，可选",
+      "/properties/content/description": "目标愿景名称，必填",
+      "/properties/current_focus/description": "当前 1~2 周最先启动的行动阶段，可选",
+      "/properties/done_criteria/description": "完成判据 / 验收标准，可选",
+      "/properties/phase/description": "目标周期：near(近期1~3月)/mid(中期)/long(长远)，缺省 near",
+      "/properties/why/description": "为什么做 / 核心动力（1~2句话），可选"
+    }
+  },
+  "create_plan": {
+    "description": "把用户的长期意图（如「3 年内月入 10 万」）拆解为长程计划草案，需用户在审阅卡确认后落库。方法论：里程碑由近及远；每步 1~2 周内可启动并带可验证判据；先给现实性评估（结合用户现状与知识库，关键事实可先用 web_search 核实），再列假设清单（软时间窗/现状/路径/风险），每条假设都要能被用户纠正。intent_text 必须引用用户原话，不做改写；用户给出期望步数（「用 5 步实现」）时按该数量拆。确认后第一步直接进入推进，其余步骤排队等待——不需要和用户谈名额。",
+    "parameters": {
+      "/properties/assessment/description": "现实性评估：结合用户现状说明可行性与关键不确定点，可选但建议给出",
+      "/properties/assumptions/description": "假设清单：这次拆解建立在哪些假设上（可被用户逐条纠正）",
+      "/properties/intent_text/description": "用户长期意图的原话，必填（一字不改地引用）",
+      "/properties/steps/description": "里程碑步骤（由近及远）；第一步确认后直接进入推进，其余排队",
+      "/properties/steps/items/properties/blocker/description": "预判的困难（可选）",
+      "/properties/steps/items/properties/content/description": "这一步要达成什么（可验证的一句话），必填",
+      "/properties/steps/items/properties/current_focus/description": "这一步的前 1~2 周行动（可选）",
+      "/properties/steps/items/properties/done_criteria/description": "完成判据 / 验收标准（可选但建议给出）",
+      "/properties/steps/items/properties/phase/description": "周期定位，缺省 near",
+      "/properties/steps/items/properties/why/description": "为什么是这一步（可选）",
+      "/properties/vision/description": "一句话愿景（终点状态长什么样），可选"
+    }
+  },
+  "create_reminder": {
+    "description": "为需要在未来某个时刻提醒用户的事创建一条提醒。必须给出明确的到期时间（ISO 时间）。调用后进入待确认状态，确认卡片回显解析出的时间，用户确认才建条；确认时若时间已过会原样拒绝，绝不静默改期。",
+    "parameters": {
+      "/properties/due_at/description": "到期时间（RFC3339 / ISO 时间），必填",
+      "/properties/note/description": "补充说明，可选",
+      "/properties/title/description": "提醒内容，必填"
+    }
+  },
+  "create_todo": {
+    "description": "为分析出需要后续跟进的事情创建一条待办。调用后进入待确认状态，需要用户确认才会真正建条。",
+    "parameters": {
+      "/properties/due_at/description": "截止时间（ISO 日期），可选",
+      "/properties/note/description": "补充说明，可选",
+      "/properties/priority/description": "优先级：high/normal/low，默认 normal",
+      "/properties/related_wiki_slug/description": "关联知识页 slug，可选",
+      "/properties/title/description": "待办内容，必填"
+    }
+  },
+  "fetch_page": {
+    "description": "抓取任意网页/文章 URL 并提取纯文本内容（去除页面噪声），返回前 4000 字。只读取，不写入任何库。",
+    "parameters": {
+      "/properties/url/description": "http(s) 网页链接，必填"
+    }
+  },
+  "fetch_tweet": {
+    "description": "通过推文链接抓取长文内容（支持 x.com / twitter.com），返回标题、作者与正文。只获取内容，不写入知识库。",
+    "parameters": {
+      "/properties/url/description": "推文链接，必填"
+    }
+  },
+  "get_daily_token_usage": {
+    "description": "查询最近 N 天每天调 AI 的 token 用量统计。",
+    "parameters": {
+      "/properties/days/description": "查询天数，默认 7"
+    }
+  },
+  "get_wiki_page": {
+    "description": "按 slug 读取知识页（长文返回限长片段），带来源状态。先用 list_wiki_pages 拿到 slug。",
+    "parameters": {
+      "/properties/slug/description": "页面 slug，必填"
+    }
+  },
+  "import_directory_as_project": {
+    "description": "将用户明确指定的本地目录作为一个项目导入知识库；先用有限证据进行 AI 综合分析，再由用户确认保存一个 project 知识页。项目文件片段可能发送给当前 AI Provider，扫描和分析可能消耗较多 token。",
+    "parameters": {
+      "/properties/directory/description": "本地目录绝对路径，必填"
+    }
+  },
+  "import_directory_files": {
+    "description": "将用户明确指定的本地目录中的可读文件逐个导入知识库，每个文件生成一张 source 知识页。文件较多时可能消耗较多 token，需要用户确认后才执行。",
+    "parameters": {
+      "/properties/directory/description": "本地目录绝对路径，必填"
+    }
+  },
+  "import_url_to_wiki": {
+    "description": "导入一个网址的内容到知识库（x.com/twitter.com 推文或任意网页）。调用后进入待确认状态，确认后才保存。",
+    "parameters": {
+      "/properties/tags/description": "附加标签，可选",
+      "/properties/url/description": "完整网址，必填"
+    }
+  },
+  "list_events_by_date": {
+    "description": "查看某一天记录的事件清单（只读）。date 必须解析成 YYYY-MM-DD：用户说「今天/昨天/前天」按当前日期推算，「6月20日」这类自然日期补当年份，「2026-06-20」直接用。返回当天每条事件的时刻与内容。",
+    "parameters": {
+      "/properties/date/description": "日期，YYYY-MM-DD，必填"
+    }
+  },
+  "list_goals": {
+    "description": "查询个人目标列表（可过滤状态：active 活跃 / paused 暂停 / completed 已达成 / all 全部）。用户问起历史目标、已暂停或已达成目标时使用。",
+    "parameters": {
+      "/properties/status/description": "可选：状态过滤，缺省为 active"
+    }
+  },
+  "list_plans": {
+    "description": "查询用户的长程计划清单（含每计划进度：推进中 / 排队步骤数）。用户问起计划、需要 plan_id 追加步骤或回看拆解时使用。",
+    "parameters": {}
+  },
+  "list_rules": {
+    "description": "列出个人规则库中已生效的全部经验规则。在用户分享踩坑/教训/心得类经历、或回复需要对照既有经验规范时调用；规则库原文不随对话注入，需要时再查。",
+    "parameters": {}
+  },
+  "list_summary_history": {
+    "description": "分页列出当前摘要覆盖的原始消息身份和字符范围，再用 read_conversation_history 回读所需原文。",
+    "parameters": {}
+  },
+  "list_todos": {
+    "description": "列出个人待办清单。用户问起待办/任务/要做的事情时使用。",
+    "parameters": {
+      "/properties/status/description": "可选：open/done，缺省列出所有未归档"
+    }
+  },
+  "list_wiki_pages": {
+    "description": "分页列出知识库页面，按最近更新排序，返回标题、slug 与限长摘要。默认 10 条，最多 20 条；按 next_offset 继续。查找特定主题优先 search_knowledge_base，阅读正文用 get_wiki_page。",
+    "parameters": {
+      "/properties/kind/description": "页面类型，可选。已知类型：topic/source/insight/principle/method/case/relationship/decision/habit/project/asset/constraint",
+      "/properties/limit/description": "本批条数，默认 10，最多 20",
+      "/properties/offset/description": "跳过的匹配页面数，默认 0；续读用返回的 next_offset"
+    }
+  },
+  "pause_goal": {
+    "description": "提议把一条活跃目标暂时搁置（需用户在审阅卡确认）。适用于用户明确表示想先放下/暂停某个目标、或精力需要让位给其他目标时。暂停的目标保留全部阶段，随时可读档复活。",
+    "parameters": {
+      "/properties/goal_id/description": "要暂停的目标 ID，必填",
+      "/properties/reason/description": "暂停原因（会展示给用户核对），可选"
+    }
+  },
+  "propose_people_relations": {
+    "description": "把对话中出现的对用户重要的联系人，以及「联系人 ↔ 事情/项目」的关系草拟下来。调用后进入待确认状态，用户确认后才建档保存。事件/对话中用户用 @人名 标注的一定是人、#事情/项目 标注的一定是事情，优先纳入草拟。",
+    "parameters": {
+      "/properties/people/description": "本次要建档的联系人（可不填，只补关系时省略）",
+      "/properties/people/items/properties/name/description": "联系人姓名，必填",
+      "/properties/people/items/properties/role_note/description": "身份/角色/背景一句话，可选",
+      "/properties/relations/description": "联系人与事情/项目的关系（可不填，只建档联系人时省略）",
+      "/properties/relations/items/properties/note/description": "补充说明，可选",
+      "/properties/relations/items/properties/person/description": "联系人姓名（与 people 中的 name 对应，或知识库已有的联系人页）",
+      "/properties/relations/items/properties/relation/description": "关系类型：负责/参与/合作/对接/跟进/顾问 等，可选，默认参与",
+      "/properties/relations/items/properties/target/description": "事情/项目名称"
+    }
+  },
+  "query_event_stats": {
+    "description": "已记录事件本地统计（只读 SQL 聚合，勿数样本），次数问答用。date_range：today/yesterday/this_week/last_week/this_month/last_month；activity/person/project/text_contains 包含匹配，event_type 精确；group_by：day/event_type/person/project/activity，缺省只给总数与样本；只计可记录事件，不含闲聊元对话。",
+    "parameters": {}
+  },
+  "reactivate_goal": {
+    "description": "提议把一条暂停搁置的目标重新激活（需用户在审阅卡确认）。活跃目标严格上限 3 条，须有空位；可顺带更新重启后的行动与困难。",
+    "parameters": {
+      "/properties/blocker/description": "重启后的当前困难，可选（保留原值若省略）",
+      "/properties/current_focus/description": "重启后的首个行动阶段，可选（保留原值若省略）",
+      "/properties/goal_id/description": "要复活的目标 ID（状态须为 paused），必填"
+    }
+  },
+  "read_conversation_history": {
+    "description": "按消息身份分页回读当前会话的精确原文，校验本次运行版本。需要原话或精确数字时使用；历史摘要不能代替原文。",
+    "parameters": {}
+  },
+  "record_event": {
+    "description": "把一段值得长期回看的客观经历、决定、行动或进展记录为个人事件，立即保存到事件记录（无需确认）。只记录用户自己的事实；不要记录对 AI 回复的评价、对话过程、寒暄、纯提问或闲聊。用户明确说‘记一下/帮我记/存进事件’时，按用户意图记录。",
+    "parameters": {
+      "/properties/occurred_at/description": "发生时间（ISO 8601，如 2026-09-15T10:30:00Z），可选，默认现在",
+      "/properties/raw_text/description": "值得回看的第一人称事实、决定、行动或进展；不要填入对 AI 的评价或闲聊，必填"
+    }
+  },
+  "rename_wiki_page": {
+    "description": "重命名一个知识页（改标题；person/项目 等带前缀的页面会把唯一标识 slug 一起换成新名字，相关的联系人关系引用与页内聊天会话自动迁移）。用户说「把 X 改名为 Y」「这个项目不叫 X，实际叫 Y」时使用。草拟确认制：调用后用户确认才真正改名。",
+    "parameters": {
+      "/properties/new_title/description": "新的页面标题/名字，必填",
+      "/properties/reason/description": "改名原因说明，可选，会写进修订历史",
+      "/properties/slug/description": "当前页面的 slug（唯一标识，如 person/张三、topic/网站改版），必填"
+    }
+  },
+  "run_skill_script": {
+    "description": "执行用户已安装技能包内的脚本。脚本须是该技能 SKILL.md 中列出的文件；每次执行前会展示完整命令请你确认。仅桌面端可用。",
+    "parameters": {
+      "/properties/args/description": "传给脚本的命令行参数字符串，可选；会被按空格拆分，含空格的参数用引号包裹",
+      "/properties/script/description": "技能目录内的脚本相对路径，如 templates/clash-pick，必填",
+      "/properties/skill/description": "技能包 id（enable_tools 列表中的名字），必填"
+    }
+  },
+  "save_knowledge_draft": {
+    "description": "把对话中的知识草拟成页面，用户确认后保存。保存有引用的回答时，source_slugs 填实际采用且已提供的知识页面，applicable_when 写适用条件；系统固定来源版本，确认时再校验。从某个已有知识页（如页面聊天里的当前页）派生新页时，改用 parent_slug 填该页 slug，确认后作为派生产物挂在父页下。无依据笔记可以保存但不能伪造来源。同名页不覆盖，改用 save_wiki_revision。",
+    "parameters": {
+      "/properties/applicable_when/description": "适用条件，保存有依据的方法/案例/规律时必填，最多 600 字",
+      "/properties/content_md/description": "正文（Markdown），必填",
+      "/properties/kind/description": "页面类型，可选，默认 topic。已知类型：topic/source/insight/principle/method/case/relationship/decision/habit/project",
+      "/properties/parent_slug/description": "从某个已有知识页派生时填该页 slug（如页面聊天里草拟就填当前页），确认后作为派生产物挂在父页下；不能与 source_slugs 同时使用",
+      "/properties/source_slugs/description": "实际采用的已检索页面标识，最多 8 项；不填无关来源",
+      "/properties/tags/description": "标签数组，可选",
+      "/properties/title/description": "页面标题，必填"
+    }
+  },
+  "save_wiki_revision": {
+    "description": "把处理当前知识页得出的新版本草拟保存。生成类加工默认保存为派生产物，不改原文；明确修改本页才用 save_as=revision。确认修订个人规则也表示确认修订后的规则及适用条件，保留原强度；调用后等待用户确认。",
+    "parameters": {
+      "/properties/applicable_when/description": "修订后的适用条件；省略则保留已有条件",
+      "/properties/change_note/description": "本次操作说明（如：生成总结 / 写抖音文案 / 补充要点），必填",
+      "/properties/content_md/description": "新内容正文（Markdown，生成的总结/文案就是成品；若是修订则保留旧事实），必填",
+      "/properties/content_type/description": "产物类型标签（save_as=derivative 时必填，如：总结/提炼观点/抖音文案/翻译/学习笔记）",
+      "/properties/save_as/description": "derivative=保存为派生产物（默认，推荐：总结/提炼/写文案/翻译等生成类操作）；revision=直接修订当前页正文（仅当用户明确要改这页本身、且该页不是素材原文时）",
+      "/properties/slug/description": "页面 slug（保持当前页面不变），必填",
+      "/properties/title/description": "保存后的标题；派生产物建议用便于区分的标题（如「{原标题}·总结」），必填"
+    }
+  },
+  "search_knowledge_base": {
+    "description": "在知识库页面与个人事件记录中按关键词搜索，返回相关片段（带引用 slug）。涉及用户过往细节或约定时先检索，闲聊不必检索。",
+    "parameters": {
+      "/properties/limit/description": "最多返回条数，默认 5",
+      "/properties/query/description": "搜索关键词，必填"
+    }
+  },
+  "update_goal_facets": {
+    "description": "更新既有活跃目标的当前行动（current_focus）、当前困难（blocker）或完成判据（需用户确认）。适用于攻克一个阶段后推向下一个阶段，或困难发生变化时。无需归档重建目标。",
+    "parameters": {
+      "/properties/blocker/description": "最新识别的困难或解题困难，可选",
+      "/properties/current_focus/description": "最新推进的行动阶段（最近1~2周），可选",
+      "/properties/done_criteria/description": "更新完成判据，可选",
+      "/properties/goal_id/description": "要更新的目标 ID，必填"
+    }
+  },
+  "update_personal_profile": {
+    "description": "将日常对话中用户明确陈述的稳定个人信息汇集到知识页profile/me。只更新有新增事实的字段，保留现有信息；不推断收入/性格，矛盾先询问，不采集无关第三方信息。用户明确纠正时更新旧事实；无新增不调用。",
+    "parameters": {
+      "/properties/limits/description": "时间预算与现实限制",
+      "/properties/preferences/description": "偏好、习惯与底线",
+      "/properties/resources/description": "资源、现状与已有积累",
+      "/properties/skills/description": "能力、经历与背景，保留已有有效事实"
+    }
+  },
+  "web_search": {
+    "description": "搜索外网获取最新/时效信息（新闻、热点）。只在用户明确要求或查时效内容时调用；拿不准先反问是否联网搜。只读，不写入。",
+    "parameters": {
+      "/properties/query/description": "搜索关键词"
+    }
+  }
+}

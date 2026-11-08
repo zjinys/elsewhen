@@ -1,4 +1,5 @@
 part of '../settings_screen.dart';
+
 // ignore_for_file: invalid_use_of_protected_member — setState 从 State 子类方法平移至 extension，receiver 类型不变
 
 //! Tab 栏骨架与模型/数据维护/外观 tab 装配。
@@ -18,31 +19,67 @@ extension _TabsModel on _SettingsScreenState {
             Expanded(
               child: ListView(
                 children: [
-                  _buildSettingsTabItem(0, '模型', Icons.smart_toy_outlined),
+                  _buildSettingsTabItem(
+                    0,
+                    context.l10n.models,
+                    Icons.smart_toy_outlined,
+                  ),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(1, '外观', Icons.palette_outlined),
+                  _buildSettingsTabItem(
+                    1,
+                    context.l10n.appearance,
+                    Icons.palette_outlined,
+                  ),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(2, '集成', Icons.hub_outlined),
+                  _buildSettingsTabItem(
+                    2,
+                    context.l10n.integrations,
+                    Icons.hub_outlined,
+                  ),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(3, '网络', Icons.dns_outlined),
+                  _buildSettingsTabItem(
+                    3,
+                    context.l10n.network,
+                    Icons.dns_outlined,
+                  ),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(4, '技能', Icons.extension_outlined),
+                  _buildSettingsTabItem(
+                    4,
+                    context.l10n.skills,
+                    Icons.extension_outlined,
+                  ),
                   const SizedBox(height: AppTheme.space1),
                   _buildSettingsTabItem(5, 'MCP', Icons.usb_outlined),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(6, '知识', Icons.auto_stories_outlined),
+                  _buildSettingsTabItem(
+                    6,
+                    context.l10n.knowledge,
+                    Icons.auto_stories_outlined,
+                  ),
                   const SizedBox(height: AppTheme.space1),
                   _buildSettingsTabItem(
                     7,
-                    '习惯',
+                    context.l10n.habits,
                     Icons.notifications_active_outlined,
                   ),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(8, '数据', Icons.dataset_outlined),
+                  _buildSettingsTabItem(
+                    8,
+                    context.l10n.data,
+                    Icons.dataset_outlined,
+                  ),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(9, '规则', Icons.rule_outlined),
+                  _buildSettingsTabItem(
+                    9,
+                    context.l10n.rules,
+                    Icons.rule_outlined,
+                  ),
                   const SizedBox(height: AppTheme.space1),
-                  _buildSettingsTabItem(10, '安全', Icons.lock_outline),
+                  _buildSettingsTabItem(
+                    10,
+                    context.l10n.security,
+                    Icons.lock_outline,
+                  ),
                 ],
               ),
             ),
@@ -55,10 +92,7 @@ extension _TabsModel on _SettingsScreenState {
                 ),
                 child: Text(
                   _version,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.textTertiary,
-                  ),
+                  style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
                 ),
               ),
           ],
@@ -81,24 +115,48 @@ extension _TabsModel on _SettingsScreenState {
             unselectedLabelColor: AppTheme.textTertiary,
             indicatorColor: AppTheme.accentPrimary,
             labelPadding: const EdgeInsets.symmetric(horizontal: 16),
-            tabs: const [
-              Tab(text: '模型', icon: Icon(Icons.smart_toy_outlined, size: 17)),
-              Tab(text: '外观', icon: Icon(Icons.palette_outlined, size: 17)),
-              Tab(text: '集成', icon: Icon(Icons.hub_outlined, size: 17)),
-              Tab(text: '网络', icon: Icon(Icons.dns_outlined, size: 17)),
-              Tab(text: '技能', icon: Icon(Icons.extension_outlined, size: 17)),
+            tabs: [
+              Tab(
+                text: context.l10n.models,
+                icon: Icon(Icons.smart_toy_outlined, size: 17),
+              ),
+              Tab(
+                text: context.l10n.appearance,
+                icon: Icon(Icons.palette_outlined, size: 17),
+              ),
+              Tab(
+                text: context.l10n.integrations,
+                icon: Icon(Icons.hub_outlined, size: 17),
+              ),
+              Tab(
+                text: context.l10n.network,
+                icon: Icon(Icons.dns_outlined, size: 17),
+              ),
+              Tab(
+                text: context.l10n.skills,
+                icon: Icon(Icons.extension_outlined, size: 17),
+              ),
               Tab(text: 'MCP', icon: Icon(Icons.usb_outlined, size: 17)),
               Tab(
-                text: '知识',
+                text: context.l10n.knowledge,
                 icon: Icon(Icons.auto_stories_outlined, size: 17),
               ),
               Tab(
-                text: '习惯',
+                text: context.l10n.habits,
                 icon: Icon(Icons.notifications_active_outlined, size: 17),
               ),
-              Tab(text: '数据', icon: Icon(Icons.dataset_outlined, size: 17)),
-              Tab(text: '规则', icon: Icon(Icons.rule_outlined, size: 17)),
-              Tab(text: '安全', icon: Icon(Icons.lock_outline, size: 17)),
+              Tab(
+                text: context.l10n.data,
+                icon: Icon(Icons.dataset_outlined, size: 17),
+              ),
+              Tab(
+                text: context.l10n.rules,
+                icon: Icon(Icons.rule_outlined, size: 17),
+              ),
+              Tab(
+                text: context.l10n.security,
+                icon: Icon(Icons.lock_outline, size: 17),
+              ),
             ],
           ),
         ],
@@ -129,14 +187,16 @@ extension _TabsModel on _SettingsScreenState {
                     : AppTheme.textTertiary,
               ),
               const SizedBox(width: AppTheme.space2 + 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                  color: selected
-                      ? AppTheme.textPrimary
-                      : AppTheme.textTertiary,
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    color: selected
+                        ? AppTheme.textPrimary
+                        : AppTheme.textTertiary,
+                  ),
                 ),
               ),
             ],
@@ -153,12 +213,12 @@ extension _TabsModel on _SettingsScreenState {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSection(
-            title: 'AI 提供商',
+            title: context.l10n.aiProviders,
             icon: Icons.psychology_outlined,
             trailing: FilledButton.icon(
               onPressed: () => _openProviderEditor(null),
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('添加'),
+              label: Text(context.l10n.add),
               style: FilledButton.styleFrom(
                 backgroundColor: AppTheme.accentPrimary,
                 foregroundColor: Colors.white,
@@ -168,9 +228,16 @@ extension _TabsModel on _SettingsScreenState {
           ),
           const SizedBox(height: AppTheme.space6),
           _buildSection(
-            title: '记忆策略',
+            title: context.l10n.memoryStrategy,
             icon: Icons.memory_outlined,
             child: _buildMemorySettings(settings),
+          ),
+          const SizedBox(height: AppTheme.space6),
+          _buildSection(
+            title: context.l10n.prompts,
+            icon: Icons.edit_note_outlined,
+            onTitleTap: _tapPromptTitle,
+            child: PromptSettings(showDiagnostics: _promptTitleTaps >= 10),
           ),
         ],
       ),
@@ -187,7 +254,7 @@ extension _TabsModel on _SettingsScreenState {
     final stats = _analysisJobStats;
     if (stats == null) {
       return Text(
-        '分析队列状态读取失败',
+        context.l10n.analysisStatusFailed,
         style: TextStyle(color: AppTheme.textSecondary),
       );
     }
@@ -197,11 +264,20 @@ extension _TabsModel on _SettingsScreenState {
       spacing: AppTheme.space4,
       runSpacing: AppTheme.space3,
       children: [
-        _buildUsageMetric(label: '待处理', value: '$waiting'),
-        _buildUsageMetric(label: '处理中', value: '${stats.running}'),
-        _buildUsageMetric(label: '等待重试', value: '${stats.retry}'),
-        _buildUsageMetric(label: '已完成', value: '${stats.succeeded}'),
-        _buildUsageMetric(label: '失败', value: '${stats.failed}'),
+        _buildUsageMetric(label: context.l10n.pending, value: '$waiting'),
+        _buildUsageMetric(
+          label: context.l10n.processing,
+          value: '${stats.running}',
+        ),
+        _buildUsageMetric(
+          label: context.l10n.waitingRetry,
+          value: '${stats.retry}',
+        ),
+        _buildUsageMetric(
+          label: context.l10n.completed,
+          value: '${stats.succeeded}',
+        ),
+        _buildUsageMetric(label: context.l10n.failed, value: '${stats.failed}'),
       ],
     );
   }
@@ -215,7 +291,7 @@ extension _TabsModel on _SettingsScreenState {
     final stats = _digestStats;
     if (stats == null) {
       return Text(
-        '知识消化状态读取失败',
+        context.l10n.digestStatusFailed,
         style: TextStyle(color: AppTheme.textSecondary),
       );
     }
@@ -232,7 +308,7 @@ extension _TabsModel on _SettingsScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '记录的事件会在后台自动整理进知识库；失败项冷却后会自动重试。',
+          context.l10n.digestDescription,
           style: TextStyle(
             color: AppTheme.textSecondary,
             fontSize: 13,
@@ -244,26 +320,43 @@ extension _TabsModel on _SettingsScreenState {
           spacing: AppTheme.space4,
           runSpacing: AppTheme.space3,
           children: [
-            _buildUsageMetric(label: '待处理', value: '$waiting'),
-            _buildUsageMetric(label: '已完成', value: '${stats.succeeded}'),
-            _buildUsageMetric(label: '失败', value: '${stats.failed}'),
-            _buildUsageMetric(label: '跳过', value: '${stats.skipped}'),
-            _buildUsageMetric(label: '最近成功', value: when(stats.lastSuccessAt)),
+            _buildUsageMetric(label: context.l10n.pending, value: '$waiting'),
+            _buildUsageMetric(
+              label: context.l10n.completed,
+              value: '${stats.succeeded}',
+            ),
+            _buildUsageMetric(
+              label: context.l10n.failed,
+              value: '${stats.failed}',
+            ),
+            _buildUsageMetric(
+              label: context.l10n.skipped,
+              value: '${stats.skipped}',
+            ),
+            _buildUsageMetric(
+              label: context.l10n.lastSuccess,
+              value: when(stats.lastSuccessAt),
+            ),
           ],
         ),
         if (stats.lastError != null && stats.lastError!.isNotEmpty) ...[
           const SizedBox(height: AppTheme.space3),
-          Text(
-            '最近失败（${when(stats.lastErrorAt)}）：${stats.lastError}',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: AppTheme.error, fontSize: 12),
+          AppErrorMessage(
+            action: context.l10n.knowledgeProcessing,
+            error: stats.lastError!,
+            message: context.l10n.lastFailure(
+              when(stats.lastErrorAt),
+              context.errorMessage(
+                context.l10n.knowledgeProcessing,
+                stats.lastError!,
+              ),
+            ),
           ),
         ],
         const SizedBox(height: AppTheme.space3),
         OutlinedButton.icon(
           icon: const Icon(Icons.list_alt_outlined, size: 16),
-          label: const Text('查看队列与运行日志'),
+          label: Text(context.l10n.viewQueueLogs),
           onPressed: () async {
             await showKnowledgeDigestDialog(context);
             if (mounted) _loadDigestStats();
@@ -278,8 +371,7 @@ extension _TabsModel on _SettingsScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '把知识页导出为带元数据的 Markdown 文件（Obsidian 等通用工具可直接打开）；'
-          '派生产物与归档/拒绝页不导出，同名覆盖可重复执行。',
+          context.l10n.wikiExportDescription,
           style: TextStyle(
             color: AppTheme.textSecondary,
             fontSize: 13,
@@ -296,32 +388,46 @@ extension _TabsModel on _SettingsScreenState {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.ios_share_outlined, size: 18),
-          label: Text(_exportingWiki ? '导出中…' : '选择目录并导出'),
+          label: Text(
+            _exportingWiki
+                ? context.l10n.exporting
+                : context.l10n.chooseExportFolder,
+          ),
         ),
       ],
     );
   }
 
   Future<void> _exportWikiMarkdown() async {
-    final directory = await FilePicker.getDirectoryPath(dialogTitle: '选择导出目录');
+    final directory = await FilePicker.getDirectoryPath(
+      dialogTitle: context.l10n.exportFolder,
+    );
     if (!mounted || directory == null || directory.trim().isEmpty) return;
     setState(() => _exportingWiki = true);
     try {
       final repository = ref.read(storageRepositoryProvider);
       if (repository is! RustBridgeRepository) {
-        throw StateError('当前存储后端不支持导出');
+        throw StateError(context.l10n.storageExportUnsupported);
       }
       final result = await repository.exportWikiMarkdown(outDir: directory);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('已导出 ${result.exported} 个知识页到 ${result.outDir}'),
+          content: Text(
+            context.l10n.exportSuccess(result.exported, result.outDir),
+          ),
         ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(reportUiError('导出知识库', e))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppErrorMessage(
+            action: context.l10n.load,
+            error: _settingsFailure(context.l10n.l6ExportKnowledge863fb, e),
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _exportingWiki = false);
     }
@@ -335,13 +441,20 @@ extension _TabsModel on _SettingsScreenState {
       children: [
         if (stats == null)
           Text(
-            _dbStatsError ?? '读取中…',
+            _dbStatsError == null
+                ? context.l10n.loading
+                : context.notice(_dbStatsError),
             style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
           )
         else ...[
           Text(
-            '库文件 ${mb(stats.fileBytes)} MB，其中可回收 ${mb(stats.freeBytes)} MB'
-            '（历史删除残留）${stats.freeBytes > 8 * 1024 * 1024 ? '。建议整理。' : ''}',
+            context.l10n.databaseSize(
+              mb(stats.fileBytes),
+              mb(stats.freeBytes),
+              stats.freeBytes > 8 * 1024 * 1024
+                  ? context.l10n.compactionRecommended
+                  : '',
+            ),
             style: TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 13,
@@ -358,7 +471,9 @@ extension _TabsModel on _SettingsScreenState {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.cleaning_services_outlined, size: 18),
-            label: Text(_vacuuming ? '整理中…' : '立即整理'),
+            label: Text(
+              _vacuuming ? context.l10n.compacting : context.l10n.compactNow,
+            ),
           ),
         ],
       ],
@@ -370,13 +485,21 @@ extension _TabsModel on _SettingsScreenState {
     if (repository is! RustBridgeRepository) return;
     try {
       final stats = await repository.databaseStats();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _dbStats = stats;
           _dbStatsError = null;
         });
+      }
     } catch (e) {
-      if (mounted) setState(() => _dbStatsError = reportUiError('读取库体量', e));
+      if (mounted) {
+        setState(
+          () => _dbStatsError = _settingsFailure(
+            context.l10n.l6LoadDatabaseSize69850,
+            e,
+          ),
+        );
+      }
     }
   }
 
@@ -393,15 +516,21 @@ extension _TabsModel on _SettingsScreenState {
         SnackBar(
           content: Text(
             saved >= 0.1
-                ? '整理完成，回收了 ${saved.toStringAsFixed(1)} MB'
-                : '整理完成，库已经很紧凑',
+                ? context.l10n.databaseSpaceReclaimed(saved.toStringAsFixed(1))
+                : context.l10n.databaseAlreadyCompact,
           ),
         ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(reportUiError('整理数据库', e))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppErrorMessage(
+            action: context.l10n.load,
+            error: _settingsFailure(context.l10n.l6OptimizeDatabase12519, e),
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _vacuuming = false);
     }
@@ -414,14 +543,14 @@ extension _TabsModel on _SettingsScreenState {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSection(
-            title: '外观',
+            title: context.l10n.appearance,
             icon: Icons.palette_outlined,
             child: _buildAppearanceSettings(settings),
           ),
           if (_isDesktopPlatform) ...[
             const SizedBox(height: AppTheme.space6),
             _buildSection(
-              title: '桌面窗口',
+              title: context.l10n.desktopWindow,
               icon: Icons.desktop_windows_outlined,
               child: _buildDesktopWindowSettings(),
             ),
@@ -442,7 +571,7 @@ extension _TabsModel on _SettingsScreenState {
     final trayAvailable = windowService.trayAvailable;
     if (!trayAvailable) {
       return Text(
-        '当前环境没有可用的系统托盘，关闭窗口将直接退出应用。',
+        context.l10n.noTrayAvailable,
         style: TextStyle(
           fontSize: 12,
           color: AppTheme.textTertiary,
@@ -454,7 +583,7 @@ extension _TabsModel on _SettingsScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '关闭窗口时',
+          context.l10n.onWindowClose,
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -472,7 +601,7 @@ extension _TabsModel on _SettingsScreenState {
                 action: CloseAction.minimizeToTray,
                 selected: _closeAction == CloseAction.minimizeToTray,
                 icon: Icons.arrow_downward_rounded,
-                description: '应用留在后台托盘，可随时从托盘菜单唤回',
+                description: context.l10n.stayInTrayDescription,
                 onSelected: () => _applyCloseAction(CloseAction.minimizeToTray),
               ),
               const SizedBox(width: 10),
@@ -480,7 +609,7 @@ extension _TabsModel on _SettingsScreenState {
                 action: CloseAction.quit,
                 selected: _closeAction == CloseAction.quit,
                 icon: Icons.power_settings_new_rounded,
-                description: '彻底退出应用，托盘图标一并移除',
+                description: context.l10n.quitDescription,
                 onSelected: () => _applyCloseAction(CloseAction.quit),
               ),
             ],
@@ -536,7 +665,9 @@ extension _TabsModel on _SettingsScreenState {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      action.displayName,
+                      action == CloseAction.minimizeToTray
+                          ? context.l10n.minimizeToTray
+                          : context.l10n.quitApp,
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,

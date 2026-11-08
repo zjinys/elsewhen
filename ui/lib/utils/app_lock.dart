@@ -53,7 +53,7 @@ class AppLockRecord {
 /// 纯函数核心可直接单测；平台封装走 flutter_secure_storage。
 class AppLockService {
   AppLockService({FlutterSecureStorage? storage})
-      : _storage = storage ?? appLockSecureStorage;
+    : _storage = storage ?? appLockSecureStorage;
 
   final FlutterSecureStorage _storage;
   static final _random = Random.secure();
@@ -64,10 +64,7 @@ class AppLockService {
     int iterations = _kIterations,
     int dkLen = _kDkLen,
   }) {
-    var block = Uint8List.fromList([
-      ...salt,
-      ...utf8.encode(password),
-    ]);
+    var block = Uint8List.fromList([...salt, ...utf8.encode(password)]);
     var digest = sha256.convert(block).bytes;
     for (var i = 1; i < iterations; i++) {
       block = Uint8List.fromList([...digest, ...salt]);
@@ -87,17 +84,17 @@ class AppLockService {
   }
 
   static Uint8List _newSalt() => Uint8List.fromList(
-        List.generate(_kSaltBytes, (_) => _random.nextInt(256)),
-      );
+    List.generate(_kSaltBytes, (_) => _random.nextInt(256)),
+  );
 
   static String _encodeRecord(AppLockRecord record) => jsonEncode({
-        "v": 1,
-        "kdf": "sha256-iterated",
-        "iterations": record.iterations,
-        "dklen": record.dkLen,
-        "salt": base64Encode(record.salt),
-        "hash": base64Encode(record.hash),
-      });
+    "v": 1,
+    "kdf": "sha256-iterated",
+    "iterations": record.iterations,
+    "dklen": record.dkLen,
+    "salt": base64Encode(record.salt),
+    "hash": base64Encode(record.hash),
+  });
 
   static AppLockRecord? _decodeRecord(String raw) {
     try {
@@ -179,8 +176,7 @@ class AppLockService {
     Uint8List salt, {
     int iterations = _kIterations,
     int dkLen = _kDkLen,
-  }) =>
-      _deriveKey(password, salt, iterations: iterations, dkLen: dkLen);
+  }) => _deriveKey(password, salt, iterations: iterations, dkLen: dkLen);
 
   @visibleForTesting
   static String debugEncodeRecord(AppLockRecord record) =>
@@ -232,11 +228,11 @@ class AppLockService {
 
   /// 调起系统生物验证。成功返回 true；用户取消/失败/不可用返回 false，
   /// 由调用方回落到密码输入。生物识别永不替代密码本体。
-  Future<bool> authenticateWithBiometrics() async {
+  Future<bool> authenticateWithBiometrics({required String reason}) async {
     if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return false;
     try {
       return await _localAuth.authenticate(
-        localizedReason: "验证指纹或面容以解锁 Elsewhen",
+        localizedReason: reason,
         biometricOnly: true,
         persistAcrossBackgrounding: true,
       );

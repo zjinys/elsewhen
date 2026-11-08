@@ -1,3 +1,6 @@
+import 'app_error_notice.dart';
+import '../l10n/localization.dart';
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -73,22 +76,32 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, update) => AlertDialog(
-          title: const Text('确认加入设备'),
+          title: Text(context.l10n.l6ConfirmDeviceEnrollment159c2),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('设备：${preview.deviceName}'),
-                Text('平台：${preview.devicePlatform}'),
+                Text(
+                  context.l10n.l6DeviceArg0d7706(
+                    (preview.deviceName).toString(),
+                  ),
+                ),
+                Text(
+                  context.l10n.l6PlatformArg0e4ee7(
+                    (preview.devicePlatform).toString(),
+                  ),
+                ),
                 const SizedBox(height: 12),
-                const Text('请与新设备核对公钥指纹：'),
+                Text(context.l10n.l6CompareThePublicKeyFingerprintWitha360c),
                 SelectableText(preview.fingerprint),
                 const SizedBox(height: 12),
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
                   value: consent,
-                  title: const Text('确认这台设备可信，并允许其获得全部 Provider 配置和 API Key。'),
+                  title: Text(
+                    context.l10n.l6ConfirmThatYouTrustThisDevice20292,
+                  ),
                   onChanged: (value) => update(() => consent = value ?? false),
                 ),
               ],
@@ -97,11 +110,11 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('返回'),
+              child: Text(context.l10n.l6Back11d02),
             ),
             FilledButton(
               onPressed: consent ? () => Navigator.pop(context, true) : null,
-              child: const Text('批准这台设备'),
+              child: Text(context.l10n.l6ApproveThisDeviced11af),
             ),
           ],
         ),
@@ -116,10 +129,7 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
   Widget build(BuildContext context) {
     final controller = widget.controller;
     return ListenableBuilder(
-      listenable: Listenable.merge([
-        controller,
-        controller.enrollment,
-      ]),
+      listenable: Listenable.merge([controller, controller.enrollment]),
       builder: (context, _) {
         final offer = controller.invitation;
         final preview = controller.pairingPreview;
@@ -136,164 +146,189 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
             )
             .toList();
         return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Divider(height: 32),
-        Text('邀请设备', style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: 8),
-        const Text('新设备可通过“加入现有数据集”发起加入；批准后自动完成交接。'),
-        if (offer == null) ...[
-          const SizedBox(height: 12),
-          TextField(
-            controller: _relay,
-            enabled: !controller.busy,
-            keyboardType: TextInputType.url,
-            autocorrect: false,
-            style: AppTheme.fieldTextStyle,
-            cursorColor: AppTheme.accentPrimary,
-            decoration: AppTheme.fieldDecoration(
-              labelText: '你已部署的中继 URL',
-              hintText: 'https://…',
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Divider(height: 32),
+            Text(
+              context.l10n.l6InviteADevice9f3fa,
+              style: Theme.of(context).textTheme.titleSmall,
             ),
-          ),
-          CheckboxListTile(
-            value: _consent,
-            enabled: !controller.busy,
-            contentPadding: EdgeInsets.zero,
-            title: const Text('我理解：创建邀请会连接此中继；批准加入后将共享 Provider 配置和 API Key。'),
-            onChanged: (value) => setState(() => _consent = value ?? false),
-          ),
-          FilledButton.icon(
-            onPressed: controller.busy || !_consent
-                ? null
-                : () async {
-                    try {
-                      const DesktopPrefsStore().saveLastOwnerRelayUrl(
-                        _relay.text.trim(),
-                      );
-                    } catch (_) {}
-                    await controller.createInvitation(
-                      _relay.text,
-                      consent: true,
-                    );
+            const SizedBox(height: 8),
+            Text(context.l10n.l6NewDevicesCanRequestToJoinbe25a),
+            if (offer == null) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: _relay,
+                enabled: !controller.busy,
+                keyboardType: TextInputType.url,
+                autocorrect: false,
+                style: AppTheme.fieldTextStyle,
+                cursorColor: AppTheme.accentPrimary,
+                decoration: AppTheme.fieldDecoration(
+                  labelText: context.l10n.l6YourRelayUrl9ff3a,
+                  hintText: 'https://…',
+                ),
+              ),
+              CheckboxListTile(
+                value: _consent,
+                enabled: !controller.busy,
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  context.l10n.l6IUnderstandThatCreatingAnInvitation5f3db,
+                ),
+                onChanged: (value) => setState(() => _consent = value ?? false),
+              ),
+              FilledButton.icon(
+                onPressed: controller.busy || !_consent
+                    ? null
+                    : () async {
+                        try {
+                          const DesktopPrefsStore().saveLastOwnerRelayUrl(
+                            _relay.text.trim(),
+                          );
+                        } catch (_) {}
+                        await controller.createInvitation(
+                          _relay.text,
+                          consent: true,
+                        );
+                      },
+                icon: const Icon(Icons.add_link),
+                label: Text(context.l10n.l6CreateATemporaryInvitationa2809),
+              ),
+            ] else ...[
+              const SizedBox(height: 12),
+              SyncPairingSteps(
+                steps: [
+                  context.l10n.l6InvitationCreatedShowTheQrCode15986,
+                  context.l10n.l6ANewDeviceHasRequestedTo3129b,
+                  context.l10n.l6ApprovedDeliveringApprovalc4bcf,
+                  context.l10n.l6ApprovalDeliveredWaitingForTheNewaeaa7,
+                  context.l10n.l6NewDeviceJoinsCheckTheDevice29220,
+                ],
+                current: ownerPairingStage(
+                  invitationId: offer.invitationId,
+                  hasPreview: preview != null,
+                  pendingPairingId: controller.pendingPairingId,
+                  approvalDelivered: controller.approvalDelivered,
+                  // 终态：enrollment 视图里这台新设备的交接已经 `complete`（对端
+                  // 已回执/已被确认）。没有它，第五步会永远转圈。
+                  deviceJoined: controller.enrollment.states.any(
+                    (s) => s.role == 'owner' && s.phase == 'complete',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              for (final snapshotState in sending) ...[
+                SyncSnapshotProgress(
+                  received: snapshotState.receivedChunks,
+                  total: snapshotState.totalChunks,
+                  label: switch (snapshotState.phase) {
+                    'preparing_snapshot' =>
+                      context.l10n.l6PreparingTheInitialSnapshotb1613,
+                    'awaiting_snapshot_selection' =>
+                      context.l10n.l6WaitingForInitialSnapshotSelectione32c8,
+                    _ => context.l10n.l6SendingTheInitialSnapshotfa3fd,
                   },
-            icon: const Icon(Icons.add_link),
-            label: const Text('创建短期邀请'),
-          ),
-        ] else ...[
-          const SizedBox(height: 12),
-          SyncPairingSteps(
-            steps: const [
-              '邀请已生成（出示二维码或复制邀请）',
-              '新设备已发起加入请求',
-              '已批准，正在投递审批',
-              '审批已送达，等待新设备完成安装',
-              '新设备接入（在「管理」确认设备列表）',
+                ),
+                const SizedBox(height: 8),
+              ],
+              // 交接轮询失联/失败时必须有可见原因：否则主设备也会停在同一帧转圈，
+              // 用户无法区分「还在搬」和「已经卡死」。
+              if (controller.enrollment.error != null) ...[
+                AppErrorMessage(
+                  error: controller.enrollment.error!,
+                  action: context.l10n.load,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+                const SizedBox(height: 8),
+              ],
+              // relay 信箱打满（507）时，发送被主动停拍退避：给一个明确提示，
+              // 避免用户把「在等空间」当成「卡死」。
+              if (controller.enrollment.states.any(
+                (s) => s.storageBlocked,
+              )) ...[
+                Text(
+                  context
+                      .l10n
+                      .l6RelayMailboxFullDeliveryResumesAutomatically4a933,
+                  style: TextStyle(fontSize: 12, color: AppTheme.warning),
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (widget.deliveryStatuses != null) ...[
+                SyncDeliverStatusLine(statuses: widget.deliveryStatuses!),
+                const SizedBox(height: 8),
+              ],
+              Text(context.l10n.l6ShareInvitationsOnlyWithTrustedDevices47059),
+              Text(
+                context.l10n.l6ExpiresArg0a7daf(
+                  (DateTime.fromMillisecondsSinceEpoch(
+                    offer.expiresAtMs,
+                  ).toLocal()).toString(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Center(
+                child: Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(8),
+                  child: QrImageView(
+                    data: offer.code,
+                    version: QrVersions.auto,
+                    size: 220,
+                    backgroundColor: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton(
+                    onPressed: controller.busy
+                        ? null
+                        : () => Clipboard.setData(
+                            ClipboardData(text: offer.code),
+                          ),
+                    child: Text(context.l10n.l6CopyInvitationf7293),
+                  ),
+                  TextButton(
+                    onPressed: controller.busy
+                        ? null
+                        : controller.cancelInvitation,
+                    child: Text(context.l10n.l6CancelInvitation17e4c),
+                  ),
+                ],
+              ),
             ],
-            current: ownerPairingStage(
-              invitationId: offer.invitationId,
-              hasPreview: preview != null,
-              pendingPairingId: controller.pendingPairingId,
-              approvalDelivered: controller.approvalDelivered,
-              // 终态：enrollment 视图里这台新设备的交接已经 `complete`（对端
-              // 已回执/已被确认）。没有它，第五步会永远转圈。
-              deviceJoined: controller.enrollment.states.any(
-                (s) => s.role == 'owner' && s.phase == 'complete',
+            if (preview != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                context.l10n.l6AwaitingReviewArg0Arg17fa78(
+                  (preview.deviceName).toString(),
+                  (preview.devicePlatform).toString(),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          for (final snapshotState in sending) ...[
-            SyncSnapshotProgress(
-              received: snapshotState.receivedChunks,
-              total: snapshotState.totalChunks,
-              label: switch (snapshotState.phase) {
-                'preparing_snapshot' => '正在准备初始快照',
-                'awaiting_snapshot_selection' => '等待选择初始快照',
-                _ => '正在发送初始快照',
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-          // 交接轮询失联/失败时必须有可见原因：否则主设备也会停在同一帧转圈，
-          // 用户无法区分「还在搬」和「已经卡死」。
-          if (controller.enrollment.error != null) ...[
-            Text(
-              controller.enrollment.error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-            const SizedBox(height: 8),
-          ],
-          // relay 信箱打满（507）时，发送被主动停拍退避：给一个明确提示，
-          // 避免用户把「在等空间」当成「卡死」。
-          if (controller.enrollment.states.any((s) => s.storageBlocked)) ...[
-            Text(
-              '中继信箱已满：对方正在取件腾出空间，稍候会自动继续，无需操作。',
-              style: TextStyle(fontSize: 12, color: AppTheme.warning),
-            ),
-            const SizedBox(height: 8),
-          ],
-          if (widget.deliveryStatuses != null) ...[
-            SyncDeliverStatusLine(statuses: widget.deliveryStatuses!),
-            const SizedBox(height: 8),
-          ],
-          const Text('邀请码仅交给可信设备。'),
-          Text(
-            '到期时间：${DateTime.fromMillisecondsSinceEpoch(offer.expiresAtMs).toLocal()}',
-          ),
-          const SizedBox(height: 8),
-          Center(
-            child: Container(
-              color: Colors.white,
-              padding: const EdgeInsets.all(8),
-              child: QrImageView(
-                data: offer.code,
-                version: QrVersions.auto,
-                size: 220,
-                backgroundColor: Colors.white,
+              FilledButton(
+                onPressed: controller.busy ? null : () => _review(preview),
+                child: Text(context.l10n.l6VerifyAndApprove5c161),
               ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              OutlinedButton(
+            ],
+            if (controller.pendingPairingId != null) ...[
+              const SizedBox(height: 8),
+              TextButton(
                 onPressed: controller.busy
                     ? null
-                    : () => Clipboard.setData(ClipboardData(text: offer.code)),
-                child: const Text('复制邀请'),
-              ),
-              TextButton(
-                onPressed: controller.busy ? null : controller.cancelInvitation,
-                child: const Text('取消邀请'),
+                    : controller.resendPairingApproval,
+                child: Text(context.l10n.l6ResendSavedApproval48def),
               ),
             ],
-          ),
-        ],
-        if (preview != null) ...[
-          const SizedBox(height: 12),
-          Text('待审阅：${preview.deviceName}（${preview.devicePlatform}）'),
-          FilledButton(
-            onPressed: controller.busy ? null : () => _review(preview),
-            child: const Text('核对并审批'),
-          ),
-        ],
-        if (controller.pendingPairingId != null) ...[
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: controller.busy
-                ? null
-                : controller.resendPairingApproval,
-            child: const Text('重发已保存的审批'),
-          ),
-        ],
-        if (controller.pairingNotice != null) ...[
-          const SizedBox(height: 8),
-          Text(controller.pairingNotice!),
-        ],
-      ],
+            if (controller.pairingNotice != null) ...[
+              const SizedBox(height: 8),
+              Text(context.notice(controller.pairingNotice!)),
+            ],
+          ],
         );
       },
     );

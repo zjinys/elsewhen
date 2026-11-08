@@ -160,7 +160,7 @@ class _ChatProposalReviewDialogState
     if (_history) {
       final receipt = _viewingReceipt;
       if (receipt == null) {
-        return const Center(child: Text('选择左侧一条记录查看回执'));
+        return Center(child: Text(context.l10n.selectReceipt));
       }
       // 处理记录详情：顶部带「返回列表」（详情/批量面板同款）；
       // 此前这条内联路径没有任何返回入口，手机上无法回到列表。
@@ -175,11 +175,11 @@ class _ChatProposalReviewDialogState
                     _viewingReceipt = null;
                   }),
                   icon: const Icon(Icons.arrow_back_ios_new, size: 15),
-                  label: const Text('返回列表'),
+                  label: Text(context.l10n.backToList),
                 ),
                 const Spacer(),
                 Text(
-                  '${_actionLabel(receipt.action)} · ${_statusLabel(receipt.status)}',
+                  '${_actionLabel(context, receipt.action)} · ${_statusLabel(context, receipt.status)}',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ],
@@ -212,7 +212,7 @@ class _ChatProposalReviewDialogState
     }
     final proposal = _viewing;
     if (proposal == null) {
-      return const Center(child: Text('选择左侧一条提议查看详情'));
+      return Center(child: Text(context.l10n.selectProposal));
     }
     return ChatProposalDetailPanel(
       key: ValueKey('${proposal.kind}:${proposal.id}:${proposal.version}'),
@@ -228,7 +228,7 @@ class _ChatProposalReviewDialogState
           spacing: 8,
           children: [
             ChoiceChip(
-              label: const Text('待审'),
+              label: Text(context.l10n.pendingReview),
               selected: !_history,
               onSelected: _loading
                   ? null
@@ -244,7 +244,7 @@ class _ChatProposalReviewDialogState
                     },
             ),
             ChoiceChip(
-              label: const Text('处理记录'),
+              label: Text(context.l10n.decisionHistory),
               selected: _history,
               onSelected: _loading
                   ? null
@@ -260,7 +260,7 @@ class _ChatProposalReviewDialogState
                     },
             ),
             IconButton(
-              tooltip: '刷新',
+              tooltip: context.l10n.refresh,
               onPressed: _loading ? null : _load,
               icon: const Icon(Icons.refresh),
             ),
@@ -270,13 +270,14 @@ class _ChatProposalReviewDialogState
           TextButton.icon(
             onPressed: _loading ? null : _reviewSelected,
             icon: const Icon(Icons.checklist),
-            label: Text('审阅选中（${_selected.length}）'),
+            label: Text(context.l10n.reviewSelectedCount(_selected.length)),
           ),
         if (_error != null)
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Text(
-              _error!,
+            child: AppErrorMessage(
+              action: context.l10n.load,
+              error: _error!,
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
@@ -284,7 +285,13 @@ class _ChatProposalReviewDialogState
           child: _loading
               ? const Center(child: CircularProgressIndicator())
               : count == 0
-              ? Center(child: Text(_history ? '暂无处理记录' : '暂无待审提议'))
+              ? Center(
+                  child: Text(
+                    _history
+                        ? context.l10n.noDecisions
+                        : context.l10n.noProposals,
+                  ),
+                )
               : ListView.builder(
                   itemCount: count,
                   itemBuilder: (context, index) {
@@ -305,9 +312,9 @@ class _ChatProposalReviewDialogState
                       _offset = (_offset - _pageSize).clamp(0, _offset);
                       _load();
                     },
-              child: const Text('上一页'),
+              child: Text(context.l10n.previousPage),
             ),
-            Text('第 ${_offset ~/ _pageSize + 1} 页'),
+            Text(context.l10n.pageNumber(_offset ~/ _pageSize + 1)),
             TextButton(
               onPressed: _loading || count < _pageSize
                   ? null
@@ -315,7 +322,7 @@ class _ChatProposalReviewDialogState
                       _offset += _pageSize;
                       _load();
                     },
-              child: const Text('下一页'),
+              child: Text(context.l10n.nextPage),
             ),
           ],
         ),
@@ -359,7 +366,7 @@ class _ChatProposalReviewDialogState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${args?['title'] ?? args?['content'] ?? args?['intent_text'] ?? (proposal.action == 'update_goal_facets' ? '更新目标切片 (ID: ${args?['id']})' : _actionLabel(proposal.action))}',
+                      '${args?['title'] ?? args?['content'] ?? args?['intent_text'] ?? (proposal.action == 'update_goal_facets' ? context.l10n.updateGoalById('${args?['id']}') : _actionLabel(context, proposal.action))}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(
@@ -368,13 +375,19 @@ class _ChatProposalReviewDialogState
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${_actionLabel(proposal.action)} · 版本 ${proposal.version}',
+                      context.l10n.proposalVersion(
+                        _actionLabel(context, proposal.action),
+                        proposal.version.toString(),
+                      ),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                     // 创建时间（相对时间）：不然列表里分不清哪个新哪个旧。
-                    if (prettyTimestamp(proposal.createdAt)
+                    if (prettyTimestamp(
+                          proposal.createdAt,
+                          strings: context.l10n,
+                        )
                         case final String timeLabel)
                       Text(
                         timeLabel,
@@ -424,7 +437,7 @@ class _ChatProposalReviewDialogState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${_actionLabel(receipt.action)} · ${_statusLabel(receipt.status)}',
+                      '${_actionLabel(context, receipt.action)} · ${_statusLabel(context, receipt.status)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(
@@ -441,7 +454,10 @@ class _ChatProposalReviewDialogState
                       ),
                     ),
                     // 处理时间（相对时间）：与待审列表同样的新旧判断依据。
-                    if (prettyTimestamp(receipt.startedAt)
+                    if (prettyTimestamp(
+                          receipt.startedAt,
+                          strings: context.l10n,
+                        )
                         case final String timeLabel)
                       Text(
                         timeLabel,
@@ -484,7 +500,7 @@ class _ProposalContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final args = _args(argsJson);
     if (args == null) {
-      return SelectableText('提议格式异常，不能接受；可以拒绝并重新草拟。\n$argsJson');
+      return SelectableText(context.l10n.invalidProposal(argsJson));
     }
 
     // P2 计划拆解草案：专属渲染（意图原文 / 评估 / 假设清单 / 里程碑步骤），
@@ -541,7 +557,7 @@ class _ProposalContent extends StatelessWidget {
         if (rest.isNotEmpty) ...[
           const SizedBox(height: 12),
           ExpansionTile(
-            title: const Text('参数与来源'),
+            title: Text(context.l10n.parametersSources),
             initiallyExpanded: body == null && !hasGoalFacets,
             children: [
               SelectableText(const JsonEncoder.withIndent('  ').convert(rest)),
@@ -568,9 +584,9 @@ class _GoalFacetsCard extends StatelessWidget {
     final id = args['id']?.toString();
 
     String phaseLabel(String? p) => switch (p) {
-      'mid' => '中期目标',
-      'long' => '长远目标',
-      _ => '近期目标',
+      'mid' => context.l10n.midTermGoal,
+      'long' => context.l10n.longTermGoal,
+      _ => context.l10n.nearTermGoal,
     };
 
     return Container(
@@ -610,7 +626,7 @@ class _GoalFacetsCard extends StatelessWidget {
                 if (id != null) ...[
                   const SizedBox(width: 8),
                   Text(
-                    '目标 ID: $id',
+                    context.l10n.goalId(id),
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -629,8 +645,8 @@ class _GoalFacetsCard extends StatelessWidget {
                     TextSpan(
                       style: theme.textTheme.bodyMedium,
                       children: [
-                        const TextSpan(
-                          text: '当前抓手：',
+                        TextSpan(
+                          text: context.l10n.currentActionLabel,
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         TextSpan(text: focus),
@@ -653,7 +669,7 @@ class _GoalFacetsCard extends StatelessWidget {
                       style: theme.textTheme.bodyMedium,
                       children: [
                         TextSpan(
-                          text: '已知卡点：',
+                          text: context.l10n.currentObstacleLabel,
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: theme.colorScheme.error,
@@ -678,8 +694,8 @@ class _GoalFacetsCard extends StatelessWidget {
                     TextSpan(
                       style: theme.textTheme.bodyMedium,
                       children: [
-                        const TextSpan(
-                          text: '核心动力：',
+                        TextSpan(
+                          text: context.l10n.motivationLabel,
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         TextSpan(text: why),
@@ -701,8 +717,8 @@ class _GoalFacetsCard extends StatelessWidget {
                     TextSpan(
                       style: theme.textTheme.bodyMedium,
                       children: [
-                        const TextSpan(
-                          text: '完成判据：',
+                        TextSpan(
+                          text: context.l10n.completionCriteriaLabel,
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         TextSpan(text: done),
@@ -740,31 +756,34 @@ class _PlanDraftCard extends StatelessWidget {
       children: [
         if (planIntent != null)
           SelectableText(
-            '计划：$planIntent',
+            context.l10n.planLabel(planIntent),
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         if (intent.isNotEmpty)
           SelectableText(
-            '意图：「$intent」',
+            context.l10n.intentLabel(intent),
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
             ),
           ),
         if (vision != null && vision.isNotEmpty) ...[
           const SizedBox(height: 6),
-          SelectableText('愿景：$vision'),
+          SelectableText(context.l10n.visionLabel(vision)),
         ],
         if (assessment != null && assessment.isNotEmpty) ...[
           const SizedBox(height: 12),
-          Text('现实性评估', style: theme.textTheme.labelLarge),
+          Text(
+            context.l10n.feasibilityAssessment,
+            style: theme.textTheme.labelLarge,
+          ),
           const SizedBox(height: 4),
           SelectableText(assessment),
         ],
         if (assumptions.isNotEmpty) ...[
           const SizedBox(height: 12),
-          Text('假设清单', style: theme.textTheme.labelLarge),
+          Text(context.l10n.assumptions, style: theme.textTheme.labelLarge),
           const SizedBox(height: 4),
           for (final assumption in assumptions.whereType<Map>())
             Padding(
@@ -774,7 +793,8 @@ class _PlanDraftCard extends StatelessWidget {
                   style: theme.textTheme.bodyMedium,
                   children: [
                     TextSpan(
-                      text: '[${assumption['kind'] ?? '假设'}] ',
+                      text:
+                          '[${assumption['kind'] ?? context.l10n.assumption}] ',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     TextSpan(text: '${assumption['text'] ?? ''}'),
@@ -785,10 +805,7 @@ class _PlanDraftCard extends StatelessWidget {
         ],
         if (steps.isNotEmpty) ...[
           const SizedBox(height: 12),
-          Text(
-            '里程碑步骤（第一步确认后直接推进，其余排队）',
-            style: theme.textTheme.labelLarge,
-          ),
+          Text(context.l10n.milestoneSteps, style: theme.textTheme.labelLarge),
           const SizedBox(height: 4),
           for (var i = 0; i < steps.length; i++)
             if (steps[i] is Map) _stepTile(context, i, steps[i] as Map),
@@ -813,7 +830,7 @@ class _PlanDraftCard extends StatelessWidget {
             TextSpan(text: '${step['content'] ?? ''}'),
             if (done != null && done.isNotEmpty)
               TextSpan(
-                text: '（判据：$done）',
+                text: context.l10n.criterionLabel(done),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),

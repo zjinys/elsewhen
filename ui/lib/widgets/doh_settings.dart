@@ -1,3 +1,7 @@
+import 'app_error_notice.dart';
+import '../l10n/notice_messages.dart';
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 
 import '../bridge/api.dart' as api;
@@ -30,10 +34,10 @@ class _DohSettingsState extends State<DohSettings> {
   String? _testResult;
   bool _testOk = false;
 
-  static const _modes = <(String, String)>[
-    ('off', '关闭（强制直连）'),
-    ('auto', '自动（优先 DoH，失败回退直连）'),
-    ('force', '强制（只用 DoH，不降级）'),
+  List<(String, String)> get _modes => <(String, String)>[
+    ('off', context.l10n.l6OffDirectConnection371c7),
+    ('auto', context.l10n.l6AutomaticPreferDohFallBackTo02ddb),
+    ('force', context.l10n.l6RequiredDohOnly763c2),
   ];
 
   @override
@@ -61,7 +65,7 @@ class _DohSettingsState extends State<DohSettings> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _loadError = '$e';
+        _loadError = appFailure(e);
       });
     }
   }
@@ -73,9 +77,10 @@ class _DohSettingsState extends State<DohSettings> {
         dohUri: _dohController.text.trim(),
         dohMode: _mode,
       );
-      _toast('DoH 设置已保存', ok: true);
+      if (!mounted) return;
+      _toast(context.l10n.l6DohSettingsSavedeaeea, ok: true);
     } catch (e) {
-      _toast('保存失败：${_firstLine(e)}', ok: false);
+      if (mounted) showAppError(context, context.l10n.save, e);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -86,7 +91,7 @@ class _DohSettingsState extends State<DohSettings> {
     if (doh.isEmpty) {
       setState(() {
         _testOk = false;
-        _testResult = '请先填写 DoH 服务地址再测试';
+        _testResult = context.l10n.l6EnterADohServiceUrlBeforeff97f;
       });
       return;
     }
@@ -95,28 +100,21 @@ class _DohSettingsState extends State<DohSettings> {
       _testResult = null;
     });
     try {
-      final result = await api.testDohConnection(dohUri: doh);
+      await api.testDohConnection(dohUri: doh);
       if (!mounted) return;
       setState(() {
         _testOk = true;
-        _testResult = result;
+        _testResult = appNotice('connectionSucceeded');
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _testOk = false;
-        _testResult = _firstLine(e);
+        _testResult = appFailure(e);
       });
     } finally {
       if (mounted) setState(() => _testing = false);
     }
-  }
-
-  String _firstLine(Object e) {
-    final s = '$e';
-    return s
-        .split('\n')
-        .firstWhere((l) => l.trim().isNotEmpty, orElse: () => s.trim());
   }
 
   void _toast(String message, {required bool ok}) {
@@ -142,8 +140,9 @@ class _DohSettingsState extends State<DohSettings> {
       );
     }
     if (_loadError != null) {
-      return Text(
-        'DoH 设置读取失败：${_firstLine(_loadError!)}',
+      return AppErrorMessage(
+        action: context.l10n.load,
+        error: _loadError!,
         style: TextStyle(color: AppTheme.error, fontSize: 12),
       );
     }
@@ -170,7 +169,7 @@ class _DohSettingsState extends State<DohSettings> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '启用策略',
+          context.l10n.l6ActivationPolicyfc94d,
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -216,7 +215,7 @@ class _DohSettingsState extends State<DohSettings> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'DoH 服务地址',
+          context.l10n.l6DohServiceUrlae8b4,
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -246,13 +245,12 @@ class _DohSettingsState extends State<DohSettings> {
 
   Widget _buildHint() {
     final suffix = switch (_mode) {
-      'off' => '当前为「关闭」：地址仅保存不生效，外网搜索走系统直连。',
-      'force' => '当前为「强制」：DoH 失败将直接报错，不会回退直连。',
-      _ => '当前为「自动」：优先 DoH+ECH，连不上自动回退直连。',
+      'off' => context.l10n.l6OffTheUrlIsSavedButa536d,
+      'force' => context.l10n.l6RequiredADohFailureReturnsAnaabc1,
+      _ => context.l10n.l6AutomaticPreferDohAndEchFallingfc42f,
     };
     return Text(
-      '仅自定义、无内置默认。填了地址后，外网搜索会经 DoH+ECH 传输，在国内网络下也能'
-      '到达被 DNS 污染 / SNI 封锁的服务（如 x.com）。当前仅作用于外网搜索。$suffix',
+      context.l10n.l6SupplyYourOwnEndpointNoneIsd855e((suffix).toString()),
       style: TextStyle(
         fontSize: 12,
         color: AppTheme.textSecondary.withValues(alpha: 0.7),
@@ -273,7 +271,7 @@ class _DohSettingsState extends State<DohSettings> {
         const SizedBox(width: 6),
         Expanded(
           child: Text(
-            _testResult!,
+            resolveNotice(_testResult!, context.l10n) ?? _testResult!,
             style: TextStyle(
               fontSize: 12,
               color: _testOk ? AppTheme.accentPrimary : AppTheme.error,
@@ -295,7 +293,11 @@ class _DohSettingsState extends State<DohSettings> {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : const Icon(Icons.network_check, size: 16),
-      label: Text(_testing ? '测试中' : '测试连接'),
+      label: Text(
+        _testing
+            ? context.l10n.l6Testingcf7e9
+            : context.l10n.l6TestConnection10b7d,
+      ),
       style: OutlinedButton.styleFrom(
         foregroundColor: AppTheme.accentPrimary,
         side: BorderSide(color: AppTheme.accentPrimary.withValues(alpha: 0.4)),
@@ -319,7 +321,7 @@ class _DohSettingsState extends State<DohSettings> {
                 ),
               )
             : const Icon(Icons.save_outlined, size: 16),
-        label: Text(_saving ? '保存中' : '保存'),
+        label: Text(_saving ? context.l10n.l6Savinga032e : context.l10n.save),
         style: FilledButton.styleFrom(
           backgroundColor: AppTheme.accentPrimary,
           shape: RoundedRectangleBorder(

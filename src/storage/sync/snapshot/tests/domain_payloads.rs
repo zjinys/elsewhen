@@ -602,7 +602,10 @@ fn snapshot_carries_plans_with_steps_and_incremental_metadata() {
         .unwrap();
     let step2 = a
         .store
-        .create_goal("第二步：做出可售卖的最小方案", crate::storage::GoalPhase::Mid)
+        .create_goal(
+            "第二步：做出可售卖的最小方案",
+            crate::storage::GoalPhase::Mid,
+        )
         .unwrap();
     a.store
         .attach_goal_to_plan(&step1.id, &plan.id, Some(1))
@@ -680,4 +683,40 @@ fn snapshot_carries_plans_with_steps_and_incremental_metadata() {
         .unwrap();
     assert_eq!(vision, "改后的愿景");
     assert_eq!(reopened.list_object_conflicts().unwrap().len(), 0);
+}
+
+#[test]
+fn knowledge_language_snapshot_carries_policy_but_not_local_prompts_or_capability_evidence() {
+    let a = Database::new();
+    let b = Database::new();
+    // A standalone policy is established before this legacy fixture enables
+    // sync. Real signed-roster verification has separate signed-owner tests.
+    let policy = a.store.set_knowledge_language("en", 0).unwrap();
+    a.store.register_prompts().unwrap();
+    let revision = a
+        .store
+        .save_prompt_revision("chat.personal.policy", "en", "LOCAL-ONLY-PROMPT", None, "")
+        .unwrap();
+    a.store
+        .activate_prompt("chat.personal.policy", "en", Some(&revision), 0)
+        .unwrap();
+    a.enable("a");
+    b.enable("b");
+    pair(&a, &b);
+    let key = ContentKey::generate().unwrap();
+    let signer = DeviceIdentity::generate().unwrap();
+    let id = Uuid::new_v4().to_string();
+    let (chunks, manifest) = export(&a.store, "b", &id, &key, &signer);
+    b.store.begin_snapshot_import(&id, "a", 1).unwrap();
+    stage(&b.store, &id, "a", &chunks, &key, &signer.public_key());
+    assert!(
+        b.store
+            .publish_snapshot(&id, "a", 1, &manifest, &key, &signer.public_key())
+            .unwrap()
+    );
+    assert_eq!(b.store.knowledge_language_policy().unwrap(), policy);
+    assert_eq!(b.count("sync_language_capabilities"), 0);
+    assert_eq!(b.count("prompt_activations"), 0);
+    assert_eq!(b.count("prompt_bundles"), 0);
+    assert_eq!(b.store.prompt_language_preferences().unwrap().generation, 0);
 }

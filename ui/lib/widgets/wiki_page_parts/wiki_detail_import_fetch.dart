@@ -19,7 +19,7 @@ class _ImportFetchTabBody extends ConsumerStatefulWidget {
 class _ImportFetchTabBodyState extends ConsumerState<_ImportFetchTabBody> {
   bool _saving = false;
   bool _saved = false;
-  String? _saveError;
+  Object? _saveError;
   final _tagsController = TextEditingController();
 
   @override
@@ -61,7 +61,7 @@ class _ImportFetchTabBodyState extends ConsumerState<_ImportFetchTabBody> {
       closeWikiTab(ref, wikiImportTabId(widget.fetch));
     } catch (e) {
       if (!mounted) return;
-      setState(() => _saveError = e.toString().replaceFirst('Exception: ', ''));
+      setState(() => _saveError = e);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -106,7 +106,9 @@ class _ImportFetchTabBodyState extends ConsumerState<_ImportFetchTabBody> {
                       borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                     ),
                     child: Text(
-                      fetch.isTweet ? '推文' : '网页',
+                      fetch.isTweet
+                          ? context.l10n.wikiTweet
+                          : context.l10n.wikiWebpage,
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -157,7 +159,7 @@ class _ImportFetchTabBodyState extends ConsumerState<_ImportFetchTabBody> {
                 style: TextStyle(fontSize: 13, color: AppTheme.textPrimary),
                 cursorColor: AppTheme.accentPrimary,
                 decoration: InputDecoration(
-                  hintText: '标签（可选，空格分隔，例如：方法 投资）',
+                  hintText: context.l10n.wikiImportTagsHint,
                   hintStyle: TextStyle(
                     fontSize: 12.5,
                     color: AppTheme.textTertiary,
@@ -213,7 +215,7 @@ class _ImportFetchTabBodyState extends ConsumerState<_ImportFetchTabBody> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '已保存到知识库',
+                            context.l10n.wikiSaved,
                             style: TextStyle(
                               fontSize: 12,
                               color: AppTheme.accentPrimary,
@@ -233,16 +235,15 @@ class _ImportFetchTabBodyState extends ConsumerState<_ImportFetchTabBody> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.bookmark_add_outlined, size: 16),
-                      label: Text(_saving ? '保存中…' : '保存到知识库'),
+                      label: Text(
+                        _saving ? context.l10n.saving : context.l10n.wikiSave,
+                      ),
                     ),
                 ],
               ),
               if (_saveError != null) ...[
                 const SizedBox(height: AppTheme.space2),
-                Text(
-                  _saveError!,
-                  style: TextStyle(fontSize: 12, color: AppTheme.error),
-                ),
+                AppErrorMessage(action: context.l10n.save, error: _saveError!),
               ],
             ],
           ),

@@ -214,11 +214,11 @@ fn save_wiki_page_content_sets_human_edited_at_and_rejects_material() {
     assert!(log.iter().any(|(_, e)| e.contains("人工编辑正文")));
 
     // 空正文拒绝
-    assert!(
-        store
-            .save_wiki_page_content("person/张三", "   ", "清空", None)
-            .is_err()
-    );
+    let empty = store
+        .save_wiki_page_content("person/张三", "   ", "清空", None)
+        .unwrap_err();
+    assert!(empty.to_string().contains("\"code\":\"field_required\""));
+    assert!(empty.to_string().contains("\"field\":\"content\""));
 
     // 素材页（source/note）只读拒绝
     store
@@ -227,10 +227,13 @@ fn save_wiki_page_content_sets_human_edited_at_and_rejects_material() {
             ContentPolicy::Always,
         )
         .unwrap();
+    let readonly = store
+        .save_wiki_page_content("tweet-1", "改素材", "不该允许", None)
+        .unwrap_err();
     assert!(
-        store
-            .save_wiki_page_content("tweet-1", "改素材", "不该允许", None)
-            .is_err()
+        readonly
+            .to_string()
+            .contains("\"code\":\"wiki_material_readonly\"")
     );
     store
         .upsert_wiki_page(
@@ -286,7 +289,11 @@ fn save_wiki_page_content_optimistic_lock_rejects_stale_write() {
     let err = store
         .save_wiki_page_content("person/王五", "人工修改", "修正", Some(&loaded_at))
         .unwrap_err();
-    assert!(err.to_string().contains("编辑冲突"), "应报编辑冲突: {err}");
+    let contract: serde_json::Value =
+        serde_json::from_str(err.to_string().strip_prefix("elsewhen-error-v1:").unwrap()).unwrap();
+    assert_eq!(contract["code"], "wiki_page_changed");
+    assert_eq!(contract["params"], serde_json::json!({}));
+    assert!(format!("{err:#}").contains(&loaded_at));
     assert_eq!(
         store
             .get_wiki_page("person/王五")

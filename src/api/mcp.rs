@@ -11,6 +11,9 @@ pub struct McpServerDto {
     #[serde(default)]
     pub id: String,
     pub name: String,
+    /// 用户声明的关联意图关键词（逗号分隔，选填）。
+    #[serde(default)]
+    pub keywords: String,
     /// 平台标签（迁移 48）：all/linux/macos/windows；空串按 all 处理。
     #[serde(default)]
     pub platform: String,
@@ -67,6 +70,7 @@ pub fn list_mcp_servers() -> Result<Vec<McpServerDto>> {
         .map(|s| McpServerDto {
             id: s.id,
             name: s.name,
+            keywords: s.keywords,
             platform: s.platform,
             transport: s.transport,
             command: s.command,
@@ -120,6 +124,7 @@ pub fn save_mcp_server(server: McpServerDto) -> Result<String> {
     let id = store.save_mcp_server(
         Some(server.id.as_str()).filter(|s| !s.is_empty()),
         &server.name,
+        &server.keywords,
         platform,
         &server.transport,
         &server.command,
@@ -187,6 +192,7 @@ pub fn test_mcp_server(server: McpServerDto) -> Result<Vec<McpToolDto>> {
             server.id.clone()
         },
         name: server.name.clone(),
+        keywords: server.keywords.clone(),
         platform: server.platform.clone(),
         transport: server.transport.clone(),
         command: server.command.clone(),

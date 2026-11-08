@@ -28,7 +28,10 @@ pub(crate) const SNAPSHOT_CARRIED_DIRS: &[&str] = &["tweet_images"];
 /// 事实，apply 强制置 0 回到逐次审批）。新增 serde 变体后旧端标签分发
 /// 失败会整份拒收，跨 v4/v5 必须显式 bump——与 wire 枚举不同（那边
 /// append-only 可被旧端忽略）。
-pub(crate) const SNAPSHOT_VERSION: u32 = 9;
+// v10 carries dataset knowledge-language policy. Capability evidence remains
+// local and is learned from authenticated origin operations after import.
+// Older applications reject the snapshot rather than silently using Chinese.
+pub(crate) const SNAPSHOT_VERSION: u32 = 10;
 
 /// 随快照携带的表。QUERIES 必须真实覆盖这里的每一张（覆盖性由门禁测试
 /// `snapshot_carries_every_table_or_explicitly_excludes_it` 兜住：新增表不登记
@@ -73,16 +76,44 @@ pub(crate) const SNAPSHOT_CARRIED_TABLES: &[&str] = &[
     // 负知识（摘录孵化闭环）：identity/opinion/reject_reason 是「记住我
     // 否定过」的最小面，快照表很小；判定 wiki_pages.opinion 本就同步。
     "knowledge_sources",
+    "dataset_content_language",
 ];
 
 pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     // 设备身份与签名私钥：快照是给新设备的，身份由接收端自己初始化。
     ("sync_local_vault", "local-identity-and-keys"),
     ("sync_replica", "local-identity-and-keys"),
+    (
+        "sync_language_capabilities",
+        "authenticated-local-capability-evidence",
+    ),
     // Provider key 材料不离本机（key 不回收披露）；配置经 provider bundle 走。
     ("provider_edit_tokens", "local-provider-secrets-and-state"),
     ("provider_key_policy", "local-provider-secrets-and-state"),
     ("provider_key_secrets", "local-provider-secrets-and-state"),
+    // 命名密钥库（迁移 70）：凭据本体绝不入快照；消费方只携带
+    // {{secret:name}} 占位符（公开无害引用名），新设备在本机补装值。
+    ("named_secrets", "local-named-secrets"),
+    ("prompt_reading_tasks", "local-prompt-task-bindings"),
+    (
+        "prompt_bundle_language_generations",
+        "local-prompt-task-bindings",
+    ),
+    ("knowledge_language_artifacts", "local-language-provenance"),
+    (
+        "knowledge_artifact_languages",
+        "embedded-artifact-language-provenance",
+    ),
+    ("prompt_definitions", "local-prompt-management"),
+    ("prompt_revisions", "local-prompt-management"),
+    ("prompt_activations", "local-prompt-management"),
+    ("prompt_language_preferences", "local-prompt-management"),
+    ("prompt_bundles", "local-prompt-management"),
+    ("prompt_bundle_entries", "local-prompt-management"),
+    // 洞见浮现台账（迁移 71）：本机排队/频控/动作状态，对齐 habit_nudge_fires
+    // 的「本机行」定位——卡片消息随 messages 同步，副设备按消息正文就重建
+    // 本机台账，台账本身不进快照。
+    ("digest_insight_surfacings", "local-digest-insight-ledger"),
     // 成员授权与密钥材料：经 enrollment/signed roster 渠道走，不夹带。
     ("sync_authority", "enrollment-channel"),
     ("sync_authority_versions", "enrollment-channel"),
@@ -277,6 +308,9 @@ pub(crate) struct MessageOrder {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum Record {
+    KnowledgeLanguage {
+        value: crate::language::policy::KnowledgeLanguagePolicy,
+    },
     Event {
         value: EventRecord,
         status: String,
@@ -299,6 +333,8 @@ pub(crate) enum Record {
         prompt_version: String,
         result_json: String,
         created_at: String,
+        #[serde(default)]
+        language: Option<crate::language::policy::ArtifactLanguage>,
     },
     Classification {
         id: String,
@@ -392,6 +428,8 @@ pub(crate) enum Record {
         reason: String,
         source_event_id: Option<String>,
         created_at: String,
+        #[serde(default)]
+        language: Option<crate::language::policy::ArtifactLanguage>,
     },
     Todo {
         id: String,
@@ -500,13 +538,16 @@ pub(crate) enum Record {
         updated_at: String,
     },
     /// MCP 服务器定义（迁移 48 平台标签方案）：定义随人走，激活看平台。
-    /// 不含 headers_json（凭据不入快照，与 provider key 同一先例）与
+    /// 不含 headers_json，env_json 仅保留空兼容字段（凭据不入快照）与
     /// trusted（信任是本机事实，apply 强制置 0）。platform 值域
     /// all/linux/macos/windows；接收端 (name,platform) 已有行则本机获胜
     /// （INSERT OR IGNORE 对 id 与 (name,platform) 两个唯一目标都静默跳过）。
     McpServer {
         id: String,
         name: String,
+        /// 旧快照缺省为空；新字段不改变记录标签与快照版本。
+        #[serde(default)]
+        keywords: String,
         platform: String,
         transport: String,
         command: String,
@@ -536,16 +577,17 @@ pub(crate) enum Record {
 // identity or display-order key. Parent messages exist before their children in
 // supported write paths; the importer refuses forward/cyclic parent references.
 pub(crate) const QUERIES: &[&str] = &[
+    "SELECT rowid,json_object('kind','knowledge_language','value',json_object('output_locale',output_locale,'policy_version',policy_version,'generation',generation,'authority_revision',authority_revision,'changed_by',changed_by,'updated_at',updated_at,'dataset_id',dataset_id,'owner_signature',owner_signature)) FROM dataset_content_language WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','event','value',json_object('id',id,'occurred_at',occurred_at,'recorded_at',recorded_at,'raw_text',raw_text,'source',source,'created_at',created_at),'status',status,'processed_at',processed_at,'updated_at',updated_at) FROM events WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','wiki_page','id',id,'slug',slug,'page_kind',kind,'title',title,'summary',summary,'content_md',content_md,'tags',tags,'source_event_ids',source_event_ids,'evidence_count',evidence_count,'first_seen_at',first_seen_at,'last_seen_at',last_seen_at,'status',status,'created_at',created_at,'updated_at',updated_at,'source_url',source_url,'area',area,'based_on',based_on,'content_type',content_type,'human_edited_at',human_edited_at,'opinion',opinion,'knowledge_epoch',knowledge_epoch) FROM wiki_pages WHERE rowid>?1 ORDER BY rowid LIMIT 1",
-    "SELECT rowid,json_object('kind','wiki_revision','id',id,'page_id',page_id,'content_md',content_md,'reason',reason,'source_event_id',source_event_id,'created_at',created_at) FROM wiki_revisions WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','wiki_revision','id',id,'page_id',page_id,'content_md',content_md,'reason',reason,'source_event_id',source_event_id,'created_at',created_at,'language',json((SELECT metadata_json FROM knowledge_artifact_languages WHERE artifact_kind='wiki_revision' AND artifact_id=wiki_revisions.id))) FROM wiki_revisions WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','knowledge_review','fingerprint',fingerprint,'page_id',page_id,'resolution',resolution,'created_at',created_at,'issue_description',issue_description) FROM knowledge_maintenance_reviews WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','knowledge_reading_state','page_id',page_id,'state',state,'updated_at',updated_at) FROM knowledge_reading_states WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','wiki_asset','rel',rel,'sha256',sha256,'mime',mime,'size',size) FROM wiki_assets WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','conversation','value',json_object('id',id,'title',title,'tag',tag,'archived',json(CASE WHEN archived=1 THEN 'true' ELSE 'false' END),'wiki_page_slug',wiki_page_slug,'goal_id',goal_id,'assistant_mode',assistant_mode,'created_at',created_at,'updated_at',updated_at)) FROM conversations WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT m.rowid,json_object('kind','message','value',json_object('id',m.id,'conversation_id',m.conversation_id,'parent_message_id',m.parent_message_id,'role',m.role,'content',m.content,'created_at',m.created_at,'kind',m.kind,'ref',m.ref,'input_message_id',(SELECT input_message_id FROM message_response_links WHERE message_id=m.id)),'order',CASE WHEN s.message_id IS NULL THEN NULL ELSE json_object('origin_stream_id',s.origin_stream_id,'origin_sequence',s.origin_sequence,'logical_clock',s.logical_clock,'input_message_id',s.input_message_id) END) FROM messages m JOIN conversations c ON c.id=m.conversation_id LEFT JOIN sync_message_order s ON s.message_id=m.id WHERE m.rowid>?1 ORDER BY m.rowid LIMIT 1",
     "SELECT i.rowid,json_object('kind','input','value',json_object('id',i.id,'raw_text',i.raw_text,'source',i.source,'event_id',i.event_id,'message_id',i.message_id,'created_at',i.created_at)) FROM input_records i WHERE i.rowid>?1 AND i.event_id IS NOT NULL AND (i.message_id IS NULL OR EXISTS(SELECT 1 FROM messages m WHERE m.id=i.message_id)) ORDER BY i.rowid LIMIT 1",
-    "SELECT rowid,json_object('kind','analysis','id',id,'event_id',event_id,'prompt_version',prompt_version,'result_json',result_json,'created_at',created_at) FROM event_analyses WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','analysis','id',id,'event_id',event_id,'prompt_version',prompt_version,'result_json',result_json,'created_at',created_at,'language',json((SELECT metadata_json FROM knowledge_artifact_languages WHERE artifact_kind='analysis' AND artifact_id=event_analyses.id))) FROM event_analyses WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','classification','id',id,'event_id',event_id,'recordable',json(CASE WHEN recordable=1 THEN 'true' ELSE 'false' END),'event_kind',kind,'reason',reason,'created_at',created_at) FROM event_recordability_decisions WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','todo','id',id,'title',title,'status',status,'priority',priority,'due_at',due_at,'reminder',(reminder!=0),'related_event_id',related_event_id,'related_wiki_slug',related_wiki_slug,'note',note,'created_at',created_at,'updated_at',updated_at) FROM todos WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     "SELECT rowid,json_object('kind','habit_nudge','value',json_object('id',id,'page_slug',page_slug,'question',question,'done_label',done_label,'done_text',done_text,'missed_label',missed_label,'missed_text',missed_text,'weekdays',weekdays,'local_time',local_time,'enabled',json(CASE WHEN enabled=1 THEN 'true' ELSE 'false' END),'created_at',created_at,'updated_at',updated_at)) FROM habit_nudges WHERE rowid>?1 ORDER BY rowid LIMIT 1",
@@ -567,7 +609,7 @@ pub(crate) const QUERIES: &[&str] = &[
     "SELECT rowid,json_object('kind','skill_tombstone','skill_id',skill_id,'updated_at',updated_at) FROM skill_tombstones WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     // MCP 定义（迁移 48）：headers_json 不导出（凭据不离本机）；trusted
     // 同理不入快照——apply 时强制置 0。
-    "SELECT rowid,json_object('kind','mcp_server','id',id,'name',name,'platform',platform,'transport',transport,'command',command,'args_json',args_json,'env_json',env_json,'url',url,'enabled',json(CASE WHEN enabled=1 THEN 'true' ELSE 'false' END),'created_at',created_at,'updated_at',updated_at) FROM mcp_servers WHERE rowid>?1 ORDER BY rowid LIMIT 1",
+    "SELECT rowid,json_object('kind','mcp_server','id',id,'name',name,'keywords',keywords,'platform',platform,'transport',transport,'command',command,'args_json',args_json,'env_json','{}','url',url,'enabled',json(CASE WHEN enabled=1 THEN 'true' ELSE 'false' END),'created_at',created_at,'updated_at',updated_at) FROM mcp_servers WHERE rowid>?1 ORDER BY rowid LIMIT 1",
     // 负知识（摘录孵化闭环）：reject_reason 跨设备（接收端提示「你否定过
     // 这条来源」）；opinion 与 wiki_pages 双写外的台账面。
     "SELECT rowid,json_object('kind','knowledge_source','id',id,'identity',identity,'source_kind',kind,'locator',locator,'opinion',opinion,'reject_reason',reject_reason,'created_at',created_at) FROM knowledge_sources WHERE rowid>?1 ORDER BY rowid LIMIT 1",

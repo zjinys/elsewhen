@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 
 import '../bridge/api.dart' as api;
@@ -38,21 +40,22 @@ class _SyncWikiConflictsSettingsState extends State<SyncWikiConflictsSettings> {
         final conflicts = controller.conflicts;
         return SyncConflictSection(
           icon: Icons.menu_book_outlined,
-          title: '知识库同步冲突',
+          title: context.l10n.l6KnowledgeSyncConflicts67265,
           explainer:
-              '来自其他设备的知识页改动与本端互相冲突。选择「保留本端」或「采纳对端」，不做字段拼接。',
+              context.l10n.l6KnowledgeChangesFromAnotherDeviceConflict5a183,
           loaded: conflicts != null,
           busy: controller.busy,
           error: controller.error,
-          emptyText: '没有待审阅的知识库同步冲突。',
+          emptyText: context.l10n.l6NoKnowledgeSyncConflictsNeedReview2246e,
           cards: [
-            for (final conflict in conflicts ?? const []) _WikiConflictCard(
-              key: ValueKey(conflict.opId),
-              conflict: conflict,
-              busy: controller.busy,
-              onResolve: (acceptRemote) =>
-                  controller.resolve(conflict, acceptRemote: acceptRemote),
-            ),
+            for (final conflict in conflicts ?? const [])
+              _WikiConflictCard(
+                key: ValueKey(conflict.opId),
+                conflict: conflict,
+                busy: controller.busy,
+                onResolve: (acceptRemote) =>
+                    controller.resolve(conflict, acceptRemote: acceptRemote),
+              ),
           ],
         );
       },
@@ -60,11 +63,13 @@ class _SyncWikiConflictsSettingsState extends State<SyncWikiConflictsSettings> {
   }
 }
 
-String _reasonText(String reason) => switch (reason) {
-  'wiki_page_deleted' => '对端已删除本页，而本端之后仍有改动要送达',
-  'wiki_page_rename_diverged' => '两端把本页改名到了不同标题',
-  'slug_owned_by_other_id' => '对端的新路径与本端另一页重名',
-  'base_revision_changed' => '对端的修改基于旧版本，本页已先变过',
+String _reasonText(BuildContext context, String reason) => switch (reason) {
+  'wiki_page_deleted' => context.l10n.l6TheIncomingVersionDeletesThisPagec27d8,
+  'wiki_page_rename_diverged' =>
+    context.l10n.l6BothDevicesRenamedThisPageDifferently200f1,
+  'slug_owned_by_other_id' =>
+    context.l10n.l6TheIncomingPathConflictsWithAnother49464,
+  'base_revision_changed' => context.l10n.l6TheIncomingEditIsBasedOnf0ddf,
   _ => reason,
 };
 
@@ -91,12 +96,15 @@ class _WikiConflictCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '来自 ${conflict.senderDeviceName ?? conflict.senderDeviceId} 的改动',
+              context.l10n.l6ChangesFromArg0710df(
+                (conflict.senderDeviceName ?? conflict.senderDeviceId)
+                    .toString(),
+              ),
               style: theme.textTheme.titleSmall,
             ),
             const SizedBox(height: 4),
             Text(
-              _reasonText(conflict.reason),
+              _reasonText(context, conflict.reason),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.tertiary,
               ),
@@ -105,7 +113,9 @@ class _WikiConflictCard extends StatelessWidget {
             SyncConflictSides(
               children: [
                 _SideView(
-                  title: conflict.localHeadDeleted ? '本端（已删除 State）' : '本端当前',
+                  title: conflict.localHeadDeleted
+                      ? context.l10n.l6LocalVersionDeleted25fe7
+                      : context.l10n.syncLocalCurrent,
                   slug: conflict.local?.slug,
                   title_: conflict.local?.title,
                   summary: null,
@@ -114,7 +124,7 @@ class _WikiConflictCard extends StatelessWidget {
                   deleted: conflict.localHeadDeleted,
                 ),
                 _SideView(
-                  title: '对端送来的版本',
+                  title: context.l10n.syncIncomingVersion,
                   slug: conflict.incomingSlug,
                   title_: conflict.incomingTitle,
                   summary: conflict.incomingSummary.isEmpty
@@ -134,12 +144,12 @@ class _WikiConflictCard extends StatelessWidget {
               children: [
                 OutlinedButton.icon(
                   icon: const Icon(Icons.computer_outlined),
-                  label: const Text('保留本端'),
+                  label: Text(context.l10n.syncKeepLocal),
                   onPressed: busy ? null : () => onResolve(false),
                 ),
                 FilledButton.icon(
                   icon: const Icon(Icons.cloud_download_outlined),
-                  label: const Text('采纳对端'),
+                  label: Text(context.l10n.syncAcceptIncoming),
                   onPressed: busy ? null : () => onResolve(true),
                 ),
               ],
@@ -181,7 +191,10 @@ class _SideView extends StatelessWidget {
         children: [
           Text(title, style: theme.textTheme.labelLarge),
           const SizedBox(height: 4),
-          Text('（本端没有该页）', style: theme.textTheme.bodySmall),
+          Text(
+            context.l10n.l6ThisPageDoesNotExistLocallya6853,
+            style: theme.textTheme.bodySmall,
+          ),
         ],
       );
     }
@@ -191,13 +204,18 @@ class _SideView extends StatelessWidget {
         Text(title, style: theme.textTheme.labelLarge),
         const SizedBox(height: 4),
         Text(
-          deleted ? '已删除' : (title_ ?? '（无标题）'),
+          deleted
+              ? context.l10n.syncDeleted
+              : (title_ ?? context.l10n.l6Untitledd8f9b),
           style: theme.textTheme.bodyMedium,
         ),
         if (!deleted && slug != null)
           SelectableText(slug!, style: theme.textTheme.bodySmall),
         if (renamedFrom != null)
-          Text('由「$renamedFrom」改名而来', style: theme.textTheme.bodySmall),
+          Text(
+            context.l10n.l6RenamedFromArg0e3178((renamedFrom).toString()),
+            style: theme.textTheme.bodySmall,
+          ),
         if (summary != null && summary!.isNotEmpty)
           Text(
             summary!,
@@ -207,7 +225,10 @@ class _SideView extends StatelessWidget {
           ),
         if (!deleted && contentMdLen != null)
           Text(
-            '正文 ${contentMdLen!} 字 · 更新 ${updatedAt ?? '-'}',
+            context.l10n.l6ContentLengthArg0CharactersUpdatedArg1f8788(
+              (contentMdLen!).toString(),
+              (updatedAt ?? '-').toString(),
+            ),
             style: theme.textTheme.bodySmall,
           ),
       ],

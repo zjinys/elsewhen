@@ -40,6 +40,8 @@ pub struct McpToolInfo {
     pub name: String,
     pub server: String,
     pub server_id: String,
+    /// 本机配置的服务级关联意图，与上游工具描述独立。
+    pub keywords: String,
     pub raw_name: String,
     pub description: String,
     pub parameters: Value,

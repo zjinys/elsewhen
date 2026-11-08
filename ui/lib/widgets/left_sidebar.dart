@@ -1,9 +1,12 @@
+import 'package:intl/intl.dart';
+
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+
+import '../utils/pretty_time.dart';
 
 import 'app_pressable.dart';
 
@@ -19,6 +22,7 @@ import '../theme/app_theme.dart';
 import 'sync_workspace.dart';
 import 'goal_view.dart' show GoalWorkbenchPanel;
 import '../bridge/rust_bridge_repository.dart';
+import '../l10n/localization.dart';
 
 part 'left_sidebar_parts/sidebar_rail.dart';
 part 'left_sidebar_parts/sidebar_wiki_tab.dart';
@@ -89,8 +93,7 @@ class LeftSidebar extends ConsumerWidget {
     // 注：抽屉形态（compact，<700）总是用宽侧栏，由 Drawer 约束决定。
     final width = MediaQuery.maybeSizeOf(context)?.width ?? 1024;
     final isDesktop =
-        !kIsWeb &&
-        (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
+        !kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
     final rail = isDesktop && width >= 700 && width < 1024;
     if (rail) return const _SidebarRail();
 
@@ -134,7 +137,8 @@ class LeftSidebar extends ConsumerWidget {
       // 启动期占位：静默空白——FFI 库装载 + DB 打开通常亚秒级，
       // spinner 转一圈反而制造「在等什么」的错觉；数据到位即浮现。
       loading: () => const SizedBox.expand(),
-      error: (error, stack) => Center(child: Text('对话加载失败')),
+      error: (error, stack) =>
+          Center(child: Text(context.l10n.conversationLoadFailed)),
       data: (conversation) {
         if (ref.read(selectedConversationIdProvider) != conversation.id) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -161,7 +165,7 @@ class LeftSidebar extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Text(
-                '最近使用',
+                context.l10n.recentlyUsed,
                 style: TextStyle(
                   color: AppTheme.textTertiary,
                   fontSize: 12,
@@ -174,7 +178,7 @@ class LeftSidebar extends ConsumerWidget {
                   ? Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
-                        '还没有最近使用的页面',
+                        context.l10n.noRecentPages,
                         style: TextStyle(
                           color: AppTheme.textTertiary,
                           fontSize: 12,
@@ -202,7 +206,7 @@ class LeftSidebar extends ConsumerWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                             subtitle: Text(
-                              page.kindLabel,
+                              context.pageKindLabel(page.kind),
                               style: TextStyle(
                                 fontSize: 11,
                                 color: AppTheme.textTertiary,
@@ -265,7 +269,7 @@ List<_FooterAction> _footerActions(
   return [
     _FooterAction(
       icon: Icons.chat_bubble_outline,
-      label: '对话',
+      label: context.l10n.conversation,
       isActive: activeTab == SidebarTab.conversation,
       iconOnly: iconOnly,
       showDot: hasUnreadHabit && !viewingMain,
@@ -281,7 +285,7 @@ List<_FooterAction> _footerActions(
     ),
     _FooterAction(
       icon: Icons.menu_book_outlined,
-      label: '知识',
+      label: context.l10n.knowledge,
       isActive: activeTab == SidebarTab.wiki,
       iconOnly: iconOnly,
       onTap: () {
@@ -293,7 +297,7 @@ List<_FooterAction> _footerActions(
     // 入口），主区是选中目标的详情与 AI 讨论。
     _FooterAction(
       icon: Icons.flag_outlined,
-      label: '目标',
+      label: context.l10n.goals,
       isActive: activeTab == SidebarTab.goal,
       iconOnly: iconOnly,
       onTap: () {
@@ -305,7 +309,7 @@ List<_FooterAction> _footerActions(
     // docs/roadmap/2026-10-15-review-and-goal-deviation-roadmap.md。
     _FooterAction(
       icon: Icons.auto_awesome_outlined,
-      label: '回顾',
+      label: context.l10n.review,
       isActive: activeTab == SidebarTab.review,
       iconOnly: iconOnly,
       onTap: () {
@@ -316,7 +320,7 @@ List<_FooterAction> _footerActions(
     // 单入口：主区放完整 LocalSyncSettings 工作区，设置页的同步 tab 已删。
     _FooterAction(
       icon: Icons.devices_outlined,
-      label: '同步',
+      label: context.l10n.sync,
       isActive: activeTab == SidebarTab.sync,
       iconOnly: iconOnly,
       onTap: () {
@@ -327,7 +331,7 @@ List<_FooterAction> _footerActions(
     // 标题栏右上角按钮等价。抽屉里打开时先关抽屉再进设置页。
     _FooterAction(
       icon: Icons.settings_outlined,
-      label: '设置',
+      label: context.l10n.settings,
       isActive: false,
       iconOnly: iconOnly,
       onTap: () async {

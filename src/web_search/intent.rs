@@ -102,5 +102,53 @@ pub(crate) fn search_signal(text: &str) -> Option<SearchSignal> {
     if TIMELY.iter().any(|w| t.contains(w)) {
         return Some(SearchSignal::Timely);
     }
-    None
+    english_search_signal(text)
+}
+
+fn english_search_guard(clause: &str) -> bool {
+    clause
+        .split(|c: char| !c.is_alphanumeric() && c != '\'')
+        .any(|word| {
+            matches!(
+                word,
+                "not" | "never" | "don't" | "doesn't" | "didn't" | "without" | "example"
+            )
+        })
+}
+
+fn english_search_signal(text: &str) -> Option<crate::web_search::SearchSignal> {
+    let clauses = crate::language::runtime::prose(text);
+    let clauses = clauses
+        .split(['.', '!', '?', ';', '。', '！', '？'])
+        .map(str::trim)
+        .collect::<Vec<_>>();
+    for clause in &clauses {
+        if english_search_guard(clause) {
+            continue;
+        }
+        if [
+            "search the web",
+            "search online",
+            "web search",
+            "look online",
+            "look it up online",
+            "look up",
+            "google ",
+            "find online",
+        ]
+        .iter()
+        .any(|phrase| clause.contains(phrase))
+        {
+            return Some(crate::web_search::SearchSignal::Direct);
+        }
+    }
+    clauses
+        .iter()
+        .filter(|clause| !english_search_guard(clause))
+        .any(|clause| {
+            clause
+                .split(|c: char| !c.is_alphanumeric())
+                .any(|word| matches!(word, "latest" | "today" | "yesterday" | "news" | "recent"))
+        })
+        .then_some(crate::web_search::SearchSignal::Timely)
 }

@@ -94,7 +94,6 @@ fn supplements_enter_only_the_request_after_a_completed_tool_exchange() {
             id: run.id.clone(),
             owner: "owner".into(),
             started_at: std::time::Instant::now(),
-            
         });
         let provider = SteeringProvider {
             store: &store,
@@ -151,7 +150,6 @@ fn supplements_enter_only_the_request_after_a_completed_tool_exchange() {
                 id: retry.id,
                 owner: "next".into(),
                 started_at: std::time::Instant::now(),
-                
             });
             let mut retry_context = vec![ContextMessage::new("user", "整理材料")];
             super::super::supplements::restore(&retry_store, &conversation, &mut retry_context)
@@ -190,7 +188,7 @@ fn giant_supplement_is_clipped_with_honest_marker_at_mount() {
             .as_nanos()
     ));
     let store = crate::storage::Store::open(&path).unwrap();
-    let message = super::super::supplements::context(&store, &input);
+    let message = super::super::supplements::context(&store, &input).unwrap();
     let content = message.content;
     assert!(
         content.chars().count() < original_chars,
@@ -202,7 +200,7 @@ fn giant_supplement_is_clipped_with_honest_marker_at_mount() {
         content: "把报告只保留项目相关部分。".into(),
         ..input.clone()
     };
-    let small_message = super::super::supplements::context(&store, &small);
+    let small_message = super::super::supplements::context(&store, &small).unwrap();
     assert!(small_message.content.contains("把报告只保留项目相关部分。"));
     assert!(!small_message.content.contains("已按挂载上限截断"));
 }
@@ -237,7 +235,7 @@ fn page_reference_supplement_expands_summaries_and_discloses_missing() {
         basis: String::new(),
         context_json: "{}".into(),
     };
-    let message = super::super::supplements::context(&store, &input);
+    let message = super::super::supplements::context(&store, &input).unwrap();
     let content = message.content;
     // 每页挂摘要 + 取回路径，不带全文（正文末段必须缺席）
     assert!(content.contains(&page.title), "应展开页面标题");
@@ -256,7 +254,62 @@ fn page_reference_supplement_expands_summaries_and_discloses_missing() {
         content: "普通补充说明".into(),
         ..input.clone()
     };
-    let plain_message = super::super::supplements::context(&store, &plain);
+    let plain_message = super::super::supplements::context(&store, &plain).unwrap();
     assert!(plain_message.content.contains("普通补充说明"));
     assert!(!plain_message.content.contains("知识引用展开"));
+}
+
+#[test]
+fn english_supplement_mount_keeps_snapshot_original_words_and_review_discipline() {
+    let path = std::env::temp_dir().join(format!(
+        "elsewhen-english-supplement-{}.db",
+        uuid::Uuid::new_v4()
+    ));
+    let store = Store::open(&path).unwrap();
+    store
+        .save_prompt_language_preferences(Some("en"), "fixed", Some("en"), 0)
+        .unwrap();
+    let _scope = store.prompt_scope("preview", "english-supplement").unwrap();
+    let input = crate::storage::chat_supplements::ChatSupplement {
+        queue_id: 1,
+        input_id: "language-supplement".into(),
+        content: "@wiki(missing-page)\n保留用户原话 <<body>> {{secret:key}}".into(),
+        created_at: "2026-11-07T00:00:00Z".into(),
+        basis: String::new(),
+        context_json: "{}".into(),
+    };
+    store
+        .save_prompt_language_preferences(Some("zh-Hans"), "fixed", Some("zh-Hans"), 1)
+        .unwrap();
+    let mounted = super::super::supplements::context(&store, &input).unwrap();
+    assert!(mounted.content.starts_with("[Explicit user supplement"));
+    assert!(
+        mounted
+            .content
+            .contains("It is not approval of any business action or rule")
+    );
+    assert!(mounted.content.contains("@wiki(missing-page)"));
+    assert!(mounted.content.contains("missing or deleted"));
+    assert!(
+        mounted
+            .content
+            .contains("保留用户原话 <<body>> {{secret:key}}")
+    );
+    assert_eq!(
+        mounted.segment.purpose,
+        crate::ai::memory::SegmentPurpose::TaskSupplement
+    );
+    let large = crate::storage::chat_supplements::ChatSupplement {
+        content: "原始补充材料".repeat(10000),
+        ..input.clone()
+    };
+    let clipped = super::super::supplements::context(&store, &large).unwrap();
+    assert!(
+        clipped
+            .content
+            .contains("Supplement exceeded the mounting limit")
+    );
+    assert!(clipped.content.chars().count() < large.content.chars().count());
+    assert!(large.content.ends_with("原始补充材料"));
+    assert!(store.list_events().unwrap().is_empty());
 }

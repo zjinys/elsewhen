@@ -136,3 +136,29 @@ fn escalated_full_revision_task_passes_validation_and_revises() {
         "unexpected body: {body}"
     );
 }
+
+#[test]
+fn english_page_edits_require_an_unnegated_request_and_preserve_questions() {
+    for text in [
+        "Please revise this page.",
+        "Update this page with the corrected date.",
+        "Edit the selected paragraph.",
+        "Please rewrite this page using the existing facts.",
+    ] {
+        assert!(explicit_page_revision_intent(text), "{text}");
+    }
+    for text in [
+        "Do not update this page.",
+        "Please don't edit this page.",
+        "Could you revise this page without changing the facts?",
+        "How do I update this page.",
+        "If you update this page, explain the consequences.",
+        "Example: update this page.",
+        "Yesterday I edited this page.",
+        "The article says \"update this page\".",
+        "```text\nEdit this page.\n```",
+        "> Please update this page.",
+    ] {
+        assert!(!explicit_page_revision_intent(text), "{text}");
+    }
+}

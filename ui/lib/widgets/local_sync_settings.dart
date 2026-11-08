@@ -1,3 +1,6 @@
+import 'app_error_notice.dart';
+import '../l10n/localization.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -76,7 +79,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
   _SyncTab _tab = _SyncTab.bind;
   bool _repairBusy = false;
   bool _tabTouched = false;
-  final _name = TextEditingController(text: '这台设备');
+  final _name = TextEditingController(text: 'This device');
   late final SyncProviderConflictsController _conflicts;
   late final bool _ownsConflicts;
   late final SyncWikiConflictsController _wikiConflicts;
@@ -93,7 +96,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
     super.initState();
     // 缺省设备名用真机器名；用户已改过名将保持原值。
     defaultDeviceName().then((name) {
-      if (name != null && mounted && _name.text == '这台设备') {
+      if (name != null && mounted && _name.text == 'This device') {
         setState(() => _name.text = name);
       }
     });
@@ -127,7 +130,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
   Widget build(BuildContext context) {
     final controller = widget.controller;
     if (controller == null) {
-      return const Text('当前存储后端不支持设备同步。');
+      return Text(context.l10n.l6TheCurrentStorageBackendDoesNot2cb78);
     }
     return ListenableBuilder(
       listenable: controller,
@@ -146,12 +149,16 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
         // —— 状态头卡：用户最关心的三件事（是否开启 / 本机是谁 / 用哪个
         // relay）放最上面，一眼可见；诊断细节收进高级区。——
         final statusLine = switch (state?.state) {
-          'local_ready' => '同步已开启',
-          'locked' => '同步已暂停（本机密钥已锁定）',
-          'membership_inactive' => '同步已关闭（本机未被授权）',
-          'requires_repair' => '同步需要修复',
-          'not_configured' => '同步未开启',
-          _ => controller.error == null ? '正在读取同步状态' : '同步状态暂不可用',
+          'local_ready' => context.l10n.l6SyncIsEnabled210fe,
+          'locked' => context.l10n.l6SyncIsPausedThisDeviceS7fecc,
+          'membership_inactive' =>
+            context.l10n.l6SyncIsDisabledThisDeviceIs6aad5,
+          'requires_repair' => context.l10n.l6SyncNeedsRepair8e4fa,
+          'not_configured' => context.l10n.l6SyncIsNotEnabledbccba,
+          _ =>
+            controller.error == null
+                ? context.l10n.l6LoadingSyncStatus861b0
+                : context.l10n.l6SyncStatusIsUnavailable0971a,
         };
         // 角色用用户语言：主设备=创建数据集的设备；「负责后台 AI 分析」
         // 是 processor 的职责说明（内部术语「发起/加工」曾让用户看不懂）。
@@ -159,10 +166,12 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
           state?.isOwner ?? false,
           state?.isProcessor ?? false,
         )) {
-          (true, true) => '主设备 · 负责后台 AI 分析',
-          (true, false) => '主设备',
-          (false, true) => '成员设备 · 负责后台 AI 分析',
-          (false, false) => '成员设备',
+          (true, true) =>
+            context.l10n.l6OwnerDeviceRunsBackgroundAiAnalysis73dc6,
+          (true, false) => context.l10n.l6OwnerDevicede929,
+          (false, true) =>
+            context.l10n.l6MemberDeviceRunsBackgroundAiAnalysisf055d,
+          (false, false) => context.l10n.l6MemberDevicee071b,
         };
 
         return Column(
@@ -220,7 +229,11 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                   if (configured) ...[
                     const SizedBox(height: 8),
                     Text(
-                      '本机：${state.deviceName ?? '未命名设备'} · $roleLabel',
+                      context.l10n.l6ThisDeviceArg0Arg1ab420(
+                        (state.deviceName ?? context.l10n.l6UnnamedDevice008d5)
+                            .toString(),
+                        (roleLabel).toString(),
+                      ),
                       style: theme.textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 4),
@@ -239,8 +252,9 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
               const SizedBox(height: 12),
               Semantics(
                 liveRegion: true,
-                child: Text(
-                  controller.error!,
+                child: AppErrorMessage(
+                  error: controller.error!,
+                  action: context.l10n.load,
                   style: TextStyle(color: theme.colorScheme.error),
                 ),
               ),
@@ -271,15 +285,15 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
               ),
             const SizedBox(height: 12),
             SegmentedButton<_SyncTab>(
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: _SyncTab.bind,
-                  label: Text('绑定'),
+                  label: Text(context.l10n.l6Pairing6aed7),
                   icon: Icon(Icons.link_outlined),
                 ),
                 ButtonSegment(
                   value: _SyncTab.manage,
-                  label: Text('管理'),
+                  label: Text(context.l10n.l6Manage4989b),
                   icon: Icon(Icons.tune_outlined),
                 ),
               ],
@@ -321,14 +335,15 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
       decoration: BoxDecoration(
         color: theme.colorScheme.errorContainer.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: theme.colorScheme.error.withValues(alpha: 0.4)),
+        border: Border.all(
+          color: theme.colorScheme.error.withValues(alpha: 0.4),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '本机的同步身份不完整（常见于配对过程中断、掉电或恢复备份）。'
-            '可以清除本机同步身份后重新配对 —— 笔记、对话、知识库都会保留。',
+            context.l10n.l6ThisDeviceSSyncIdentityIs46884,
             style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: 10),
@@ -339,7 +354,11 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                   ? null
                   : () => _confirmClearLocalSyncIdentity(theme, controller),
               icon: const Icon(Icons.build_circle_outlined, size: 18),
-              label: Text(_repairBusy ? '正在清除…' : '清除本机同步身份'),
+              label: Text(
+                _repairBusy
+                    ? context.l10n.l6Clearingf54a6
+                    : context.l10n.l6ClearThisDeviceSSyncIdentityab953,
+              ),
             ),
           ),
         ],
@@ -368,27 +387,29 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
     }
     if (!mounted) return;
     final keyLine = migratable
-        ? '· 已保存的 Provider API Key 会自动保留（重新配对后自动迁移）；'
-        : '· 已保存的 Provider API Key 会失效，需要重新填写；';
+        ? context.l10n.l6SavedProviderApiKeysArePreservedb2ce9
+        : context.l10n.l6SavedProviderApiKeysWillStop714a6;
     final acknowledgeLabel = migratable
-        ? '我已知晓，本机需要重新配对才能同步'
-        : '我已知晓，Provider API Key 需要重新填写';
+        ? context.l10n.l6IUnderstandThatThisDeviceMust3caf2
+        : context.l10n.l6IUnderstandThatProviderApiKeys4b028;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialog) => StatefulBuilder(
         builder: (dialog, setInner) => AlertDialog(
-          title: const Text('清除本机同步身份？'),
+          title: Text(context.l10n.l6ClearThisDeviceSSyncIdentityf7c83),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('清除后：'),
+              Text(context.l10n.l6AfterClearing12369),
               const SizedBox(height: 6),
-              const Text('· 本机退出当前数据集，需要重新配对或重新加入才能再同步；'),
+              Text(context.l10n.l6ThisDeviceLeavesTheDatasetAnd73b97),
               Text(keyLine),
-              const Text('· 还没同步到其它设备的改动不会自动补发。'),
+              Text(context.l10n.l6ChangesNotYetSyncedToOther8c274),
               const SizedBox(height: 6),
-              const Text('笔记、对话、知识库不会被删除。'),
+              Text(
+                context.l10n.l6NotesConversationsAndKnowledgeArePreserved9b3e9,
+              ),
               const SizedBox(height: 8),
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
@@ -402,13 +423,13 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialog).pop(false),
-              child: const Text('取消'),
+              child: Text(context.l10n.cancel),
             ),
             FilledButton(
               onPressed: acknowledged
                   ? () => Navigator.of(dialog).pop(true)
                   : null,
-              child: const Text('清除并重新配对'),
+              child: Text(context.l10n.l6ClearAndPairAgain845d1),
             ),
           ],
         ),
@@ -424,7 +445,9 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text('清除失败：$error')),
+        SnackBar(
+          content: AppErrorMessage(error: error, action: context.l10n.delete),
+        ),
       );
     } finally {
       if (mounted) setState(() => _repairBusy = false);
@@ -448,7 +471,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
           cursorColor: AppTheme.accentPrimary,
           // 计数器会把按钮基线拖歪，且与全应用其他表单不一致。
           decoration: AppTheme.fieldDecoration(
-            hintText: '设备名称',
+            hintText: context.l10n.l6DeviceName4433e,
             prefixIcon: Icon(
               Icons.badge_outlined,
               size: 16,
@@ -460,7 +483,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
       const SizedBox(width: 8),
       FilledButton.icon(
         icon: const Icon(Icons.key_outlined),
-        label: const Text('准备本机'),
+        label: Text(context.l10n.l6PrepareThisDevice9d671),
         onPressed: controller.busy
             ? null
             : () => _confirmPrepareOwner(controller),
@@ -474,18 +497,16 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
     final agreed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('准备本机加入同步？'),
-        content: const Text(
-          '我理解：后续授权设备加入时，会共享所有 Provider 配置和 API Key。',
-        ),
+        title: Text(context.l10n.l6PrepareThisDeviceForSyncee24c),
+        content: Text(context.l10n.l6IUnderstandThatAuthorizedDevicesWill1e411),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('我理解并准备'),
+            child: Text(context.l10n.l6IUnderstandPrepareThisDevice9598b),
           ),
         ],
       ),
@@ -513,7 +534,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
         if (!configured && state != null && !controller.previewEnabled) ...[
           const SizedBox(height: 12),
           Text(
-            '设备同步已在当前构建中关闭（编译开关 ELSEWHEN_SYNC_PREVIEW）。',
+            context.l10n.l6DeviceSyncIsDisabledInThise1b42,
             style: theme.textTheme.bodySmall,
           ),
         ],
@@ -542,7 +563,10 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
   ) {
     // 未完成绑定时管理面无事可做——在这里提前返回，恢复 state 的非空提升。
     if (!configured || state == null) {
-      return Text('完成绑定后，这里会显示设备列表与同步管理。', style: theme.textTheme.bodySmall);
+      return Text(
+        context.l10n.l6AfterPairingDeviceListsAndSync6d4f5,
+        style: theme.textTheme.bodySmall,
+      );
     }
     final ready = state.state == 'local_ready';
     return Column(
@@ -556,14 +580,19 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
               roster: _roster.roster,
               onRename: (newName) async {
                 final deviceId = state.deviceId;
-                if (deviceId == null) return '本机设备 ID 不可见，请刷新。';
+                if (deviceId == null) {
+                  return context.l10n.l6DeviceIdIsUnavailableRefreshAnd762d2;
+                }
                 return controller.renameLocalDevice(deviceId, newName);
               },
             ),
           if (ready)
             SyncMembersSettings(controller: _roster)
           else
-            Text('授权其他设备后，这里会显示设备列表。', style: theme.textTheme.bodySmall),
+            Text(
+              context.l10n.l6AuthorizedDevicesAppearHereAfterThey67f15,
+              style: theme.textTheme.bodySmall,
+            ),
           const SizedBox(height: 16),
           if (ready)
             SyncProcessorHandoffSettings(
@@ -590,17 +619,17 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                 OutlinedButton.icon(
                   onPressed: controller.busy ? null : controller.lock,
                   icon: const Icon(Icons.lock_outline),
-                  label: const Text('锁定本机密钥'),
+                  label: Text(context.l10n.l6LockDeviceKeys6ac4e),
                 )
               else if (state.state == 'locked')
                 FilledButton.icon(
                   onPressed: controller.busy ? null : controller.unlock,
                   icon: const Icon(Icons.lock_open_outlined),
-                  label: const Text('解锁本机密钥'),
+                  label: Text(context.l10n.l6UnlockDeviceKeysa84f8),
                 ),
               TextButton(
                 onPressed: controller.busy ? null : controller.refresh,
-                child: const Text('刷新状态'),
+                child: Text(context.l10n.l6RefreshStatus7cc7f),
               ),
             ],
           ),
@@ -609,7 +638,10 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
           ExpansionTile(
             tilePadding: EdgeInsets.zero,
             childrenPadding: const EdgeInsets.only(bottom: 8),
-            title: Text('诊断信息', style: theme.textTheme.titleSmall),
+            title: Text(
+              context.l10n.l6Diagnostics0b673,
+              style: theme.textTheme.titleSmall,
+            ),
             children: [
               Align(
                 alignment: Alignment.centerLeft,
@@ -617,12 +649,18 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '待确认同步操作：${state.pendingOperations}',
+                      context.l10n
+                          .l6SyncOperationsAwaitingConfirmationArg0224a8(
+                            (state.pendingOperations).toString(),
+                          ),
                       style: theme.textTheme.bodySmall,
                     ),
                     if (state.datasetId != null) ...[
                       const SizedBox(height: 4),
-                      Text('数据集标识', style: theme.textTheme.bodySmall),
+                      Text(
+                        context.l10n.l6DatasetId395bc,
+                        style: theme.textTheme.bodySmall,
+                      ),
                       SelectableText(
                         state.datasetId!,
                         style: theme.textTheme.bodySmall,

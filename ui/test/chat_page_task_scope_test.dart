@@ -1,3 +1,5 @@
+import 'package:elsewhen_ui/l10n/app_localizations.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -93,45 +95,53 @@ void main() {
     expect(restored.materials, isEmpty);
   });
 
-  testWidgets(
-    'task selection binds the displayed version until explicit refresh',
-    (tester) async {
-      final repo = MaterialRepository();
-      ChatPageTask? chosen;
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: ChatPageTaskScope(
-              repository: repo,
-              task: ChatPageTask('local_question', [material('😀原文尾部', 'v1')]),
-              onChanged: (value) => chosen = value,
+  for (final locale in [const Locale('zh'), const Locale('en')]) {
+    final strings = lookupAppLocalizations(locale);
+    testWidgets(
+      '${locale.languageCode}: task selection binds the displayed version until explicit refresh',
+      (tester) async {
+        final repo = MaterialRepository();
+        ChatPageTask? chosen;
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: locale,
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: Scaffold(
+              body: ChatPageTaskScope(
+                repository: repo,
+                task: ChatPageTask('local_question', [
+                  material('😀原文尾部', 'v1'),
+                ]),
+                onChanged: (value) => chosen = value,
+              ),
             ),
           ),
-        ),
-      );
-      await tester.tap(find.text('查看 / 选择材料'));
-      await tester.pumpAndSettle();
-      expect(find.text('😀原文尾部'), findsOneWidget);
-      expect(repo.reads, 0);
-      await tester.tap(find.byType(DropdownButton<String>));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('全文总结').last);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('使用显示的版本'));
-      await tester.pumpAndSettle();
-      expect(chosen!.kind, 'full_summary');
-      expect(jsonDecode(chosen!.json)['pages'][0]['revision']['hash'], 'v1');
-      expect(repo.reads, 0);
-      await tester.tap(find.text('查看 / 选择材料'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('明确刷新版本'));
-      await tester.pumpAndSettle();
-      expect(find.text('明确刷新后的原文'), findsOneWidget);
-      await tester.tap(find.text('使用显示的版本'));
-      await tester.pumpAndSettle();
-      expect(jsonDecode(chosen!.json)['pages'][0]['revision']['hash'], 'v2');
-    },
-  );
+        );
+        await tester.tap(find.text(strings.chooseMaterial));
+        await tester.pumpAndSettle();
+        expect(find.text('😀原文尾部'), findsOneWidget);
+        expect(repo.reads, 0);
+        await tester.tap(find.byType(DropdownButton<String>));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(strings.taskFullSummary).last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(strings.useDisplayedRevision));
+        await tester.pumpAndSettle();
+        expect(chosen!.kind, 'full_summary');
+        expect(jsonDecode(chosen!.json)['pages'][0]['revision']['hash'], 'v1');
+        expect(repo.reads, 0);
+        await tester.tap(find.text(strings.chooseMaterial));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(strings.refreshMaterialRevision));
+        await tester.pumpAndSettle();
+        expect(find.text('明确刷新后的原文'), findsOneWidget);
+        await tester.tap(find.text(strings.useDisplayedRevision));
+        await tester.pumpAndSettle();
+        expect(jsonDecode(chosen!.json)['pages'][0]['revision']['hash'], 'v2');
+      },
+    );
+  }
 
   test('independent task carries no page evidence', () {
     final task = ChatPageTask('none', [material('old evidence', 'v1')]);

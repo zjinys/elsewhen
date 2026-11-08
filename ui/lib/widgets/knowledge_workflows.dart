@@ -8,16 +8,24 @@ import '../providers/knowledge_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
+import '../l10n/localization.dart';
+import 'app_error_notice.dart';
 
 part 'knowledge_workflows_parts/knowledge_library.dart';
+
 // ── 知识工作流按阅读控制/库列表拆分（纯类段平移，零行为变化）──
 
-const readingLabels = {
-  'unread': '待读',
-  'read': '已读',
-  'valuable': '值得使用',
-  'adopted': '已采用',
-  'archived': '归档',
+Map<String, String> readingLabels(BuildContext context) => {
+  'unread': context.l10n.readingUnread,
+  'read': context.l10n.readingRead,
+  'valuable': context.l10n.readingValuable,
+  'adopted': context.l10n.readingAdopted,
+  'archived': context.l10n.readingArchived,
+};
+String libraryKindLabel(BuildContext context, String kind) => switch (kind) {
+  'source' => context.l10n.librarySourceKind,
+  'note' => context.l10n.pageKindNote,
+  _ => context.pageKindLabel(kind),
 };
 
 class KnowledgeReadingControl extends ConsumerStatefulWidget {
@@ -28,7 +36,8 @@ class KnowledgeReadingControl extends ConsumerStatefulWidget {
 }
 
 class _ReadingState extends ConsumerState<KnowledgeReadingControl> {
-  String? _value, _error;
+  String? _value;
+  Object? _error;
   bool _busy = false;
   @override
   void initState() {
@@ -43,7 +52,7 @@ class _ReadingState extends ConsumerState<KnowledgeReadingControl> {
           .reading(widget.slug);
       if (mounted) setState(() => _value = value);
     } catch (e) {
-      if (mounted) setState(() => _error = '读取状态失败：$e');
+      if (mounted) setState(() => _error = e);
     }
   }
 
@@ -61,7 +70,7 @@ class _ReadingState extends ConsumerState<KnowledgeReadingControl> {
         notifyKnowledgeChanged(ref);
       }
     } catch (e) {
-      if (mounted) setState(() => _error = '保存状态失败：$e');
+      if (mounted) setState(() => _error = e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -86,15 +95,16 @@ class _ReadingState extends ConsumerState<KnowledgeReadingControl> {
               color: AppTheme.accentPrimary,
             ),
             const SizedBox(width: 8),
-            Text(
-              '阅读与使用',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+            Expanded(
+              child: Text(
+                context.l10n.knowledgeReadingTitle,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
               ),
             ),
-            const Spacer(),
             if (_busy) ...[
               const SizedBox(
                 width: 14,
@@ -127,7 +137,7 @@ class _ReadingState extends ConsumerState<KnowledgeReadingControl> {
                       color: AppTheme.textPrimary,
                     ),
                     dropdownColor: AppTheme.surface2,
-                    items: readingLabels.entries
+                    items: readingLabels(context).entries
                         .map(
                           (e) => DropdownMenuItem(
                             value: e.key,
@@ -147,7 +157,7 @@ class _ReadingState extends ConsumerState<KnowledgeReadingControl> {
         ),
         const SizedBox(height: 6),
         Text(
-          '记录自己的阅读与使用进度；不会改变原文或观点认可状态。',
+          context.l10n.knowledgeReadingHelp,
           style: TextStyle(
             fontSize: 11.5,
             color: AppTheme.textTertiary,
@@ -157,9 +167,9 @@ class _ReadingState extends ConsumerState<KnowledgeReadingControl> {
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Text(
-              _error!,
-              style: TextStyle(fontSize: 12, color: AppTheme.error),
+            child: AppErrorMessage(
+              action: _value == null ? context.l10n.load : context.l10n.save,
+              error: _error!,
             ),
           ),
       ],

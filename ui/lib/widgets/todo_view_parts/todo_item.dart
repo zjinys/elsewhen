@@ -98,7 +98,10 @@ class _TodoItem extends StatelessWidget {
                         (todo.note != null && todo.note!.isNotEmpty) ||
                         onOpenWiki != null) ...[
                       const SizedBox(height: 2),
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           if (onOpenWiki != null)
                             InkWell(
@@ -106,6 +109,7 @@ class _TodoItem extends StatelessWidget {
                               child: Padding(
                                 padding: const EdgeInsets.only(right: 8),
                                 child: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
                                       Icons.menu_book_outlined,
@@ -114,7 +118,7 @@ class _TodoItem extends StatelessWidget {
                                     ),
                                     const SizedBox(width: 3),
                                     Text(
-                                      '知识页',
+                                      context.l10n.knowledgePage,
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: AppTheme.accentPrimary,
@@ -127,27 +131,34 @@ class _TodoItem extends StatelessWidget {
                           if (todo.reminder)
                             Padding(
                               padding: const EdgeInsets.only(right: 8),
-                              child: Icon(Icons.alarm,
-                                  size: 13, color: AppTheme.accentPrimary),
+                              child: Icon(
+                                Icons.alarm,
+                                size: 13,
+                                color: AppTheme.accentPrimary,
+                              ),
                             ),
                           if (todo.dueAt != null && todo.dueAt!.isNotEmpty)
                             Text(
-                              '${todo.reminder ? "提醒" : "截止"} ${_fmtDate(todo.dueAt!)}',
+                              todo.reminder
+                                  ? context.l10n.todoReminderDate(
+                                      _fmtDate(context, todo.dueAt!),
+                                    )
+                                  : context.l10n.todoDueDate(
+                                      _fmtDate(context, todo.dueAt!),
+                                    ),
                               style: TextStyle(
                                 fontSize: 11,
                                 color: AppTheme.textTertiary,
                               ),
                             ),
                           if (todo.note != null && todo.note!.isNotEmpty)
-                            Expanded(
-                              child: Text(
-                                todo.note!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppTheme.textTertiary,
-                                ),
+                            Text(
+                              todo.note!,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.textTertiary,
                               ),
                             ),
                         ],
@@ -186,7 +197,7 @@ class _TodoItem extends StatelessWidget {
                         ),
                         const SizedBox(width: AppTheme.space2),
                         Text(
-                          '编辑',
+                          context.l10n.edit,
                           style: TextStyle(color: AppTheme.textPrimary),
                         ),
                       ],
@@ -203,7 +214,7 @@ class _TodoItem extends StatelessWidget {
                         ),
                         const SizedBox(width: AppTheme.space2),
                         Text(
-                          '删除',
+                          context.l10n.delete,
                           style: TextStyle(color: AppTheme.textPrimary),
                         ),
                       ],
@@ -218,10 +229,10 @@ class _TodoItem extends StatelessWidget {
     );
   }
 
-  String _fmtDate(String iso) {
+  String _fmtDate(BuildContext context, String iso) {
     final t = DateTime.tryParse(iso);
     if (t == null) return iso;
     final l = t.toLocal();
-    return '${l.month}-${l.day.toString().padLeft(2, '0')}';
+    return MaterialLocalizations.of(context).formatCompactDate(l);
   }
 }

@@ -228,9 +228,7 @@ class AppTheme {
         elevation: 6,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusMedium),
-          side: BorderSide(
-            color: palette.surface3.withValues(alpha: 0.8),
-          ),
+          side: BorderSide(color: palette.surface3.withValues(alpha: 0.8)),
         ),
       ),
       snackBarTheme: SnackBarThemeData(

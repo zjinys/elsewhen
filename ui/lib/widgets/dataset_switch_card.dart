@@ -1,3 +1,7 @@
+import '../l10n/notice_messages.dart';
+import 'app_error_notice.dart';
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 
 import '../bridge/api.dart' as api;
@@ -76,7 +80,7 @@ class _DatasetSwitchCardState extends State<DatasetSwitchCard> {
       });
     } catch (error) {
       if (!mounted || _switchedName != null) return;
-      setState(() => _error = '查询数据集失败：$error');
+      setState(() => _error = appFailure(error));
     } finally {
       _checking = false;
     }
@@ -101,7 +105,7 @@ class _DatasetSwitchCardState extends State<DatasetSwitchCard> {
       if (!mounted) return;
       setState(() {
         _switching = false;
-        _error = '切换失败（需先解锁本机同步密钥）：$error';
+        _error = appFailure(error);
       });
     }
   }
@@ -116,7 +120,9 @@ class _DatasetSwitchCardState extends State<DatasetSwitchCard> {
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              '已切换到「$_switchedName」。请完全退出并重新打开应用，即可看到同步的数据。',
+              context.l10n.l6SwitchedToArg0QuitAndReopenc2285(
+                (_switchedName).toString(),
+              ),
               style: theme.textTheme.bodySmall,
             ),
           ),
@@ -147,8 +153,12 @@ class _DatasetSwitchCardState extends State<DatasetSwitchCard> {
               Expanded(
                 child: Text(
                   _pending.length == 1
-                      ? '已加入数据集「${_pending.first.name}」，其数据尚未在此窗口生效。'
-                      : '发现 ${_pending.length} 个待进入的数据集',
+                      ? context.l10n.l6JoinedDatasetArg0ItsDataIs7a081(
+                          (_pending.first.name).toString(),
+                        )
+                      : context.l10n.l6DatasetsReadyToOpenArg0c5aa4(
+                          (_pending.length).toString(),
+                        ),
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -164,21 +174,24 @@ class _DatasetSwitchCardState extends State<DatasetSwitchCard> {
                 children: [
                   Expanded(
                     child: Text(
-                      _pending.length == 1 ? '切换后重启应用即可看到全部同步数据。' : entry.name,
+                      _pending.length == 1
+                          ? context.l10n.l6RestartTheAppAfterSwitchingToea99d
+                          : entry.name,
                       style: theme.textTheme.bodySmall,
                     ),
                   ),
                   FilledButton.tonalIcon(
                     onPressed: _switching ? null : () => _select(entry),
                     icon: const Icon(Icons.folder_open, size: 16),
-                    label: const Text('进入数据集'),
+                    label: Text(context.l10n.l6EnterDatasete3665),
                   ),
                 ],
               ),
             ),
           if (_error != null)
-            Text(
-              _error!,
+            AppErrorMessage(
+              action: context.l10n.load,
+              error: _error!,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.error,
               ),

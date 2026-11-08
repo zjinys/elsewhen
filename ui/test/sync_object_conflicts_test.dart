@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:elsewhen_ui/l10n/app_localizations.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/sync/sync_object_conflicts_controller.dart';
 import 'package:elsewhen_ui/widgets/sync_object_conflicts_settings.dart';
@@ -138,6 +139,34 @@ void main() {
     api_.listError = Exception('locked');
     await controller.refresh();
     expect(controller.conflicts, hasLength(1), reason: '失败保留旧视图');
-    expect(controller.error, contains('操作失败'));
+    expect(
+      controller.error,
+      contains('locked'),
+      reason: 'retain diagnostic detail; the view localizes the fallback',
+    );
   });
+  testWidgets('English knowledge language conflict keeps signed display basis and original text', (tester) async {
+    tester.view.physicalSize=const Size(390,1000);
+    tester.view.devicePixelRatio=1;
+    addTearDown(tester.view.reset);
+    final bridge=FakeObjectConflictApi([_conflict(opId:'stream-a:20',kind:'knowledge_language',reason:'knowledge_language_generation_changed')]);
+    final controller=SyncObjectConflictsController(bridge:bridge);
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(MaterialApp(locale:const Locale('en'),
+      localizationsDelegates:AppLocalizations.localizationsDelegates,supportedLocales:AppLocalizations.supportedLocales,
+      home:Scaffold(body:ListView(children:[SyncObjectConflictsSettings(controller:controller)]))));
+    await tester.pumpAndSettle();
+    expect(find.text('Knowledge language · Changes from 设备 b'),findsOneWidget);
+    expect(find.text('本端版主文本'),findsOneWidget);
+    expect(find.text('对端版主文本'),findsOneWidget);
+    expect(find.text('Keep local'),findsOneWidget);
+    expect(find.text('Accept incoming'),findsOneWidget);
+    expect(tester.takeException(),isNull);
+    await tester.ensureVisible(find.text('Accept incoming'));
+    await tester.tap(find.text('Accept incoming'));
+    await tester.pumpAndSettle();
+    expect(bridge.resolutions.single.expectedLocalUpdatedAt,'2026-01-02T08:00:00+00:00');
+    expect(bridge.resolutions.single.acceptRemote,isTrue);
+  });
+
 }

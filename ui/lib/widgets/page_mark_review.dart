@@ -1,3 +1,4 @@
+import '../l10n/localization.dart';
 //! 翻篇（P2 手动 / P3 自动档）预览编辑与撤销。
 //!
 //! 流程：选边界消息 → createPageMark（AI 生成章节摘要，真实往返）
@@ -13,14 +14,15 @@ import 'package:intl/intl.dart';
 
 import '../bridge/api.dart' as bridge;
 import '../theme/app_theme.dart';
-import '../utils/error_report.dart';
+import '../l10n/notice_messages.dart';
+import 'app_error_notice.dart';
 
-const _groupLabels = {
-  'goals': '目标',
-  'constraints': '约束',
-  'facts': '事实',
-  'decisions': '决定',
-  'unfinished': '未完成',
+Map<String, String> _groupLabels(BuildContext context) => {
+  'goals': context.l10n.syncKindGoal,
+  'constraints': context.l10n.pageKindConstraint,
+  'facts': context.l10n.l6Factsb27b7,
+  'decisions': context.l10n.l6Decisions13750,
+  'unfinished': context.l10n.l6Unfinishedb61b0,
 };
 
 /// 选边界消息后的入口：生成 + 预览编辑一条龙。
@@ -57,7 +59,13 @@ Map<String, List<String>> parseSummaryBody(String bodyJson) {
   final decoded = jsonDecode(bodyJson);
   if (decoded is! Map<String, dynamic>) return {};
   final result = <String, List<String>>{};
-  for (final key in _groupLabels.keys) {
+  for (final key in const [
+    'goals',
+    'constraints',
+    'facts',
+    'decisions',
+    'unfinished',
+  ]) {
     final value = decoded[key];
     result[key] =
         (value as List<dynamic>?)?.map((e) => e.toString()).toList() ??
@@ -65,7 +73,6 @@ Map<String, List<String>> parseSummaryBody(String bodyJson) {
   }
   return result;
 }
-
 
 /// 消息工具条上的「翻篇到此」按钮（桌面常驻；移动端走长按菜单）。
 class PageMarkToolButton extends ConsumerWidget {
@@ -82,12 +89,16 @@ class PageMarkToolButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return IconButton(
       icon: const Icon(Icons.auto_stories, size: 13),
-      tooltip: '翻篇到此——此前历史收进章节摘要',
+      tooltip: context.l10n.l6StartANewChapterHereEarliere67c8,
       visualDensity: VisualDensity.compact,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 24, minHeight: 20),
-      onPressed: () =>
-          openPageMarkCreateDialog(context, ref, conversationId, boundaryMessageId),
+      onPressed: () => openPageMarkCreateDialog(
+        context,
+        ref,
+        conversationId,
+        boundaryMessageId,
+      ),
     );
   }
 }
@@ -102,7 +113,7 @@ class PageMarkListButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return IconButton(
       icon: const Icon(Icons.auto_stories, size: 18),
-      tooltip: '翻篇记录',
+      tooltip: context.l10n.flipPast,
       onPressed: () => openPageMarkListDialog(context, ref, conversationId),
     );
   }
@@ -149,6 +160,7 @@ class _PageMarkCreateDialogState extends ConsumerState<_PageMarkCreateDialog> {
       final marks = await bridge.listPageMarks(
         conversationId: widget.conversationId,
       );
+      if (!mounted) return;
       final mark = marks.firstWhere((m) => m.id == markId);
       if (!mounted) return;
       setState(() {
@@ -165,7 +177,7 @@ class _PageMarkCreateDialogState extends ConsumerState<_PageMarkCreateDialog> {
     }
   }
 
-  String _readableError(Object e) => stripErrorShell(e);
+  String _readableError(Object e) => appFailure(e);
 
   Future<void> _saveOverride() async {
     final current = body;
@@ -176,11 +188,12 @@ class _PageMarkCreateDialogState extends ConsumerState<_PageMarkCreateDialog> {
       final marks = await bridge.listPageMarks(
         conversationId: widget.conversationId,
       );
+      if (!mounted) return;
       final mark = marks
           .where((m) => m.summaryNodeId == summaryNodeId && m.active)
           .toList();
       if (mark.isEmpty) {
-        throw Exception('翻篇标记已不存在，可能已被撤销');
+        throw Exception(context.l10n.l6ThisChapterMarkerNoLongerExistsec974);
       }
       final bodyJson = jsonEncode({
         'goals': current['goals'] ?? <String>[],
@@ -189,10 +202,7 @@ class _PageMarkCreateDialogState extends ConsumerState<_PageMarkCreateDialog> {
         'decisions': current['decisions'] ?? <String>[],
         'unfinished': current['unfinished'] ?? <String>[],
       });
-      await bridge.savePageMarkOverride(
-        id: mark.first.id,
-        bodyJson: bodyJson,
-      );
+      await bridge.savePageMarkOverride(id: mark.first.id, bodyJson: bodyJson);
     } catch (e) {
       if (mounted) {
         setState(() => error = _readableError(e));
@@ -219,10 +229,13 @@ class _PageMarkCreateDialogState extends ConsumerState<_PageMarkCreateDialog> {
                 children: [
                   Icon(Icons.auto_stories, color: AppTheme.accentPrimary),
                   const SizedBox(width: AppTheme.space2),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      '翻篇 · 章节摘要',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      context.l10n.l6NewChapterSummarycf20d,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -235,13 +248,13 @@ class _PageMarkCreateDialogState extends ConsumerState<_PageMarkCreateDialog> {
             const Divider(height: 1),
             Expanded(
               child: generating
-                  ? const Center(
+                  ? Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           CircularProgressIndicator(),
                           SizedBox(height: AppTheme.space3),
-                          Text('正在生成章节摘要…'),
+                          Text(context.l10n.l6GeneratingChapterSummary277ba),
                         ],
                       ),
                     )
@@ -249,7 +262,14 @@ class _PageMarkCreateDialogState extends ConsumerState<_PageMarkCreateDialog> {
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.all(AppTheme.space3),
-                        child: Text(error!, style: TextStyle(fontSize: 13.5, color: AppTheme.textPrimary)),
+                        child: AppErrorMessage(
+                          action: context.l10n.load,
+                          error: error!,
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
                       ),
                     )
                   : _BodyEditor(
@@ -264,25 +284,29 @@ class _PageMarkCreateDialogState extends ConsumerState<_PageMarkCreateDialog> {
                 children: [
                   if (error != null && body != null)
                     Expanded(
-                      child: Text(
-                        error!,
+                      child: AppErrorMessage(
+                        action: context.l10n.save,
+                        error: error!,
                         style: TextStyle(color: AppTheme.error, fontSize: 12),
                       ),
                     ),
                   if (error == null) const Spacer(),
                   TextButton(
-                    onPressed:
-                        saving || generating || body == null
-                            ? null
-                            : () => Navigator.of(context).pop(),
-                    child: const Text('放弃修改'),
+                    onPressed: saving || generating || body == null
+                        ? null
+                        : () => Navigator.of(context).pop(),
+                    child: Text(context.l10n.l6DiscardChanges1cead),
                   ),
                   const SizedBox(width: AppTheme.space2),
                   FilledButton(
                     onPressed: saving || generating || body == null
                         ? null
                         : _saveOverride,
-                    child: Text(saving ? '保存中…' : '确认翻篇'),
+                    child: Text(
+                      saving
+                          ? context.l10n.saving
+                          : context.l10n.l6ConfirmNewChapter12069,
+                    ),
                   ),
                 ],
               ),
@@ -329,7 +353,7 @@ class _BodyEditor extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppTheme.space3),
       children: [
-        for (final entry in _groupLabels.entries)
+        for (final entry in _groupLabels(context).entries)
           if ((body[entry.key] ?? const []).isNotEmpty) ...[
             Padding(
               padding: const EdgeInsets.only(
@@ -349,13 +373,16 @@ class _BodyEditor extends StatelessWidget {
                     child: TextFormField(
                       initialValue: body[entry.key]![i],
                       maxLines: 2,
-                      style: TextStyle(fontSize: 13.5, color: AppTheme.textPrimary),
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        color: AppTheme.textPrimary,
+                      ),
                       onChanged: (value) => _editEntry(entry.key, i, value),
                     ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.remove_circle_outline, size: 18),
-                    tooltip: '删除这一条',
+                    tooltip: context.l10n.l6RemoveThisEntry52142,
                     color: AppTheme.textTertiary,
                     onPressed: () => _removeEntry(entry.key, i),
                   ),
@@ -366,18 +393,19 @@ class _BodyEditor extends StatelessWidget {
         Wrap(
           spacing: AppTheme.space2,
           children: [
-            for (final entry in _groupLabels.entries)
+            for (final entry in _groupLabels(context).entries)
               if ((body[entry.key] ?? const []).isEmpty)
                 ActionChip(
-                  label: Text('加一条${entry.value}'),
+                  label: Text(
+                    context.l10n.l6AddArg03e9a8((entry.value).toString()),
+                  ),
                   onPressed: () => _addEntry(entry.key),
                 ),
           ],
         ),
         const SizedBox(height: AppTheme.space2),
         Text(
-          '翻篇后这段历史不再原文进入请求，仅以本摘要常驻；需要精确数值或原话时 '
-          'AI 会回读原始消息。可编辑或删减条目后确认。',
+          context.l10n.l6AfterStartingANewChapterThis0bfa3,
           style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
         ),
       ],
@@ -443,15 +471,15 @@ class _PageMarkListDialogState extends ConsumerState<_PageMarkListDialog> {
               padding: const EdgeInsets.all(AppTheme.space3),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.auto_stories,
-                    color: AppTheme.accentPrimary,
-                  ),
+                  Icon(Icons.auto_stories, color: AppTheme.accentPrimary),
                   const SizedBox(width: AppTheme.space2),
                   Expanded(
-                    child: const Text(
-                      '翻篇记录',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    child: Text(
+                      context.l10n.flipPast,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -466,9 +494,18 @@ class _PageMarkListDialogState extends ConsumerState<_PageMarkListDialog> {
               child: _busy
                   ? const Center(child: CircularProgressIndicator())
                   : error != null
-                  ? Center(child: Text(error!))
+                  ? Center(
+                      child: AppErrorMessage(
+                        action: context.l10n.load,
+                        error: error!,
+                      ),
+                    )
                   : (marks ?? const []).isEmpty
-                  ? const Center(child: Text('本会话还没有翻篇记录'))
+                  ? Center(
+                      child: Text(
+                        context.l10n.l6NoChapterHistoryInThisConversation36eaa,
+                      ),
+                    )
                   : ListView(
                       padding: const EdgeInsets.all(AppTheme.space3),
                       children: [
@@ -487,19 +524,29 @@ class _PageMarkListDialogState extends ConsumerState<_PageMarkListDialog> {
                                     : AppTheme.textTertiary,
                               ),
                               title: Text(
-                                '${mark.kind == "manual" ? "手动" : "自动"} · '
+                                '${mark.kind == "manual" ? context.l10n.manualLabel : context.l10n.automaticLabel} · '
                                 '${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(mark.createdAt))}',
-                                style: TextStyle(fontSize: 13.5, color: AppTheme.textPrimary),
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  color: AppTheme.textPrimary,
+                                ),
                               ),
                               subtitle: Text(
                                 mark.summaryPreview,
                                 maxLines: 3,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.textSecondary,
+                                ),
                               ),
                               trailing: TextButton(
                                 onPressed: () => _toggle(mark),
-                                child: Text(mark.active ? '撤销' : '恢复'),
+                                child: Text(
+                                  mark.active
+                                      ? context.l10n.l6Revoke9fcef
+                                      : context.l10n.l6Restore79748,
+                                ),
                               ),
                             ),
                           ),

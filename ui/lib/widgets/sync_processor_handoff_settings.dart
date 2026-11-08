@@ -1,3 +1,6 @@
+import 'app_error_notice.dart';
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 
 import '../bridge/api.dart' as api;
@@ -67,23 +70,27 @@ class _SyncProcessorHandoffSettingsState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-            Text('AI 分析职责移交', style: theme.textTheme.titleSmall),
+            Text(
+              context.l10n.l6TransferAiAnalysisResponsibilityfe457,
+              style: theme.textTheme.titleSmall,
+            ),
             const SizedBox(height: 8),
             Text(switch (phase) {
-              'idle' => '本机状态：未参与移交。',
-              'relinquished' => '本机已让出 AI 分析职责，等待目标设备确认接管。',
+              'idle' => context.l10n.l6ThisDeviceIsNotInvolvedInaf62a,
+              'relinquished' =>
+                context.l10n.l6ResponsibilityHasBeenHandedOffWaitingeac50,
               'pending_takeover' =>
                 handoff!.canConfirm
-                    ? '有移交等待本机确认（同步已追平）。'
-                    : '有移交等待本机确认，但本机尚未同步到移交边界。',
-              'active' => '本机正在负责 AI 分析（此前的一次接管已完成）。',
-              _ => '正在读取移交状态…',
+                    ? context.l10n.l6AHandoffAwaitsThisDeviceSdd081
+                    : context.l10n.l6AHandoffAwaitsConfirmationButThis0f114,
+              'active' => context.l10n.l6ThisDeviceRunsAiAnalysisThe54d4b,
+              _ => context.l10n.l6LoadingHandoffStatus19264,
             }),
             if (phase == 'pending_takeover' && handoff!.canConfirm) ...[
               const SizedBox(height: 8),
               FilledButton.icon(
                 icon: const Icon(Icons.swap_horiz),
-                label: const Text('确认接管'),
+                label: Text(context.l10n.l6AcceptResponsibility6c220),
                 onPressed: controller.busy
                     ? null
                     : () async {
@@ -95,11 +102,16 @@ class _SyncProcessorHandoffSettingsState
             if (phase == 'idle' && widget.isProcessor) ...[
               const SizedBox(height: 8),
               if (widget.candidates.isEmpty)
-                Text('暂无可接收设备，请先授权设备加入。', style: theme.textTheme.bodySmall)
+                Text(
+                  context.l10n.l6NoEligibleTargetDevicesAuthorizeAaba52,
+                  style: theme.textTheme.bodySmall,
+                )
               else ...[
                 DropdownButtonFormField<String>(
                   initialValue: _targetDevice,
-                  decoration: AppTheme.fieldDecoration(labelText: '目标设备'),
+                  decoration: AppTheme.fieldDecoration(
+                    labelText: context.l10n.l6TargetDevice1b73f,
+                  ),
                   items: widget.candidates
                       .map(
                         (member) => DropdownMenuItem(
@@ -115,7 +127,9 @@ class _SyncProcessorHandoffSettingsState
                 const SizedBox(height: 8),
                 FilledButton.icon(
                   icon: const Icon(Icons.logout),
-                  label: const Text('让出 AI 分析职责'),
+                  label: Text(
+                    context.l10n.l6TransferAiAnalysisResponsibility2e5ba,
+                  ),
                   onPressed: controller.busy || _targetDevice == null
                       ? null
                       : () => _confirmYield(context, controller),
@@ -124,21 +138,25 @@ class _SyncProcessorHandoffSettingsState
             ],
             if (phase == 'relinquished' && !widget.isOwner) ...[
               const SizedBox(height: 8),
-              Text('等待主设备审批移交证明。', style: theme.textTheme.bodySmall),
+              Text(
+                context.l10n.l6WaitingForTheOwnerToApprovebf73f,
+                style: theme.textTheme.bodySmall,
+              ),
             ],
             if (controller.error != null) ...[
               const SizedBox(height: 8),
               Semantics(
                 liveRegion: true,
-                child: Text(
-                  controller.error!,
+                child: AppErrorMessage(
+                  error: controller.error!,
+                  action: context.l10n.load,
                   style: TextStyle(color: theme.colorScheme.error),
                 ),
               ),
             ],
             if (controller.busy) ...[
               const SizedBox(height: 8),
-              const Row(
+              Row(
                 children: [
                   SizedBox(
                     width: 16,
@@ -146,7 +164,7 @@ class _SyncProcessorHandoffSettingsState
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                   SizedBox(width: 8),
-                  Expanded(child: Text('正在处理移交步骤，请等待…')),
+                  Expanded(child: Text(context.l10n.l6ProcessingHandoffed58d)),
                 ],
               ),
             ],
@@ -169,20 +187,21 @@ class _SyncProcessorHandoffSettingsState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('让出 AI 分析职责？'),
+        title: Text(context.l10n.l6TransferAiAnalysisResponsibility5d2ad),
         content: Text(
-          '将把 AI 分析职责移交给 "$targetLabel"（$target）。\n\n'
-          '本机会立即停止认领后台任务；目标设备需同步到移交边界并显式确认后'
-          '才开始 AI 分析。确认后本机不能单方面恢复。',
+          context.l10n.l6TransferAiAnalysisResponsibilityToArg05bc00(
+            (targetLabel).toString(),
+            (target).toString(),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('让出'),
+            child: Text(context.l10n.l6Transferc79cc),
           ),
         ],
       ),

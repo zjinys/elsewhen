@@ -104,7 +104,10 @@ pub(crate) fn validate_history_path(messages: &[MessageSummary]) -> Result<()> {
     for message in messages {
         if let Some(parent) = &message.parent_message_id {
             // seen 只含已遍历的更早消息：父不在其中即悬空、倒挂或自指。
-            ensure!(seen.contains(parent.as_str()), "摘要历史父链悬空或倒挂，未合并不同路径");
+            ensure!(
+                seen.contains(parent.as_str()),
+                "摘要历史父链悬空或倒挂，未合并不同路径"
+            );
         }
         ensure!(seen.insert(message.id.as_str()), "摘要历史包含重复消息或环");
         ensure!(
@@ -260,6 +263,19 @@ impl Store {
             "INSERT OR IGNORE INTO chat_summary_nodes(id,conversation_id,basis_hash,spans_json,children_json,strategy,provider_basis,model,body_json,prompt_tokens,completion_tokens,elapsed_ms,created_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
             params![node.id,node.conversation_id,node.basis_hash,serde_json::to_string(&node.spans)?,serde_json::to_string(&node.children)?,node.strategy,node.provider_basis,node.model,serde_json::to_string(&node.body)?,node.prompt_tokens.map(i64::try_from).transpose()?,node.completion_tokens.map(i64::try_from).transpose()?,i64::try_from(node.elapsed_ms)?,chrono::Utc::now().to_rfc3339()],
         )?;
+        let bundle = self.prompt_bundle.borrow().clone();
+        if let Some(bundle) = bundle {
+            self.record_language_artifact(
+                "summary",
+                &node.id,
+                &bundle,
+                &[
+                    "summary.policy",
+                    "summary.fixed_contract",
+                    "task.processing.fixed_contract",
+                ],
+            )?;
+        }
         if let Some(tx) = tx {
             tx.commit()?;
         }

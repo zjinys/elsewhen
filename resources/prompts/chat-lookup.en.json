@@ -1,0 +1,53 @@
+{
+  "token_heading": {
+    "text": "Daily token usage:\n",
+    "variables": []
+  },
+  "token_empty": {
+    "text": "(No AI calls in the last 7 days)",
+    "variables": []
+  },
+  "token_line": {
+    "text": "- <<date>>: <<tokens>> tokens (<<calls>> calls)\n",
+    "variables": [
+      "calls",
+      "date",
+      "tokens"
+    ]
+  },
+  "token_label": {
+    "text": "token usage",
+    "variables": []
+  },
+  "rules_heading": {
+    "text": "Active personal rules:\n",
+    "variables": []
+  },
+  "rules_empty": {
+    "text": "(No personal rules have been saved)",
+    "variables": []
+  },
+  "rules_label": {
+    "text": "personal rules",
+    "variables": []
+  },
+  "goals_heading": {
+    "text": "Goal-related pages in the knowledge base:\n",
+    "variables": []
+  },
+  "goals_empty": {
+    "text": "(No goal pages found)",
+    "variables": []
+  },
+  "goals_line": {
+    "text": "- \"<<title>>\": <<excerpt>>\n",
+    "variables": [
+      "excerpt",
+      "title"
+    ]
+  },
+  "goals_label": {
+    "text": "current goals",
+    "variables": []
+  }
+}

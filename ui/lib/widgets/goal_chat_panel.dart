@@ -1,3 +1,6 @@
+import '../l10n/notice_messages.dart';
+import 'app_error_notice.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -16,12 +19,13 @@ import 'chat_proposal_review.dart';
 import 'chat_run_status.dart';
 import 'goal_chat_ui_blocks.dart';
 import 'wiki_ai_chat_panel.dart';
+import '../l10n/localization.dart';
 
 /// 目标页 AI 面板（goal_mentor）：每条活跃目标一个专属讨论会话
 /// （`ensureGoalChat`）；未选中目标时是 [studio] 立项工作室（保留会话
 /// `ensureGoalStudio`）。讨论上下文由 system_context 的 goal_mentor /
-/// 目标工作室切片注入；全程在目标页内展开，不切对话 tab。AI 变更
-/// （暂停/达成/重启/抓手调整、计划拆解）全部走 WriteConfirm 提议卡，
+/// 目标工作室阶段注入；全程在目标页内展开，不切对话 tab。AI 变更
+/// （暂停/达成/重启/行动调整、计划拆解）全部走 WriteConfirm 提议卡，
 /// 本面板只负责对话与展示，不做任何直接写库。
 ///
 /// 可操作选项 UI：AI 回复里的 ```elsewhen-choices 围栏块
@@ -30,7 +34,7 @@ import 'wiki_ai_chat_panel.dart';
 ///
 /// 生成式 UI：```elsewhen-ui 围栏块（UITree JSON，见
 /// goal_chat_ui_blocks.dart 的 guardrail 目录）渲染成原生组件卡片
-/// （指标/抓手/卡点/选项按钮），动作只开放 send_message 与
+/// （指标/行动/困难/选项按钮），动作只开放 send_message 与
 /// fill_draft；解析失败自动回退纯文本，绝不展示原始 JSON。
 class GoalChatPanel extends ConsumerStatefulWidget {
   const GoalChatPanel({
@@ -120,7 +124,8 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
   @override
   void didUpdateWidget(covariant GoalChatPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.goalId != widget.goalId || oldWidget.studio != widget.studio) {
+    if (oldWidget.goalId != widget.goalId ||
+        oldWidget.studio != widget.studio) {
       _conversationId = null;
       _messages = [];
       _ready = false;
@@ -173,7 +178,7 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
       }
       setState(() {
         _ready = true;
-        _error = '会话初始化失败：${e.toString().replaceFirst('Exception: ', '')}';
+        _error = appFailure(e);
       });
     }
   }
@@ -189,9 +194,7 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
       _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
-      setState(
-        () => _error = '消息加载失败：${e.toString().replaceFirst('Exception: ', '')}',
-      );
+      setState(() => _error = appFailure(e));
     }
   }
 
@@ -228,7 +231,7 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
           }
         } catch (_) {
           if (mounted) {
-            setState(() => _error = '输入已保存，但生成资格未确认；请从该消息继续生成，不要重新发送。');
+            setState(() => _error = appNotice('savedButNotEligible'));
           }
         }
       } else {
@@ -250,7 +253,7 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
       }
     } catch (e) {
       if (!mounted || _conversationId != id) return;
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      setState(() => _error = appFailure(e));
     } finally {
       if (!durable) {
         generatingNotifier.update((current) => {...current}..remove(id));
@@ -319,11 +322,8 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
           message: ContentChatMessage(
             role: 'assistant',
             content: widget.studio
-                ? '🎯 说说你想实现的长程意图（比如「3 年内月收入 10 万」）。'
-                      '我会先给现实性评估与假设清单，再拆成一条长程计划与由近及远的里程碑步骤，'
-                      '落库前都要你确认。'
-                : '🎯 我们来聊聊这个目标。我可以帮你拆解抓手、检视卡点、回顾完成标准；'
-                      '需要暂停、标记达成或重启目标时，我会先给出提议，等你确认后才生效。',
+                ? context.l10n.goalStudioWelcome
+                : context.l10n.goalChatWelcome,
           ),
         ),
         for (final m in displayedMessages)
@@ -341,8 +341,9 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(top: AppTheme.space2),
-            child: Text(
-              _error!,
+            child: AppErrorMessage(
+              action: context.l10n.load,
+              error: _error!,
               style: TextStyle(fontSize: 12, color: AppTheme.error),
             ),
           ),
@@ -382,8 +383,10 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
                   Expanded(
                     child: Text(
                       widget.studio
-                          ? 'AI 立项工作室'
-                          : '目标讨论 · ${_shortGoal(widget.goalContent)}',
+                          ? context.l10n.goalStudio
+                          : context.l10n.goalDiscussionTitle(
+                              _shortGoal(widget.goalContent),
+                            ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -398,14 +401,14 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
                       conversationId: _conversationId,
                       compact: true,
                       onChanged: () {
-                        // 提议执行后目标切片可能变化，交由宿主刷新。
+                        // 提议执行后目标阶段可能变化，交由宿主刷新。
                         // 这里保守刷新目标相关 provider。
                         ref.invalidate(conversationsProvider);
                       },
                     ),
                   if (widget.onMinimize != null)
                     IconButton(
-                      tooltip: '收起讨论',
+                      tooltip: context.l10n.collapseDiscussion,
                       onPressed: widget.onMinimize,
                       icon: const Icon(Icons.remove, size: 18),
                       visualDensity: VisualDensity.compact,
@@ -453,8 +456,8 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
                     minLines: 1,
                     decoration: InputDecoration(
                       hintText: widget.studio
-                          ? '说说你的长程意图…（草稿不会被自动发送）'
-                          : '和 AI 聊聊这个目标…（草稿不会被自动发送）',
+                          ? context.l10n.goalStudioInputHint
+                          : context.l10n.goalChatInputHint,
                       hintStyle: TextStyle(
                         fontSize: 12,
                         color: AppTheme.textTertiary,
@@ -500,7 +503,7 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
                     disabledBackgroundColor: AppTheme.surface3,
                   ),
                   icon: const Icon(Icons.arrow_upward, size: 16),
-                  tooltip: _busy ? '保存并排队下一问' : '发送',
+                  tooltip: _busy ? context.l10n.queueNext : context.l10n.send,
                 ),
               ],
             ),
@@ -568,7 +571,7 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
             onPressed: () => ref
                 .read(chatRunControllerProvider(message.conversationId))
                 .start(message.id),
-            child: const Text('生成回复'),
+            child: Text(context.l10n.generateReply),
           ),
         ],
       );

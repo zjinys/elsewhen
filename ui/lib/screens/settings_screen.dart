@@ -1,4 +1,10 @@
+import 'dart:async';
+
+import '../l10n/notice_messages.dart';
+import '../widgets/app_error_notice.dart';
+
 import 'dart:io' show Platform, Process;
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +12,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../providers/app_provider.dart';
 import '../providers/settings_provider.dart';
 import '../models/settings.dart';
@@ -22,13 +29,15 @@ import '../widgets/provider_endpoint_notice.dart';
 import '../widgets/provider_key_warning_badge.dart';
 import '../widgets/knowledge_digest_dialog.dart';
 import '../widgets/web_search_settings.dart';
+import '../widgets/named_secret_settings.dart';
+import '../widgets/prompt_settings.dart';
 import '../widgets/doh_settings.dart';
 import '../widgets/proxy_settings.dart';
 import '../utils/app_lock.dart';
-import '../utils/error_report.dart';
 import '../utils/system_fonts.dart';
 import '../utils/window_service.dart';
 import '../theme/app_theme.dart';
+import '../l10n/localization.dart';
 // ── 大类方法按功能域拆分为 part extension（行为零变化，见 settings_parts/）──
 part 'settings_parts/data_rules_loads.dart';
 part 'settings_parts/rules_prefs.dart';
@@ -40,24 +49,44 @@ part 'settings_parts/providers.dart';
 part 'settings_parts/usage_fonts.dart';
 part 'settings_parts/provider_editor_dialog.dart';
 part 'settings_parts/security.dart';
+
 // ── 分区标题常量（原 static const 平移为 library 级，供全部 part 使用）──
-const _secProviders = 'AI Provider 配置';
-const _secTokenUsage = '每日 Token 用量';
-const _secAnalysisJobs = '事件分析队列';
-const _secDigest = '知识消化';
-const _secRules = '规则库';
-const _secTweetService = '推文抓取服务';
+const _secProviders = 'providers';
+const _secTokenUsage = 'token_usage';
+const _secAnalysisJobs = 'analysis_jobs';
+const _secDigest = 'digest';
+const _secRules = 'rules';
+const _secTweetService = 'tweet_service';
+
+String _settingsFailure(String action, Object error) => appFailure(error);
+
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
+
 class _SettingsScreenState extends ConsumerState<SettingsScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   late final TabController _tabController;
+
   /// 应用版本（pubspec version），宽屏在左 tab 栏底部、窄屏在 tab 条下方。
   String _version = '';
+  int _promptTitleTaps = 0;
+  Timer? _promptTitleTapReset;
+
+  void _tapPromptTitle() {
+    if (_promptTitleTaps >= 10) return;
+    _promptTitleTapReset?.cancel();
+    setState(() => _promptTitleTaps++);
+    if (_promptTitleTaps < 10) {
+      _promptTitleTapReset = Timer(const Duration(seconds: 2), () {
+        _promptTitleTaps = 0;
+      });
+    }
+  }
+
   late TextEditingController _maxMessagesController;
   late TextEditingController _maxTokensController;
   List<DailyTokenUsage> _dailyUsage = [];
@@ -96,6 +125,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   List<RuleHit> _recentRuleHits = [];
   // 对话影子校验命中（迁移 54）：聊天轮预筛 → 后台 LLM 判定，只读审查面
   List<api.ChatRuleHitDto> _recentChatRuleHits = [];
+
   /// 情感回访偏好（D6）：开关 + 频率上限（天）。加载失败保持默认且不阻塞。
   bool _companionRevisitEnabled = true;
   int _companionIntervalDays = 7;
@@ -111,6 +141,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   bool _providersLoading = true;
   // 推文抓取服务（当前仅支持 fxtwitter）
   String _tweetService = 'fxtwitter';
+
   /// 桌面「关闭窗口时」偏好（本地 desktop.json）。
   CloseAction _closeAction = CloseAction.minimizeToTray;
   // 启动期各区块读取失败的原因（区块名 → 异常文本）。
@@ -119,6 +150,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   // 于是渲染成「还没有规则」「未配置」这类**正常空状态**，把故障说成了没数据。
   // 这里单独记下原因，空状态分支先判它，失败与真空才分得开。
   final Map<String, String> _loadErrors = {};
+
   /// 失败提示文案；null 表示该区块读取成功（或还在读）。
   ///
   /// 只取异常的首行：Rust 侧 `anyhow` 的 `toString()` 会带 "Caused by:" 多行细节，
@@ -126,26 +158,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   String? _loadErrorOf(String section) {
     final raw = _loadErrors[section];
     if (raw == null) return null;
-    final firstLine = raw
-        .split('\n')
-        .map((s) => s.trim())
-        .firstWhere((s) => s.isNotEmpty, orElse: () => raw.trim());
-    return '$section读取失败：$firstLine';
+
+    final label = switch (section) {
+      _secProviders => context.l10n.providerConfiguration,
+      _secTokenUsage => context.l10n.dailyTokenUsage,
+      _secAnalysisJobs => context.l10n.analysisQueue,
+      _secDigest => context.l10n.knowledgeProcessing,
+      _secRules => context.l10n.ruleLibrary,
+      _secTweetService => context.l10n.tweetFetchService,
+      _ => section,
+    };
+    return context.l10n.sectionLoadFailed(
+      label,
+      context.errorMessage(label, raw),
+    );
   }
+
   /// 区块级失败提示控件。各区块的「空状态」分支应先判它再决定是否显示空状态。
   Widget? _buildLoadErrorHint(String section) {
     final message = _loadErrorOf(section);
     if (message == null) return null;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppTheme.space3),
-      child: Text(
-        message,
-        maxLines: 3,
-        overflow: TextOverflow.ellipsis,
+      child: AppErrorMessage(
+        action: context.l10n.load,
+        error: _loadErrors[section]!,
+        message: message,
         style: TextStyle(color: AppTheme.error, fontSize: 12),
       ),
     );
   }
+
   @override
   void initState() {
     super.initState();
@@ -174,6 +217,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       _loadAppLockState();
     });
   }
+
   Future<void> _loadVersion() async {
     // pubspec 版本从没动过（恒 1.0.0）没区分度；报障要认的是构建 hash。
     // 两者都取：版本号兜底标识，hash 精确到这次编译。
@@ -194,13 +238,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       }
     }
   }
+
   @override
   void dispose() {
+    _promptTitleTapReset?.cancel();
     _tabController.dispose();
     _maxMessagesController.dispose();
     _maxTokensController.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
@@ -212,12 +259,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       body: Column(
         children: [
           CustomTitleBar(
-            title: '设置',
+            title: context.l10n.settings,
             topInset: topInset,
             leading: isMobile
                 ? IconButton(
                     icon: const Icon(Icons.arrow_back, size: 20),
-                    tooltip: '返回主界面',
+                    tooltip: context.l10n.backToMain,
                     color: AppTheme.textSecondary,
                     onPressed: () => Navigator.of(context).pop(),
                   )
@@ -227,7 +274,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 : [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, size: 18),
-                      tooltip: '返回主界面',
+                      tooltip: context.l10n.backToMain,
                       color: const Color(0xFF9BA1AB),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
@@ -311,6 +358,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       ),
     );
   }
+
   Future<void> _saveSettings() async {
     if (_formKey.currentState?.validate() ?? false) {
       final currentSettings = ref.read(settingsProvider);
@@ -325,7 +373,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('记忆策略已保存'),
+          content: Text(context.l10n.memorySaved),
           backgroundColor: AppTheme.accentPrimary,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -336,4 +384,5 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
 }
+
 /// AI Provider 编辑对话框的草稿数据

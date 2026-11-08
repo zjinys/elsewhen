@@ -40,16 +40,13 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
         horizontal: AppTheme.space6,
         vertical: AppTheme.space2,
       ),
-      child: Text(
-        '保存失败：$_editError',
-        style: TextStyle(fontSize: 12, color: AppTheme.error),
-      ),
+      child: AppErrorMessage(action: context.l10n.save, error: _editError!),
     );
   }
 
   /// 进入编辑态（素材页不显示入口，到不了这里）
   void _enterEditing() {
-    setState(() {
+    _updateBody(() {
       _editing = true;
       _saving = false;
       _editError = null;
@@ -62,10 +59,10 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
   Future<bool> _finishEditing() async {
     final state = _editorKey.currentState;
     if (state == null) return true; // 从未进入编辑态：视为无脏内容
-    setState(() => _saving = true);
+    _updateBody(() => _saving = true);
     final ok = await state.save();
     if (!mounted) return ok;
-    setState(() {
+    _updateBody(() {
       _saving = false;
       if (ok) _editing = false;
     });
@@ -75,7 +72,7 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
   /// 「取消」：放弃修改，从加载快照重建文档
   void _cancelEditing() {
     _editorKey.currentState?.discard();
-    setState(() => _editing = false);
+    _updateBody(() => _editing = false);
     _setDirty(false);
   }
 
@@ -96,7 +93,7 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
       if (!mounted || !_isConflictError(e)) rethrow;
       // 保存尝试已被拒，先放下 saving 态再弹冲突对话框
       // （否则工具栏 spinner 常转，pumpAndSettle 永不收敛）。
-      setState(() => _saving = false);
+      _updateBody(() => _saving = false);
       final action = await _showConflictDialog();
       if (!mounted) throw const _SaveCancelled();
       switch (action) {
@@ -112,7 +109,7 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
           // 重新加载：放弃本地改动，刷新为最新页面内容
           ref.invalidate(wikiPageProvider(widget.page.slug));
           ref.invalidate(wikiPagesProvider);
-          setState(() {
+          _updateBody(() {
             _editing = false;
             _editError = null;
           });
@@ -126,7 +123,7 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
     ref.invalidate(wikiPageProvider(widget.page.slug));
     ref.invalidate(wikiPagesProvider);
     if (!mounted) return;
-    setState(() {
+    _updateBody(() {
       _editing = false;
       _editError = null;
     });
@@ -134,40 +131,37 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(
-          content: Text('已保存到知识库'),
+        SnackBar(
+          content: Text(context.l10n.wikiSaved),
           behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
   }
 
   /// 冲突判定：Rust 侧乐观锁拒绝时的错误消息前缀
-  static bool _isConflictError(Object e) => e.toString().contains('编辑冲突');
+  static bool _isConflictError(Object e) =>
+      AppError.decode(e)?.code == 'wiki_page_changed';
 
   /// 编辑冲突三选：重新加载（弃本地）/ 强制覆盖（盖后台）/ 取消（继续编辑）
   Future<String?> _showConflictDialog() {
     return showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('页面已被后台更新'),
-        content: const Text(
-          '你编辑期间，该页面被后台 digest 更新过。\n'
-          '「重新加载」放弃你的修改并查看最新内容；\n'
-          '「强制覆盖」以你的修改覆盖后台更新（两个版本都留在修订历史里）。',
-        ),
+        title: Text(dialogContext.l10n.wikiPageChangedTitle),
+        content: Text(dialogContext.l10n.wikiPageChangedHelp),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop('cancel'),
-            child: const Text('取消'),
+            child: Text(dialogContext.l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop('reload'),
-            child: const Text('重新加载'),
+            child: Text(dialogContext.l10n.wikiReload),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop('overwrite'),
-            child: const Text('强制覆盖'),
+            child: Text(dialogContext.l10n.wikiOverwrite),
           ),
         ],
       ),
@@ -193,8 +187,6 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
       // 目标页不存在或查询失败：静默忽略，保持当前阅读位置
     }
   }
-
-  String _errText(Object e) => e.toString().replaceFirst('Exception: ', '');
 
   Widget _buildHeader(BuildContext context) {
     return Container(
@@ -233,7 +225,7 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
                       borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                     ),
                     child: Text(
-                      widget.page.kindLabel,
+                      context.pageKindLabel(widget.page.kind),
                       style: TextStyle(
                         fontSize: 11,
                         color: AppTheme.accentPrimary,
@@ -246,7 +238,7 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
                     child: _buildHeaderTitle(context),
                   ),
                   Text(
-                    '${widget.page.slug} · 采集 ${_fmtDate(widget.page.lastSeenAt)}',
+                    '${widget.page.slug} · ${context.l10n.wikiCollectedOn(_fmtDate(widget.page.lastSeenAt))}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -294,9 +286,9 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
     final plan = ref.watch(habitNudgeForPageProvider(widget.page.slug)).value;
     final String summary;
     if (plan == null) {
-      summary = '到点在主对话里问我，问法和按钮先由你确认';
+      summary = context.l10n.wikiCheckinHint;
     } else if (!plan.enabled) {
-      summary = '已暂停 · ${plan.localTime}';
+      summary = context.l10n.wikiCheckinPaused(plan.localTime);
     } else {
       summary =
           '${_habitWeekdaySummary(plan.weekdays)} ${plan.localTime} · '
@@ -316,8 +308,8 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
             );
             if (changed == true && context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('定期问候已更新'),
+                SnackBar(
+                  content: Text(context.l10n.checkinsUpdated),
                   behavior: SnackBarBehavior.floating,
                 ),
               );
@@ -345,7 +337,9 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        plan == null ? '定期问我' : '定期问候',
+                        plan == null
+                            ? context.l10n.askRegularly
+                            : context.l10n.wikiCheckins,
                         style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
@@ -376,14 +370,15 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
     );
   }
 
-  static String _habitWeekdaySummary(int mask) {
-    if (mask == 127) return '每天';
-    const names = ['一', '二', '三', '四', '五', '六', '日'];
+  String _habitWeekdaySummary(int mask) {
+    if (mask == 127) return context.l10n.everyDay;
     final days = [
       for (var i = 0; i < 7; i++)
-        if ((mask & (1 << i)) != 0) names[i],
+        if ((mask & (1 << i)) != 0) context.l10n.weekdayShort('${i + 1}'),
     ];
-    return '每周 ${days.join('、')}';
+    return context.l10n.habitWeekSchedule(
+      days.join(context.l10n.listSeparator),
+    );
   }
 
   /// 相关页面（P3 导航面）：数据来自详情派生读（details.relations），
@@ -439,13 +434,13 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
   /// 以区分页面上其他可复制的东西（路径、链接、正文、代码块）。
   Widget _copyTitleButton(BuildContext context) {
     return Tooltip(
-      message: '复制标题',
+      message: context.l10n.wikiCopyTitle,
       child: InkWell(
         onTap: () {
           Clipboard.setData(ClipboardData(text: widget.page.title));
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('标题已复制'),
+            SnackBar(
+              content: Text(context.l10n.wikiTitleCopied),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -482,7 +477,11 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  '源于 ${widget.page.sourceEventIds.isEmpty ? "尚无事件溯源" : "${widget.page.sourceEventIds.length} 条事件"}',
+                  widget.page.sourceEventIds.isEmpty
+                      ? context.l10n.wikiNoEventOrigins
+                      : context.l10n.wikiEventOrigins(
+                          widget.page.sourceEventIds.length,
+                        ),
                   style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
                 ),
               ),
@@ -528,7 +527,9 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  widget.page.tags.isEmpty ? '添加标签' : '编辑标签',
+                  widget.page.tags.isEmpty
+                      ? context.l10n.wikiAddTags
+                      : context.l10n.wikiEditTags,
                   style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
                 ),
               ],
@@ -549,7 +550,7 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '联系人关系',
+          context.l10n.wikiContactRelations,
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w600,
@@ -592,25 +593,18 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
       ref.invalidate(pageRelationsProvider(widget.page.slug));
       ref.invalidate(wikiPagesProvider);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('标签已更新'),
+        SnackBar(
+          content: Text(context.l10n.wikiTagsUpdated),
           behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '标签更新失败：${e.toString().replaceFirst('Exception: ', '')}',
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      showAppError(context, context.l10n.save, e);
     }
   }
 
   String _fmtDate(DateTime t) {
-    return '${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
+    return MaterialLocalizations.of(context).formatCompactDate(t.toLocal());
   }
 }

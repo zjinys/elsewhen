@@ -1,3 +1,4 @@
+import '../l10n/app_localizations_zh.dart';
 import '../bridge/api.dart' as api;
 
 /// 目标阶段：近期 / 中期 / 长远
@@ -25,11 +26,11 @@ enum GoalPhase {
   String get label {
     switch (this) {
       case GoalPhase.near:
-        return '近期';
+        return AppLocalizationsZh().nearTerm;
       case GoalPhase.mid:
-        return '中期';
+        return AppLocalizationsZh().midTerm;
       case GoalPhase.long:
-        return '长远';
+        return AppLocalizationsZh().longTerm;
     }
   }
 }
@@ -57,11 +58,11 @@ enum GoalStatus {
   String get label {
     switch (this) {
       case GoalStatus.active:
-        return '进行中';
+        return AppLocalizationsZh().todoStatusOpen;
       case GoalStatus.paused:
-        return '已暂停';
+        return AppLocalizationsZh().pausedGoalState;
       case GoalStatus.completed:
-        return '已达成';
+        return AppLocalizationsZh().achievedGoals;
     }
   }
 }
@@ -76,8 +77,10 @@ class Goal {
   final String? currentFocus;
   final String? blocker;
   final String? doneCriteria;
+
   /// 所属长程计划（P1 意图拆解；null = 未挂计划）
   final String? planId;
+
   /// 计划内步骤序号（null = 未挂计划）
   final int? stepIndex;
   final DateTime createdAt;
@@ -130,6 +133,7 @@ class GoalCompassNudge {
   final String id;
   final String goalId;
   final String goalContent;
+
   /// 所属长程计划（P4：停滞步骤属于计划时的计划意图；null = 无计划归属）
   final String? planIntent;
   final String currentFocus;
@@ -169,4 +173,3 @@ class GoalCompassNudge {
     );
   }
 }
-

@@ -22,6 +22,11 @@ fn fingerprint_changes_when_connection_config_changes() {
             s.headers_json = r#"{"Authorization":"Bearer x"}"#.into();
             s
         },
+        {
+            let mut server = sample_server("http://a");
+            server.keywords = "小红书,种草".into();
+            server
+        },
     ];
     for variant in variants {
         assert_ne!(

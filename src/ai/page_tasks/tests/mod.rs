@@ -186,3 +186,5 @@ mod artifact_atomicity;
 mod revision_intent;
 
 mod revision_chunks;
+
+mod summary_intent;

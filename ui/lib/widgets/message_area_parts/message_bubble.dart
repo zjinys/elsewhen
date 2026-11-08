@@ -68,7 +68,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          '${isUser ? "我" : "AI"} • ${_formatTime(message.createdAt)}',
+                          '${isUser ? context.l10n.me : "AI"} • ${_formatTime(message.createdAt)}',
                           style: TextStyle(
                             color: AppTheme.textTertiary,
                             fontSize: 11,
@@ -82,15 +82,18 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                             size: 13,
                             color: AppTheme.textTertiary,
                           ),
-                          tooltip: '复制这条消息',
+                          tooltip: context.l10n.copyThisMessage,
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(
                             minWidth: 24,
                             minHeight: 20,
                           ),
-                          onPressed: () =>
-                              _copyToClipboard(context, message.content, '消息'),
+                          onPressed: () => _copyToClipboard(
+                            context,
+                            message.content,
+                            context.l10n.message,
+                          ),
                         ),
                         // 「存为主题」：常驻显示在工具条（与「复制」并排），一眼可见。
                         // 移动端另支持长按气泡弹底部菜单（见下方 GestureDetector），两者同一逻辑。
@@ -117,7 +120,11 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                     behavior: HitTestBehavior.opaque,
                     onLongPress: _isMobilePlatform
                         ? () => _showMessageActionsSheet(
-                              context, isUser, canFlipPast, message)
+                            context,
+                            isUser,
+                            canFlipPast,
+                            message,
+                          )
                         : null,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -198,7 +205,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                       child: TextButton.icon(
                         onPressed: widget.onRetry,
                         icon: const Icon(Icons.refresh_rounded, size: 15),
-                        label: const Text('重新生成'),
+                        label: Text(context.l10n.regenerate),
                         style: TextButton.styleFrom(
                           foregroundColor: AppTheme.accentPrimary,
                           visualDensity: VisualDensity.compact,
@@ -245,10 +252,14 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
           children: [
             ListTile(
               leading: Icon(Icons.copy_rounded, color: AppTheme.accentPrimary),
-              title: const Text('复制'),
+              title: Text(context.l10n.copyMessage),
               onTap: () {
                 Navigator.of(sheetContext).pop();
-                _copyToClipboard(context, message.content, '消息');
+                _copyToClipboard(
+                  context,
+                  message.content,
+                  context.l10n.message,
+                );
               },
             ),
             if (!isUser)
@@ -257,8 +268,8 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                   Icons.bookmark_add_outlined,
                   color: AppTheme.accentPrimary,
                 ),
-                title: const Text('存为主题'),
-                subtitle: const Text('提取标题与正文，确认后存入主题库'),
+                title: Text(context.l10n.saveAsTopic),
+                subtitle: Text(context.l10n.saveAsTopicDescription),
                 onTap: () {
                   Navigator.of(sheetContext).pop();
                   SaveTopicDialog.show(context, message.content);
@@ -293,7 +304,9 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
     // 分析结束前不露头：技术化的中间态（“分析中”）对用户无意义，
     // staleness 轮询完成后会自然变成 记录/讨论。
     if (analyzing) return const SizedBox.shrink();
-    final label = analyzing ? '分析中' : (value.recordable ? '记录' : '讨论');
+    final label = analyzing
+        ? context.l10n.aiAnalyzing
+        : (value.recordable ? context.l10n.record : context.l10n.discussion);
     final icon = analyzing
         ? Icons.sync
         : (value.recordable ? Icons.bookmark_outline : Icons.forum_outlined);
@@ -301,15 +314,15 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
         ? AppTheme.accentPrimary
         : AppTheme.textTertiary;
     return PopupMenuButton<String>(
-      tooltip: '记录分类',
+      tooltip: context.l10n.recordCategory,
       onSelected: (action) =>
           _handleRecordabilityAction(context, ref, value.eventId, action),
-      itemBuilder: (_) => const [
+      itemBuilder: (_) => [
         PopupMenuItem(
           value: 'record',
           child: ListTile(
             leading: Icon(Icons.bookmark_outline),
-            title: Text('纳入记录'),
+            title: Text(context.l10n.includeInRecords),
             contentPadding: EdgeInsets.zero,
             dense: true,
           ),
@@ -318,7 +331,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
           value: 'discussion',
           child: ListTile(
             leading: Icon(Icons.forum_outlined),
-            title: Text('作为讨论'),
+            title: Text(context.l10n.asDiscussion),
             contentPadding: EdgeInsets.zero,
             dense: true,
           ),
@@ -328,7 +341,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
           value: 'reanalyze',
           child: ListTile(
             leading: Icon(Icons.refresh),
-            title: Text('重新分析'),
+            title: Text(context.l10n.reanalyze),
             contentPadding: EdgeInsets.zero,
             dense: true,
           ),
@@ -358,25 +371,36 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
     try {
       if (action == 'reanalyze') {
         final queued = await repo.reanalyzeEvent(eventId);
-        if (!queued) throw StateError('事件正在分析中，请稍后再试');
+        if (!queued) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(context.l10n.eventAnalyzing)),
+            );
+          }
+          return;
+        }
       } else {
         await repo.setEventRecordability(eventId, action == 'record');
       }
       ref.invalidate(messageRecordabilityProvider(widget.message.id));
       if (context.mounted) {
         final text = action == 'record'
-            ? '已纳入记录'
+            ? context.l10n.savedAsRecord
             : action == 'discussion'
-            ? '已作为讨论，不再进入日流和长期事实'
-            : '已加入重新分析队列';
+            ? context.l10n.savedAsDiscussion
+            : context.l10n.reanalyzeQueued;
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(text)));
       }
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(reportUiError('更新消息状态', error))));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              context.errorMessage(context.l10n.updateMessageStatus, error),
+            ),
+          ),
+        );
       }
     }
   }
@@ -405,9 +429,9 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
     final messageDate = DateTime(time.year, time.month, time.day);
 
     if (messageDate == today) {
-      return DateFormat('HH:mm').format(time);
+      return DateFormat.Hm(context.l10n.localeName).format(time);
     } else {
-      return DateFormat('MM-dd HH:mm').format(time);
+      return DateFormat.Md(context.l10n.localeName).add_Hm().format(time);
     }
   }
 }
@@ -430,7 +454,7 @@ class _SaveTopicButton extends StatelessWidget {
           size: 14,
           color: AppTheme.accentPrimary,
         ),
-        tooltip: '把这条内容存为主题',
+        tooltip: context.l10n.saveMessageAsTopic,
         visualDensity: VisualDensity.compact,
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints(minWidth: 24, minHeight: 20),
@@ -537,7 +561,7 @@ class _AiTypingBubbleState extends State<_AiTypingBubble>
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'AI 正在思考…',
+                    context.l10n.thinking,
                     style: TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 13,

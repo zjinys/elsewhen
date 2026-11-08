@@ -2,7 +2,6 @@ part of '../rust_bridge_repository.dart';
 
 //! RustBridgeRepository 便捷薄委托（conversations 域）。
 extension RepoConversations on RustBridgeRepository {
-
   Future<List<api.ChatRunDto>> listChatRuns(
     String conversationId, {
     int offset = 0,
@@ -98,7 +97,6 @@ extension RepoConversations on RustBridgeRepository {
   Future<api.ChatRunDto?> cancelChatRun(String conversationId, String runId) =>
       api.cancelChatRun(conversationId: conversationId, runId: runId);
 
-
   /// 最近 N 天的每日 token 用量统计（含当天，日期倒序）
   Future<List<DailyTokenUsage>> getDailyTokenUsage(int days) async {
     final dtos = await api.getDailyTokenUsage(days: days);
@@ -107,14 +105,12 @@ extension RepoConversations on RustBridgeRepository {
 
   // Wiki methods
 
-
   /// 页面列表元数据（sidebar 专用）：无正文、无图片解析、SQL 级有界
   /// （默认 500 条，Rust 侧按 updated_at 倒序）。明细按 slug 单页读。
   Future<List<WikiPageMeta>> listWikiPageMetas({int? limit}) async {
     final dtos = await api.listWikiPageMetas(limit: limit);
     return dtos.map(WikiPageMeta.fromDto).toList();
   }
-
 
   /// 创建记事本（kind=memo 唯一建档入口）
   Future<WikiPage> createWikiPage({
@@ -123,7 +119,10 @@ extension RepoConversations on RustBridgeRepository {
     List<String> tags = const [],
   }) async {
     final dto = await api.createWikiPage(
-        title: title, contentMd: contentMd, tags: tags);
+      title: title,
+      contentMd: contentMd,
+      tags: tags,
+    );
     return WikiPage.fromDto(dto);
   }
 
@@ -134,7 +133,10 @@ extension RepoConversations on RustBridgeRepository {
     String reason = '快记',
   }) async {
     final dto = await api.appendWikiPageContent(
-        slug: slug, appendMd: appendMd, reason: reason);
+      slug: slug,
+      appendMd: appendMd,
+      reason: reason,
+    );
     return WikiPage.fromDto(dto);
   }
 
@@ -153,32 +155,38 @@ extension RepoConversations on RustBridgeRepository {
   /// 用户技能（skills 目录 + SKILL.md frontmatter）。
   Future<List<api.UserSkillDto>> listUserSkills() => api.listUserSkills();
 
-
   Future<String> saveMcpServer(api.McpServerDto server) =>
       api.saveMcpServer(server: server);
 
   Future<void> deleteMcpServer({required String id}) =>
       api.deleteMcpServer(id: id);
 
-  Future<void> setMcpServerEnabled({required String id, required bool enabled}) =>
-      api.setMcpServerEnabled(id: id, enabled: enabled);
+  Future<void> setMcpServerEnabled({
+    required String id,
+    required bool enabled,
+  }) => api.setMcpServerEnabled(id: id, enabled: enabled);
 
   /// 免审批开关（迁移 47）：trusted=true 后该服务器工具调用直接执行。
-  Future<void> setMcpServerTrusted({required String id, required bool trusted}) =>
-      api.setMcpServerTrusted(id: id, trusted: trusted);
-
+  Future<void> setMcpServerTrusted({
+    required String id,
+    required bool trusted,
+  }) => api.setMcpServerTrusted(id: id, trusted: trusted);
 
   /// 连通性测试：拉起进程走握手并取回工具清单。
   Future<List<api.McpToolDto>> testMcpServer(api.McpServerDto server) =>
       api.testMcpServer(server: server);
 
   /// 用户技能启停（写 skills_state.json，不影响技能文件）。
-  Future<void> setUserSkillEnabled({required String id, required bool enabled}) =>
-      api.setUserSkillEnabled(id: id, enabled: enabled);
+  Future<void> setUserSkillEnabled({
+    required String id,
+    required bool enabled,
+  }) => api.setUserSkillEnabled(id: id, enabled: enabled);
 
   /// 免审批执行开关（与 MCP trusted 同模型）。
-  Future<void> setUserSkillTrusted({required String id, required bool trusted}) =>
-      api.setUserSkillTrusted(id: id, trusted: trusted);
+  Future<void> setUserSkillTrusted({
+    required String id,
+    required bool trusted,
+  }) => api.setUserSkillTrusted(id: id, trusted: trusted);
 
   /// 技能目录绝对路径（供"打开技能目录"）。
   Future<String> userSkillsDirectoryPath() => api.userSkillsDirectoryPath();
@@ -207,8 +215,9 @@ extension RepoConversations on RustBridgeRepository {
       api.deleteWikiPage(slug: slug);
 
   /// 导出知识页为 Markdown（用户选定目录；与主列表同口径，同名覆盖可重复）。
-  Future<api.WikiExportResultDto> exportWikiMarkdown({required String outDir}) =>
-      api.exportWikiMarkdown(outDir: outDir);
+  Future<api.WikiExportResultDto> exportWikiMarkdown({
+    required String outDir,
+  }) => api.exportWikiMarkdown(outDir: outDir);
 
   /// 按项目页记录的本地目录重新扫描，并更新原知识页。
   Future<WikiPage> refreshProjectPage(String slug) async {
@@ -225,24 +234,7 @@ extension RepoConversations on RustBridgeRepository {
     return WikiPage.fromDto(dto);
   }
 
-
   /// 知识库页聚合视图（D4）：哪些事件的分析 guidance 引用了此页。
-  Future<List<api.PageGuidanceDto>> listPageGuidance(String slug) =>
-      api.listPageGuidance(slug: slug);
-
-  /// guidance 采纳反馈（遗留收口切片 B）：只记不外推；feedback null = 清
-  /// 除（toggle off）。与 rule_hit feedback 同纪律，未知值 fail-closed。
-  Future<bool> setGuidanceFeedback({
-    required String analysisId,
-    required String slug,
-    String? note,
-    String? feedback,
-  }) => api.setGuidanceFeedback(
-    analysisId: analysisId,
-    slug: slug,
-    note: note,
-    feedback: feedback,
-  );
 
   /// 情绪标注列表（D5 用户模型面板）：分析产物派生，文本无数值。
   Future<List<api.EventEmotionDto>> listEventEmotions() =>
@@ -256,7 +248,6 @@ extension RepoConversations on RustBridgeRepository {
   }) => api.deleteEventEmotion(id: id, target: target, feeling: feeling);
 
   // ── 人物关系 ──
-
 
   /// 全部人物关系（备用：未来人物视图）
   Future<List<Relation>> listRelations() async {
@@ -313,33 +304,6 @@ extension RepoConversations on RustBridgeRepository {
     );
     return WikiPage.fromDto(dto);
   }
-
-  /// 把用户粘贴的纯文本保存为知识库页面（kind=topic）。
-  /// 文本会完整写入（content_md 不截断），标题/摘要自动生成；tags 可选。
-  Future<WikiPage> saveTextPage({
-    required String text,
-    String? title,
-    List<String> tags = const [],
-  }) async {
-    final dto = await api.saveTextPage(text: text, title: title, tags: tags);
-    return WikiPage.fromDto(dto);
-  }
-
-  /// 把一段文本保存为「主题」（kind=topic）页——对话消息「存为主题」入口专用。
-  /// 文本完整写入，标题留空时取正文首行前 60 字；tags 可选。
-  Future<WikiPage> saveTopicPage({
-    required String text,
-    String? title,
-    List<String> tags = const [],
-  }) async {
-    final dto = await api.saveTopicPage(text: text, title: title, tags: tags);
-    return WikiPage.fromDto(dto);
-  }
-
-  /// 判断一个网址需要走哪种抓取方式（"tweet" → fxtwitter 专用 API，"web" → 普通网页提取）。
-  /// 统一由 Rust 侧分类，避免前端各自猜测。
-  Future<String> guessImportKind(String url) => api.guessImportKind(url: url);
-
 
   /// 当前推文抓取服务（设置页读取；当前仅支持 fxtwitter）
   Future<String> getTweetFetchService() => api.getTweetFetchService();

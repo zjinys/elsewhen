@@ -1,3 +1,5 @@
+import '../l10n/notice_messages.dart';
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -188,7 +190,7 @@ class SyncSetupController extends ChangeNotifier {
     try {
       state = await _bridge.state();
     } catch (_) {
-      error = '无法读取本机同步状态；原有记录未改动。';
+      error = appNotice('l6CouldNotReadDeviceSyncState278eb');
     } finally {
       busy = false;
       _changed();
@@ -257,23 +259,27 @@ class SyncSetupController extends ChangeNotifier {
   /// 修订号在改前读取，由 Rust 端失败关闭防盲写。
   Future<String?> renameLocalDevice(String deviceId, String name) async {
     final current = state;
-    if (current == null || _disposed || _closed) return '本机同步尚未就绪。';
+    if (current == null || _disposed || _closed) {
+      return appNotice('l6DeviceSyncIsNotReady3fc30');
+    }
     final trimmed = name.trim();
-    if (trimmed.isEmpty || trimmed.length > 256) return '设备名需为 1–256 个字符。';
+    if (trimmed.isEmpty || trimmed.length > 256) {
+      return appNotice('l6DeviceNamesMustContain12561d9b2');
+    }
     try {
       await _bridge.renameDevice(deviceId, trimmed, current.vaultRevision);
     } catch (error) {
       final text = error.toString();
       if (text.contains('sync_vault_revision_changed')) {
-        return '状态刚被其他操作更新，请刷新后重试。';
+        return appNotice('l6AnotherOperationUpdatedTheStateRefresh39e75');
       }
       if (text.contains('sync_rename_requires_unlock')) {
-        return '本机密钥已锁定，请先解锁再改名。';
+        return appNotice('l6UnlockDeviceKeysBeforeRenaming10735');
       }
       if (text.contains('pairing_device_name_invalid')) {
-        return '设备名包含无效字符，请换一个。';
+        return appNotice('l6TheDeviceNameContainsInvalidCharacters438ed');
       }
-      return '改名失败：$text';
+      return appFailure(text);
     }
     await refresh();
     return null;
@@ -286,8 +292,8 @@ class SyncSetupController extends ChangeNotifier {
   }) async {
     if (!previewEnabled || !consent || name.trim().isEmpty) {
       error = !previewEnabled
-          ? '设备同步已在当前构建中关闭（编译开关 ELSEWHEN_SYNC_PREVIEW）。'
-          : '填写设备名称，并确认配对将共享 Provider API Key。';
+          ? appNotice('l6DeviceSyncIsDisabledInThise1b42')
+          : appNotice('l6EnterADeviceNameAndConfirm02f54');
       _changed();
       return;
     }
@@ -303,7 +309,7 @@ class SyncSetupController extends ChangeNotifier {
   }) async {
     if (busy || _disposed || _closed) return;
     if (joiner.active || joiner.busy) {
-      error = '请先停止本机加入流程，再准备或解锁当前数据集。';
+      error = appNotice('l6StopEnrollmentBeforePreparingOrUnlocking4420c');
       _changed();
       return;
     }
@@ -315,7 +321,7 @@ class SyncSetupController extends ChangeNotifier {
     _activationDone = done;
     SyncMasterKey? key;
     // 准备/解锁会写密钥库与 vault 修订；被冻结在中间会留下未确认的会话。
-    SyncKeepAlive.hold('sync-setup', text: '正在准备本机同步身份');
+    SyncKeepAlive.hold('sync-setup');
     try {
       await enrollment.pause();
       if (_disposed || _closed) throw StateError('closed');
@@ -398,7 +404,7 @@ class SyncSetupController extends ChangeNotifier {
       pairingNotice = null;
       _ownedOperation = null;
     } catch (_) {
-      error = '锁定操作未确认，请重试；不会重新生成密钥。';
+      error = appNotice('l6LockingIsUnconfirmedTryAgainKeys6bf44');
     } finally {
       busy = false;
       done.complete();
@@ -429,25 +435,31 @@ class SyncSetupController extends ChangeNotifier {
   String _message(Object error) {
     if (error is SyncKeyStoreException) {
       return switch (error.code) {
-        SyncKeyStoreError.missing => '缺少本机密钥或受保护的修订记录。请通过原设备恢复；不会生成替代密钥。',
-        SyncKeyStoreError.revisionRollback => '密钥修订发生回退，已停止解锁。请检查恢复的数据，原记录保留。',
-        SyncKeyStoreError.corrupt => '系统密钥记录损坏，已停止解锁。原数据和密钥不会被覆盖。',
-        _ => '系统密钥库不可用或已锁定。解锁系统密钥库后重试，仍可保存本地记录。',
+        SyncKeyStoreError.missing => appNotice(
+          'l6DeviceKeysOrProtectedRevisionsAre845e9',
+        ),
+        SyncKeyStoreError.revisionRollback => appNotice(
+          'l6KeyRevisionsRolledBackUnlockingStoppedc58f3',
+        ),
+        SyncKeyStoreError.corrupt => appNotice(
+          'l6SystemKeyRecordsAreDamagedUnlocking23c95',
+        ),
+        _ => appNotice('l6TheSystemKeyStoreIsUnavailable8d23d'),
       };
     }
     final text = error.toString();
     if (text.contains('sync_runtime_in_use') ||
         text.contains('sync_runtime_request_already_open')) {
-      return '另一个窗口或后台任务正在使用此工作区，请等待结束后重试。';
+      return appNotice('l6AnotherWindowOrBackgroundTaskIs610c2');
     }
     if (text.contains('sync_background_processing_must_finish')) {
-      return '后台任务仍在执行，完成后再准备同步；本次未切换加工归属。';
+      return appNotice('l6BackgroundJobsAreStillRunningPrepare56569');
     }
     if (text.contains('sync_runtime_setup_requires_repair') ||
         text.contains('sync_vault_restored_revision')) {
-      return '本机同步身份需要恢复，已停止自动初始化。请保留原库并通过授权设备重新加入。';
+      return appNotice('l6TheDeviceSyncIdentityNeedsRecoveryd2a55');
     }
-    return '本机同步准备未完成，已保持锁定。请重试；原记录保留。';
+    return appNotice('l6SyncPreparationDidNotFinishAnd1c512');
   }
 
   @override

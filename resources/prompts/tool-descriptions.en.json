@@ -1,0 +1,276 @@
+{
+  "add_plan_steps": {
+    "description": "Propose additional steps for an existing long-term plan, requiring user review. Confirmed additions wait in order until an active slot opens. Use when extending a milestone, refining a path or adding missing steps. Obtain plan_id from the plan context or list_plans. Do not duplicate existing steps or create another plan for the same intent.",
+    "parameters": {
+      "/properties/plan_id/description": "Required target plan ID",
+      "/properties/steps/description": "Steps to append after existing steps, ordered near to far",
+      "/properties/steps/items/properties/content/description": "Required, verifiable outcome of this step"
+    }
+  },
+  "advance_plan_step": {
+    "description": "Propose plan advancement for user review. First compare completion criteria and assumptions and explain facts versus assumptions. Then optionally complete completed_step_goal_id, activate an existing queued activate_goal_id from list_plans, or append new_step. If active slots are full, a new step remains queued; do not refuse to advance solely because of the limit.",
+    "parameters": {
+      "/properties/activate_goal_id/description": "Optional queued step to activate, from the list_plans waiting list",
+      "/properties/completed_step_goal_id/description": "Optional goal ID of the completed step; supplying it marks that step complete",
+      "/properties/new_step/description": "Optional new step to append and activate when the queue is empty or the path changes",
+      "/properties/plan_id/description": "Required plan ID"
+    }
+  },
+  "archive_conversations_by_title": {
+    "description": "Propose archiving conversations from the main list, excluding page chats. Use title for exact matching or contains for a case-insensitive substring. Untitled conversations match the historical title 新对话. No conversation is archived until user confirmation.",
+    "parameters": {
+      "/properties/contains/description": "Case-insensitive title substring; supply this or title",
+      "/properties/title/description": "Exact title; supply this or contains"
+    }
+  },
+  "batch_extract_people_relations": {
+    "description": "Scan saved events and propose contacts and contact-to-project/item relations. Explicit @person and #project/item annotations are authoritative and must be included; infer roles only from supporting event context. This prepares proposals and saves them only after user review.",
+    "parameters": {}
+  },
+  "complete_goal": {
+    "description": "Propose marking an active goal complete, requiring approval in the review card. Use only when the user explicitly reports completion or the completion criteria are met.",
+    "parameters": {
+      "/properties/goal_id/description": "Required goal ID to mark complete"
+    }
+  },
+  "create_goal": {
+    "description": "Propose a new personal goal for user review. There can be at most three active goals; when full, a new goal is created paused and can later be reactivated. Clarify phase, vision, motivation (why), the first concrete action for the next 1–2 weeks (current_focus), possible obstacles (blocker) and completion criteria (done_criteria).",
+    "parameters": {
+      "/properties/blocker/description": "Optional current or anticipated obstacle",
+      "/properties/content/description": "Required goal vision/title",
+      "/properties/current_focus/description": "Optional first action phase for the next 1–2 weeks",
+      "/properties/done_criteria/description": "Optional verifiable completion criteria",
+      "/properties/phase/description": "near (next 1–3 months), mid or long; default near",
+      "/properties/why/description": "Optional core motivation in one or two sentences"
+    }
+  },
+  "create_plan": {
+    "description": "Break the user's long-term intent into a complete plan draft for review. Order milestones near to far; each step should be startable within 1–2 weeks and have verifiable completion criteria. Assess realism using the user's circumstances and knowledge base; verify key external facts with web_search when needed. List correctable assumptions about timeframe, starting point, paths and risks. Quote intent_text verbatim. Respect a requested step count. After confirmation the first step starts and others wait; do not require a discussion of internal slot limits.",
+    "parameters": {
+      "/properties/assessment/description": "Optional but recommended assessment of feasibility and key uncertainties given current circumstances",
+      "/properties/assumptions/description": "Correctable assumptions underlying this plan",
+      "/properties/intent_text/description": "Required user intent quoted verbatim without changing a word",
+      "/properties/steps/description": "Milestones ordered near to far; first starts after confirmation, others queue",
+      "/properties/steps/items/properties/blocker/description": "Optional anticipated obstacle",
+      "/properties/steps/items/properties/content/description": "Required verifiable one-sentence outcome",
+      "/properties/steps/items/properties/current_focus/description": "Optional action for the first 1–2 weeks of this step",
+      "/properties/steps/items/properties/done_criteria/description": "Optional but recommended completion criteria",
+      "/properties/steps/items/properties/phase/description": "Phase; default near",
+      "/properties/steps/items/properties/why/description": "Optional reason for this step",
+      "/properties/vision/description": "Optional one-sentence description of the desired end state"
+    }
+  },
+  "create_reminder": {
+    "description": "Propose a reminder for a specific future time. An explicit ISO/RFC3339 due time is required. The review card displays the parsed time and confirmation creates the reminder. If the time has passed at confirmation, reject it without silently rescheduling.",
+    "parameters": {
+      "/properties/due_at/description": "Required due time in RFC3339 / ISO format",
+      "/properties/note/description": "Optional note",
+      "/properties/title/description": "Required reminder text"
+    }
+  },
+  "create_todo": {
+    "description": "Propose a todo for something requiring follow-up. The item is created only after user confirmation.",
+    "parameters": {
+      "/properties/due_at/description": "Optional due date in ISO format",
+      "/properties/note/description": "Optional note",
+      "/properties/priority/description": "high/normal/low; default normal",
+      "/properties/related_wiki_slug/description": "Optional related knowledge-page slug",
+      "/properties/title/description": "Required todo text"
+    }
+  },
+  "fetch_page": {
+    "description": "Read a webpage/article URL and extract plain text without page noise, returning the first 4,000 characters. Read-only; saves nothing.",
+    "parameters": {
+      "/properties/url/description": "Required http(s) URL"
+    }
+  },
+  "fetch_tweet": {
+    "description": "Fetch long-form content from an x.com or twitter.com URL, returning title, author and body. Does not save to the knowledge base.",
+    "parameters": {
+      "/properties/url/description": "Required post URL"
+    }
+  },
+  "get_daily_token_usage": {
+    "description": "Read daily AI token usage for the last N days.",
+    "parameters": {
+      "/properties/days/description": "Number of days; default 7"
+    }
+  },
+  "get_wiki_page": {
+    "description": "Read a knowledge page by slug, returning a bounded excerpt for long text and its source status. Use list_wiki_pages to find a slug first.",
+    "parameters": {
+      "/properties/slug/description": "Required page slug"
+    }
+  },
+  "import_directory_as_project": {
+    "description": "Propose importing a user-specified local directory as a project. Analyze a bounded set of file evidence first; user confirmation saves a project page. File excerpts may be sent to the current AI provider. Scanning and analysis can consume substantial tokens.",
+    "parameters": {
+      "/properties/directory/description": "Required absolute local directory path"
+    }
+  },
+  "import_directory_files": {
+    "description": "Propose importing readable files from a user-specified local directory, one source page per file. Execution requires user confirmation and large directories can consume substantial tokens.",
+    "parameters": {
+      "/properties/directory/description": "Required absolute local directory path"
+    }
+  },
+  "import_url_to_wiki": {
+    "description": "Propose importing an x.com/twitter.com post or any webpage URL into the knowledge base. Save only after user confirmation.",
+    "parameters": {
+      "/properties/tags/description": "Optional extra tags",
+      "/properties/url/description": "Required complete URL"
+    }
+  },
+  "list_events_by_date": {
+    "description": "Read the events recorded on a given day, including time and text. Resolve date to YYYY-MM-DD using the current clock for today/yesterday/day before yesterday, the current year for a date lacking a year, and an explicit ISO date unchanged.",
+    "parameters": {
+      "/properties/date/description": "Required date in YYYY-MM-DD"
+    }
+  },
+  "list_goals": {
+    "description": "Read personal goals filtered by status: active, paused, completed or all. Use when the user asks about historical, paused or completed goals.",
+    "parameters": {
+      "/properties/status/description": "Optional status filter; default active"
+    }
+  },
+  "list_plans": {
+    "description": "Read long-term plans including current progress and queued step counts. Use for plan status, obtaining plan_id for additions, or reviewing the breakdown.",
+    "parameters": {}
+  },
+  "list_rules": {
+    "description": "Read all active personal experience rules. Use for lessons learned or when a reply should be checked against established experience. The full rule text is not automatically injected into conversation.",
+    "parameters": {}
+  },
+  "list_summary_history": {
+    "description": "Page through original message identities and character ranges covered by the current summary, then use read_conversation_history to read exact source text.",
+    "parameters": {}
+  },
+  "list_todos": {
+    "description": "Read personal todos when asked about tasks or things to do.",
+    "parameters": {
+      "/properties/status/description": "Optional open/done filter; default all unarchived"
+    }
+  },
+  "list_wiki_pages": {
+    "description": "Page through knowledge pages ordered by recent updates, returning title, slug and a bounded summary. Default 10, maximum 20 items; continue using next_offset. Prefer search_knowledge_base for a specific topic and get_wiki_page for content.",
+    "parameters": {
+      "/properties/kind/description": "Optional kind: topic/source/insight/principle/method/case/relationship/decision/habit/project/asset/constraint",
+      "/properties/limit/description": "Page size; default 10, maximum 20",
+      "/properties/offset/description": "Matching rows to skip; default 0, continue using returned next_offset"
+    }
+  },
+  "pause_goal": {
+    "description": "Propose pausing an active goal for user approval in the review card. Use on an explicit request to pause/set aside the goal or redirect effort. A paused goal retains all context and can be reactivated.",
+    "parameters": {
+      "/properties/goal_id/description": "Required goal ID to pause",
+      "/properties/reason/description": "Optional reason displayed to the user for review"
+    }
+  },
+  "propose_people_relations": {
+    "description": "Propose important contacts and their relations to projects/items mentioned in conversation. Save only after user review. Explicit @person and #project/item annotations are authoritative; include these first.",
+    "parameters": {
+      "/properties/people/description": "Optional contacts to create; omit when adding only relations",
+      "/properties/people/items/properties/name/description": "Required contact name",
+      "/properties/people/items/properties/role_note/description": "Optional one-sentence identity/role/background",
+      "/properties/relations/description": "Optional relations; omit when creating contacts only",
+      "/properties/relations/items/properties/note/description": "Optional note",
+      "/properties/relations/items/properties/person/description": "Contact name matching people.name or an existing contact page",
+      "/properties/relations/items/properties/relation/description": "Optional relation such as responsible/participates/collaborates/contact/follows up/advises; default 参与",
+      "/properties/relations/items/properties/target/description": "Project/item name"
+    }
+  },
+  "query_event_stats": {
+    "description": "Read local SQL aggregate statistics of recorded events; never count samples. date_range accepts today/yesterday/this_week/last_week/this_month/last_month. activity/person/project/text_contains are substring filters, event_type is exact, group_by accepts day/event_type/person/project/activity. Default returns a total and samples. Counts recordable events only, excluding casual/meta conversation.",
+    "parameters": {}
+  },
+  "reactivate_goal": {
+    "description": "Propose reactivating a paused goal for approval in the review card. Requires an available slot within the three-active-goal limit. May also update its current action and obstacle.",
+    "parameters": {
+      "/properties/blocker/description": "Optional updated obstacle; omission preserves the original",
+      "/properties/current_focus/description": "Optional first action after restart; omission preserves the original",
+      "/properties/goal_id/description": "Required paused goal ID"
+    }
+  },
+  "read_conversation_history": {
+    "description": "Read exact original messages in the current conversation by identity and bounded pagination, checking their versions against this run. Use for original wording or exact numbers; summaries cannot replace source text.",
+    "parameters": {}
+  },
+  "record_event": {
+    "description": "Immediately save the user's objective experience, decision, action or progress as an immutable personal event, without review. Record only user facts worth revisiting; never record AI feedback, conversation process, greetings, pure questions or casual chat. Follow explicit requests to record an event.",
+    "parameters": {
+      "/properties/occurred_at/description": "Optional occurrence time in ISO8601, e.g. 2026-09-15T10:30:00Z; default now",
+      "/properties/raw_text/description": "Required first-person fact, decision, action or progress worth revisiting; exclude AI feedback and casual chat"
+    }
+  },
+  "rename_wiki_page": {
+    "description": "Propose renaming a knowledge page. Prefixed person/project pages may change slug with the title; contact relation references and page-chat bindings migrate accordingly. Use for explicit corrections or renaming requests. Change only after user confirmation.",
+    "parameters": {
+      "/properties/new_title/description": "Required new page title/name",
+      "/properties/reason/description": "Optional reason retained in revision history",
+      "/properties/slug/description": "Required current unique page slug, e.g. person/example or topic/site-redesign"
+    }
+  },
+  "run_skill_script": {
+    "description": "Propose running a script from an installed user skill. The file must be listed in that skill's SKILL.md. Show the complete command for confirmation before every execution. Desktop only.",
+    "parameters": {
+      "/properties/args/description": "Optional command-line arguments split on spaces; quote arguments containing spaces",
+      "/properties/script/description": "Required script path relative to the skill directory, e.g. templates/clash-pick",
+      "/properties/skill/description": "Required installed skill ID from the enable_tools roster"
+    }
+  },
+  "save_knowledge_draft": {
+    "description": "Prepare a knowledge page draft and save after review. For a sourced reply, source_slugs must contain only provided pages actually used, and applicable_when states applicability; source versions are fixed and checked again at confirmation. To derive from an existing page, use parent_slug instead, attaching the artifact to that parent after confirmation. parent_slug and source_slugs are mutually exclusive. Unsourced notes are allowed, invented sources are not. Do not overwrite a page with the same name; use save_wiki_revision.",
+    "parameters": {
+      "/properties/applicable_when/description": "Required applicability for sourced methods/cases/principles; maximum 600 characters",
+      "/properties/content_md/description": "Required Markdown body",
+      "/properties/kind/description": "Optional kind; default topic. Known: topic/source/insight/principle/method/case/relationship/decision/habit/project",
+      "/properties/parent_slug/description": "Parent page slug for a derivative, e.g. the current page in page chat; mutually exclusive with source_slugs",
+      "/properties/source_slugs/description": "At most 8 provided/retrieved page slugs actually used; no unrelated sources",
+      "/properties/tags/description": "Optional tag array",
+      "/properties/title/description": "Required page title"
+    }
+  },
+  "save_wiki_revision": {
+    "description": "Prepare a reviewed version of work based on the current page. Generated processing defaults to a derivative and preserves the original; use save_as=revision only for an explicit request to edit the page itself. Confirming a personal-rule revision also confirms its new wording and applicability while retaining its strength. Wait for user confirmation.",
+    "parameters": {
+      "/properties/applicable_when/description": "Revised applicability; omission preserves existing conditions",
+      "/properties/change_note/description": "Required description of this operation, e.g. summary/translation/additional points",
+      "/properties/content_md/description": "Required finished Markdown content; revisions must retain existing valid facts",
+      "/properties/content_type/description": "Required for derivatives, e.g. summary/insights/translation/study notes",
+      "/properties/save_as/description": "derivative (default): processed artifact such as summary/translation; revision: explicit edit of the current unlocked page only",
+      "/properties/slug/description": "Required current page slug, unchanged",
+      "/properties/title/description": "Required saved title; distinguish derivatives, e.g. original title · summary"
+    }
+  },
+  "search_knowledge_base": {
+    "description": "Search knowledge pages and personal event records by keywords, returning relevant excerpts with citation slugs. Search before answering about prior user details or agreements; ordinary chat does not need retrieval.",
+    "parameters": {
+      "/properties/limit/description": "Maximum returned results; default 5",
+      "/properties/query/description": "Required search keywords"
+    }
+  },
+  "update_goal_facets": {
+    "description": "Propose updates to an active goal's current_focus, blocker or done_criteria, requiring user review. Use when progressing to a new phase or when obstacles change, without archiving and recreating the goal.",
+    "parameters": {
+      "/properties/blocker/description": "Optional newly identified obstacle",
+      "/properties/current_focus/description": "Optional current action phase for the next 1–2 weeks",
+      "/properties/done_criteria/description": "Optional revised completion criteria",
+      "/properties/goal_id/description": "Required target goal ID"
+    }
+  },
+  "update_personal_profile": {
+    "description": "Collect stable personal facts explicitly stated in conversation into knowledge page profile/me. Update only fields with new facts and preserve valid existing information. Do not infer income/personality; ask about contradictions first and do not collect unrelated third-party information. Apply explicit user corrections. Do not call without new facts.",
+    "parameters": {
+      "/properties/limits/description": "Time budget and practical constraints",
+      "/properties/preferences/description": "Preferences, habits and boundaries",
+      "/properties/resources/description": "Resources, circumstances and existing assets",
+      "/properties/skills/description": "Skills, experience and background; preserve existing valid facts"
+    }
+  },
+  "web_search": {
+    "description": "Search the web for current/time-sensitive information. Use on an explicit user request or for time-sensitive content; ask first when uncertain whether web search is desired. Read-only; saves nothing.",
+    "parameters": {
+      "/properties/query/description": "Search keywords"
+    }
+  }
+}

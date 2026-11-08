@@ -222,6 +222,24 @@ pub(crate) fn response_message_tool_calls(message: &OpenAiMessageResponse) -> Ve
 }
 
 impl AiProvider for OpenAiCompatibleProvider {
+    fn fits_request(&self, messages: &[ContextMessage]) -> Result<bool> {
+        crate::ai::budget::validate_context_exchanges(messages)?;
+        let (payload, _) = self.request_parts(messages.to_vec(), None)?;
+        let window = self
+            .config
+            .context_window
+            .map(|v| v as usize)
+            .unwrap_or_else(|| crate::ai::budget::default_window(&self.config.model));
+        let limit = crate::ai::budget::input_limit(
+            window,
+            self.config.max_tokens.unwrap_or(4096) as usize,
+        )?;
+        Ok(
+            crate::ai::budget::input_tokens(&self.config.model, &payload).saturating_add(512)
+                <= limit,
+        )
+    }
+
     fn accepts_supplement(
         &self,
         messages: &[ContextMessage],

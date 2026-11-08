@@ -1,0 +1,140 @@
+{
+  "generation_failed": {
+    "text": "No usable reply was generated. The task remains unfinished; you can retry.",
+    "variables": []
+  },
+  "retry_exhausted": {
+    "text": "Several attempts produced no usable reply, so this turn has ended. The task remains unfinished. Say \"continue\" or rephrase; you do not need to repeat the original request.",
+    "variables": []
+  },
+  "previous_request": {
+    "text": "the preceding request",
+    "variables": []
+  },
+  "task": {
+    "text": "Regarding your request \"<<request>>\"",
+    "variables": [
+      "request"
+    ]
+  },
+  "confirmed_result": {
+    "text": "<<task>>, the confirmed operation returned this actual result:\n<<result>>",
+    "variables": [
+      "result",
+      "task"
+    ]
+  },
+  "query_result": {
+    "text": "<<task>>, these are the retrieved results:\n<<result>>",
+    "variables": [
+      "result",
+      "task"
+    ]
+  },
+  "step_failed": {
+    "text": "One step did not complete: <<reason>>",
+    "variables": [
+      "reason"
+    ]
+  },
+  "available_result": {
+    "text": "Available results:\n<<result>>",
+    "variables": [
+      "result"
+    ]
+  },
+  "previous_reply": {
+    "text": "<<task>>, the preceding reply was:\n<<reply>>\nThere are no new results.",
+    "variables": [
+      "reply",
+      "task"
+    ]
+  },
+  "unfinished": {
+    "text": "<<task>>, the task remains unfinished and I have not delivered a usable result. No background task is continuing. Your original request remains in this conversation; you do not need to enter it again.",
+    "variables": [
+      "task"
+    ]
+  },
+  "pending_action": {
+    "text": "Operation awaiting review",
+    "variables": []
+  },
+  "draft_preview": {
+    "text": "\"<<title>>\"<<preview>>",
+    "variables": [
+      "preview",
+      "title"
+    ]
+  },
+  "pending_notice": {
+    "text": "This conversation has <<count>> operations awaiting review; saving has not been executed:\n<<drafts>>\nAccept or reject each proposal through its review card. A save is complete only after acceptance and successful execution.",
+    "variables": [
+      "count",
+      "drafts"
+    ]
+  },
+  "confirmation_failed": {
+    "text": "The save you reviewed did not take effect this turn: <<reason>>. The content for \"<<request>>\" is still in the conversation. Check its review card before retrying.",
+    "variables": [
+      "reason",
+      "request"
+    ]
+  },
+  "promise_unfulfilled": {
+    "text": " I previously promised to continue this work and have not delivered on that promise. It remains unfinished.",
+    "variables": []
+  },
+  "failure": {
+    "text": "<<task>>. This turn is unfinished: <<reason>><<promise>>",
+    "variables": [
+      "promise",
+      "reason",
+      "task"
+    ]
+  },
+  "failure_without_request": {
+    "text": "This turn is unfinished: <<reason>>",
+    "variables": [
+      "reason"
+    ]
+  },
+  "continue_hint": {
+    "text": "No usable result has been delivered. Your original request remains in this conversation; say \"continue\" or rephrase.",
+    "variables": []
+  },
+  "page": {
+    "text": "Knowledge page",
+    "variables": []
+  },
+  "unverified": {
+    "text": "Sources have not been verified",
+    "variables": []
+  },
+  "existing_record": {
+    "text": "Existing record: <<body>>",
+    "variables": [
+      "body"
+    ]
+  },
+  "no_material": {
+    "text": "No usable material was found.",
+    "variables": []
+  },
+  "revision_ready": {
+    "text": "A full-page revision draft covering <<count>> consecutive parts (<<total>> characters) is ready. It has not been saved to the page. Check the full draft in its review card, then accept or reject it; <<discipline>>. Check transitions between parts and preservation of facts.",
+    "variables": [
+      "count",
+      "discipline",
+      "total"
+    ]
+  },
+  "revision_protected": {
+    "text": "the original is protected, so acceptance saves a derivative",
+    "variables": []
+  },
+  "revision_basis": {
+    "text": "page and source versions will be checked again before acceptance",
+    "variables": []
+  }
+}

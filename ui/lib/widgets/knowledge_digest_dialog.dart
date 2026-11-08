@@ -1,3 +1,6 @@
+import 'app_error_notice.dart';
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -25,15 +28,21 @@ class KnowledgeDigestDialog extends ConsumerStatefulWidget {
 
 /// 队列筛选：「待处理」合并 pending / retry / running。
 enum _JobFilter {
-  all('全部', null),
-  waiting('待处理', {'pending', 'retry', 'running'}),
-  failed('失败', {'failed'}),
-  skipped('跳过', {'skipped'}),
-  succeeded('已完成', {'succeeded'});
+  all(null),
+  waiting({'pending', 'retry', 'running'}),
+  failed({'failed'}),
+  skipped({'skipped'}),
+  succeeded({'succeeded'});
 
-  const _JobFilter(this.label, this.statuses);
-  final String label;
+  const _JobFilter(this.statuses);
   final Set<String>? statuses;
+  String label(BuildContext context) => switch (this) {
+    all => context.l10n.l6All778fc,
+    waiting => context.l10n.pending,
+    failed => context.l10n.failed,
+    skipped => context.l10n.skipped,
+    succeeded => context.l10n.completed,
+  };
 }
 
 class _KnowledgeDigestDialogState extends ConsumerState<KnowledgeDigestDialog> {
@@ -88,7 +97,7 @@ class _KnowledgeDigestDialogState extends ConsumerState<KnowledgeDigestDialog> {
                 child: Row(
                   children: [
                     Text(
-                      '知识消化',
+                      context.l10n.knowledgeProcessing,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -97,29 +106,30 @@ class _KnowledgeDigestDialogState extends ConsumerState<KnowledgeDigestDialog> {
                     ),
                     const Spacer(),
                     IconButton(
-                      tooltip: '刷新',
+                      tooltip: context.l10n.refresh,
                       icon: const Icon(Icons.refresh, size: 18),
                       onPressed: _load,
                     ),
                     IconButton(
-                      tooltip: '关闭',
+                      tooltip: context.l10n.close,
                       icon: const Icon(Icons.close, size: 18),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],
                 ),
               ),
-              const TabBar(
+              TabBar(
                 tabs: [
-                  Tab(text: '队列'),
-                  Tab(text: '运行日志'),
+                  Tab(text: context.l10n.l6Queuecd354),
+                  Tab(text: context.l10n.l6RunLoga8ce4),
                 ],
               ),
               Expanded(
                 child: _error != null
                     ? Center(
-                        child: Text(
-                          '读取失败：$_error',
+                        child: AppErrorMessage(
+                          action: context.l10n.load,
+                          error: _error!,
                           style: TextStyle(color: AppTheme.error),
                         ),
                       )
@@ -158,7 +168,7 @@ class _KnowledgeDigestDialogState extends ConsumerState<KnowledgeDigestDialog> {
               for (final filter in _JobFilter.values)
                 ChoiceChip(
                   label: Text(
-                    '${filter.label} ${_countOf(jobs, filter.statuses)}',
+                    '${filter.label(context)} ${_countOf(jobs, filter.statuses)}',
                   ),
                   selected: _filter == filter,
                   onSelected: (_) => setState(() => _filter = filter),
@@ -170,7 +180,7 @@ class _KnowledgeDigestDialogState extends ConsumerState<KnowledgeDigestDialog> {
           child: shown.isEmpty
               ? Center(
                   child: Text(
-                    '没有记录',
+                    context.l10n.l6NoRecords09f60,
                     style: TextStyle(color: AppTheme.textTertiary),
                   ),
                 )
@@ -201,7 +211,10 @@ class _KnowledgeDigestDialogState extends ConsumerState<KnowledgeDigestDialog> {
     }
     if (runs.isEmpty) {
       return Center(
-        child: Text('还没有运行记录', style: TextStyle(color: AppTheme.textTertiary)),
+        child: Text(
+          context.l10n.l6NoRunsYet022d0,
+          style: TextStyle(color: AppTheme.textTertiary),
+        ),
       );
     }
     return ListView.separated(
@@ -223,13 +236,19 @@ String _formatTime(String? rfc3339) {
   return DateFormat('MM-dd HH:mm').format(parsed.toLocal());
 }
 
-({String label, Color color}) _statusStyle(String status) => switch (status) {
-  'pending' => (label: '待处理', color: AppTheme.textSecondary),
-  'running' => (label: '处理中', color: AppTheme.accentPrimary),
-  'retry' => (label: '等待重试', color: AppTheme.warning),
-  'failed' => (label: '失败（冷却中）', color: AppTheme.error),
-  'skipped' => (label: '跳过', color: AppTheme.textTertiary),
-  'succeeded' => (label: '已完成', color: AppTheme.success),
+({String label, Color color}) _statusStyle(
+  BuildContext context,
+  String status,
+) => switch (status) {
+  'pending' => (label: context.l10n.pending, color: AppTheme.textSecondary),
+  'running' => (label: context.l10n.processing, color: AppTheme.accentPrimary),
+  'retry' => (label: context.l10n.waitingRetry, color: AppTheme.warning),
+  'failed' => (
+    label: context.l10n.l6FailedCoolingDown4a20e,
+    color: AppTheme.error,
+  ),
+  'skipped' => (label: context.l10n.skipped, color: AppTheme.textTertiary),
+  'succeeded' => (label: context.l10n.completed, color: AppTheme.success),
   _ => (label: status, color: AppTheme.textSecondary),
 };
 
@@ -239,7 +258,7 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = _statusStyle(status);
+    final style = _statusStyle(context, status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -265,10 +284,19 @@ class _JobTile extends StatelessWidget {
         job.status == 'retry' ||
         job.status == 'failed';
     final detail = <String>[
-      '记录于 ${_formatTime(job.recordedAt)}',
-      if (job.attempts > 0) '尝试 ${job.attempts} 次',
-      if (job.failedRounds > 0) '已自动回队 ${job.failedRounds} 轮',
-      if (waiting) '下次处理 ${_formatTime(job.availableAt)}',
+      context.l10n.l6RecordedArg085217(
+        (_formatTime(job.recordedAt)).toString(),
+      ),
+      if (job.attempts > 0)
+        context.l10n.l6AttemptsArg0fcc38((job.attempts).toString()),
+      if (job.failedRounds > 0)
+        context.l10n.l6AutomaticallyRequeuedArg0Times3363a(
+          (job.failedRounds).toString(),
+        ),
+      if (waiting)
+        context.l10n.l6NextAttemptArg0272da(
+          (_formatTime(job.availableAt)).toString(),
+        ),
     ];
     final reason = job.status == 'skipped' ? job.skipReason : job.lastError;
     return Padding(
@@ -298,17 +326,16 @@ class _JobTile extends StatelessWidget {
           ),
           if (reason != null && reason.isNotEmpty) ...[
             const SizedBox(height: 2),
-            Text(
-              reason,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                color: job.status == 'skipped'
-                    ? AppTheme.textTertiary
-                    : AppTheme.error,
+            if (job.status == 'skipped')
+              ProcessingNotes(
+                note: reason,
+                status: context.l10n.queueDetailSkipped,
+              )
+            else
+              AppErrorMessage(
+                action: context.l10n.knowledgeProcessing,
+                error: reason,
               ),
-            ),
           ],
         ],
       ),
@@ -327,7 +354,7 @@ class _RunTile extends StatelessWidget {
         : '${(run.durationMs! / 1000).toStringAsFixed(1)}s';
     final summary = <String>[
       _formatTime(run.startedAt),
-      '${run.eventCount} 条事件',
+      context.l10n.l6EventsArg045727((run.eventCount).toString()),
       ?duration,
       if (run.model != null && run.model!.isNotEmpty) run.model!,
     ];
@@ -349,22 +376,25 @@ class _RunTile extends StatelessWidget {
           ),
           if (run.status == 'succeeded') ...[
             const SizedBox(height: 4),
-            _slugLine('新建', run.createdSlugs),
-            _slugLine('更新', run.updatedSlugs),
-            _slugLine('受保护（仅累加证据）', run.protectedSlugs),
+            _slugLine(context.l10n.newItem, run.createdSlugs),
+            _slugLine(context.l10n.l6Updated9db0, run.updatedSlugs),
+            _slugLine(
+              context.l10n.l6ProtectedOnlyEvidenceCanBeAddedba2bf,
+              run.protectedSlugs,
+            ),
             if (run.createdSlugs.isEmpty &&
                 run.updatedSlugs.isEmpty &&
                 run.protectedSlugs.isEmpty)
               Text(
-                '没有提炼出新的知识',
+                context.l10n.l6NoNewKnowledgeExtractedc38ab,
                 style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
               ),
           ],
           if (run.error != null && run.error!.isNotEmpty) ...[
             const SizedBox(height: 4),
-            SelectableText(
-              run.error!,
-              style: TextStyle(fontSize: 11, color: AppTheme.error),
+            AppErrorMessage(
+              error: run.error!,
+              action: context.l10n.knowledgeProcessing,
             ),
           ],
         ],

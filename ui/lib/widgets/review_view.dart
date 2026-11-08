@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,6 +13,7 @@ import '../theme/design_tokens.dart';
 part 'review_view_parts/review_day_view.dart';
 part 'review_view_parts/review_period_report.dart';
 part 'review_view_parts/review_period_view.dart';
+
 // ── 回顾页组件按日视图/周期报告/周期视图拆分（纯类段平移，零行为变化）──
 
 /// 回顾页（R1 第一刀）：主工作区的回顾读面。
@@ -36,8 +39,8 @@ class ReviewView extends ConsumerWidget {
     final horizontalPadding = width >= Breakpoints.desktop
         ? AppTheme.space12
         : wide
-            ? AppTheme.space8
-            : AppTheme.space3;
+        ? AppTheme.space8
+        : AppTheme.space3;
     // 粒度切换处的未读小圆点（R4 唯一提醒形态）：任一该粒度报告
     // readAt 为空 = 未读；报告面尚未加载时不显示（静默降级）。
     final weekUnread = _hasUnread(ref, 'week');
@@ -57,17 +60,20 @@ class ReviewView extends ConsumerWidget {
                 segments: [
                   ButtonSegment(
                     value: ReviewGranularity.day,
-                    label: const Text('日'),
+                    label: Text(context.l10n.l6Day15917),
                   ),
                   ButtonSegment(
                     value: ReviewGranularity.week,
-                    label: _UnreadBadge(unread: weekUnread, child: const Text('周')),
+                    label: _UnreadBadge(
+                      unread: weekUnread,
+                      child: Text(context.l10n.l6Week451b8),
+                    ),
                   ),
                   ButtonSegment(
                     value: ReviewGranularity.month,
                     label: _UnreadBadge(
                       unread: monthUnread,
-                      child: const Text('月'),
+                      child: Text(context.l10n.l6Monthd9b59),
                     ),
                   ),
                 ],

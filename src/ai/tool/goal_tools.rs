@@ -1,4 +1,4 @@
-//! goal_tools.rs：目标与抓手认知工具
+//! goal_tools.rs：目标与行动认知工具
 
 use super::Tool;
 use super::dispatch::{arg_str, arg_str_opt};
@@ -70,12 +70,12 @@ impl Tool for ListGoalsTool {
             }
             if let Some(focus) = &g.current_focus {
                 if !focus.trim().is_empty() {
-                    out.push_str(&format!("  · 当前抓手：{}\n", focus.trim()));
+                    out.push_str(&format!("  · 当前行动：{}\n", focus.trim()));
                 }
             }
             if let Some(blocker) = &g.blocker {
                 if !blocker.trim().is_empty() {
-                    out.push_str(&format!("  · 已知卡点：{}\n", blocker.trim()));
+                    out.push_str(&format!("  · 当前困难：{}\n", blocker.trim()));
                 }
             }
             if let Some(done) = &g.done_criteria {
@@ -95,7 +95,7 @@ impl Tool for CreateGoalTool {
         "create_goal"
     }
     fn description(&self) -> &'static str {
-        "为用户设立新的认知型目标（需用户在审阅卡确认）。活跃目标严格上限为 3 个，满额时新目标会以「暂停搁置」状态创建、可随时读档唤醒。请在对话中协助用户明确：阶段、愿景、为什么做(why)、近1~2周第一启动抓手(current_focus)、可能卡点(blocker)以及达成判据(done_criteria)。"
+        "为用户设立新的认知型目标（需用户在审阅卡确认）。活跃目标严格上限为 3 个，满额时新目标会以「暂停搁置」状态创建、可随时读档唤醒。请在对话中协助用户明确：阶段、愿景、为什么做(why)、近1~2周第一具体行动(current_focus)、可能困难(blocker)以及达成判据(done_criteria)。"
     }
     fn parameters_schema(&self) -> Value {
         json!({
@@ -104,8 +104,8 @@ impl Tool for CreateGoalTool {
                 "content": { "type": "string", "description": "目标愿景名称，必填" },
                 "phase": { "type": "string", "enum": ["near", "mid", "long"], "description": "目标周期：near(近期1~3月)/mid(中期)/long(长远)，缺省 near" },
                 "why": { "type": "string", "description": "为什么做 / 核心动力（1~2句话），可选" },
-                "current_focus": { "type": "string", "description": "当前 1~2 周最先启动的抓手切片，可选" },
-                "blocker": { "type": "string", "description": "已知卡点 / 困难预判，可选" },
+                "current_focus": { "type": "string", "description": "当前 1~2 周最先启动的行动阶段，可选" },
+                "blocker": { "type": "string", "description": "当前困难 / 困难预判，可选" },
                 "done_criteria": { "type": "string", "description": "完成判据 / 验收标准，可选" }
             },
             "required": ["content"],
@@ -137,27 +137,27 @@ impl Tool for CreateGoalTool {
 
         store_create_pending(ctx.store, ctx.conversation_id, "create_goal", &action_args)?;
         Ok(format!(
-            "已为你草拟设立目标提议（待确认，尚未写入）：\n「{content}」\n—— 请在审阅卡片中核对动力、当前抓手与判据；点击接受后创建（活跃已满 3 条时会先放入「暂停搁置」，可随时读档唤醒）。"
+            "已为你草拟设立目标提议（待确认，尚未写入）：\n「{content}」\n—— 请在审阅卡片中核对动力、当前行动与判据；点击接受后创建（活跃已满 3 条时会先放入「暂停搁置」，可随时读档唤醒）。"
         ))
     }
 }
 
-/// 提议更新目标的认知切片（抓手、卡点、判据）
+/// 提议更新目标的目标背景（行动、困难、判据）
 pub(super) struct UpdateGoalFacetsTool;
 impl Tool for UpdateGoalFacetsTool {
     fn name(&self) -> &'static str {
         "update_goal_facets"
     }
     fn description(&self) -> &'static str {
-        "更新既有活跃目标的当前抓手（current_focus）、已知卡点（blocker）或完成判据（需用户确认）。适用于攻克一个切片后推向下一个切片，或卡点发生变化时。无需归档重建目标。"
+        "更新既有活跃目标的当前行动（current_focus）、当前困难（blocker）或完成判据（需用户确认）。适用于攻克一个阶段后推向下一个阶段，或困难发生变化时。无需归档重建目标。"
     }
     fn parameters_schema(&self) -> Value {
         json!({
             "type": "object",
             "properties": {
                 "goal_id": { "type": "string", "description": "要更新的目标 ID，必填" },
-                "current_focus": { "type": "string", "description": "最新推进的抓手切片（最近1~2周），可选" },
-                "blocker": { "type": "string", "description": "最新识别的卡点或解题卡点，可选" },
+                "current_focus": { "type": "string", "description": "最新推进的行动阶段（最近1~2周），可选" },
+                "blocker": { "type": "string", "description": "最新识别的困难或解题困难，可选" },
                 "done_criteria": { "type": "string", "description": "更新完成判据，可选" }
             },
             "required": ["goal_id"],
@@ -195,7 +195,7 @@ impl Tool for UpdateGoalFacetsTool {
             &action_args,
         )?;
         Ok(format!(
-            "已为你草拟更新目标「{}」切片的提议（待确认，尚未生效）：\n—— 请在审阅卡片中核对新的当前抓手或卡点，点击接受后生效。",
+            "已为你草拟更新目标「{}」阶段的提议（待确认，尚未生效）：\n—— 请在审阅卡片中核对新的当前行动或困难，点击接受后生效。",
             goal.content
         ))
     }
@@ -208,7 +208,7 @@ impl Tool for PauseGoalTool {
         "pause_goal"
     }
     fn description(&self) -> &'static str {
-        "提议把一条活跃目标暂时搁置（需用户在审阅卡确认）。适用于用户明确表示想先放下/暂停某个目标、或精力需要让位给其他目标时。暂停的目标保留全部切片，随时可读档复活。"
+        "提议把一条活跃目标暂时搁置（需用户在审阅卡确认）。适用于用户明确表示想先放下/暂停某个目标、或精力需要让位给其他目标时。暂停的目标保留全部阶段，随时可读档复活。"
     }
     fn parameters_schema(&self) -> Value {
         json!({
@@ -288,7 +288,12 @@ impl Tool for CompleteGoalTool {
             "goal_id": goal_id,
             "goal_content": goal.content,
         });
-        store_create_pending(ctx.store, ctx.conversation_id, "complete_goal", &action_args)?;
+        store_create_pending(
+            ctx.store,
+            ctx.conversation_id,
+            "complete_goal",
+            &action_args,
+        )?;
         Ok(format!(
             "已为你草拟达成目标「{}」的提议（待确认，尚未生效）：\n—— 请在审阅卡片中核对完成判据，点击接受后归档为成就 🎉。",
             goal.content
@@ -296,22 +301,22 @@ impl Tool for CompleteGoalTool {
     }
 }
 
-/// 提议复活暂停目标（确认后重新激活，可带新抓手/卡点）
+/// 提议复活暂停目标（确认后重新激活，可带新行动/困难）
 pub(super) struct ReactivateGoalTool;
 impl Tool for ReactivateGoalTool {
     fn name(&self) -> &'static str {
         "reactivate_goal"
     }
     fn description(&self) -> &'static str {
-        "提议把一条暂停搁置的目标重新激活（需用户在审阅卡确认）。活跃目标严格上限 3 条，须有空位；可顺带更新重启后的抓手与卡点。"
+        "提议把一条暂停搁置的目标重新激活（需用户在审阅卡确认）。活跃目标严格上限 3 条，须有空位；可顺带更新重启后的行动与困难。"
     }
     fn parameters_schema(&self) -> Value {
         json!({
             "type": "object",
             "properties": {
                 "goal_id": { "type": "string", "description": "要复活的目标 ID（状态须为 paused），必填" },
-                "current_focus": { "type": "string", "description": "重启后的首个抓手切片，可选（保留原值若省略）" },
-                "blocker": { "type": "string", "description": "重启后的已知卡点，可选（保留原值若省略）" }
+                "current_focus": { "type": "string", "description": "重启后的首个行动阶段，可选（保留原值若省略）" },
+                "blocker": { "type": "string", "description": "重启后的当前困难，可选（保留原值若省略）" }
             },
             "required": ["goal_id"],
             "additionalProperties": false
@@ -346,10 +351,56 @@ impl Tool for ReactivateGoalTool {
             "current_focus": current_focus,
             "blocker": blocker,
         });
-        store_create_pending(ctx.store, ctx.conversation_id, "reactivate_goal", &action_args)?;
+        store_create_pending(
+            ctx.store,
+            ctx.conversation_id,
+            "reactivate_goal",
+            &action_args,
+        )?;
         Ok(format!(
-            "已为你草拟复活目标「{}」的提议（待确认，尚未生效）：\n—— 请在审阅卡片中核对重启抓手，点击接受后目标重新激活。",
+            "已为你草拟复活目标「{}」的提议（待确认，尚未生效）：\n—— 请在审阅卡片中核对重启行动，点击接受后目标重新激活。",
             goal.content
         ))
+    }
+}
+
+/// Collect explicit user facts into the normal profile/me knowledge page.
+pub(super) struct ProposePlanningProfileTool;
+impl Tool for ProposePlanningProfileTool {
+    fn name(&self) -> &'static str {
+        "update_personal_profile"
+    }
+    fn description(&self) -> &'static str {
+        "将日常对话中用户明确陈述的稳定个人信息汇集到知识页profile/me。只更新有新增事实的字段，保留现有信息；不推断收入/性格，矛盾先询问，不采集无关第三方信息。用户明确纠正时更新旧事实；无新增不调用。"
+    }
+    fn parameters_schema(&self) -> Value {
+        json!({"type":"object","properties":{"skills":{"type":"string","description":"能力、经历与背景，保留已有有效事实"},"resources":{"type":"string","description":"资源、现状与已有积累"},"limits":{"type":"string","description":"时间预算与现实限制"},"preferences":{"type":"string","description":"偏好、习惯与底线"}},"additionalProperties":false})
+    }
+    fn policy(&self) -> ToolPolicy {
+        ToolPolicy::WriteDirect
+    }
+    fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
+        let tx = ctx.store.begin_write_transaction()?;
+        let (mut profile, updated) = ctx.store.planning_profile()?;
+        for (key, value) in [
+            ("skills", &mut profile.skills),
+            ("resources", &mut profile.resources),
+            ("limits", &mut profile.limits),
+            ("preferences", &mut profile.preferences),
+        ] {
+            if let Some(next) = args.get(key) {
+                let next = next
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("档案字段必须是文本"))?;
+                anyhow::ensure!(next.chars().count() <= 1500, "档案每项最多1500字");
+                *value = next.to_string();
+            }
+        }
+        ctx.store
+            .save_planning_profile(&profile, updated.as_deref())?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok("已更新知识页 [知识页 profile/me]，保留未修改的信息。".into())
     }
 }

@@ -1,4 +1,5 @@
 part of '../settings_screen.dart';
+
 // ignore_for_file: invalid_use_of_protected_member — setState 从 State 子类方法平移至 extension，receiver 类型不变
 
 //! 规则偏好、命中反馈与规则内容区。
@@ -11,15 +12,21 @@ extension _RulesPrefs on _SettingsScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '事件提醒',
+          context.l10n.l6EventRemindersaa957,
           style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
         ),
         const SizedBox(height: AppTheme.space2),
         SegmentedButton<String>(
-          segments: const [
-            ButtonSegment(value: 'instant', label: Text('即时+回顾')),
-            ButtonSegment(value: 'review_only', label: Text('仅回顾')),
-            ButtonSegment(value: 'off', label: Text('关闭')),
+          segments: [
+            ButtonSegment(
+              value: 'instant',
+              label: Text(context.l10n.l6ImmediateAndInReviewsd066b),
+            ),
+            ButtonSegment(
+              value: 'review_only',
+              label: Text(context.l10n.l6ReviewsOnly71ead),
+            ),
+            ButtonSegment(value: 'off', label: Text(context.l10n.close)),
           ],
           selected: {_ruleTriggerMode},
           onSelectionChanged: (selection) async {
@@ -33,7 +40,15 @@ extension _RulesPrefs on _SettingsScreenState {
             } catch (e) {
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(reportUiError('保存提醒偏好', e))),
+                SnackBar(
+                  content: AppErrorMessage(
+                    action: context.l10n.load,
+                    error: _settingsFailure(
+                      context.l10n.l6SaveReminderPreferencese0188,
+                      e,
+                    ),
+                  ),
+                ),
               );
             }
           },
@@ -48,7 +63,7 @@ extension _RulesPrefs on _SettingsScreenState {
     return Row(
       children: [
         Text(
-          '情感回访',
+          context.l10n.l6EmotionalCheckIns74925,
           style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
         ),
         const Spacer(),
@@ -57,11 +72,23 @@ extension _RulesPrefs on _SettingsScreenState {
             value: _companionIntervalDays,
             underline: const SizedBox.shrink(),
             style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-            items: const [
-              DropdownMenuItem(value: 3, child: Text('3天')),
-              DropdownMenuItem(value: 7, child: Text('7天')),
-              DropdownMenuItem(value: 14, child: Text('14天')),
-              DropdownMenuItem(value: 30, child: Text('30天')),
+            items: [
+              DropdownMenuItem(
+                value: 3,
+                child: Text(context.l10n.l63Daysb30a9),
+              ),
+              DropdownMenuItem(
+                value: 7,
+                child: Text(context.l10n.l67Daysecfe0),
+              ),
+              DropdownMenuItem(
+                value: 14,
+                child: Text(context.l10n.l614Days1e982),
+              ),
+              DropdownMenuItem(
+                value: 30,
+                child: Text(context.l10n.l630Daysff788),
+              ),
             ],
             onChanged: (days) async {
               if (days == null) return;
@@ -93,8 +120,17 @@ extension _RulesPrefs on _SettingsScreenState {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(reportUiError('保存回访偏好', e))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppErrorMessage(
+            action: context.l10n.load,
+            error: _settingsFailure(
+              context.l10n.l6SaveRevisitPreferences8123a,
+              e,
+            ),
+          ),
+        ),
+      );
     }
   }
 
@@ -109,8 +145,17 @@ extension _RulesPrefs on _SettingsScreenState {
       setState(() => _recentRuleHits = hits);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(reportUiError('记录提醒反馈', e))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppErrorMessage(
+            action: context.l10n.load,
+            error: _settingsFailure(
+              context.l10n.l6RecordReminderFeedbackcfbf1,
+              e,
+            ),
+          ),
+        ),
+      );
     }
   }
 
@@ -121,10 +166,10 @@ extension _RulesPrefs on _SettingsScreenState {
   /// 的操作；excluded（判定不适用）默认收起不打扰。
   Widget _buildChatRuleHits() {
     String label(String status) => switch (status) {
-          'pending' => '判定中',
-          'applicable' => '已在对话遵守',
-          _ => '不适用',
-        };
+      'pending' => context.l10n.l6Assessingd7b92,
+      'applicable' => context.l10n.l6FollowedInConversationa3d02,
+      _ => context.l10n.l6NotApplicableeec46,
+    };
     IconData icon(String status) => status == 'applicable'
         ? Icons.verified_outlined
         : Icons.hourglass_top_outlined;
@@ -132,7 +177,7 @@ extension _RulesPrefs on _SettingsScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '对话中的规则场景（后台静默判定，不打扰对话）',
+          context.l10n.l6RuleContextsInConversationsEvaluatedSilently95c0c,
           style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
         ),
         const SizedBox(height: AppTheme.space2),
@@ -182,13 +227,16 @@ extension _RulesPrefs on _SettingsScreenState {
         Row(
           children: [
             Text(
-              '最近提醒',
+              context.l10n.l6RecentReminderse3fba,
               style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
             ),
             const Spacer(),
             if (helpfulCount > 0 || notRelevantCount > 0)
               Text(
-                '有用 $helpfulCount · 不相关 $notRelevantCount',
+                context.l10n.l6HelpfulArg0NotRelevantArg18e65c(
+                  (helpfulCount).toString(),
+                  (notRelevantCount).toString(),
+                ),
                 style: TextStyle(color: AppTheme.textTertiary, fontSize: 11),
               ),
           ],
@@ -226,7 +274,7 @@ extension _RulesPrefs on _SettingsScreenState {
                   child: IconButton(
                     padding: EdgeInsets.zero,
                     iconSize: 14,
-                    tooltip: '有用（再点一次清除）',
+                    tooltip: context.l10n.entityGuidanceHelpful,
                     icon: Icon(
                       hit.feedback == 'helpful'
                           ? Icons.thumb_up
@@ -245,7 +293,7 @@ extension _RulesPrefs on _SettingsScreenState {
                   child: IconButton(
                     padding: EdgeInsets.zero,
                     iconSize: 14,
-                    tooltip: '不相关（再点一次清除）',
+                    tooltip: context.l10n.entityGuidanceNotRelevant,
                     icon: Icon(
                       hit.feedback == 'not_relevant'
                           ? Icons.thumb_down
@@ -273,7 +321,7 @@ extension _RulesPrefs on _SettingsScreenState {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
-          title: const Text('触发条件'),
+          title: Text(context.l10n.l6TriggerConditionsf5c95),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -289,20 +337,36 @@ extension _RulesPrefs on _SettingsScreenState {
               const SizedBox(height: AppTheme.space4),
               TextField(
                 controller: keywordsController,
-                decoration: const InputDecoration(
-                  labelText: '触发关键词（逗号分隔，留空 = 不预筛）',
-                  hintText: '如：X项目, deadline',
+                decoration: InputDecoration(
+                  labelText: context
+                      .l10n
+                      .l6TriggerKeywordsCommaSeparatedBlankDisablesdae9a,
+                  hintText: context.l10n.l6ForExampleProjectXDeadlinef216a,
                 ),
               ),
               const SizedBox(height: AppTheme.space4),
               DropdownButtonFormField<String>(
                 initialValue: scene.isEmpty ? '' : scene,
-                decoration: const InputDecoration(labelText: '触发场景'),
-                items: const [
-                  DropdownMenuItem(value: '', child: Text('全场景')),
-                  DropdownMenuItem(value: 'capture', child: Text('快速捕获')),
-                  DropdownMenuItem(value: 'conversation', child: Text('对话')),
-                  DropdownMenuItem(value: 'daily_review', child: Text('每日回顾')),
+                decoration: InputDecoration(
+                  labelText: context.l10n.l6TriggerContext02570,
+                ),
+                items: [
+                  DropdownMenuItem(
+                    value: '',
+                    child: Text(context.l10n.l6AllContexts39fdd),
+                  ),
+                  DropdownMenuItem(
+                    value: 'capture',
+                    child: Text(context.l10n.l6QuickCapturecfe6c),
+                  ),
+                  DropdownMenuItem(
+                    value: 'conversation',
+                    child: Text(context.l10n.conversation),
+                  ),
+                  DropdownMenuItem(
+                    value: 'daily_review',
+                    child: Text(context.l10n.l6DailyReview6bea3),
+                  ),
                 ],
                 onChanged: (value) => setDialogState(() => scene = value ?? ''),
               ),
@@ -311,11 +375,11 @@ extension _RulesPrefs on _SettingsScreenState {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('取消'),
+              child: Text(context.l10n.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('保存'),
+              child: Text(context.l10n.save),
             ),
           ],
         ),
@@ -338,8 +402,17 @@ extension _RulesPrefs on _SettingsScreenState {
       await _loadRules();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(reportUiError('保存触发条件', e))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppErrorMessage(
+            action: context.l10n.load,
+            error: _settingsFailure(
+              context.l10n.l6SaveTriggerConditions8e04c,
+              e,
+            ),
+          ),
+        ),
+      );
     }
   }
 
@@ -351,8 +424,14 @@ extension _RulesPrefs on _SettingsScreenState {
       setState(() => _rules.removeWhere((r) => r.id == rule.id));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(reportUiError('删除规则', e))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppErrorMessage(
+            action: context.l10n.load,
+            error: _settingsFailure(context.l10n.l6DeleteRulef9ad3, e),
+          ),
+        ),
+      );
     }
   }
 
@@ -363,7 +442,7 @@ extension _RulesPrefs on _SettingsScreenState {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSection(
-            title: '个人规则库',
+            title: context.l10n.l6PersonalRules03b44,
             icon: Icons.rule_outlined,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -377,15 +456,13 @@ extension _RulesPrefs on _SettingsScreenState {
                   const SizedBox(height: AppTheme.space4),
                   _buildRecentRuleHits(),
                 ],
-                if (_recentChatRuleHits.any(
-                  (h) => h.status != 'excluded',
-                )) ...[
+                if (_recentChatRuleHits.any((h) => h.status != 'excluded')) ...[
                   const SizedBox(height: AppTheme.space4),
                   _buildChatRuleHits(),
                 ],
                 ChatProposalReviewButton(
                   conversationId: null,
-                  label: '审阅历史未归属规则',
+                  label: context.l10n.l6ReviewHistoryIsNotAPersonaldee4d,
                   onChanged: _loadRules,
                 ),
               ],
@@ -393,7 +470,7 @@ extension _RulesPrefs on _SettingsScreenState {
           ),
           const SizedBox(height: AppTheme.space6),
           _buildSection(
-            title: '用户模型',
+            title: context.l10n.l6UserModel88c56,
             icon: Icons.account_tree_outlined,
             child: _buildUserModelContent(),
           ),
@@ -420,7 +497,7 @@ extension _RulesPrefs on _SettingsScreenState {
     if (rulesError != null) return rulesError;
     if (_rules.isEmpty) {
       return Text(
-        '还没有规则。在对话里分享踩坑或心得时，AI 会建议把其中的经验沉淀成规则，你在审阅卡接受具体规则后就会出现在这里，以后遇到类似情况 AI 会主动引用并提醒你。',
+        context.l10n.l6NoRulesYetWhenYouDiscuss96049,
         style: TextStyle(
           color: AppTheme.textSecondary,
           fontSize: 13,
@@ -464,13 +541,15 @@ extension _RulesPrefs on _SettingsScreenState {
                 color: _rules[i].hasTrigger
                     ? AppTheme.accentPrimary
                     : AppTheme.textTertiary,
-                tooltip: _rules[i].hasTrigger ? '触发条件（已配置）' : '配置触发条件',
+                tooltip: _rules[i].hasTrigger
+                    ? context.l10n.l6TriggerConditionsConfigureda3704
+                    : context.l10n.l6ConfigureTriggerConditions168ff,
                 onPressed: () => _editRuleTrigger(_rules[i]),
               ),
               IconButton(
                 icon: const Icon(Icons.delete_outline, size: 18),
                 color: AppTheme.textTertiary,
-                tooltip: '删除规则',
+                tooltip: context.l10n.l6DeleteRulef9ad3,
                 onPressed: () => _deleteRule(_rules[i]),
               ),
             ],
@@ -485,6 +564,7 @@ extension _RulesPrefs on _SettingsScreenState {
     required IconData icon,
     required Widget child,
     Widget? trailing,
+    VoidCallback? onTitleTap,
   }) {
     return Container(
       padding: const EdgeInsets.all(22),
@@ -519,13 +599,17 @@ extension _RulesPrefs on _SettingsScreenState {
                   child: Icon(icon, color: AppTheme.accentPrimary, size: 20),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
-                    letterSpacing: -0.2,
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onTitleTap,
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                      letterSpacing: -0.2,
+                    ),
                   ),
                 ),
                 if (trailing != null) ...[const Spacer(), trailing],

@@ -2,7 +2,7 @@ part of "../settings_screen.dart";
 
 // ignore_for_file: invalid_use_of_protected_member — setState 从 State 子类方法平移至 extension，与 tabs_model.dart 同款纪律
 
-/// 「安全」tab：可选的打开密码管理。设置后 App 启动需先解锁；
+/// 「安全」tab：本机密钥与可选的打开密码管理。设置密码后 App 启动需先解锁；
 /// 不设置则完全无感。哈希记录由 AppLockService 落在系统安全存储。
 extension _SecurityTab on _SettingsScreenState {
   Widget _buildSecurityTab() {
@@ -12,7 +12,13 @@ extension _SecurityTab on _SettingsScreenState {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSection(
-            title: "打开密码",
+            title: context.l10n.secretManagement,
+            icon: Icons.key_outlined,
+            child: const NamedSecretSettings(),
+          ),
+          const SizedBox(height: AppTheme.space6),
+          _buildSection(
+            title: context.l10n.appPassword,
             icon: Icons.lock_outline,
             child: _appLockLoading
                 ? const Padding(
@@ -48,7 +54,9 @@ extension _SecurityTab on _SettingsScreenState {
             const SizedBox(width: AppTheme.space2),
             Expanded(
               child: Text(
-                _appLockEnabled ? "已开启：启动 App 时需要输入密码" : "未开启：启动 App 直接进入主界面",
+                _appLockEnabled
+                    ? context.l10n.l6EnabledAPasswordIsRequiredWhen1aee3
+                    : context.l10n.l6DisabledTheAppOpensDirectlycbfe4,
                 style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
               ),
             ),
@@ -59,7 +67,7 @@ extension _SecurityTab on _SettingsScreenState {
           FilledButton.icon(
             onPressed: _showSetPasswordDialog,
             icon: const Icon(Icons.add, size: 18),
-            label: const Text("设置打开密码"),
+            label: Text(context.l10n.l6SetAnAppPassword72f45),
           )
         else
           Wrap(
@@ -69,12 +77,15 @@ extension _SecurityTab on _SettingsScreenState {
               OutlinedButton.icon(
                 onPressed: _showChangePasswordDialog,
                 icon: const Icon(Icons.edit_outlined, size: 17),
-                label: const Text("修改密码"),
+                label: Text(context.l10n.l6ChangePassword0ae20),
               ),
               OutlinedButton.icon(
                 onPressed: _showDisablePasswordDialog,
                 icon: Icon(Icons.lock_open, size: 17, color: AppTheme.error),
-                label: Text("关闭密码", style: TextStyle(color: AppTheme.error)),
+                label: Text(
+                  context.l10n.l6TurnOffPassword7f7cb,
+                  style: TextStyle(color: AppTheme.error),
+                ),
               ),
             ],
           ),
@@ -84,8 +95,7 @@ extension _SecurityTab on _SettingsScreenState {
         ],
         const SizedBox(height: AppTheme.space3),
         Text(
-          "密码只以加盐哈希形式保存在本机系统安全存储，不会上传、不会随同步带走。"
-          "遗忘密码后无法找回，只能清除应用数据重置。",
+          context.l10n.l6OnlyASaltedPasswordHashIsd5644,
           style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
         ),
       ],
@@ -109,14 +119,16 @@ extension _SecurityTab on _SettingsScreenState {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "指纹/面容解锁",
+                context.l10n.l6FingerprintOrFaceUnlock1b96c,
                 style: TextStyle(
                   fontSize: 13,
                   color: usable ? AppTheme.textPrimary : AppTheme.textTertiary,
                 ),
               ),
               Text(
-                usable ? "开启后可用系统生物验证快速解锁，密码始终保留为兜底" : "当前设备不支持或未录入指纹/面容",
+                usable
+                    ? context.l10n.l6UseSystemBiometricsForQuickUnlocking22994
+                    : context.l10n.l6ThisDeviceDoesNotSupportBiometrics40ff0,
                 style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
               ),
             ],
@@ -143,19 +155,19 @@ extension _SecurityTab on _SettingsScreenState {
     final verified = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("开启指纹/面容解锁"),
+        title: Text(context.l10n.l6EnableFingerprintOrFaceUnlockb2a8f),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("开启后锁屏页会优先调起系统指纹/面容验证。请输入当前打开密码确认。"),
+            Text(context.l10n.l6TheLockScreenWillFirstOffer49b2b),
             const SizedBox(height: 12),
             TextField(
               controller: controller,
               obscureText: true,
               autofocus: true,
-              decoration: const InputDecoration(
-                labelText: "当前密码",
+              decoration: InputDecoration(
+                labelText: context.l10n.l6CurrentPassword33abf,
                 border: OutlineInputBorder(),
               ),
             ),
@@ -164,22 +176,27 @@ extension _SecurityTab on _SettingsScreenState {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text("取消"),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () async {
               final ok = await _appLockService.verifyPassword(controller.text);
               if (ctx.mounted) Navigator.of(ctx).pop(ok);
             },
-            child: const Text("确认开启"),
+            child: Text(context.l10n.l6ConfirmEnable263d4),
           ),
         ],
       ),
     );
     if (verified != true) {
       if (verified == false && mounted && controller.text.isNotEmpty) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text("当前密码不正确，未开启")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              context.l10n.l6IncorrectCurrentPasswordNotEnabled691f1,
+            ),
+          ),
+        );
       }
       return;
     }
@@ -187,7 +204,15 @@ extension _SecurityTab on _SettingsScreenState {
     await _loadAppLockState();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(ok ? "指纹/面容解锁已开启" : "设备当前不可用生物验证，未开启")),
+        SnackBar(
+          content: Text(
+            ok
+                ? context.l10n.l6BiometricUnlockEnablede15eb
+                : context
+                      .l10n
+                      .l6BiometricsAreCurrentlyUnavailableNotEnabled78c56,
+          ),
+        ),
       );
     }
   }
@@ -218,7 +243,7 @@ extension _SecurityTab on _SettingsScreenState {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => _PasswordDialog(
-        title: "设置打开密码",
+        title: context.l10n.l6SetAnAppPassword72f45,
         requireCurrent: false,
         onSubmit: (current, next) => _appLockService.setPassword(next),
       ),
@@ -226,8 +251,9 @@ extension _SecurityTab on _SettingsScreenState {
     if (result == true) {
       await _loadAppLockState();
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text("打开密码已设置")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.l6AppPasswordSeta5390)),
+        );
       }
     }
   }
@@ -236,7 +262,7 @@ extension _SecurityTab on _SettingsScreenState {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => _PasswordDialog(
-        title: "修改打开密码",
+        title: context.l10n.l6ChangeAppPassword25e9a,
         requireCurrent: true,
         onSubmit: (current, next) =>
             _appLockService.setPassword(next, currentPassword: current),
@@ -245,8 +271,9 @@ extension _SecurityTab on _SettingsScreenState {
     if (result == true) {
       await _loadAppLockState();
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text("打开密码已修改")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.l6AppPasswordChanged0493a)),
+        );
       }
     }
   }
@@ -256,19 +283,19 @@ extension _SecurityTab on _SettingsScreenState {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("关闭打开密码"),
+        title: Text(context.l10n.l6TurnOffAppPassworda80d7),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("关闭后启动 App 将不再要求输入密码。请输入当前密码确认。"),
+            Text(context.l10n.l6TheAppWillNoLongerRequire00cc0),
             const SizedBox(height: 12),
             TextField(
               controller: controller,
               obscureText: true,
               autofocus: true,
-              decoration: const InputDecoration(
-                labelText: "当前密码",
+              decoration: InputDecoration(
+                labelText: context.l10n.l6CurrentPassword33abf,
                 border: OutlineInputBorder(),
               ),
             ),
@@ -277,14 +304,14 @@ extension _SecurityTab on _SettingsScreenState {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text("取消"),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () async {
               final ok = await _appLockService.disable(controller.text);
               if (ctx.mounted) Navigator.of(ctx).pop(ok);
             },
-            child: const Text("确认关闭"),
+            child: Text(context.l10n.l6ConfirmDisable059b4),
           ),
         ],
       ),
@@ -292,12 +319,18 @@ extension _SecurityTab on _SettingsScreenState {
     if (confirmed == true) {
       await _loadAppLockState();
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text("打开密码已关闭")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.l6AppPasswordTurnedOff9f4c1)),
+        );
       }
     } else if (confirmed == false && mounted && controller.text.isNotEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("当前密码不正确，未关闭")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.l10n.l6IncorrectCurrentPasswordNotDisabled0660c,
+          ),
+        ),
+      );
     }
   }
 }
@@ -338,19 +371,19 @@ class _PasswordDialogState extends State<_PasswordDialog> {
     final next = _nextController.text;
     final confirm = _confirmController.text;
     if (widget.requireCurrent && (current == null || current.isEmpty)) {
-      setState(() => _error = "请输入当前密码");
+      setState(() => _error = context.l10n.l6EnterTheCurrentPassword4b0b0);
       return;
     }
     if (next.isEmpty) {
-      setState(() => _error = "新密码不能为空");
+      setState(() => _error = context.l10n.l6EnterANewPassword689e5);
       return;
     }
     if (next.length != 4) {
-      setState(() => _error = "打开密码固定为 4 位");
+      setState(() => _error = context.l10n.l6TheAppPasswordMustHave41cb25);
       return;
     }
     if (next != confirm) {
-      setState(() => _error = "两次输入的新密码不一致");
+      setState(() => _error = context.l10n.l6TheNewPasswordsDoNotMatchd0b9c);
       return;
     }
     setState(() {
@@ -364,7 +397,9 @@ class _PasswordDialogState extends State<_PasswordDialog> {
     } else {
       setState(() {
         _submitting = false;
-        _error = widget.requireCurrent ? "当前密码不正确" : "设置失败，请重试";
+        _error = widget.requireCurrent
+            ? context.l10n.l6TheCurrentPasswordIsIncorrectb0dab
+            : context.l10n.l6CouldNotSaveTryAgainae0b2;
       });
     }
   }
@@ -381,8 +416,8 @@ class _PasswordDialogState extends State<_PasswordDialog> {
               controller: _currentController,
               obscureText: true,
               autofocus: true,
-              decoration: const InputDecoration(
-                labelText: "当前密码",
+              decoration: InputDecoration(
+                labelText: context.l10n.l6CurrentPassword33abf,
                 border: OutlineInputBorder(),
               ),
             ),
@@ -397,8 +432,8 @@ class _PasswordDialogState extends State<_PasswordDialog> {
               FilteringTextInputFormatter.digitsOnly,
               LengthLimitingTextInputFormatter(4),
             ],
-            decoration: const InputDecoration(
-              labelText: "新密码（4 位）",
+            decoration: InputDecoration(
+              labelText: context.l10n.l6NewPassword4Digits51018,
               border: OutlineInputBorder(),
             ),
           ),
@@ -411,16 +446,17 @@ class _PasswordDialogState extends State<_PasswordDialog> {
               FilteringTextInputFormatter.digitsOnly,
               LengthLimitingTextInputFormatter(4),
             ],
-            decoration: const InputDecoration(
-              labelText: "再次输入新密码",
+            decoration: InputDecoration(
+              labelText: context.l10n.l6ConfirmNewPassworde0327,
               border: OutlineInputBorder(),
             ),
             onSubmitted: (_) => _submit(),
           ),
           if (_error != null) ...[
             const SizedBox(height: 10),
-            Text(
-              _error!,
+            AppErrorMessage(
+              action: context.l10n.load,
+              error: _error!,
               style: TextStyle(color: AppTheme.error, fontSize: 12),
             ),
           ],
@@ -431,7 +467,7 @@ class _PasswordDialogState extends State<_PasswordDialog> {
           onPressed: _submitting
               ? null
               : () => Navigator.of(context).pop(false),
-          child: const Text("取消"),
+          child: Text(context.l10n.cancel),
         ),
         FilledButton(
           onPressed: _submitting ? null : _submit,
@@ -441,7 +477,7 @@ class _PasswordDialogState extends State<_PasswordDialog> {
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text("确定"),
+              : Text(context.l10n.l6Confirmf526c),
         ),
       ],
     );

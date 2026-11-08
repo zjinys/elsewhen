@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/import_fetch.dart';
 import '../models/wiki_page.dart';
 import '../providers/knowledge_provider.dart';
+import '../l10n/localization.dart';
 
 /// Both import and reimport confirm the exact preview snapshot. A concurrent
 /// update is rejected by Rust instead of overwriting the newly saved original.
@@ -24,7 +25,8 @@ Future<WikiPage?> saveKnowledgeImport(
   if (preview.priorRejection != null) {
     final proceed = await showDialog<bool>(
       context: context,
-      builder: (context) => PriorRejectionDialog(reason: preview.priorRejection!),
+      builder: (context) =>
+          PriorRejectionDialog(reason: preview.priorRejection!),
     );
     if (proceed != true || !context.mounted) return null;
   }
@@ -58,26 +60,29 @@ class PriorRejectionDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('此前否定过这条来源'),
+    title: Text(context.l10n.priorRejectionTitle),
     content: Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('你曾把这条来源丢弃为负知识，当时的原因：'),
+        Text(context.l10n.priorRejectionReason),
         const SizedBox(height: 8),
-        SelectableText(reason, style: const TextStyle(fontStyle: FontStyle.italic)),
+        SelectableText(
+          reason,
+          style: const TextStyle(fontStyle: FontStyle.italic),
+        ),
         const SizedBox(height: 8),
-        const Text('重新导入会重新入册并从孵化中重新开始；要继续吗？'),
+        Text(context.l10n.priorRejectionHelp),
       ],
     ),
     actions: [
       TextButton(
         onPressed: () => Navigator.of(context).pop(false),
-        child: const Text('取消'),
+        child: Text(context.l10n.cancel),
       ),
       FilledButton(
         onPressed: () => Navigator.of(context).pop(true),
-        child: const Text('仍要保存'),
+        child: Text(context.l10n.saveAnyway),
       ),
     ],
   );
@@ -104,28 +109,38 @@ class SourceUpdateDialog extends StatelessWidget {
   );
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('来源内容有更新'),
+    title: Text(context.l10n.sourceUpdateTitle),
     content: SizedBox(
       width: 900,
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('确认后保存为新版本，旧原文保留；引用它的知识页会提示复核。'),
+            Text(context.l10n.sourceUpdateHelp),
             LayoutBuilder(
               builder: (context, constraints) => constraints.maxWidth < 600
                   ? Column(
                       children: [
-                        _version('已保存版本', previous),
+                        _version(context.l10n.sourceSavedVersion, previous),
                         const Divider(),
-                        _version('本次抓取', incoming),
+                        _version(context.l10n.sourceIncomingVersion, incoming),
                       ],
                     )
                   : Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(child: _version('已保存版本', previous)),
-                        Expanded(child: _version('本次抓取', incoming)),
+                        Expanded(
+                          child: _version(
+                            context.l10n.sourceSavedVersion,
+                            previous,
+                          ),
+                        ),
+                        Expanded(
+                          child: _version(
+                            context.l10n.sourceIncomingVersion,
+                            incoming,
+                          ),
+                        ),
                       ],
                     ),
             ),
@@ -136,11 +151,11 @@ class SourceUpdateDialog extends StatelessWidget {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context, false),
-        child: const Text('保留旧版本'),
+        child: Text(context.l10n.sourceKeepOld),
       ),
       FilledButton(
         onPressed: () => Navigator.pop(context, true),
-        child: const Text('确认保存新版本'),
+        child: Text(context.l10n.sourceSaveNew),
       ),
     ],
   );

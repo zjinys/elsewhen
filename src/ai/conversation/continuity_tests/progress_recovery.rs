@@ -309,7 +309,8 @@ fn confirmation_failure_says_save_not_applied_not_question_pending() {
     assert!(notice.contains("「保存」"));
     assert!(notice.contains("没有生效"));
     assert!(notice.contains("优化我的三阶段目标"));
-    assert!(notice.contains("再说一次「保存」"));
+    assert!(notice.contains("审阅卡"));
+    assert!(!notice.contains("再说一次「保存」"), "自然语言不能授权保存");
     // 不能套「问题还挂着说继续」的模板误导用户
     assert!(!notice.contains("说「继续」"));
     assert!(!notice.contains("这一轮还没有完成"));

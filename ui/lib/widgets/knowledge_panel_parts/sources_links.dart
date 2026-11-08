@@ -15,7 +15,14 @@ class KnowledgeSourcesSection extends ConsumerWidget {
           // 防止分析/消化/同步产出的例行重查把面板内容闪成进度条）。
           skipLoadingOnReload: true,
           loading: () => const LinearProgressIndicator(),
-          error: (error, _) => Text(_error(error, context: '读取来源与修订')),
+          error: (error, _) => AppErrorMessage(
+            action: context.l10n.load,
+            error: _error(
+              context,
+              error,
+              context: context.l10n.l6LoadSourcesAndRevisionsd1d70,
+            ),
+          ),
           data: (data) => ListView(
             padding: const EdgeInsets.only(bottom: 24),
             children: [
@@ -32,7 +39,9 @@ class KnowledgeSourcesSection extends ConsumerWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        '来源用于核对依据，修订记录用于查看知识演进。日常阅读和 AI 检索不需要逐项操作。',
+                        context
+                            .l10n
+                            .l6SourcesLetYouVerifyEvidenceRevisionsccae6,
                         style: TextStyle(
                           fontSize: 12,
                           color: AppTheme.textTertiary,
@@ -47,7 +56,7 @@ class KnowledgeSourcesSection extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Text(
-                    '上游依据',
+                    context.l10n.l6UpstreamBasis0fd54,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -59,8 +68,8 @@ class KnowledgeSourcesSection extends ConsumerWidget {
                   _KnowledgePageLink(
                     page: WikiPage.fromDto(origin),
                     prefix: ['source', 'note'].contains(origin.kind)
-                        ? '原料'
-                        : '上游知识',
+                        ? context.l10n.librarySourceKind
+                        : context.l10n.l6UpstreamKnowledgeae238,
                   ),
                 const SizedBox(height: 6),
               ],
@@ -92,7 +101,7 @@ class KnowledgeSourcesSection extends ConsumerWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '尚无可核验来源。',
+                        context.l10n.l6NoVerifiableSourcesYet8b47f,
                         style: TextStyle(
                           fontSize: 12.5,
                           color: AppTheme.textTertiary,
@@ -123,8 +132,8 @@ class KnowledgeSourcesSection extends ConsumerWidget {
                         color: AppTheme.accentPrimary,
                       ),
                     ),
-                    title: const Text(
-                      '来源事件记录',
+                    title: Text(
+                      context.l10n.l6SourceEvents2c4b3,
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -223,8 +232,8 @@ class KnowledgeSourcesSection extends ConsumerWidget {
                         ),
                         title: Row(
                           children: [
-                            const Text(
-                              '原文历史版本',
+                            Text(
+                              context.l10n.l6OriginalSourceVersions24704,
                               style: TextStyle(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w600,
@@ -235,7 +244,9 @@ class KnowledgeSourcesSection extends ConsumerWidget {
                           ],
                         ),
                         subtitle: Text(
-                          '共有 ${data.history.length} 个历史快照',
+                          context.l10n.l6HistoricalSnapshotsArg0cbbd3(
+                            (data.history.length).toString(),
+                          ),
                           style: TextStyle(
                             fontSize: 12,
                             color: AppTheme.textTertiary,
@@ -282,8 +293,8 @@ class KnowledgeSourcesSection extends ConsumerWidget {
                           ),
                           title: Row(
                             children: [
-                              const Text(
-                                '知识修订记录',
+                              Text(
+                                context.l10n.l6KnowledgeRevisions42307,
                                 style: TextStyle(
                                   fontSize: 13.5,
                                   fontWeight: FontWeight.w600,
@@ -297,8 +308,13 @@ class KnowledgeSourcesSection extends ConsumerWidget {
                           ),
                           subtitle: Text(
                             latest != null
-                                ? '最新：${latest.reason} · ${_shortTime(latest.createdAt)}'
-                                : '查看本页正文的历次修订与恢复',
+                                ? context.l10n.l6LatestArg0Arg1aa89a(
+                                    (latest.reason).toString(),
+                                    (_shortTime(latest.createdAt)).toString(),
+                                  )
+                                : context
+                                      .l10n
+                                      .l6ViewAndRestorePastRevisionsOfd9312,
                             style: TextStyle(
                               fontSize: 12,
                               color: AppTheme.textTertiary,
@@ -338,14 +354,17 @@ class KnowledgeOriginLinks extends ConsumerWidget {
         // 知识号 bump 的 reload 不重回 loading（同 wiki_page_detail_view）。
         skipLoadingOnReload: true,
         loading: () => const SizedBox.shrink(),
-        error: (_, _) => const Text('来源暂时无法读取'),
+        error: (_, _) =>
+            Text(context.l10n.l6SourceIsTemporarilyUnavailablecb78e),
         data: (data) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             for (final page in data.sourcePages)
               _KnowledgePageLink(
                 page: WikiPage.fromDto(page),
-                prefix: ['source', 'note'].contains(page.kind) ? '原料' : '上游知识',
+                prefix: ['source', 'note'].contains(page.kind)
+                    ? context.l10n.librarySourceKind
+                    : context.l10n.l6UpstreamKnowledgeae238,
               ),
           ],
         ),

@@ -28,6 +28,22 @@ pub fn candidates_in_context(context: &[ContextMessage]) -> Vec<KnowledgeCitatio
                 message
                     .content
                     .strip_prefix("工具「get_wiki_page」执行结果：")
+            })
+            .or_else(|| {
+                message
+                    .content
+                    .strip_prefix("Result of tool \"search_knowledge_base\": ")
+            })
+            .or_else(|| {
+                message
+                    .content
+                    .strip_prefix("Result of tool \"get_wiki_page\": ")
+            })
+            .or_else(|| message.content.strip_prefix("（已执行工具的历史结果）\n"))
+            .or_else(|| {
+                message
+                    .content
+                    .strip_prefix("[Historical result of an executed tool]\n")
             });
         if let Some(payload) = payload {
             if let Ok(value) = serde_json::from_str::<serde_json::Value>(payload) {

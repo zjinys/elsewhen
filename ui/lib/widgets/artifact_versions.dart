@@ -7,6 +7,8 @@ import '../providers/knowledge_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../theme/app_theme.dart';
 import 'markdown_view.dart';
+import '../l10n/localization.dart';
+import 'app_error_notice.dart';
 
 class ArtifactVersions extends ConsumerStatefulWidget {
   final String slug;
@@ -22,7 +24,8 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
   final Set<String> _compare = {};
   final Map<String, String> _adoptedBodies = {};
   bool _busy = false, _more = false;
-  String? _error;
+  Object? _error;
+  bool _adoptError = false;
   @override
   void initState() {
     super.initState();
@@ -30,7 +33,11 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
   }
 
   Future<void> _load({bool more = false}) async {
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _error = null;
+      _adoptError = false;
+    });
     try {
       final rows = await ref
           .read(knowledgeRepositoryProvider)
@@ -42,7 +49,7 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _error = '读取产物版本失败：$e');
+      if (mounted) setState(() => _error = e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -60,14 +67,18 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _error = '读取版本正文失败：$e');
+      if (mounted) setState(() => _error = e);
     }
   }
 
   Future<void> _adopt(api.ArtifactVersion version) async {
     final revision = _revisions[version.slug];
     if (revision == null) return;
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _error = null;
+      _adoptError = false;
+    });
     try {
       await ref
           .read(knowledgeRepositoryProvider)
@@ -77,10 +88,22 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
         await _load();
       }
     } catch (e) {
-      if (mounted) setState(() => _error = '采用版本失败：$e');
+      if (mounted) {
+        setState(() {
+          _error = e;
+          _adoptError = true;
+        });
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  String _date(String raw) {
+    final date = DateTime.tryParse(raw)?.toLocal();
+    return date == null
+        ? raw
+        : MaterialLocalizations.of(context).formatCompactDate(date);
   }
 
   Widget _body(String slug) => _pages[slug] == null
@@ -96,7 +119,7 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
           // 不名「产物版本」（与 tab 名重复），改名「衍生作品」更直白。
           Expanded(
             child: Text(
-              '衍生作品',
+              context.l10n.artifactWorks,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -106,7 +129,7 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
             ),
           ),
           IconButton(
-            tooltip: '刷新衍生作品',
+            tooltip: context.l10n.artifactRefresh,
             onPressed: _busy
                 ? null
                 : () {
@@ -123,12 +146,12 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
       if (_error != null)
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
-          child: Text(
-            _error!,
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          child: AppErrorMessage(
+            action: _adoptError ? context.l10n.save : context.l10n.load,
+            error: _error!,
           ),
         ),
-      if (_versions.isEmpty && !_busy)
+      if (_versions.isEmpty && !_busy && _error == null)
         Container(
           margin: const EdgeInsets.symmetric(vertical: 6),
           padding: const EdgeInsets.all(14),
@@ -147,7 +170,7 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '还没有衍生作品。在本页对话里让 AI 生成摘要、观点、灵感或脚本，保存后会在这里列为版本。',
+                  context.l10n.artifactEmpty,
                   style: TextStyle(
                     fontSize: 12,
                     color: AppTheme.textSecondary,
@@ -211,7 +234,7 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                 subtitle: Padding(
                   padding: const EdgeInsets.only(top: 2),
                   child: Text(
-                    '${v.contentType} · ${v.adopted ? '已采用' : '未采用'} · ${v.createdAt}',
+                    '${context.artifactTypeLabel(v.contentType)} · ${v.adopted ? context.l10n.readingAdopted : context.l10n.artifactNotAdopted} · ${_date(v.createdAt)}',
                     style: TextStyle(
                       fontSize: 11.5,
                       color: AppTheme.textTertiary,
@@ -233,7 +256,11 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '模型：${v.model ?? '未知（未记录）'} · 流程版本：${v.strategy ?? '未知（旧产物）'}',
+                            context.l10n.artifactMetadata(
+                              v.model ?? context.l10n.artifactUnknownModel,
+                              v.strategy ??
+                                  context.l10n.artifactUnknownStrategy,
+                            ),
                             style: TextStyle(
                               fontSize: 11.5,
                               color: AppTheme.textTertiary,
@@ -254,8 +281,8 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                                   horizontal: 10,
                                   vertical: 0,
                                 ),
-                                title: const Text(
-                                  '生成指令',
+                                title: Text(
+                                  context.l10n.artifactInstruction,
                                   style: TextStyle(fontSize: 12.5),
                                 ),
                                 children: [
@@ -267,7 +294,8 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                                       8,
                                     ),
                                     child: SelectableText(
-                                      v.instruction ?? '此版本未记录生成指令',
+                                      v.instruction ??
+                                          context.l10n.artifactNoInstruction,
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: AppTheme.textSecondary,
@@ -297,8 +325,8 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                                     horizontal: 10,
                                     vertical: 0,
                                   ),
-                                  title: const Text(
-                                    '查看实际采用的修订',
+                                  title: Text(
+                                    context.l10n.artifactAdoptedRevision,
                                     style: TextStyle(fontSize: 12.5),
                                   ),
                                   onExpansionChanged: (open) async {
@@ -318,7 +346,7 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                                       }
                                     } catch (e) {
                                       if (mounted) {
-                                        setState(() => _error = '读取已采用修订失败：$e');
+                                        setState(() => _error = e);
                                       }
                                     }
                                   },
@@ -350,7 +378,7 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                             Padding(
                               padding: const EdgeInsets.only(top: 6),
                               child: Text(
-                                '当前正文已有新修订；采用记录仍指向之前确认的修订。',
+                                context.l10n.artifactNewerRevisionHelp,
                                 style: TextStyle(
                                   fontSize: 11.5,
                                   color: AppTheme.textTertiary,
@@ -365,8 +393,8 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                             children: [
                               TextButton.icon(
                                 icon: const Icon(Icons.open_in_new, size: 15),
-                                label: const Text(
-                                  '打开知识页',
+                                label: Text(
+                                  context.l10n.artifactOpenPage,
                                   style: TextStyle(fontSize: 12),
                                 ),
                                 onPressed: () => openWikiTab(
@@ -376,8 +404,8 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                               ),
                               TextButton.icon(
                                 icon: const Icon(Icons.copy_outlined, size: 15),
-                                label: const Text(
-                                  '复制全文',
+                                label: Text(
+                                  context.l10n.artifactCopyBody,
                                   style: TextStyle(fontSize: 12),
                                 ),
                                 onPressed: _pages[v.slug] == null
@@ -389,18 +417,21 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                                           ),
                                         );
                                         if (context.mounted) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                                const SnackBar(
-                                                  content: Text('已复制完整正文'),
-                                                ),
-                                              );
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                context.l10n.artifactBodyCopied,
+                                              ),
+                                            ),
+                                          );
                                         }
                                       },
                               ),
                               FilterChip(
-                                label: const Text(
-                                  '加入比较',
+                                label: Text(
+                                  context.l10n.artifactCompareSelect,
                                   style: TextStyle(fontSize: 12),
                                 ),
                                 selected: _compare.contains(v.slug),
@@ -421,7 +452,9 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                                     ? null
                                     : () => _adopt(v),
                                 child: Text(
-                                  v.adopted ? '取消采用' : '采用这个版本',
+                                  v.adopted
+                                      ? context.l10n.artifactUnadopt
+                                      : context.l10n.artifactAdopt,
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: v.adopted
@@ -444,7 +477,7 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
       if (_more)
         TextButton(
           onPressed: _busy ? null : () => _load(more: true),
-          child: const Text('加载更多版本'),
+          child: Text(context.l10n.artifactMoreVersions),
         ),
       if (_compare.length == 2)
         LayoutBuilder(
@@ -489,11 +522,13 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                           color: AppTheme.accentPrimary,
                         ),
                         const SizedBox(width: 6),
-                        const Text(
-                          '版本比较',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                        Flexible(
+                          child: Text(
+                            context.l10n.artifactCompare,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],

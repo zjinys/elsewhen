@@ -57,6 +57,10 @@ pub enum ProviderEvent<'a> {
     },
 }
 
+/// A pure, local request fit check supplied by the concrete provider.
+pub type RequestFit<'a> = dyn Fn(&[ContextMessage]) -> Result<bool> + 'a;
+pub type PrepareRequest<'a> = dyn Fn(&RequestFit<'_>) -> Result<Vec<ContextMessage>> + 'a;
+
 /// AI provider trait for generating replies
 pub trait AiProvider {
     /// 生成回复；`tools` 非空时走原生 tool-calling（服务端支持才生效）
@@ -65,6 +69,18 @@ pub trait AiProvider {
         messages: Vec<ContextMessage>,
         tools: Option<&[ToolSpec]>,
     ) -> Result<AiReply>;
+
+    /// Local preflight uses the same serialized envelope and estimator as send.
+    /// Test/custom providers without a transport budget keep bounded task input.
+    fn fits_request(&self, _messages: &[ContextMessage]) -> Result<bool> {
+        Ok(true)
+    }
+
+    /// Rebuild task context for this candidate before any network request.
+    fn generate_prepared(&self, prepare: &PrepareRequest<'_>) -> Result<AiReply> {
+        let messages = prepare(&|messages| self.fits_request(messages))?;
+        self.generate_reply(messages)
+    }
 
     /// Observable generation. Providers without streaming still preserve request-boundary cancellation.
     fn generate_observed(

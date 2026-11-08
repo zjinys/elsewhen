@@ -15,6 +15,7 @@ pub(crate) use pairing::{PairingCommit, PairingDispatch};
 pub(crate) mod object_conflicts;
 pub(crate) mod page_conflicts;
 mod processing;
+mod language;
 pub(crate) mod provider_conflicts;
 mod providers;
 mod resnapshot;

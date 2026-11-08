@@ -1,3 +1,5 @@
+import '../l10n/app_localizations_zh.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'state_holder.dart';
@@ -115,7 +117,7 @@ class ImportTabEntry extends WikiTabEntry {
   String get id => 'import';
 
   @override
-  String get title => '首页';
+  String get title => AppLocalizationsZh().wikiHome;
 
   @override
   bool get closable => false;
@@ -145,7 +147,7 @@ class TweetTabEntry extends WikiTabEntry {
   String get id => 'tweet-${fetch.tweetId}';
 
   @override
-  String get title => '推文 ${fetch.tweetId}';
+  String get title => AppLocalizationsZh().wikiPostTab(fetch.tweetId);
 }
 
 /// 已抓取任意网址的预览 tab（网页/推文通用；内含保存按钮，点保存才入库）

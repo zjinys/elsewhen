@@ -1,4 +1,5 @@
 part of '../settings_screen.dart';
+
 // ignore_for_file: invalid_use_of_protected_member — setState 从 State 子类方法平移至 extension，receiver 类型不变
 
 //! Provider 编辑器对话框、用量柱状图与草稿结构（纯类平移）。
@@ -47,8 +48,10 @@ class _ProviderEditorDialog extends StatefulWidget {
     required this.initialMaxTokens,
     required this.initialProviderType,
     required this.initialHasApiKey,
+    this.initialSecretName,
   });
 
+  final String? initialSecretName;
   final bool isNew;
   final bool isDuplicate;
   final String initialName;
@@ -85,6 +88,9 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
   late String _providerType;
   bool _saving = false;
   String? _error;
+  bool _useSecret = false;
+  String? _selectedSecret;
+  String? _selectedSecretTitle;
 
   @override
   void initState() {
@@ -92,13 +98,83 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
     _name = TextEditingController(text: widget.initialName);
     _baseUrl = TextEditingController(text: widget.initialBaseUrl);
     _model = TextEditingController(text: widget.initialModel);
-    _apiKey = TextEditingController(text: '');
+    _selectedSecret = widget.initialSecretName;
+    _useSecret = _selectedSecret != null;
+    _apiKey = TextEditingController(text: _selectedSecret ?? '');
     _temperature = TextEditingController(
       text: widget.initialTemperature.toString(),
     );
     _contextWindow = TextEditingController(text: widget.initialContextWindow);
     _maxTokens = TextEditingController(text: widget.initialMaxTokens);
     _providerType = widget.initialProviderType;
+    if (_useSecret) _readSecretTitle();
+  }
+
+  Future<void> _readSecretTitle() async {
+    try {
+      final secrets = await api.listNamedSecrets();
+      if (!mounted) return;
+      for (final secret in secrets) {
+        if (secret.name == _selectedSecret) {
+          setState(() {
+            _selectedSecretTitle = secret.title;
+            _apiKey.text = secret.title.isEmpty ? secret.name : secret.title;
+          });
+          break;
+        }
+      }
+    } catch (_) {
+      /* The selected reference stays visible; choosing again can retry. */
+    }
+  }
+
+  Future<void> _chooseSecret() async {
+    try {
+      final secrets = await api.listNamedSecrets();
+      if (!mounted) return;
+      final selected = await showDialog<String>(
+        context: context,
+        builder: (context) => SimpleDialog(
+          title: Text(context.l10n.selectSecret),
+          children: secrets.isEmpty
+              ? [
+                  Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text(context.l10n.noSecretsHint),
+                  ),
+                ]
+              : secrets
+                    .map(
+                      (s) => SimpleDialogOption(
+                        onPressed: () => Navigator.pop(context, s.name),
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(s.title.isEmpty ? s.name : s.title),
+                          subtitle: Text(s.name),
+                          trailing: s.name == _selectedSecret
+                              ? const Icon(Icons.check, size: 18)
+                              : null,
+                        ),
+                      ),
+                    )
+                    .toList(),
+        ),
+      );
+      if (selected != null && mounted) {
+        setState(() {
+          _selectedSecret = selected;
+          _useSecret = true;
+          _selectedSecretTitle = secrets
+              .firstWhere((s) => s.name == selected)
+              .title;
+          _apiKey.text = _selectedSecretTitle!.isEmpty
+              ? selected
+              : _selectedSecretTitle!;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _error = context.l10n.secretLoadFailed);
+    }
   }
 
   @override
@@ -118,8 +194,10 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
     return AlertDialog(
       title: Text(
         widget.isNew
-            ? (widget.isDuplicate ? '复制 AI Provider' : '添加 AI Provider')
-            : '编辑 Provider',
+            ? (widget.isDuplicate
+                  ? context.l10n.duplicateProvider
+                  : context.l10n.addProvider)
+            : context.l10n.editProvider,
       ),
       content: SingleChildScrollView(
         child: SizedBox(
@@ -129,18 +207,18 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _UsageFonts._buildTextField(
-                label: '配置名称 *',
-                hint: '如：主用 GPT',
+                label: context.l10n.configurationNameRequired,
+                hint: context.l10n.configurationNameHint,
                 controller: _name,
               ),
               const SizedBox(height: 12),
               _UsageFonts._buildDropdownField<String>(
-                label: '提供商类型',
+                label: context.l10n.providerType,
                 value: _providerType,
-                items: const [
+                items: [
                   DropdownMenuItem(
                     value: 'openai-compatible',
-                    child: Text('OpenAI 兼容'),
+                    child: Text(context.l10n.openAiCompatible),
                   ),
                   DropdownMenuItem(value: 'ollama', child: Text('Ollama')),
                 ],
@@ -158,23 +236,71 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
               ),
               const SizedBox(height: 12),
               _UsageFonts._buildTextField(
-                label: '模型 *',
+                label: context.l10n.modelRequired,
                 hint: 'gpt-4o',
                 controller: _model,
               ),
               const SizedBox(height: 12),
-              _UsageFonts._buildTextField(
-                label: widget.isNew ? 'API Key *' : 'API Key',
-                hint: widget.isNew ? '输入你的 API Key' : '留空表示保持不变',
-                obscure: true,
+              Row(
+                children: [
+                  Text(
+                    'API Key',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    _useSecret
+                        ? context.l10n.secretVault
+                        : context.l10n.manualInput,
+                    key: const ValueKey('provider-key-source'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                key: const ValueKey('provider-api-key'),
                 controller: _apiKey,
-                warning: !widget.initialHasApiKey,
-                warningHint: '原密文已丢失，必须重填',
+                obscureText: !_useSecret,
+                enableSuggestions: false,
+                autocorrect: false,
+                onChanged: (_) {
+                  if (_useSecret) {
+                    setState(() {
+                      _useSecret = false;
+                      _selectedSecret = null;
+                      _selectedSecretTitle = null;
+                    });
+                  }
+                },
+                decoration: InputDecoration(
+                  hintText: widget.isNew
+                      ? context.l10n.apiKeyHintNew
+                      : context.l10n.apiKeyHintExisting,
+                  filled: true,
+                  fillColor: AppTheme.surface2.withValues(alpha: 0.5),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  suffixIcon: IconButton(
+                    key: const ValueKey('provider-secret-picker'),
+                    tooltip: context.l10n.chooseFromVault,
+                    onPressed: _saving ? null : _chooseSecret,
+                    icon: const Icon(Icons.key_outlined, size: 20),
+                  ),
+                ),
               ),
               const SizedBox(height: 12),
               _UsageFonts._buildTextField(
-                label: '上下文窗口（token）',
-                hint: '留空使用保守默认值；中转可填写实测上限',
+                label: context.l10n.contextWindow,
+                hint: context.l10n.contextWindowHint,
                 keyboardType: TextInputType.number,
                 controller: _contextWindow,
               ),
@@ -192,8 +318,8 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _UsageFonts._buildTextField(
-                      label: '输出上限（token）',
-                      hint: '可选',
+                      label: context.l10n.maximumOutput,
+                      hint: context.l10n.optional,
                       keyboardType: TextInputType.number,
                       controller: _maxTokens,
                     ),
@@ -210,30 +336,48 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
             padding: const EdgeInsets.only(bottom: 8),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                _error!,
+              child: AppErrorMessage(
+                action: context.l10n.load,
+                error: _error!,
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),
           ),
         TextButton(
           onPressed: _saving ? null : () => Navigator.pop(context),
-          child: const Text('取消'),
+          child: Text(context.l10n.cancel),
         ),
         FilledButton(
           onPressed: _saving
               ? null
               : () async {
+                  if (_useSecret && _selectedSecret == null) {
+                    setState(() => _error = context.l10n.selectSecretFirst);
+                    return;
+                  }
                   final draft = _ProviderDraft(
                     name: _name.text.trim(),
                     providerType: _providerType,
                     baseUrl: _baseUrl.text.trim(),
                     model: _model.text.trim(),
-                    apiKey: _apiKey.text.trim(),
+                    apiKey: _useSecret && _selectedSecret != null
+                        ? '{{secret:$_selectedSecret}}'
+                        : _apiKey.text.trim(),
                     temperature: double.tryParse(_temperature.text) ?? 0.7,
                     maxTokens: int.tryParse(_maxTokens.text),
                     contextWindow: int.tryParse(_contextWindow.text),
                   );
+                  final validationError = draft.name.isEmpty
+                      ? context.l10n.providerNameMissing
+                      : draft.baseUrl.isEmpty || draft.model.isEmpty
+                      ? context.l10n.providerFieldsMissing
+                      : widget.isNew && draft.apiKey.isEmpty
+                      ? context.l10n.apiKeyRequiredForNew
+                      : null;
+                  if (validationError != null) {
+                    setState(() => _error = validationError);
+                    return;
+                  }
                   setState(() {
                     _saving = true;
                     _error = null;
@@ -246,14 +390,9 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
                     if (!mounted) return;
                     setState(() {
                       _saving = false;
-                      // save_ai_provider_config 的三条校验是刻意写给用户看的
-                      // （配置名称不能为空 / base_url 和 model 均不能为空 /
-                      // 新建配置时必须填写 API Key），隐藏它们等于让用户瞎猜。
-                      _error = reportUiError(
-                        '保存 Provider',
-                        e,
-                        showDetail: true,
-                      );
+                      // Required fields are explained above in the UI language;
+                      // unexpected failures retain the diagnostic logging path.
+                      _error = appFailure(e);
                     });
                   }
                 },
@@ -263,7 +402,7 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('保存'),
+              : Text(context.l10n.save),
         ),
       ],
     );
@@ -331,7 +470,7 @@ class _TokenUsageBarChart extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      _dateLabel(i, d, compact),
+                      _dateLabel(context, i, d, compact),
                       style: TextStyle(
                         fontSize: compact ? 9 : 11,
                         fontWeight: d.date == today
@@ -352,10 +491,17 @@ class _TokenUsageBarChart extends StatelessWidget {
   }
 
   /// 紧凑模式只标今天与首末两根柱子的日期，其余留空，防止日期串粘在一起。
-  String _dateLabel(int i, DailyTokenUsage d, bool compact) {
-    if (d.date == today) return '今天';
-    if (!compact) return d.date.substring(5);
-    if (i == 0 || i == days.length - 1) return d.date.substring(5);
+  String _dateLabel(
+    BuildContext context,
+    int i,
+    DailyTokenUsage d,
+    bool compact,
+  ) {
+    if (d.date == today) return context.l10n.today;
+    final date = DateFormat.Md(context.l10n.localeName)
+        .format(DateTime.parse(d.date));
+    if (!compact) return date;
+    if (i == 0 || i == days.length - 1) return date;
     return '';
   }
 
@@ -367,10 +513,11 @@ class _TokenUsageBarChart extends StatelessWidget {
   }
 }
 
-
 /// MCP 服务器表单对话框的保存结果。
 class _McpServerFormResult {
   final String name;
+  final String keywords;
+
   /// 平台标签（迁移 48）：定义随人走，激活看平台。同一名 server 可有
   /// 跨平台变体（如 Windows 上 npx.cmd）；远程服务器通常标 all。
   final String platform;
@@ -383,6 +530,7 @@ class _McpServerFormResult {
   final bool trusted;
   const _McpServerFormResult({
     required this.name,
+    required this.keywords,
     required this.platform,
     required this.transport,
     required this.command,

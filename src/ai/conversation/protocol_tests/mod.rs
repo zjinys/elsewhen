@@ -65,3 +65,10 @@ pub(super) fn protocol_http_fixture(
 mod native_vs_text;
 
 mod budget_repair_flow;
+
+mod page_summary_flow;
+
+mod language_recovery;
+
+mod bilingual_scenarios;
+mod import_format;

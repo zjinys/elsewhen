@@ -21,5 +21,37 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - run: python scripts/check-localization.py
       - run: cargo test --all-targets
       - run: cargo build --release
+
+  localization:
+    name: Application localization coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read the project SDK version
+        id: sdk
+        run: python -c 'import json, os; open(os.environ["GITHUB_OUTPUT"], "a").write("version=" + json.load(open("ui/.fvmrc"))["flutter"] + "\n")'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.sdk.outputs.version }}
+          cache: true
+      - name: Install FVM
+        run: dart pub global activate fvm
+      - name: Install the pinned project SDK
+        working-directory: ui
+        run: fvm install
+      - name: Resolve UI dependencies
+        working-directory: ui
+        run: fvm flutter pub get
+      - name: Check bilingual resources
+        run: python scripts/check-localization.py
+      - name: Check application literal ownership
+        working-directory: ui
+        run: fvm dart run tool/check_localization.dart
+      - name: Check coverage and resource guard failures
+        run: python -m unittest discover -s scripts -p test_localization.py
+      - name: Check AST coverage guard failures
+        working-directory: ui
+        run: fvm flutter test test/check_localization_test.dart

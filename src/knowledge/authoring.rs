@@ -133,14 +133,14 @@ pub(crate) fn save_draft(store: &Store, draft: &WikiPageDraft, args: &Value) -> 
     super::dependencies::bind(store, &page.id, &bases)?;
     // 派生挂靠（parent_slug）：与 create_derivative_with_generation 同一写法，
     // 依赖捕获走降级通道（父页可能是无来源的自由主题页，事故 2026-11-02）。
-    if let Some(parent_slug) = args["parent_slug"].as_str().filter(|s| !s.trim().is_empty()) {
+    if let Some(parent_slug) = args["parent_slug"]
+        .as_str()
+        .filter(|s| !s.trim().is_empty())
+    {
         let parent = store
             .get_wiki_page(parent_slug.trim())?
             .with_context(|| format!("挂靠的父页不存在：{parent_slug}"))?;
-        ensure!(
-            parent.id != page.id,
-            "不能把页面挂靠到它自己下面"
-        );
+        ensure!(parent.id != page.id, "不能把页面挂靠到它自己下面");
         store.connection.execute(
             "UPDATE wiki_pages SET based_on=?1 WHERE id=?2",
             params![parent.slug, page.id],
@@ -211,7 +211,7 @@ pub(crate) fn compare_revision_basis(
     if let Some(expected) = expected {
         ensure!(
             expected == &current,
-            "页面、来源或规则设置已变化，请重新审阅"
+            crate::user_error::UserError::new("knowledge_review_changed", serde_json::json!({}))
         );
     } else {
         ensure!(

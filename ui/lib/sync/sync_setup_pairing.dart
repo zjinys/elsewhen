@@ -6,7 +6,7 @@ extension OwnerSyncPairing on SyncSetupController {
     required bool consent,
   }) async {
     if (!consent) {
-      error = '请确认加入设备将获得全部 Provider 配置和 API Key。';
+      error = appNotice('l6ConfirmThatTheJoiningDeviceMay8297c');
       _changed();
       return;
     }
@@ -21,7 +21,7 @@ extension OwnerSyncPairing on SyncSetupController {
         '[sync-pairing] owner: invitation created id=${offer.invitationId} '
         'expires=${DateTime.fromMillisecondsSinceEpoch(offer.expiresAtMs).toLocal()}',
       );
-      pairingNotice = '邀请码 24 小时内有效。新设备扫码发起加入后，这里会自动收到请求，核对设备与指纹后批准即可。';
+      pairingNotice = appNotice('l6TheInvitationIsValidFor245be17');
     });
   }
 
@@ -33,7 +33,9 @@ extension OwnerSyncPairing on SyncSetupController {
       _requirePairingOpen();
       if (invitation?.invitationId != offer.invitationId) return;
       pairingPreview = preview;
-      pairingNotice = preview == null ? '尚未收到加入请求。' : '核对设备及指纹后再明确批准。';
+      pairingNotice = preview == null
+          ? appNotice('l6NoJoinRequestReceivedYet10542')
+          : appNotice('l6VerifyTheDeviceAndFingerprintBefore5e3e6');
       debugPrint(
         '[sync-pairing] owner: inspected id=${offer.invitationId} '
         'request=${preview == null ? 'none' : '${preview.deviceName}/${preview.devicePlatform}'}',
@@ -46,7 +48,7 @@ extension OwnerSyncPairing on SyncSetupController {
     required bool consent,
   }) async {
     if (!consent) {
-      error = '请明确确认向这台设备共享 Provider API Key。';
+      error = appNotice('l6ExplicitlyConfirmSharingProviderApiKeysd0cdd');
       _changed();
       return;
     }
@@ -94,7 +96,9 @@ extension OwnerSyncPairing on SyncSetupController {
         '[sync-pairing] owner: approval delivered id=${preview.invitationId}',
       );
       _requirePairingOpen();
-      pairingNotice = '审批已投递，等待新设备安装确认；这不表示设备已加入或同步完成。';
+      pairingNotice = appNotice(
+        'l6ApprovalDeliveredWaitingForInstallationConfirmation8b0b8',
+      );
     });
   }
 
@@ -105,7 +109,9 @@ extension OwnerSyncPairing on SyncSetupController {
       await _pairing.sendApproval(id);
       approvalDelivered = true;
       _requirePairingOpen();
-      pairingNotice = '审批已投递，等待新设备安装确认。';
+      pairingNotice = appNotice(
+        'l6ApprovalDeliveredWaitingForInstallationConfirmation9b218',
+      );
     });
   }
 
@@ -115,7 +121,7 @@ extension OwnerSyncPairing on SyncSetupController {
     await _pairingAction(() async {
       try {
         await _pairing.cancel(offer.invitationId);
-        pairingNotice = '本次邀请已取消。';
+        pairingNotice = appNotice('l6InvitationCanceled35e1b');
       } finally {
         invitation = null;
         pairingPreview = null;
@@ -134,7 +140,7 @@ extension OwnerSyncPairing on SyncSetupController {
       debugPrint('[sync-pairing] owner: auto-redelivery confirmed id=$id');
       if (pendingPairingId == id && !approvalDelivered) {
         approvalDelivered = true;
-        pairingNotice = '审批已投递，等待新设备完成安装确认。';
+        pairingNotice = appNotice('l6ApprovalDeliveredWaitingForTheNew361e9');
         _changed();
       }
     } catch (_) {
@@ -172,7 +178,7 @@ extension OwnerSyncPairing on SyncSetupController {
     if (!previewEnabled ||
         state?.state != 'local_ready' ||
         state?.isOwner != true) {
-      error = '设备同步已在当前构建中关闭（编译开关 ELSEWHEN_SYNC_PREVIEW）。';
+      error = appNotice('l6DeviceSyncIsDisabledInThise1b42');
       _changed();
       return;
     }
@@ -183,7 +189,7 @@ extension OwnerSyncPairing on SyncSetupController {
     _changed();
     // 发起/批准/重投审批都是中继往返，批准还要写密钥库：中途被冻结会让
     // 新设备那边一直停在「等待主设备批准」。
-    SyncKeepAlive.hold('sync-pairing-owner', text: '正在与加入设备配对');
+    SyncKeepAlive.hold('sync-pairing-owner');
     try {
       await enrollment.pause();
       _requirePairingOpen();
@@ -194,18 +200,18 @@ extension OwnerSyncPairing on SyncSetupController {
       if (failure is SyncKeyStoreException) {
         error = _message(failure);
       } else if (text.contains('expired') || text.contains('approval_stale')) {
-        error = '邀请或审阅版本已过期，请重新发起邀请并核对设备。';
+        error = appNotice('l6TheInvitationOrReviewVersionExpireda53ec');
       } else if (text.contains('revocation_unconfirmed')) {
-        error = '本机已取消邀请，但中继撤销尚未确认；临时发送权限会随短期邀请到期。';
+        error = appNotice('l6TheInvitationWasCanceledLocallyRelay360d8');
       } else if (text.contains('delivery_unconfirmed')) {
-        error = '批准已保存，但暂时没送到新设备（网络或中继不可用）。系统会自动重试，无需重新批准。';
+        error = appNotice('l6ApprovalIsSavedButHasNot99508');
         debugPrint(
           '[sync-pairing] owner: approval delivery unconfirmed (auto-retry armed): $failure',
         );
       } else if (text.contains('sync_runtime_in_use')) {
-        error = '后台同步正在占用本机同步运行时，本次配对写入未执行；请稍候再点一次。没有自动授权新设备。';
+        error = appNotice('l6BackgroundSyncIsUsingTheRuntime0a21c');
       } else {
-        error = '配对步骤未完成，请检查本机解锁状态和中继地址；没有自动授权新设备。';
+        error = appNotice('l6PairingIsIncompleteCheckDeviceUnlock85108');
       }
       if (!_disposed && !_closed) {
         try {

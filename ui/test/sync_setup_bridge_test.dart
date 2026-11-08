@@ -1,3 +1,5 @@
+import 'package:elsewhen_ui/l10n/notice_messages.dart';
+import 'package:elsewhen_ui/l10n/app_localizations_zh.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/sync/sync_key_store.dart';
@@ -126,7 +128,7 @@ void main() {
     await controller.lock();
     storage.values.remove('elsewhen.sync.revision.v1.$installation');
     await controller.unlock();
-    expect(controller.error, contains('受保护的修订记录'));
+    expect(resolveNotice(controller.error, AppLocalizationsZh()), contains('受保护的修订记录'));
     expect((await api.getLocalSyncState()).state, 'locked');
     expect((await repo.listEvents()).length, 2);
     expect(

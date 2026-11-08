@@ -49,9 +49,11 @@ class _ChatProposalBatchDialogState
           _request(proposal),
           accept: accept,
         );
-        message = '${_statusLabel(receipt.status)}：${receipt.result}';
+        if (!mounted) return;
+        message = '${_statusLabel(context, receipt.status)}：${receipt.result}';
       } catch (e) {
-        message = '本项未确认完成，请核对处理记录；不会自动重试：$e';
+        if (!mounted) return;
+        message = context.l10n.batchUnconfirmed(e.toString());
       }
       if (!mounted) return;
       setState(() => _results[key] = message);
@@ -71,17 +73,20 @@ class _ChatProposalBatchDialogState
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('仅处理下面列出的具体版本。逐项执行，不是整批原子提交；可能部分成功。每项都会显示结果。'),
+        Text(context.l10n.batchReviewDescription),
         for (final proposal in _widgetProposals) ...[
           const Divider(),
           Text(
-            '${_actionLabel(proposal.action)} · 版本 ${proposal.version}',
+            context.l10n.proposalVersion(
+              _actionLabel(context, proposal.action),
+              proposal.version.toString(),
+            ),
             style: Theme.of(context).textTheme.titleMedium,
           ),
           _ProposalContent(argsJson: proposal.argsJson),
           if (proposal.targetBasisJson != '[]')
             ExpansionTile(
-              title: const Text('目标版本依据'),
+              title: Text(context.l10n.targetVersionBasis),
               children: [SelectableText(proposal.targetBasisJson)],
             ),
           if (_results['${proposal.kind}:${proposal.id}'] case final result?)
@@ -90,7 +95,7 @@ class _ChatProposalBatchDialogState
               child: _ReceiptText(result),
             ),
         ],
-        if (_finished) const Text('本次逐项处理结束，请查看每项结果。'),
+        if (_finished) Text(context.l10n.batchFinished),
       ],
     );
     final actions = OverflowBar(
@@ -105,19 +110,21 @@ class _ChatProposalBatchDialogState
                 : () {
                     Navigator.maybePop(context, _finished);
                   },
-            child: const Text('关闭'),
+            child: Text(context.l10n.close),
           ),
         if (!_finished) ...[
           TextButton(
             onPressed: _busy ? null : () => _apply(false),
-            child: const Text('拒绝这些项'),
+            child: Text(context.l10n.rejectThese),
           ),
           FilledButton(
             onPressed:
                 _busy || _widgetProposals.any((p) => _args(p.argsJson) == null)
                 ? null
                 : () => _apply(true),
-            child: Text(_busy ? '逐项处理中…' : '接受这些项'),
+            child: Text(
+              _busy ? context.l10n.processingItems : context.l10n.acceptThese,
+            ),
           ),
         ],
       ],
@@ -141,11 +148,11 @@ class _ChatProposalBatchDialogState
                     TextButton.icon(
                       onPressed: _busy ? null : panelClose,
                       icon: const Icon(Icons.arrow_back_ios_new, size: 15),
-                      label: const Text('返回列表'),
+                      label: Text(context.l10n.backToList),
                     ),
                   const Spacer(),
                   Text(
-                    '审阅选中的 ${_widgetProposals.length} 项',
+                    context.l10n.reviewSelectedTitle(_widgetProposals.length),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ],
@@ -169,7 +176,7 @@ class _ChatProposalBatchDialogState
     return PopScope(
       canPop: !_busy,
       child: AlertDialog(
-        title: Text('审阅选中的 ${_widgetProposals.length} 项'),
+        title: Text(context.l10n.reviewSelectedTitle(_widgetProposals.length)),
         content: SizedBox(
           width: 660,
           height: MediaQuery.sizeOf(context).height * .6,

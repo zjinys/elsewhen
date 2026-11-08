@@ -6,9 +6,10 @@ import '../models/goal.dart';
 import '../providers/goal_provider.dart';
 import '../theme/app_theme.dart';
 import 'goal_view.dart';
+import '../l10n/localization.dart';
 
 /// 航向偏离校准横幅（挂在 MessageArea 状态栏下方，与 ReminderBanner 并列）。
-/// 当 3~5 天滑动窗口检测到活跃目标抓手停滞且精力分散时呈现。
+/// 当 3~5 天滑动窗口检测到活跃目标行动停滞且精力分散时呈现。
 class GoalCompassNudgeBanner extends ConsumerWidget {
   const GoalCompassNudgeBanner({super.key});
 
@@ -17,12 +18,12 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
     final nudge = ref.watch(activeCompassNudgeProvider);
     if (nudge == null) return const SizedBox.shrink();
 
-    // 尝试从缓存的活跃目标中提取当前卡点
+    // 尝试从缓存的活跃目标中提取当前困难
     final activeGoals = ref.watch(activeGoalsProvider).value ?? const [];
     final goal = activeGoals.cast<Goal?>().firstWhere(
-          (g) => g?.id == nudge.goalId,
-          orElse: () => null,
-        );
+      (g) => g?.id == nudge.goalId,
+      orElse: () => null,
+    );
     final blocker = goal?.blocker;
 
     return Container(
@@ -51,8 +52,8 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
               Expanded(
                 child: Text(
                   nudge.planIntent != null
-                      ? '航向校准 · 计划「${nudge.planIntent}」'
-                      : '航向校准 · 目标「${nudge.goalContent}」',
+                      ? context.l10n.compassPlanTitle(nudge.planIntent!)
+                      : context.l10n.compassGoalTitle(nudge.goalContent),
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -62,7 +63,7 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
                 ),
               ),
               IconButton(
-                tooltip: '处理急事，7 天内不打扰',
+                tooltip: context.l10n.compassDismissHint,
                 visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.close, size: 16),
                 color: AppTheme.textTertiary,
@@ -73,28 +74,24 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
           const SizedBox(height: 4),
           Text.rich(
             TextSpan(
-              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, height: 1.4),
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.textSecondary,
+                height: 1.4,
+              ),
               children: [
-                const TextSpan(text: '当前抓手「'),
                 TextSpan(
-                  text: nudge.currentFocus,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
+                  text: context.l10n.compassActionStalled(
+                    nudge.currentFocus,
+                    nudge.stalledDays,
                   ),
                 ),
-                TextSpan(text: '」已停滞 ${nudge.stalledDays} 天'),
                 if (blocker != null && blocker.trim().isNotEmpty) ...[
-                  const TextSpan(text: '，卡点：'),
-                  TextSpan(
-                    text: blocker,
-                    style: TextStyle(
-                      color: AppTheme.accentPrimary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  TextSpan(text: context.l10n.compassObstacle(blocker)),
                 ],
-                TextSpan(text: '。近期注意力多在「${nudge.recentTopics}」。'),
+                TextSpan(
+                  text: context.l10n.compassRecentTopics(nudge.recentTopics),
+                ),
               ],
             ),
           ),
@@ -107,14 +104,13 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
               FilledButton.tonal(
                 style: FilledButton.styleFrom(
                   visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                 ),
-                onPressed: () => _focusAndDiscuss(
-                  context,
-                  ref,
-                  nudge,
-                  blocker: blocker,
-                ),
+                onPressed: () =>
+                    _focusAndDiscuss(context, ref, nudge, blocker: blocker),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -122,8 +118,8 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
                     const SizedBox(width: 4),
                     Text(
                       blocker != null && blocker.trim().isNotEmpty
-                          ? '聚焦攻克此卡点'
-                          : '聊聊推进破局',
+                          ? context.l10n.compassFocusObstacle
+                          : context.l10n.compassDiscussProgress,
                       style: const TextStyle(fontSize: 12),
                     ),
                   ],
@@ -132,23 +128,25 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
               OutlinedButton(
                 style: OutlinedButton.styleFrom(
                   visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   side: BorderSide(
                     color: AppTheme.accentPrimary.withValues(alpha: 0.3),
                   ),
                 ),
-                onPressed: () => _rollFocus(
-                  context,
-                  ref,
-                  nudge,
-                  initialBlocker: blocker,
-                ),
-                child: const Row(
+                onPressed: () =>
+                    _rollFocus(context, ref, nudge, initialBlocker: blocker),
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.update_outlined, size: 13),
                     SizedBox(width: 4),
-                    Text('更新当前抓手', style: TextStyle(fontSize: 12)),
+                    Text(
+                      context.l10n.compassUpdateAction,
+                      style: TextStyle(fontSize: 12),
+                    ),
                   ],
                 ),
               ),
@@ -158,7 +156,10 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
                   foregroundColor: AppTheme.textTertiary,
                 ),
                 onPressed: () => _dismiss(context, ref, nudge),
-                child: const Text('暂不打扰（退避7天）', style: TextStyle(fontSize: 11.5)),
+                child: Text(
+                  context.l10n.compassSnooze,
+                  style: TextStyle(fontSize: 11.5),
+                ),
               ),
             ],
           ),
@@ -176,8 +177,15 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
   }) {
     final hasBlocker = blocker != null && blocker.trim().isNotEmpty;
     final seed = hasBlocker
-        ? '关于目标「${nudge.goalContent}」卡在「$blocker」，当前抓手是「${nudge.currentFocus}」，我们聊聊怎么破局？'
-        : '关于目标「${nudge.goalContent}」，当前抓手是「${nudge.currentFocus}」，近几天有些停滞，我们聊聊怎么推进？';
+        ? context.l10n.compassSeedObstacle(
+            nudge.goalContent,
+            blocker,
+            nudge.currentFocus,
+          )
+        : context.l10n.compassSeedProgress(
+            nudge.goalContent,
+            nudge.currentFocus,
+          );
 
     onBeforeDiscuss?.call();
 
@@ -215,8 +223,8 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
       ref.invalidate(activeCompassNudgeProvider);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('已更新目标抓手，航向已校准'),
+          SnackBar(
+            content: Text(context.l10n.compassRealigned),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -225,7 +233,7 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('更新抓手失败: $e'),
+            content: Text(context.errorMessage(context.l10n.edit, e)),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -244,8 +252,8 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
       ref.invalidate(activeCompassNudgeProvider);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('已暂不打扰，7 天内静默退避'),
+          SnackBar(
+            content: Text(context.l10n.compassDismissed),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -254,7 +262,7 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('操作失败: $e'),
+            content: Text(context.errorMessage(context.l10n.edit, e)),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -273,9 +281,9 @@ class GoalCompassNudgeCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final activeGoals = ref.watch(activeGoalsProvider).value ?? const [];
     final goal = activeGoals.cast<Goal?>().firstWhere(
-          (g) => g?.id == nudge.goalId,
-          orElse: () => null,
-        );
+      (g) => g?.id == nudge.goalId,
+      orElse: () => null,
+    );
     final blocker = goal?.blocker;
 
     return Container(
@@ -300,23 +308,29 @@ class GoalCompassNudgeCard extends ConsumerWidget {
                 color: AppTheme.accentPrimary,
               ),
               const SizedBox(width: 6),
-              Text(
-                '航向偏离提醒',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.accentPrimary,
+              Expanded(
+                child: Text(
+                  context.l10n.compassTitle,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.accentPrimary,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 1.5,
+                ),
                 decoration: BoxDecoration(
                   color: AppTheme.accentPrimary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  '停滞 ${nudge.stalledDays} 天',
+                  context.l10n.compassStalled(nudge.stalledDays),
                   style: TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w600,
@@ -324,9 +338,8 @@ class GoalCompassNudgeCard extends ConsumerWidget {
                   ),
                 ),
               ),
-              const Spacer(),
               IconButton(
-                tooltip: '暂不打扰（7天）',
+                tooltip: context.l10n.compassSnoozeHint,
                 visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.close, size: 15),
                 color: AppTheme.textTertiary,
@@ -337,7 +350,15 @@ class GoalCompassNudgeCard extends ConsumerWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '${nudge.planIntent != null ? '计划「${nudge.planIntent}」· 步骤' : '目标'}「${nudge.goalContent}」当前抓手「${nudge.currentFocus}」已连续 ${nudge.stalledDays} 天未推进，近期精力分散在「${nudge.recentTopics}」。',
+            context.l10n.compassCardDetail(
+              nudge.planIntent != null
+                  ? context.l10n.compassPlanStep(nudge.planIntent!)
+                  : context.l10n.goals,
+              nudge.goalContent,
+              nudge.currentFocus,
+              nudge.stalledDays,
+              nudge.recentTopics,
+            ),
             style: TextStyle(
               fontSize: 12,
               color: AppTheme.textSecondary,
@@ -347,7 +368,7 @@ class GoalCompassNudgeCard extends ConsumerWidget {
           if (blocker != null && blocker.trim().isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              '已知卡点：$blocker',
+              context.l10n.compassObstacleLine(blocker),
               style: TextStyle(
                 fontSize: 11.5,
                 color: AppTheme.accentPrimary,
@@ -356,12 +377,17 @@ class GoalCompassNudgeCard extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: 10),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
             children: [
               FilledButton.tonal(
                 style: FilledButton.styleFrom(
                   visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                 ),
                 onPressed: () => GoalCompassNudgeBanner._focusAndDiscuss(
                   context,
@@ -377,18 +403,20 @@ class GoalCompassNudgeCard extends ConsumerWidget {
                     const SizedBox(width: 4),
                     Text(
                       blocker != null && blocker.trim().isNotEmpty
-                          ? '聚焦攻克此卡点'
-                          : '聊聊推进破局',
+                          ? context.l10n.compassFocusObstacle
+                          : context.l10n.compassDiscussProgress,
                       style: const TextStyle(fontSize: 11.5),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
               OutlinedButton(
                 style: OutlinedButton.styleFrom(
                   visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                 ),
                 onPressed: () => GoalCompassNudgeBanner._rollFocus(
                   context,
@@ -396,12 +424,15 @@ class GoalCompassNudgeCard extends ConsumerWidget {
                   nudge,
                   initialBlocker: blocker,
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.update_outlined, size: 13),
                     SizedBox(width: 4),
-                    Text('滚动更新抓手', style: TextStyle(fontSize: 11.5)),
+                    Text(
+                      context.l10n.compassRollAction,
+                      style: TextStyle(fontSize: 11.5),
+                    ),
                   ],
                 ),
               ),

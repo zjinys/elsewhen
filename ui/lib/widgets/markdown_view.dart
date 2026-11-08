@@ -4,9 +4,11 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../theme/app_theme.dart';
 import '../theme/content_font.dart';
+import 'knowledge_page_dialog.dart';
 
 part 'markdown_view_parts/markdown_parse.dart';
 part 'markdown_view_parts/markdown_blocks.dart';
+
 // ── markdown 渲染按解析/块渲染拆分（State 留主类，零行为变化）──
 
 /// 轻量 markdown 渲染器（面向 wiki 页正文，零依赖）
@@ -81,8 +83,14 @@ String _stripProtocolFromProse(String prose) {
 class MarkdownView extends StatefulWidget {
   final String markdown;
   final TextStyle? baseStyle;
+  final void Function(String slug)? onTapWikiPage;
 
-  const MarkdownView({super.key, required this.markdown, this.baseStyle});
+  const MarkdownView({
+    super.key,
+    required this.markdown,
+    this.baseStyle,
+    this.onTapWikiPage,
+  });
 
   @override
   State<MarkdownView> createState() => _MarkdownViewState();
@@ -120,7 +128,12 @@ class _MarkdownViewState extends State<MarkdownView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final block in blocks) _BlockWidget(block: block, base: base),
+        for (final block in blocks)
+          _BlockWidget(
+            block: block,
+            base: base,
+            onTapWikiPage: widget.onTapWikiPage,
+          ),
       ],
     );
   }

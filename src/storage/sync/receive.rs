@@ -234,6 +234,13 @@ impl Store {
 
     pub(crate) fn apply_sync_mutation(&self, op: &SyncOperation) -> Result<Apply> {
         match &op.mutation {
+            SyncMutation::KnowledgeLanguageChanged {
+                policy,
+                base_revision,
+            } => self.apply_sync_knowledge_language(op, policy, base_revision),
+            SyncMutation::LanguageCapabilityDeclared { capability } => {
+                self.apply_sync_language_capability(op, capability)
+            }
             SyncMutation::Capture {
                 event,
                 input,

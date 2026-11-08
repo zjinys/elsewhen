@@ -86,7 +86,7 @@ class _NowStatus extends ConsumerWidget {
     final activeGoals = ref.watch(activeGoalsProvider).value ?? const [];
     // 目标为空时入口仍必须显示：目标功能没有独立一级 tab，这里是唯一入口，
     // 显示为「目标 0」会让人以为无路可走。
-    final goalLabel = activeGoals.isEmpty ? '目标' : '目标${activeGoals.length}';
+    final goalLabel = context.l10n.goalSummaryCount(activeGoals.length);
 
     final today = DateTime.now();
     final count = messages
@@ -98,7 +98,7 @@ class _NowStatus extends ConsumerWidget {
               m.createdAt.day == today.day,
         )
         .length;
-    final summary = '对话$count次';
+    final summary = context.l10n.conversationCount(count);
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -126,7 +126,7 @@ class _NowStatus extends ConsumerWidget {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '今天',
+                    context.l10n.today,
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimary,
@@ -162,7 +162,7 @@ class _NowStatus extends ConsumerWidget {
                     TextButton.icon(
                       onPressed: onOpenTodos,
                       icon: const Icon(Icons.check_circle_outlined, size: 16),
-                      label: Text('待办${openTodos ?? 0}项'),
+                      label: Text(context.l10n.todoCountItems(openTodos ?? 0)),
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                       ),
@@ -175,7 +175,7 @@ class _NowStatus extends ConsumerWidget {
                     TextButton.icon(
                       onPressed: onCreateTopic,
                       icon: const Icon(Icons.note_add_outlined, size: 16),
-                      label: const Text('创建主题'),
+                      label: Text(context.l10n.createTopic),
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                       ),
@@ -253,7 +253,7 @@ class _NowStatus extends ConsumerWidget {
                       children: [
                         if (onCopyAll != null)
                           IconButton(
-                            tooltip: '复制全部对话',
+                            tooltip: context.l10n.copyAll,
                             visualDensity: VisualDensity.compact,
                             icon: const Icon(Icons.copy_all_rounded, size: 17),
                             color: AppTheme.textSecondary,
@@ -261,14 +261,16 @@ class _NowStatus extends ConsumerWidget {
                           ),
                         if (onOpenPageMarks != null)
                           IconButton(
-                            tooltip: '翻篇记录',
+                            tooltip: context.l10n.flipPast,
                             visualDensity: VisualDensity.compact,
                             icon: const Icon(Icons.auto_stories, size: 17),
                             color: AppTheme.textSecondary,
                             onPressed: onOpenPageMarks,
                           ),
                         IconButton(
-                          tooltip: showSearch ? '隐藏搜索' : '搜索与日期定位',
+                          tooltip: showSearch
+                              ? context.l10n.hideSearch
+                              : context.l10n.searchAndDate,
                           visualDensity: VisualDensity.compact,
                           icon: Icon(
                             showSearch ? Icons.search_off : Icons.search,
@@ -286,7 +288,7 @@ class _NowStatus extends ConsumerWidget {
                     TextButton.icon(
                       onPressed: onOpenTodos,
                       icon: const Icon(Icons.check_circle_outlined, size: 16),
-                      label: Text('待办${openTodos ?? 0}'),
+                      label: Text(context.l10n.todoCount(openTodos ?? 0)),
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                       ),
@@ -305,7 +307,7 @@ class _NowStatus extends ConsumerWidget {
                         // 窄屏时目标入口落在第二行：它没有独立一级 tab，这里是唯一入口，
                         // 空态也必须可见（故空态只显示「目标」，且用 accent 着色）。
                         NowStatusIconButton(
-                          tooltip: '目标',
+                          tooltip: context.l10n.goals,
                           icon: Icons.flag_outlined,
                           label: goalLabel,
                           color: activeGoals.isEmpty
@@ -315,9 +317,9 @@ class _NowStatus extends ConsumerWidget {
                         ),
                         const SizedBox(width: 4),
                         NowStatusIconButton(
-                          tooltip: '创建主题',
+                          tooltip: context.l10n.createTopic,
                           icon: Icons.note_add_outlined,
-                          label: '主题',
+                          label: context.l10n.topics,
                           color: AppTheme.textTertiary,
                           onPressed: onCreateTopic,
                         ),
@@ -379,7 +381,7 @@ class _NowStatus extends ConsumerWidget {
                         if (onCopyAll != null) ...[
                           const SizedBox(width: 4),
                           IconButton(
-                            tooltip: '复制全部对话',
+                            tooltip: context.l10n.copyAll,
                             visualDensity: VisualDensity.compact,
                             icon: const Icon(Icons.copy_all_rounded, size: 16),
                             color: AppTheme.textSecondary,
@@ -388,14 +390,16 @@ class _NowStatus extends ConsumerWidget {
                         ],
                         if (onOpenPageMarks != null)
                           IconButton(
-                            tooltip: '翻篇记录',
+                            tooltip: context.l10n.flipPast,
                             visualDensity: VisualDensity.compact,
                             icon: const Icon(Icons.auto_stories, size: 17),
                             color: AppTheme.textSecondary,
                             onPressed: onOpenPageMarks,
                           ),
                         IconButton(
-                          tooltip: showSearch ? '隐藏搜索' : '搜索与日期定位',
+                          tooltip: showSearch
+                              ? context.l10n.hideSearch
+                              : context.l10n.searchAndDate,
                           visualDensity: VisualDensity.compact,
                           icon: Icon(
                             showSearch ? Icons.search_off : Icons.search,
@@ -460,7 +464,7 @@ class _NoticeBubble extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '系统提示',
+                        context.l10n.systemNotice,
                         style: TextStyle(
                           color: danger.withValues(alpha: 0.85),
                           fontSize: 11,
@@ -482,14 +486,19 @@ class _NoticeBubble extends StatelessWidget {
                       width: 1,
                     ),
                   ),
-                  child: SelectableText(
-                    text,
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 13,
-                      height: 1.5,
-                    ),
-                  ),
+                  child: resolveNotice(text, context.l10n) != null
+                      ? AppErrorMessage(
+                          action: context.l10n.aiReply,
+                          error: text,
+                        )
+                      : SelectableText(
+                          text,
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 13,
+                            height: 1.5,
+                          ),
+                        ),
                 ),
               ],
             ),

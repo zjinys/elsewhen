@@ -323,3 +323,30 @@ fn tavily_via_doh_real_network() {
         }
     }
 }
+
+#[test]
+fn english_search_signals_respect_negation_quotes_code_and_local_timeliness() {
+    use super::{SearchSignal, search_signal};
+    for text in [
+        "Please search the web for this topic.",
+        "Can you look it up online?",
+        "Look up the latest release.",
+    ] {
+        assert_eq!(search_signal(text), Some(SearchSignal::Direct), "{text}");
+    }
+    for text in [
+        "Don't search the web for the latest news.",
+        "Do not search online.",
+        "The phrase \"search the web\" is an example.",
+        "> Search the web for this topic.",
+        "```text\nSearch the web for this topic.\n```",
+        "Explain a binary search algorithm.",
+        "This is a newsletter.",
+    ] {
+        assert_eq!(search_signal(text), None, "{text}");
+    }
+    assert_eq!(
+        search_signal("Organize today's local records."),
+        Some(SearchSignal::Timely)
+    );
+}

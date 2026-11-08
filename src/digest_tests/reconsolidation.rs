@@ -34,7 +34,15 @@ fn manual_reconsolidation_updates_page_and_ledger() {
         Ok(r#"[{"op":"update","kind":"habit","slug":"habit/walk-after-lunch","title":"午饭后散步习惯","summary":"坚持午饭后散步，通常三十分钟","content":"- 每天午饭后散步\n- 时长通常三十分钟","tags":["散步"],"source_event_ids":["1"],"reason":"增量修补"}]"#.into())
     });
     let result = reconsolidate_page(&t.store, &provider, "habit/walk-after-lunch").unwrap();
-    assert!(result.contains("增量修补"), "{result}");
+    let receipt: serde_json::Value =
+        serde_json::from_str(result.strip_prefix("elsewhen-result-v1:").unwrap()).unwrap();
+    assert_eq!(receipt["version"], 1);
+    assert_eq!(receipt["code"], "page_reprocessed");
+    assert_eq!(receipt["count"], 1);
+    assert!(
+        receipt["detail"].as_str().unwrap().contains("增量修补"),
+        "{result}"
+    );
     let page = t
         .store
         .get_wiki_page("habit/walk-after-lunch")
@@ -96,7 +104,11 @@ fn reconsolidation_refuses_human_edited_page() {
         .unwrap();
     let provider = ScriptedProvider(|_| panic!("人工编辑页不应调用模型"));
     let result = reconsolidate_page(&t.store, &provider, "habit/walk-after-lunch").unwrap();
-    assert!(result.contains("人工编辑保护"));
+    let receipt: serde_json::Value =
+        serde_json::from_str(result.strip_prefix("elsewhen-result-v1:").unwrap()).unwrap();
+    assert_eq!(receipt["code"], "page_human_protected");
+    assert!(receipt["count"].is_null());
+    assert!(receipt["detail"].as_str().unwrap().contains("人工编辑保护"));
     let page = t
         .store
         .get_wiki_page("habit/walk-after-lunch")

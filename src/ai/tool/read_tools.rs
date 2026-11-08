@@ -40,27 +40,34 @@ impl Tool for ListWikiPagesTool {
         "list_wiki_pages"
     }
     fn description(&self) -> &'static str {
-        "列出知识库中的页面（可按 kind 过滤），返回标题与摘要。"
+        "分页列出知识库页面，按最近更新排序，返回标题、slug 与限长摘要。默认 10 条，最多 20 条；按 next_offset 继续。查找特定主题优先 search_knowledge_base，阅读正文用 get_wiki_page。"
     }
     fn parameters_schema(&self) -> Value {
         json!({
             "type":"object",
             "properties":{
-                "kind":{"type":"string","description":"页面类型，可选。已知类型：topic/source/insight/principle/method/case/relationship/decision/habit/project/asset/constraint"}
+                "kind":{"type":"string","description":"页面类型，可选。已知类型：topic/source/insight/principle/method/case/relationship/decision/habit/project/asset/constraint"},
+                "limit":{"type":"integer","minimum":1,"maximum":20,"description":"本批条数，默认 10，最多 20"},
+                "offset":{"type":"integer","minimum":0,"description":"跳过的匹配页面数，默认 0；续读用返回的 next_offset"}
             },
             "additionalProperties":false
         })
     }
     fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
         let kind = arg_str_opt(args, "kind");
-        let pages = match kind {
-            Some(k) => ctx.store.list_wiki_pages(Some(&k), None)?,
-            None => ctx.store.list_wiki_pages(None, None)?,
-        };
-        if pages.is_empty() {
+        let limit = arg_i64(args, "limit", 10).clamp(1, 20);
+        let offset = arg_i64(args, "offset", 0).max(0);
+        let (total, pages) = ctx
+            .store
+            .list_wiki_directory(kind.as_deref(), limit, offset)?;
+        if total == 0 {
             return Ok("知识库暂无页面".to_string());
         }
-        let mut out = format!("知识库共 {} 页：\n", pages.len());
+        let next_offset = offset.saturating_add(pages.len() as i64);
+        let mut out = format!(
+            "知识库共 {total} 页匹配，本批 {} 页（offset={offset}）：\n",
+            pages.len()
+        );
         for p in pages {
             let status = if p.status == "active" {
                 ""
@@ -69,9 +76,18 @@ impl Tool for ListWikiPagesTool {
             };
             out.push_str(&format!(
                 "- {}（{}，slug: {}）{status}：{}\n",
-                p.title, p.kind, p.slug, p.summary
+                directory_excerpt(&p.title, 100),
+                p.kind,
+                p.slug,
+                directory_excerpt(&p.summary, 80)
             ));
         }
+        if next_offset < total && next_offset > offset {
+            out.push_str(&format!("目录尚未列完；继续调用 list_wiki_pages，保持 kind 过滤，传入 next_offset 对应的 offset={next_offset} 和 limit={limit}。\n"));
+        } else {
+            out.push_str("目录已到末尾。\n");
+        }
+        out.push_str("以上仅为目录摘要截选，不是页面全文；按主题查找请用 search_knowledge_base，读取全文片段请用 get_wiki_page。\n");
         // 预防：模型常拿本列表的 slug 直接当 save_knowledge_draft 的来源，
         // 被证据校验拒绝后又圆谎说已保存。在此提前声明限制。
         out.push_str(
@@ -79,6 +95,16 @@ impl Tool for ListWikiPagesTool {
              必须先 search_knowledge_base 或 get_wiki_page 把该页提供给当前对话。）",
         );
         Ok(out)
+    }
+}
+
+fn directory_excerpt(text: &str, limit: usize) -> String {
+    let mut chars = text.chars();
+    let excerpt: String = chars.by_ref().take(limit).collect();
+    if chars.next().is_some() {
+        format!("{excerpt}…[截选]")
+    } else {
+        excerpt
     }
 }
 
@@ -260,7 +286,8 @@ impl Tool for WebSearchTool {
     }
     fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
         let query = arg_str(args, "query")?;
-        let cfg = ctx.store.web_search_config()?;
+        let mut cfg = ctx.store.web_search_config()?;
+        cfg.api_key = ctx.store.resolve_secret_placeholders(&cfg.api_key)?;
         if !cfg.enabled {
             return Ok(
                 "外网搜索未启用。请在「设置 → 外网搜索」开启并配置搜索引擎后再试。".to_string(),

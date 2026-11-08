@@ -10,6 +10,8 @@ import 'theme/app_theme.dart';
 import 'theme/content_font.dart';
 import 'theme/design_tokens.dart';
 import 'models/settings.dart';
+import 'l10n/app_localizations.dart';
+import 'l10n/app_locale.dart';
 import 'screens/lock_screen.dart';
 import 'screens/main_screen.dart';
 import 'providers/app_provider.dart';
@@ -57,7 +59,8 @@ class ElsewhenApp extends ConsumerStatefulWidget {
   ConsumerState<ElsewhenApp> createState() => _ElsewhenAppState();
 }
 
-class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
+class _ElsewhenAppState extends ConsumerState<ElsewhenApp>
+    with WidgetsBindingObserver {
   /// 打开密码：null=查询中（先展示启动页），true/false=是否已设置。
   /// 设置后启动先停锁屏，验证通过置 _appUnlocked 放行。
   bool? _appLockEnabled;
@@ -66,19 +69,36 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeLocales(List<Locale>? locales) {
+    if (ref.read(appInitializationProvider).hasValue) {
+      unawaited(
+        ref
+            .read(settingsProvider.notifier)
+            .synchronizeLanguage()
+            .catchError((Object e) => debugPrint('language update failed: $e')),
+      );
+    }
   }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // 查询是否设置了打开密码：与桥接初始化并行，失败按未设置放行，
     // 避免安全存储异常时把用户挡在门外。
-    _appLockService.isEnabled().then((enabled) {
-      if (mounted) setState(() => _appLockEnabled = enabled);
-    }).catchError((_) {
-      if (mounted) setState(() => _appLockEnabled = false);
-    });
+    _appLockService
+        .isEnabled()
+        .then((enabled) {
+          if (mounted) setState(() => _appLockEnabled = enabled);
+        })
+        .catchError((_) {
+          if (mounted) setState(() => _appLockEnabled = false);
+        });
     // Trigger initialization
     Future.microtask(() async {
       try {
@@ -113,8 +133,7 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
     );
     // 平台相关的玻璃令牌（移动端模糊更低、减少动效时关模糊）按运行时
     // 环境覆盖——buildTheme 里的是静态兜底，真实参数在这里注入。
-    final isMobilePlatform =
-        !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+    final isMobilePlatform = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
     final designTokens = AppDesignTheme.resolve(
       brightness: brightness,
       isMobile: isMobilePlatform,
@@ -122,11 +141,11 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
       // 组件内 AppDesignTheme.of / MotionTokens.effective 再按 MediaQuery 降级。
       reduceMotion: false,
     );
-    final lightThemed =
-        lightTheme.copyWith(extensions: [designTokens]);
+    final lightThemed = lightTheme.copyWith(extensions: [designTokens]);
     final darkThemed = darkTheme.copyWith(extensions: [designTokens]);
-    final activeTheme =
-        brightness == Brightness.dark ? darkThemed : lightThemed;
+    final activeTheme = brightness == Brightness.dark
+        ? darkThemed
+        : lightThemed;
     // 把当前色卡（含 accent）同步给自定义组件用的全局色板
     AppTheme.apply(brightness, accent: activeTheme.colorScheme.primary);
 
@@ -166,6 +185,11 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
         family: contentFamily,
         child: MaterialApp(
           title: 'Elsewhen',
+          locale: resolveAppLocale(
+            settings.language,
+            WidgetsBinding.instance.platformDispatcher.locales,
+          ),
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: lightThemed,
           darkTheme: darkThemed,
           themeMode: switch (settings.themeMode) {
@@ -175,9 +199,8 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
           },
           debugShowCheckedModeBanner: false,
           localizationsDelegates: const [
-            DefaultMaterialLocalizations.delegate,
-            DefaultWidgetsLocalizations.delegate,
-            ChineseAppFlowyEditorLocalizationsDelegate(),
+            ...AppLocalizations.localizationsDelegates,
+            AppEditorLocalizationsDelegate(),
           ],
           // 桌面窗口不裁圆角（FlClash 纪律）：窗口不透明直角，圆角交给系统
           // （Win11 DWM 自动圆角、macOS 系统圆角、Linux 直角）。自裁圆角需要
@@ -186,8 +209,12 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
             builder: (context) => initAsync.when(
               data: (initialized) {
                 if (!initialized) {
-                  return const Scaffold(
-                    body: Center(child: Text('Initialization failed')),
+                  return Scaffold(
+                    body: Center(
+                      child: Text(
+                        AppLocalizations.of(context).initializationFailed,
+                      ),
+                    ),
                   );
                 }
 
@@ -198,10 +225,7 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
                   );
                 }
 
-                return KeyedSubtree(
-                  key: themeKey,
-                  child: const MainScreen(),
-                );
+                return KeyedSubtree(key: themeKey, child: const MainScreen());
               },
               loading: () => Scaffold(
                 backgroundColor: AppTheme.surface0,
@@ -244,7 +268,7 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
                           ),
                           const SizedBox(height: 14),
                           Text(
-                            '正在启动…',
+                            AppLocalizations.of(context).startingApp,
                             style: TextStyle(
                               color: AppTheme.textSecondary,
                               fontSize: 12,
@@ -275,7 +299,7 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Failed to initialize',
+                              AppLocalizations.of(context).initializationFailed,
                               style: TextStyle(
                                 color: AppTheme.error,
                                 fontSize: 16,

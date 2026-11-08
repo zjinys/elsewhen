@@ -69,13 +69,28 @@ fn only_processor_schedules_imported_events_and_completed_result_returns_without
         panic!("expected analysis result")
     };
     assert_eq!(
-        analysis.task_id, job.id,
-        "imported job and result share the stable input/strategy identity"
+        analysis.task_id,
+        analysis_task_id(
+            "dataset",
+            &analysis.event_id,
+            &analysis.input_hash,
+            &analysis.strategy_identity()
+        ),
+        "completed work identifies its pinned output policy and prompt dependencies"
     );
+    assert_ne!(
+        analysis.task_id, job.id,
+        "the unclaimed queue identity predates the selected language strategy"
+    );
+    assert_eq!(analysis.language.as_ref().unwrap().output_locale, "zh-Hans");
     deliver(&b.store, "a", &result);
     assert_eq!(b.store.analysis_job_stats().unwrap().succeeded, 1);
     assert_eq!(b.store.analysis_job_stats().unwrap().pending, 0);
     assert_eq!(b.count("event_analyses"), 1);
+    assert_eq!(
+        b.store.artifact_language("analysis", &analysis.id).unwrap(),
+        analysis.language
+    );
     assert_eq!(b.count("chat_runs"), 0);
     assert_eq!(b.count("chat_proposal_decisions"), 0);
     let detail = b

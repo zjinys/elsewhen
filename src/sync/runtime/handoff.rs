@@ -42,6 +42,17 @@ fn with_unlocked_vault<T>(
     f(&store, vault.identity())
 }
 
+pub(crate) fn change_knowledge_language(
+    config: &AppConfig,
+    locale: &str,
+    expected: i64,
+) -> Result<()> {
+    with_unlocked_vault(config, |store, signer| {
+        store.set_knowledge_language_with_signer(locale, expected, Some(signer))?;
+        Ok(())
+    })
+}
+
 /// Old active processor yields: quiescent check, signed boundary proof, and a
 /// permanent `relinquished` state that hard-blocks local background claims.
 /// The successor revision is always the live roster's next revision.

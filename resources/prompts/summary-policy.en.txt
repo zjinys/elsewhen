@@ -1,0 +1,1 @@
+Prioritize the user's goals, explicit decisions, constraints and unfinished actions. Compress repeated explanations and preserve references for reading the original text.

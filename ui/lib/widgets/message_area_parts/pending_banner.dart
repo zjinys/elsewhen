@@ -51,15 +51,15 @@ class _PendingRelationsBanner extends ConsumerWidget {
           Expanded(
             child: Text(
               degraded
-                  ? '有一条联系人关联建议，但数据无法解析。'
-                  : '发现联系人：$people\n关联事项：$targets\n请打开“审阅提议”，接受或拒绝这项建议。',
+                  ? context.l10n.contactsSuggestionInvalid
+                  : context.l10n.contactsSuggestion(people, targets),
               style: const TextStyle(fontSize: 12, height: 1.5),
             ),
           ),
           if (!degraded && _hasAmbiguity(ref, payload))
             TextButton(
               onPressed: () => _resolveAmbiguity(context, ref, relation.first),
-              child: const Text('选择'),
+              child: Text(context.l10n.choose),
             ),
         ],
       ),
@@ -104,12 +104,12 @@ class _PendingRelationsBanner extends ConsumerWidget {
     try {
       final decoded = jsonDecode(action.argsJson);
       if (decoded is! Map) {
-        _notifyAmbiguity(context, '动作参数格式异常，无法选择联系人');
+        _notifyAmbiguity(context, context.l10n.contactArgsInvalid);
         return;
       }
       payload = Map<String, dynamic>.from(decoded);
     } catch (_) {
-      _notifyAmbiguity(context, '动作参数无法解析，无法选择联系人');
+      _notifyAmbiguity(context, context.l10n.contactArgsUnreadable);
       return;
     }
     final pages = ref.read(wikiPagesProvider).value ?? const [];
@@ -129,12 +129,12 @@ class _PendingRelationsBanner extends ConsumerWidget {
         if (!context.mounted) return;
         final selected = await _pickPage(
           context,
-          '选择联系人「$person」',
+          context.l10n.chooseContactName(person),
           peopleMatches,
         );
         if (selected == null) {
           if (!context.mounted) return;
-          _notifyAmbiguity(context, '已取消选择，未保存本次修改');
+          _notifyAmbiguity(context, context.l10n.selectionCancelledUnsaved);
           return;
         }
         relation['from_slug'] = selected.slug;
@@ -149,12 +149,12 @@ class _PendingRelationsBanner extends ConsumerWidget {
         if (!context.mounted) return;
         final selected = await _pickPage(
           context,
-          '选择事项「$target」',
+          context.l10n.chooseTargetName(target),
           targetMatches,
         );
         if (selected == null) {
           if (!context.mounted) return;
-          _notifyAmbiguity(context, '已取消选择，未保存本次修改');
+          _notifyAmbiguity(context, context.l10n.selectionCancelledUnsaved);
           return;
         }
         relation['to_slug'] = selected.slug;
@@ -194,7 +194,7 @@ class _PendingRelationsBanner extends ConsumerWidget {
                 ListTile(
                   title: Text(page.title),
                   subtitle: Text(
-                    '${page.kindLabel} · ${page.summary}',
+                    '${context.pageKindLabel(page.kind)} · ${page.summary}',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -206,7 +206,7 @@ class _PendingRelationsBanner extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('取消'),
+            child: Text(context.l10n.cancel),
           ),
         ],
       ),

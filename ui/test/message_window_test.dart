@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/models/conversation.dart';
+import 'package:elsewhen_ui/l10n/app_localizations.dart';
+import 'package:intl/intl.dart';
 import 'package:elsewhen_ui/providers/conversation_provider.dart';
 import 'package:elsewhen_ui/providers/state_holder.dart';
 import 'package:elsewhen_ui/widgets/message_area.dart';
@@ -11,47 +13,73 @@ import 'package:elsewhen_ui/widgets/markdown_view.dart';
 /// 消息窗口化验证：默认只显示最近 N 条，点「显示更早的消息」逐页向前展开，
 /// 直到全部显示后按钮消失。用假 repo + 假消息列表，无需 FFI。
 void main() {
-  testWidgets('message window: separates messages by day', (tester) async {
-    final repo = _FakeConversationRepo();
-    final messages = [
-      Message(
-        id: 'm1',
-        conversationId: 'conv-1',
-        role: MessageRole.user,
-        content: '第一天的消息',
-        createdAt: DateTime(2026, 9, 21, 23, 59),
-      ),
-      Message(
-        id: 'm2',
-        conversationId: 'conv-1',
-        parentMessageId: 'm1',
-        role: MessageRole.assistant,
-        content: '第二天的消息',
-        createdAt: DateTime(2026, 9, 22, 0, 1),
-      ),
-    ];
-
-    await tester.binding.setSurfaceSize(const Size(900, 1200));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          conversationRepositoryProvider.overrideWithValue(repo),
-          selectedConversationIdProvider.overrideWith(
-            () => StateHolder('conv-1'),
+  for (final locale in [const Locale('zh'), const Locale('en')]) {
+    testWidgets(
+      'message window: separates messages by day (${locale.languageCode})',
+      (tester) async {
+        final repo = _FakeConversationRepo();
+        final messages = [
+          Message(
+            id: 'm1',
+            conversationId: 'conv-1',
+            role: MessageRole.user,
+            content: '第一天的消息',
+            createdAt: DateTime(2026, 9, 21, 23, 59),
           ),
-          messagesProvider.overrideWith((ref) async => messages),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MessageArea())),
-      ),
-    );
-    await tester.pumpAndSettle();
+          Message(
+            id: 'm2',
+            conversationId: 'conv-1',
+            parentMessageId: 'm1',
+            role: MessageRole.assistant,
+            content: '第二天的消息',
+            createdAt: DateTime(2026, 9, 22, 0, 1),
+          ),
+        ];
 
-    expect(find.text('2026年09月21日'), findsOneWidget);
-    expect(find.text('2026年09月22日'), findsOneWidget);
-    expect(find.byType(Divider), findsNWidgets(4), reason: '每个日期标题两侧各有一条横线');
-  });
+        await tester.binding.setSurfaceSize(const Size(900, 1200));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              conversationRepositoryProvider.overrideWithValue(repo),
+              selectedConversationIdProvider.overrideWith(
+                () => StateHolder('conv-1'),
+              ),
+              messagesProvider.overrideWith((ref) async => messages),
+            ],
+            child: MaterialApp(
+              locale: locale,
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              home: const Scaffold(body: MessageArea()),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text(
+            DateFormat.yMMMMd(locale.languageCode)
+                .format(messages[0].createdAt),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.text(
+            DateFormat.yMMMMd(locale.languageCode)
+                .format(messages[1].createdAt),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.byType(Divider),
+          findsNWidgets(4),
+          reason: '每个日期标题两侧各有一条横线',
+        );
+      },
+    );
+  }
 
   testWidgets('message window: show last 20, expand by page, button hides', (
     tester,

@@ -1,4 +1,5 @@
 part of '../settings_screen.dart';
+
 // ignore_for_file: invalid_use_of_protected_member — setState 从 State 子类方法平移至 extension，receiver 类型不变
 
 //! 加载器与用户模型/规则情绪区（extension 平移，行为零变化）。
@@ -133,8 +134,17 @@ extension _DataRulesLoads on _SettingsScreenState {
       setState(() => _userModelEmotions.remove(item));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(reportUiError('删除情绪标注', e))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppErrorMessage(
+            action: context.l10n.load,
+            error: _settingsFailure(
+              context.l10n.l6DeleteEmotionAnnotationa51b5,
+              e,
+            ),
+          ),
+        ),
+      );
     }
   }
 
@@ -146,8 +156,14 @@ extension _DataRulesLoads on _SettingsScreenState {
       setState(() => _userModelRelations.removeWhere((r) => r.id == rel.id));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(reportUiError('删除关系', e))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppErrorMessage(
+            action: context.l10n.load,
+            error: _settingsFailure(context.l10n.l6DeleteRelationship16bbd, e),
+          ),
+        ),
+      );
     }
   }
 
@@ -187,7 +203,7 @@ extension _DataRulesLoads on _SettingsScreenState {
     }
     if (_userModelRelations.isEmpty && _userModelEmotions.isEmpty) {
       return Text(
-        '还没有积累。对话或快录里提到的人物与项目，经你确认（或 @/# 标注的权威组合）后会在这里长成一份可查可删的关系账本；有客观情绪反应的记录会给出简短文字标注（无数值、不是情绪分析报告）。删掉任何一条都不会动原始记录。',
+        context.l10n.l6NoRelationshipsOrEmotionAnnotationsYetbecb5,
         style: TextStyle(
           color: AppTheme.textSecondary,
           fontSize: 13,
@@ -224,7 +240,11 @@ extension _DataRulesLoads on _SettingsScreenState {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            '最近 ${DateFormat('MM-dd HH:mm').format(_userModelRelations[i].lastSeenAt)}',
+                            context.l10n.l6LastArg0187f4(
+                              (DateFormat('MM-dd HH:mm').format(
+                                _userModelRelations[i].lastSeenAt,
+                              )).toString(),
+                            ),
                             style: TextStyle(
                               color: AppTheme.textTertiary,
                               fontSize: 11,
@@ -250,7 +270,9 @@ extension _DataRulesLoads on _SettingsScreenState {
               IconButton(
                 icon: const Icon(Icons.delete_outline, size: 18),
                 color: AppTheme.textTertiary,
-                tooltip: '删除这条关系（原始记录不动）',
+                tooltip: context
+                    .l10n
+                    .l6DeleteThisRelationshipPreserveOriginalRecord6cc81,
                 onPressed: () => _deleteRelation(_userModelRelations[i]),
               ),
             ],
@@ -262,7 +284,7 @@ extension _DataRulesLoads on _SettingsScreenState {
           Divider(height: 1, color: AppTheme.surface3),
           const SizedBox(height: 8),
           Text(
-            '情绪标注',
+            context.l10n.l6EmotionAnnotationsab8ab,
             style: TextStyle(
               color: AppTheme.textTertiary,
               fontSize: 12,
@@ -281,8 +303,10 @@ extension _DataRulesLoads on _SettingsScreenState {
                       children: [
                         Text(
                           item.target == null || item.target!.isEmpty
-                              ? '对这件事'
-                              : '对 ${item.target}',
+                              ? context.l10n.l6AboutThisEventbc042
+                              : context.l10n.l6AboutArg0171b0(
+                                  (item.target).toString(),
+                                ),
                           style: TextStyle(
                             color: AppTheme.textPrimary,
                             fontSize: 13,
@@ -303,7 +327,9 @@ extension _DataRulesLoads on _SettingsScreenState {
                 IconButton(
                   icon: const Icon(Icons.delete_outline, size: 18),
                   color: AppTheme.textTertiary,
-                  tooltip: '删除这条情绪标注（原始记录不动）',
+                  tooltip: context
+                      .l10n
+                      .l6DeleteThisEmotionAnnotationPreserveOriginal8d148,
                   onPressed: () => _deleteEmotion(item),
                 ),
               ],
@@ -312,7 +338,9 @@ extension _DataRulesLoads on _SettingsScreenState {
         // ── 维度全集收口（D5）：其余维度按 D0 映射以知识库页承载 ──
         const SizedBox(height: 12),
         Text(
-          '其余维度（承诺、复盘、节奏、偏好红线、健康、财务、地点、身份、创作线）以知识库页面承载，在知识库中查看与编辑。',
+          context
+              .l10n
+              .l6OtherDimensionsCommitmentsReflectionPaceBoundaries873e8,
           style: TextStyle(
             color: AppTheme.textTertiary,
             fontSize: 11,

@@ -289,3 +289,64 @@ fn same_title_different_entity_is_not_redirected() {
         "{outcome:?}"
     );
 }
+
+#[test]
+fn digest_library_growth_keeps_serialized_request_bounded_and_sources_intact() {
+    let t = TempStore::new();
+    let body = "散步中文正文".repeat(1800);
+    for index in 0..160 {
+        t.store
+            .upsert_wiki_page(
+                &WikiPageDraft {
+                    slug: format!("habit/walk-{index}"),
+                    kind: "habit".into(),
+                    title: "午饭后散步习惯".into(),
+                    summary: "坚持午饭后散步".repeat(100),
+                    content_md: body.clone(),
+                    tags: vec!["散步".into()],
+                    source_event_ids: vec![],
+                    status: "active".into(),
+                    reason: "test".into(),
+                    source_url: None,
+                },
+                ContentPolicy::Always,
+            )
+            .unwrap();
+    }
+    let original = "今天午饭后散步四十分钟，保留这条完整的事件来源。";
+    record(&t.store, original);
+    make_ready(&t.store);
+    struct BudgetCheckingProvider;
+    impl AiProvider for BudgetCheckingProvider {
+        fn generate_reply_with_tools(
+            &self,
+            messages: Vec<ContextMessage>,
+            _: Option<&[ToolSpec]>,
+        ) -> Result<AiReply> {
+            let payload = serde_json::json!({
+                "model": "unknown-conservative-model", "max_tokens":8192,
+                "messages": messages.iter().map(|m| serde_json::json!({"role":m.role,"content":m.content})).collect::<Vec<_>>()
+            });
+            // Unknown-model token estimation uses UTF-8 bytes. This verifies
+            // the full serialized request, not only the selected snippet count.
+            assert!(serde_json::to_vec(&payload).unwrap().len() < 54068);
+            let user = &messages.last().unwrap().content;
+            assert!(user.contains("今天午饭后散步四十分钟，保留这条完整的事件来源。"));
+            assert!(user.contains("散步中文正文"));
+            assert!(user.len() < 20000, "{} bytes", user.len());
+            Ok(AiReply::text("[]"))
+        }
+    }
+    let tick = process_digest_queue(&t.store, &BudgetCheckingProvider, None).unwrap();
+    assert!(matches!(tick, DigestTick::Processed { events: 1, .. }));
+    assert_eq!(
+        t.store
+            .get_wiki_page("habit/walk-159")
+            .unwrap()
+            .unwrap()
+            .content_md,
+        body
+    );
+    assert_eq!(t.store.list_wiki_pages(None, None).unwrap().len(), 160);
+    assert_eq!(t.store.digest_job_stats().unwrap().pending, 0);
+}

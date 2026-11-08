@@ -85,6 +85,7 @@ pub(crate) fn tick(config: &AppConfig) -> Result<Option<NetworkTickReport>> {
     // Owner devices pass via their pinned authority; a joined device must
     // still be an active roster member before it may touch the relay.
     store.require_local_sync_membership()?;
+    store.announce_language_capability()?;
     let (master, revision, installation) = {
         let all = sessions().lock().unwrap_or_else(|p| p.into_inner());
         let Some(session) = all.get(&config.data_dir) else {

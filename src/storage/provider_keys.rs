@@ -61,7 +61,7 @@ impl Store {
         }
         Ok(keys)
     }
-    fn provider_master_key(&self) -> Result<[u8; 32]> {
+    pub(super) fn provider_master_key(&self) -> Result<[u8; 32]> {
         if let Some(key) = self.provider_master {
             return Ok(key);
         }
@@ -151,6 +151,23 @@ impl Store {
             !self.connection.is_autocommit(),
             "provider_key_requires_transaction"
         );
+        let source = value
+            .and_then(|v| {
+                v.strip_prefix("{{secret:")
+                    .and_then(|s| s.strip_suffix("}}"))
+            })
+            .filter(|name| {
+                !name.is_empty()
+                    && name
+                        .bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+            })
+            .map(|name| format!("named_secret:{name}"))
+            .unwrap_or_else(|| "database".into());
+        self.connection.execute(
+            "UPDATE ai_provider_configs SET api_key_source=?2 WHERE id=?1",
+            params![id, source],
+        )?;
         if self.provider_keys_sealed()?
             && let Some(value) = value
         {
@@ -222,6 +239,7 @@ impl Store {
             self.connection
                 .execute("INSERT INTO provider_key_policy(singleton) VALUES(1)", [])?;
         }
+        self.seal_named_secrets()?;
         if let Some(tx) = tx {
             tx.commit()?;
         }
@@ -255,7 +273,7 @@ fn cipher(key: &[u8; 32]) -> Result<aead::LessSafeKey> {
             .map_err(|_| anyhow::anyhow!("provider_key_invalid"))?,
     ))
 }
-fn seal(key: &[u8; 32], context: &[u8], value: &str) -> Result<Vec<u8>> {
+pub(super) fn seal(key: &[u8; 32], context: &[u8], value: &str) -> Result<Vec<u8>> {
     ensure!(value.len() <= MAX_KEY_BYTES, "provider_key_too_large");
     let mut nonce = [0; 12];
     SystemRandom::new()
@@ -274,7 +292,7 @@ fn seal(key: &[u8; 32], context: &[u8], value: &str) -> Result<Vec<u8>> {
     bytes.extend(body);
     Ok(bytes)
 }
-fn open(key: &[u8; 32], context: &[u8], bytes: &[u8]) -> Result<String> {
+pub(super) fn open(key: &[u8; 32], context: &[u8], bytes: &[u8]) -> Result<String> {
     ensure!(
         (29..=MAX_KEY_BYTES + 29).contains(&bytes.len()) && bytes[0] == 1,
         "provider_key_encoding_invalid"

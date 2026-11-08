@@ -27,7 +27,7 @@
 use anyhow::Result;
 use include_dir::{Dir, include_dir};
 use rusqlite::Connection;
-use rusqlite_migration::{Migrations, SchemaVersion};
+use rusqlite_migration::Migrations;
 
 /// `migrations/` 整个目录，编译期嵌入二进制。
 ///
@@ -48,6 +48,21 @@ fn migrations() -> Result<Migrations<'static>> {
 }
 
 pub(crate) fn initialize(connection: &mut Connection) -> Result<()> {
+    crate::storage::knowledge_language::register_connection_capability(connection)?;
+    let version: i64 = connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+    if version == 74 {
+        // An early v74 was already installed before its SQL gained this
+        // column. Repair only that known historical drift; never replace the
+        // table, reset jobs or overwrite an existing generation counter.
+        let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let present: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('analysis_jobs') WHERE name='prompt_generation')",
+            [], |row| row.get(0))?;
+        if !present {
+            tx.execute_batch("ALTER TABLE analysis_jobs ADD COLUMN prompt_generation INTEGER NOT NULL DEFAULT 0 CHECK(prompt_generation>=0);")?;
+        }
+        tx.commit()?;
+    }
     migrations()?.to_latest(connection)?;
     Ok(())
 }
@@ -56,18 +71,16 @@ pub(crate) fn initialize(connection: &mut Connection) -> Result<()> {
 /// 后台路径用它判断库是否待升级：版本落后就跳过本轮工作，
 /// 绝不在后台补跑迁移——启动写入只属于前台初始化路径。
 pub(crate) fn latest_version() -> Result<i64> {
-    let mut connection = Connection::open_in_memory()?;
-    debug_assert!(matches!(
-        migrations()?.current_version(&connection)?,
-        SchemaVersion::NoneSet
-    ));
-    initialize(&mut connection)?;
-    let version: i64 = connection.query_row("PRAGMA main.user_version", [], |row| row.get(0))?;
-    Ok(version)
+    // Directory discovery validates the sequence without executing SQL. This
+    // runs for every background connection; never replay the full migration
+    // history in a throwaway database just to obtain the version number.
+    let _ = migrations()?;
+    Ok(MIGRATION_DIR.dirs().count() as i64)
 }
 
 #[cfg(test)]
 pub(crate) fn initialize_test_version(connection: &mut Connection, version: usize) -> Result<()> {
+    crate::storage::knowledge_language::register_connection_capability(connection)?;
     migrations()?.to_version(connection, version)?;
     Ok(())
 }

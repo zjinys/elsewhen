@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -31,7 +33,7 @@ class EventCard extends StatelessWidget {
             _buildContent(),
             if (event.analysis != null) ...[
               const SizedBox(height: AppTheme.space3),
-              _buildAnalysis(),
+              _buildAnalysis(context),
             ],
           ],
         ),
@@ -137,7 +139,7 @@ class EventCard extends StatelessWidget {
     );
   }
 
-  Widget _buildAnalysis() {
+  Widget _buildAnalysis(BuildContext context) {
     final analysis = event.analysis!;
 
     return Container(
@@ -158,7 +160,7 @@ class EventCard extends StatelessWidget {
               Icon(Icons.auto_awesome, size: 14, color: AppTheme.accentPrimary),
               const SizedBox(width: AppTheme.space1),
               Text(
-                'AI 分析',
+                context.l10n.l6AiAnalysisec6c3,
                 style: TextStyle(
                   color: AppTheme.accentPrimary,
                   fontSize: 12,

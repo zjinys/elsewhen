@@ -14,6 +14,8 @@ use rusqlite::params;
 pub struct McpServerConfig {
     pub id: String,
     pub name: String,
+    /// 用户声明的关联意图，逗号分隔；仅用于工具发现，不参与审批判定。
+    pub keywords: String,
     /// 平台标签（迁移 48）：all/linux/macos/windows。stdio 跨平台命令
     /// 不通（npx.cmd、PATH），在此标注适用平台；激活只取 all + 当前 OS。
     pub platform: String,
@@ -104,10 +106,29 @@ fn validate_headers(headers: &serde_json::Value) -> Result<()> {
     Ok(())
 }
 
+/// 统一设置保存和快照接收的关键词格式，并限制目录注入体积。
+pub(crate) fn normalize_keywords(keywords: &str) -> Result<String> {
+    let mut unique = Vec::new();
+    for keyword in keywords.split([',', '，', '\n']).map(str::trim) {
+        if keyword.is_empty() || unique.contains(&keyword) {
+            continue;
+        }
+        if keyword.chars().any(char::is_control) {
+            bail!("关联意图关键词不能包含控制字符");
+        }
+        unique.push(keyword);
+    }
+    let normalized = unique.join(",");
+    if normalized.chars().count() > 256 {
+        bail!("关联意图关键词合计不能超过 256 字（含分隔逗号）");
+    }
+    Ok(normalized)
+}
+
 impl Store {
     pub fn list_mcp_servers(&self) -> Result<Vec<McpServerConfig>> {
         let mut statement = self.connection.prepare(
-            "SELECT id,name,platform,transport,command,args_json,env_json,url,headers_json,enabled,trusted,allow_readonly_auto,created_at,updated_at
+            "SELECT id,name,platform,transport,command,args_json,env_json,url,headers_json,enabled,trusted,allow_readonly_auto,created_at,updated_at,keywords
              FROM mcp_servers ORDER BY created_at ASC, id ASC",
         )?;
         let rows = statement.query_map([], |row| {
@@ -126,6 +147,7 @@ impl Store {
                 allow_readonly_auto: row.get::<_, i64>(11)? != 0,
                 created_at: row.get(12)?,
                 updated_at: row.get(13)?,
+                keywords: row.get(14)?,
             })
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
@@ -153,6 +175,7 @@ impl Store {
         &self,
         id: Option<&str>,
         name: &str,
+        keywords: &str,
         platform: &str,
         transport: &str,
         command: &str,
@@ -164,6 +187,7 @@ impl Store {
         trusted: bool,
     ) -> Result<String> {
         let name = name.trim();
+        let keywords = normalize_keywords(keywords)?;
         if name.is_empty() {
             bail!("名称不能为空");
         }
@@ -206,9 +230,9 @@ impl Store {
         match id {
             Some(existing) if !existing.is_empty() => {
                 let updated = self.connection.execute(
-                    "UPDATE mcp_servers SET name=?2,platform=?3,transport=?4,command=?5,args_json=?6,env_json=?7,url=?8,headers_json=?9,enabled=?10,trusted=?11,updated_at=?12
+                    "UPDATE mcp_servers SET name=?2,platform=?3,transport=?4,command=?5,args_json=?6,env_json=?7,url=?8,headers_json=?9,enabled=?10,trusted=?11,updated_at=?12,keywords=?13
                      WHERE id=?1",
-                    params![existing, name, platform, transport, command, args_json, env_json, url, headers_json, enabled as i64, trusted as i64, now],
+                    params![existing, name, platform, transport, command, args_json, env_json, url, headers_json, enabled as i64, trusted as i64, now, keywords],
                 )?;
                 if updated == 0 {
                     bail!("未找到要更新的 MCP 服务器（id={existing}）");
@@ -235,9 +259,9 @@ impl Store {
                 }
                 let new_id = uuid::Uuid::new_v4().to_string();
                 self.connection.execute(
-                    "INSERT INTO mcp_servers (id,name,platform,transport,command,args_json,env_json,url,headers_json,enabled,trusted,created_at,updated_at)
-                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?12)",
-                    params![new_id, name, platform, transport, command, args_json, env_json, url, headers_json, enabled as i64, trusted as i64, now],
+                    "INSERT INTO mcp_servers (id,name,platform,transport,command,args_json,env_json,url,headers_json,enabled,trusted,created_at,updated_at,keywords)
+                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?12,?13)",
+                    params![new_id, name, platform, transport, command, args_json, env_json, url, headers_json, enabled as i64, trusted as i64, now, keywords],
                 )?;
                 Ok(new_id)
             }
@@ -313,6 +337,7 @@ mod tests {
             .save_mcp_server(
                 None,
                 "filesystem",
+                " 文件, filesystem，文件\n本地文件 ",
                 "all",
                 "stdio",
                 "npx",
@@ -327,12 +352,14 @@ mod tests {
         let listed = store.list_mcp_servers().unwrap();
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].name, "filesystem");
+        assert_eq!(listed[0].keywords, "文件,filesystem,本地文件");
         assert!(listed[0].enabled);
 
         store
             .save_mcp_server(
                 Some(&id),
                 "filesystem2",
+                "读取,search",
                 "all",
                 "stdio",
                 "npx",
@@ -346,6 +373,7 @@ mod tests {
             .unwrap();
         let updated = store.get_mcp_server(&id).unwrap().unwrap();
         assert_eq!(updated.name, "filesystem2");
+        assert_eq!(updated.keywords, "读取,search");
         assert!(!updated.enabled);
 
         store.set_mcp_server_enabled(&id, true).unwrap();
@@ -363,7 +391,7 @@ mod tests {
         assert!(
             store
                 .save_mcp_server(
-                    None, "fs-b", "android", "stdio", "cmd", "[]", "{}", "", "{}", true, false
+                    None, "fs-b", "", "android", "stdio", "cmd", "[]", "{}", "", "{}", true, false
                 )
                 .is_err()
         );
@@ -371,14 +399,14 @@ mod tests {
         assert!(
             store
                 .save_mcp_server(
-                    None, "fs-a", "linux", "stdio", "other", "[]", "{}", "", "{}", true, false
+                    None, "fs-a", "", "linux", "stdio", "other", "[]", "{}", "", "{}", true, false
                 )
                 .is_err()
         );
         // 同名不同平台变体允许（stdio 各平台命令不同是常态）。
         let win = store
             .save_mcp_server(
-                None, "fs-a", "windows", "stdio", "npx.cmd", "[]", "{}", "", "{}", true, false,
+                None, "fs-a", "", "windows", "stdio", "npx.cmd", "[]", "{}", "", "{}", true, false,
             )
             .unwrap();
         assert_ne!(win, linux);
@@ -414,7 +442,7 @@ mod tests {
         };
         store
             .save_mcp_server(
-                None, name, platform, transport, command, "[]", "{}", url, "{}", enabled, false,
+                None, name, "", platform, transport, command, "[]", "{}", url, "{}", enabled, false,
             )
             .unwrap()
     }
@@ -426,7 +454,7 @@ mod tests {
         assert!(
             store
                 .save_mcp_server(
-                    None, "bad name", "all", "stdio", "cmd", "[]", "{}", "", "{}", true, false
+                    None, "bad name", "", "all", "stdio", "cmd", "[]", "{}", "", "{}", true, false
                 )
                 .is_err()
         );
@@ -436,6 +464,7 @@ mod tests {
                 .save_mcp_server(
                     None,
                     "ok-name",
+                    "",
                     "all",
                     "websocket",
                     "cmd",
@@ -454,6 +483,7 @@ mod tests {
                 .save_mcp_server(
                     None,
                     "ok-name",
+                    "",
                     "all",
                     "stdio",
                     "cmd",
@@ -470,7 +500,7 @@ mod tests {
         assert!(
             store
                 .save_mcp_server(
-                    None, "ok-name", "all", "stdio", "  ", "[]", "{}", "", "{}", true, false
+                    None, "ok-name", "", "all", "stdio", "  ", "[]", "{}", "", "{}", true, false
                 )
                 .is_err()
         );
@@ -480,6 +510,7 @@ mod tests {
                 .save_mcp_server(
                     None,
                     "ok-name",
+                    "",
                     "all",
                     "streamable-http",
                     "",
@@ -498,6 +529,7 @@ mod tests {
                 .save_mcp_server(
                     None,
                     "ok-name",
+                    "",
                     "all",
                     "streamable-http",
                     "npx",
@@ -515,6 +547,7 @@ mod tests {
             .save_mcp_server(
                 None,
                 "remote",
+                "",
                 "all",
                 "streamable-http",
                 "",
@@ -531,5 +564,52 @@ mod tests {
         assert_eq!(listed.url, "https://mcp.example.com/mcp");
         assert_eq!(listed.headers_json, r#"{"Authorization":"Bearer t"}"#);
         assert!(store.list_mcp_servers().unwrap().len() == 1);
+    }
+
+    #[test]
+    fn mcp_keywords_validate_before_writing() {
+        let store = fixture();
+        for invalid in ["词".repeat(257), "搜索\u{0000}发布".to_string()] {
+            assert!(
+                store
+                    .save_mcp_server(
+                        None,
+                        "invalid-keywords",
+                        &invalid,
+                        "all",
+                        "stdio",
+                        "fixture",
+                        "[]",
+                        "{}",
+                        "",
+                        "{}",
+                        true,
+                        false,
+                    )
+                    .is_err()
+            );
+        }
+        assert!(store.list_mcp_servers().unwrap().is_empty());
+        let boundary = "词".repeat(256);
+        let id = store
+            .save_mcp_server(
+                None,
+                "keyword-boundary",
+                &boundary,
+                "all",
+                "stdio",
+                "fixture",
+                "[]",
+                "{}",
+                "",
+                "{}",
+                true,
+                false,
+            )
+            .unwrap();
+        assert_eq!(
+            store.get_mcp_server(&id).unwrap().unwrap().keywords,
+            boundary
+        );
     }
 }

@@ -2,6 +2,108 @@ use super::temp_db;
 use super::*;
 
 #[test]
+fn wiki_directory_bounds_output_and_supports_filtered_continuation() {
+    let (store, path) = temp_db();
+    for index in 0..25 {
+        store
+            .upsert_wiki_page(
+                &crate::storage::WikiPageDraft {
+                    slug: format!("source/{index:03}"),
+                    kind: if index < 23 { "source" } else { "topic" }.into(),
+                    title: format!("{index}{}", "很长的中文标题".repeat(50)),
+                    summary: "关于小红书闲鱼收入的资料摘要".repeat(200),
+                    content_md: format!("{index}{}", "完整正文不应进入目录".repeat(100)),
+                    tags: vec![],
+                    source_event_ids: vec![],
+                    status: "active".into(),
+                    reason: "fixture".into(),
+                    source_url: None,
+                },
+                ContentPolicy::Always,
+            )
+            .unwrap();
+    }
+    store
+        .connection
+        .execute(
+            "UPDATE wiki_pages SET updated_at='2026-11-05T00:00:00Z'",
+            [],
+        )
+        .unwrap();
+    store
+        .connection
+        .execute(
+            "UPDATE wiki_pages SET area='derivative' WHERE slug='source/024'",
+            [],
+        )
+        .unwrap();
+    let registry = ToolRegistry::default();
+    let first = dispatch(
+        &ToolCall::new("list_wiki_pages", json!({})),
+        &registry,
+        &store,
+        "fixture",
+    );
+    assert!(first.success);
+    assert!(first.content.contains("共 24 页匹配，本批 10 页"));
+    assert!(first.content.contains("offset=10"));
+    assert!(first.content.contains("[截选]"));
+    assert!(crate::ai::budget::text_tokens("deepseek-flash", &first.content) < 6000);
+    assert!(!first.content.contains("完整正文不应进入目录"));
+    let mut slugs = std::collections::HashSet::new();
+    for offset in [0, 10, 20] {
+        let result = dispatch(
+            &ToolCall::new("list_wiki_pages", json!({"kind":"source","offset":offset})),
+            &registry,
+            &store,
+            "fixture",
+        );
+        assert!(result.content.contains("共 23 页匹配"));
+        for line in result.content.lines().filter(|line| line.starts_with("- ")) {
+            let slug = line
+                .split("slug: ")
+                .nth(1)
+                .unwrap()
+                .split('）')
+                .next()
+                .unwrap();
+            assert!(slugs.insert(slug.to_string()));
+        }
+        if offset == 20 {
+            assert!(result.content.contains("目录已到末尾"));
+        }
+    }
+    assert_eq!(slugs.len(), 23);
+    let capped = dispatch(
+        &ToolCall::new("list_wiki_pages", json!({"limit":10000,"offset":-1})),
+        &registry,
+        &store,
+        "fixture",
+    );
+    assert!(capped.content.contains("本批 20 页（offset=0）"));
+    let exhausted = dispatch(
+        &ToolCall::new("list_wiki_pages", json!({"offset":1000})),
+        &registry,
+        &store,
+        "fixture",
+    );
+    assert!(exhausted.content.contains("本批 0 页"));
+    assert!(exhausted.content.contains("目录已到末尾"));
+    assert_eq!(
+        store
+            .get_wiki_page("source/000")
+            .unwrap()
+            .unwrap()
+            .summary
+            .chars()
+            .count(),
+        "关于小红书闲鱼收入的资料摘要".chars().count() * 200
+    );
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn rename_wiki_page_is_confirm_gated_then_renames() {
     let (store, path) = temp_db();
     let registry = ToolRegistry::default();

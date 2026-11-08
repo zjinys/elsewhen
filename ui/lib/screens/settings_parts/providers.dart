@@ -1,4 +1,5 @@
 part of '../settings_screen.dart';
+
 // ignore_for_file: invalid_use_of_protected_member — setState 从 State 子类方法平移至 extension，receiver 类型不变
 
 //! AI 供应商卡片、徽标与增删激活入口。
@@ -73,7 +74,7 @@ extension _ProvidersView on _SettingsScreenState {
           Icon(Icons.cloud_off_rounded, color: AppTheme.textTertiary, size: 28),
           const SizedBox(height: 8),
           Text(
-            '尚未配置任何 AI Provider，点击右上角「添加」开始。',
+            context.l10n.noProviders,
             style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
           ),
         ],
@@ -84,7 +85,7 @@ extension _ProvidersView on _SettingsScreenState {
   String _providerTypeLabel(String type) {
     switch (type) {
       case 'openai-compatible':
-        return 'OpenAI 兼容';
+        return context.l10n.openAiCompatible;
       case 'ollama':
         return 'Ollama';
       default:
@@ -145,7 +146,7 @@ extension _ProvidersView on _SettingsScreenState {
                     borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                   ),
                   child: Text(
-                    '激活中',
+                    context.l10n.active,
                     style: TextStyle(
                       color: AppTheme.accentPrimary,
                       fontSize: 11,
@@ -251,9 +252,14 @@ extension _ProvidersView on _SettingsScreenState {
       await _loadProviders();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(reportUiError('切换 Provider', e))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppErrorMessage(
+            action: context.l10n.switchProvider,
+            error: e,
+          ),
+        ),
+      );
     }
   }
 
@@ -261,20 +267,22 @@ extension _ProvidersView on _SettingsScreenState {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('删除配置'),
+        title: Text(context.l10n.deleteConfiguration),
         content: Text(
-          '确定删除 Provider「${p.name}」吗？'
-          '${p.isActive ? '该配置正处于激活状态，删除后剩余第一个配置将自动激活。' : ''}',
+          context.l10n.deleteProviderConfirmation(
+            p.name,
+            p.isActive ? context.l10n.activeProviderDeletionWarning : '',
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppTheme.error),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('删除'),
+            child: Text(context.l10n.delete),
           ),
         ],
       ),
@@ -286,9 +294,14 @@ extension _ProvidersView on _SettingsScreenState {
       await _loadProviders();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(reportUiError('删除 Provider', e))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppErrorMessage(
+            action: context.l10n.deleteProvider,
+            error: e,
+          ),
+        ),
+      );
     }
   }
 
@@ -331,7 +344,9 @@ extension _ProvidersView on _SettingsScreenState {
         isNew: isNew,
         isDuplicate: duplicate,
         onSave: onSave,
-        initialName: duplicate ? '${existing!.name} 副本' : existing?.name ?? '',
+        initialName: duplicate
+            ? context.l10n.providerCopyName(existing!.name)
+            : existing?.name ?? '',
         initialBaseUrl: existing?.baseUrl ?? '',
         initialModel: existing?.model ?? '',
         initialTemperature: existing?.temperature ?? 0.7,
@@ -339,6 +354,10 @@ extension _ProvidersView on _SettingsScreenState {
         initialMaxTokens: existing?.maxTokens?.toString() ?? '',
         initialProviderType: existing?.providerType ?? 'openai-compatible',
         initialHasApiKey: existing?.hasApiKey ?? true,
+        initialSecretName:
+            existing?.apiKeySource.startsWith('named_secret:') == true
+            ? existing!.apiKeySource.substring('named_secret:'.length)
+            : null,
       ),
     );
     // 保存成功时由对话框 pop；失败时对话框保持打开，此处只处理取消。

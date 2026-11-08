@@ -9,19 +9,24 @@ import 'api/chat_runs.dart';
 import 'api/companion_flow.dart';
 import 'api/conversations.dart';
 import 'api/db_maintenance.dart';
+import 'api/digest_insights.dart';
 import 'api/entities.dart';
 import 'api/event_stats.dart';
 import 'api/fonts.dart';
+import 'api/goal_grounding.dart';
 import 'api/goals.dart';
 import 'api/habit_nudges.dart';
 import 'api/import.dart';
 import 'api/knowledge.dart';
 import 'api/knowledge_digest.dart';
 import 'api/knowledge_workflows.dart';
+import 'api/language.dart';
 import 'api/mcp.dart';
+import 'api/named_secrets.dart';
 import 'api/page_marks.dart';
 import 'api/period_stats.dart';
 import 'api/plans.dart';
+import 'api/prompts.dart';
 import 'api/provider_config.dart';
 import 'api/provider_reachability.dart';
 import 'api/records.dart';
@@ -163,6 +168,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlanDto dco_decode_box_autoadd_plan_dto(dynamic raw);
 
   @protected
+  PlanningProfileDto dco_decode_box_autoadd_planning_profile_dto(dynamic raw);
+
+  @protected
   ProcessingYieldProofDto dco_decode_box_autoadd_processing_yield_proof_dto(
     dynamic raw,
   );
@@ -259,6 +267,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DeviationReportDto dco_decode_deviation_report_dto(dynamic raw);
 
   @protected
+  DigestInsightSurfacingDto dco_decode_digest_insight_surfacing_dto(
+    dynamic raw,
+  );
+
+  @protected
+  DigestInsightTickDto dco_decode_digest_insight_tick_dto(dynamic raw);
+
+  @protected
   DueReminderDto dco_decode_due_reminder_dto(dynamic raw);
 
   @protected
@@ -293,6 +309,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GoalDto dco_decode_goal_dto(dynamic raw);
+
+  @protected
+  GoalReferenceDto dco_decode_goal_reference_dto(dynamic raw);
+
+  @protected
+  GoalReferencesDto dco_decode_goal_references_dto(dynamic raw);
 
   @protected
   GuidanceDto dco_decode_guidance_dto(dynamic raw);
@@ -360,6 +382,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   KnowledgeIssue dco_decode_knowledge_issue(dynamic raw);
+
+  @protected
+  KnowledgeLanguageDto dco_decode_knowledge_language_dto(dynamic raw);
 
   @protected
   KnowledgeMetadata dco_decode_knowledge_metadata(dynamic raw);
@@ -454,6 +479,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DeviationReportDto> dco_decode_list_deviation_report_dto(dynamic raw);
 
   @protected
+  List<DigestInsightSurfacingDto> dco_decode_list_digest_insight_surfacing_dto(
+    dynamic raw,
+  );
+
+  @protected
   List<DueReminderDto> dco_decode_list_due_reminder_dto(dynamic raw);
 
   @protected
@@ -473,6 +503,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GoalDto> dco_decode_list_goal_dto(dynamic raw);
+
+  @protected
+  List<GoalReferenceDto> dco_decode_list_goal_reference_dto(dynamic raw);
 
   @protected
   List<GuidanceRefDto> dco_decode_list_guidance_ref_dto(dynamic raw);
@@ -549,6 +582,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<NamedCountDto> dco_decode_list_named_count_dto(dynamic raw);
 
   @protected
+  List<NamedSecretDto> dco_decode_list_named_secret_dto(dynamic raw);
+
+  @protected
   List<ObjectConflictDto> dco_decode_list_object_conflict_dto(dynamic raw);
 
   @protected
@@ -574,6 +610,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  List<PromptBundleDto> dco_decode_list_prompt_bundle_dto(dynamic raw);
+
+  @protected
+  List<PromptDefinitionDto> dco_decode_list_prompt_definition_dto(dynamic raw);
+
+  @protected
+  List<PromptRevisionDto> dco_decode_list_prompt_revision_dto(dynamic raw);
 
   @protected
   List<ProviderConflictProfileDto>
@@ -677,6 +722,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NamedCountDto dco_decode_named_count_dto(dynamic raw);
+
+  @protected
+  NamedSecretDto dco_decode_named_secret_dto(dynamic raw);
 
   @protected
   NetworkSettingsDto dco_decode_network_settings_dto(dynamic raw);
@@ -797,10 +845,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlanDto dco_decode_plan_dto(dynamic raw);
 
   @protected
+  PlanningProfileDto dco_decode_planning_profile_dto(dynamic raw);
+
+  @protected
   ProcessingYieldProofDto dco_decode_processing_yield_proof_dto(dynamic raw);
 
   @protected
   ProcessorHandoffStateDto dco_decode_processor_handoff_state_dto(dynamic raw);
+
+  @protected
+  PromptBundleDto dco_decode_prompt_bundle_dto(dynamic raw);
+
+  @protected
+  PromptDefinitionDto dco_decode_prompt_definition_dto(dynamic raw);
+
+  @protected
+  PromptLanguagePreferencesDto dco_decode_prompt_language_preferences_dto(
+    dynamic raw,
+  );
+
+  @protected
+  PromptRevisionDto dco_decode_prompt_revision_dto(dynamic raw);
 
   @protected
   ProviderConflictProfileDto dco_decode_provider_conflict_profile_dto(
@@ -900,6 +965,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int dco_decode_u_8(dynamic raw);
+
+  @protected
+  UiLanguagePreferenceDto dco_decode_ui_language_preference_dto(dynamic raw);
 
   @protected
   void dco_decode_unit(dynamic raw);
@@ -1054,6 +1122,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlanDto sse_decode_box_autoadd_plan_dto(SseDeserializer deserializer);
 
   @protected
+  PlanningProfileDto sse_decode_box_autoadd_planning_profile_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ProcessingYieldProofDto sse_decode_box_autoadd_processing_yield_proof_dto(
     SseDeserializer deserializer,
   );
@@ -1178,6 +1251,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DigestInsightSurfacingDto sse_decode_digest_insight_surfacing_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DigestInsightTickDto sse_decode_digest_insight_tick_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DueReminderDto sse_decode_due_reminder_dto(SseDeserializer deserializer);
 
   @protected
@@ -1218,6 +1301,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GoalDto sse_decode_goal_dto(SseDeserializer deserializer);
+
+  @protected
+  GoalReferenceDto sse_decode_goal_reference_dto(SseDeserializer deserializer);
+
+  @protected
+  GoalReferencesDto sse_decode_goal_references_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   GuidanceDto sse_decode_guidance_dto(SseDeserializer deserializer);
@@ -1305,6 +1396,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   KnowledgeIssue sse_decode_knowledge_issue(SseDeserializer deserializer);
+
+  @protected
+  KnowledgeLanguageDto sse_decode_knowledge_language_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   KnowledgeMetadata sse_decode_knowledge_metadata(SseDeserializer deserializer);
@@ -1441,6 +1537,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<DigestInsightSurfacingDto> sse_decode_list_digest_insight_surfacing_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<DueReminderDto> sse_decode_list_due_reminder_dto(
     SseDeserializer deserializer,
   );
@@ -1470,6 +1571,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<GoalDto> sse_decode_list_goal_dto(SseDeserializer deserializer);
+
+  @protected
+  List<GoalReferenceDto> sse_decode_list_goal_reference_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<GuidanceRefDto> sse_decode_list_guidance_ref_dto(
@@ -1568,6 +1674,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<NamedSecretDto> sse_decode_list_named_secret_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<ObjectConflictDto> sse_decode_list_object_conflict_dto(
     SseDeserializer deserializer,
   );
@@ -1601,6 +1712,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  List<PromptBundleDto> sse_decode_list_prompt_bundle_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PromptDefinitionDto> sse_decode_list_prompt_definition_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PromptRevisionDto> sse_decode_list_prompt_revision_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<ProviderConflictProfileDto>
@@ -1730,6 +1856,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NamedCountDto sse_decode_named_count_dto(SseDeserializer deserializer);
+
+  @protected
+  NamedSecretDto sse_decode_named_secret_dto(SseDeserializer deserializer);
 
   @protected
   NetworkSettingsDto sse_decode_network_settings_dto(
@@ -1878,12 +2007,35 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlanDto sse_decode_plan_dto(SseDeserializer deserializer);
 
   @protected
+  PlanningProfileDto sse_decode_planning_profile_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ProcessingYieldProofDto sse_decode_processing_yield_proof_dto(
     SseDeserializer deserializer,
   );
 
   @protected
   ProcessorHandoffStateDto sse_decode_processor_handoff_state_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PromptBundleDto sse_decode_prompt_bundle_dto(SseDeserializer deserializer);
+
+  @protected
+  PromptDefinitionDto sse_decode_prompt_definition_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PromptLanguagePreferencesDto sse_decode_prompt_language_preferences_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PromptRevisionDto sse_decode_prompt_revision_dto(
     SseDeserializer deserializer,
   );
 
@@ -2015,6 +2167,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_u_8(SseDeserializer deserializer);
+
+  @protected
+  UiLanguagePreferenceDto sse_decode_ui_language_preference_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
@@ -2241,6 +2398,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     // Codec=Cst (C-struct based), see doc to use other codecs
     final ptr = wire.cst_new_box_autoadd_plan_dto();
     cst_api_fill_to_wire_plan_dto(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_planning_profile_dto>
+  cst_encode_box_autoadd_planning_profile_dto(PlanningProfileDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_planning_profile_dto();
+    cst_api_fill_to_wire_planning_profile_dto(raw, ptr.ref);
     return ptr;
   }
 
@@ -2533,6 +2699,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_digest_insight_surfacing_dto>
+  cst_encode_list_digest_insight_surfacing_dto(
+    List<DigestInsightSurfacingDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_digest_insight_surfacing_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_digest_insight_surfacing_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_due_reminder_dto> cst_encode_list_due_reminder_dto(
     List<DueReminderDto> raw,
   ) {
@@ -2610,6 +2789,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_goal_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_goal_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_goal_reference_dto>
+  cst_encode_list_goal_reference_dto(List<GoalReferenceDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_goal_reference_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_goal_reference_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -2845,6 +3035,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_named_secret_dto> cst_encode_list_named_secret_dto(
+    List<NamedSecretDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_named_secret_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_named_secret_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_object_conflict_dto>
   cst_encode_list_object_conflict_dto(List<ObjectConflictDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
@@ -2940,6 +3142,39 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     // Codec=Cst (C-struct based), see doc to use other codecs
     final ans = wire.cst_new_list_prim_u_8_strict(raw.length);
     ans.ref.ptr.asTypedList(raw.length).setAll(0, raw);
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_prompt_bundle_dto>
+  cst_encode_list_prompt_bundle_dto(List<PromptBundleDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_prompt_bundle_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_prompt_bundle_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_prompt_definition_dto>
+  cst_encode_list_prompt_definition_dto(List<PromptDefinitionDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_prompt_definition_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_prompt_definition_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_prompt_revision_dto>
+  cst_encode_list_prompt_revision_dto(List<PromptRevisionDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_prompt_revision_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_prompt_revision_dto(raw[i], ans.ref.ptr[i]);
+    }
     return ans;
   }
 
@@ -3648,6 +3883,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_box_autoadd_planning_profile_dto(
+    PlanningProfileDto apiObj,
+    ffi.Pointer<wire_cst_planning_profile_dto> wireObj,
+  ) {
+    cst_api_fill_to_wire_planning_profile_dto(apiObj, wireObj.ref);
+  }
+
+  @protected
   void cst_api_fill_to_wire_box_autoadd_processing_yield_proof_dto(
     ProcessingYieldProofDto apiObj,
     ffi.Pointer<wire_cst_processing_yield_proof_dto> wireObj,
@@ -4020,6 +4263,38 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_digest_insight_surfacing_dto(
+    DigestInsightSurfacingDto apiObj,
+    wire_cst_digest_insight_surfacing_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.insight_id = cst_encode_opt_String(apiObj.insightId);
+    wireObj.page_slug = cst_encode_String(apiObj.pageSlug);
+    wireObj.kind = cst_encode_String(apiObj.kind);
+    wireObj.title = cst_encode_String(apiObj.title);
+    wireObj.observation = cst_encode_String(apiObj.observation);
+    wireObj.action_suggestion = cst_encode_opt_String(apiObj.actionSuggestion);
+    wireObj.status = cst_encode_String(apiObj.status);
+    wireObj.surfaced_at = cst_encode_opt_String(apiObj.surfacedAt);
+    wireObj.surfaced_date = cst_encode_opt_String(apiObj.surfacedDate);
+    wireObj.message_id = cst_encode_opt_String(apiObj.messageId);
+    wireObj.action_type = cst_encode_opt_String(apiObj.actionType);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
+    wireObj.updated_at = cst_encode_String(apiObj.updatedAt);
+    wireObj.page_kind = cst_encode_opt_String(apiObj.pageKind);
+    wireObj.page_active = cst_encode_bool(apiObj.pageActive);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_digest_insight_tick_dto(
+    DigestInsightTickDto apiObj,
+    wire_cst_digest_insight_tick_dto wireObj,
+  ) {
+    wireObj.message_ids = cst_encode_list_String(apiObj.messageIds);
+    wireObj.pending_count = cst_encode_i_32(apiObj.pendingCount);
+  }
+
+  @protected
   void cst_api_fill_to_wire_due_reminder_dto(
     DueReminderDto apiObj,
     wire_cst_due_reminder_dto wireObj,
@@ -4188,6 +4463,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.created_at = cst_encode_String(apiObj.createdAt);
     wireObj.updated_at = cst_encode_String(apiObj.updatedAt);
     wireObj.superseded_at = cst_encode_opt_String(apiObj.supersededAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_goal_reference_dto(
+    GoalReferenceDto apiObj,
+    wire_cst_goal_reference_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.slug = cst_encode_String(apiObj.slug);
+    wireObj.title = cst_encode_String(apiObj.title);
+    wireObj.summary = cst_encode_String(apiObj.summary);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_goal_references_dto(
+    GoalReferencesDto apiObj,
+    wire_cst_goal_references_dto wireObj,
+  ) {
+    wireObj.pages = cst_encode_list_goal_reference_dto(apiObj.pages);
+    wireObj.updated_at = cst_encode_opt_String(apiObj.updatedAt);
   }
 
   @protected
@@ -4515,6 +4810,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_knowledge_language_dto(
+    KnowledgeLanguageDto apiObj,
+    wire_cst_knowledge_language_dto wireObj,
+  ) {
+    wireObj.output_locale = cst_encode_String(apiObj.outputLocale);
+    wireObj.policy_version = cst_encode_i_64(apiObj.policyVersion);
+    wireObj.generation = cst_encode_i_64(apiObj.generation);
+    wireObj.supported = cst_encode_bool(apiObj.supported);
+    wireObj.can_edit = cst_encode_bool(apiObj.canEdit);
+    wireObj.edit_block_reason = cst_encode_opt_String(apiObj.editBlockReason);
+  }
+
+  @protected
   void cst_api_fill_to_wire_knowledge_metadata(
     KnowledgeMetadata apiObj,
     wire_cst_knowledge_metadata wireObj,
@@ -4709,6 +5017,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     wireObj.id = cst_encode_String(apiObj.id);
     wireObj.name = cst_encode_String(apiObj.name);
+    wireObj.keywords = cst_encode_String(apiObj.keywords);
     wireObj.platform = cst_encode_String(apiObj.platform);
     wireObj.transport = cst_encode_String(apiObj.transport);
     wireObj.command = cst_encode_String(apiObj.command);
@@ -4780,6 +5089,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     wireObj.label = cst_encode_String(apiObj.label);
     wireObj.count = cst_encode_i_64(apiObj.count);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_named_secret_dto(
+    NamedSecretDto apiObj,
+    wire_cst_named_secret_dto wireObj,
+  ) {
+    wireObj.name = cst_encode_String(apiObj.name);
+    wireObj.title = cst_encode_String(apiObj.title);
+    wireObj.references = cst_encode_list_String(apiObj.references);
   }
 
   @protected
@@ -4955,6 +5274,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_planning_profile_dto(
+    PlanningProfileDto apiObj,
+    wire_cst_planning_profile_dto wireObj,
+  ) {
+    wireObj.skills = cst_encode_String(apiObj.skills);
+    wireObj.resources = cst_encode_String(apiObj.resources);
+    wireObj.limits = cst_encode_String(apiObj.limits);
+    wireObj.preferences = cst_encode_String(apiObj.preferences);
+    wireObj.updated_at = cst_encode_opt_String(apiObj.updatedAt);
+  }
+
+  @protected
   void cst_api_fill_to_wire_processing_yield_proof_dto(
     ProcessingYieldProofDto apiObj,
     wire_cst_processing_yield_proof_dto wireObj,
@@ -4979,6 +5310,75 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       apiObj.finalSequence,
     );
     wireObj.can_confirm = cst_encode_bool(apiObj.canConfirm);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_prompt_bundle_dto(
+    PromptBundleDto apiObj,
+    wire_cst_prompt_bundle_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.owner_kind = cst_encode_String(apiObj.ownerKind);
+    wireObj.owner_id = cst_encode_String(apiObj.ownerId);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
+    wireObj.ui_locale = cst_encode_String(apiObj.uiLocale);
+    wireObj.instruction_locale = cst_encode_String(apiObj.instructionLocale);
+    wireObj.response_policy_json = cst_encode_String(apiObj.responsePolicyJson);
+    wireObj.knowledge_output_locale = cst_encode_String(
+      apiObj.knowledgeOutputLocale,
+    );
+    wireObj.language_policy_version = cst_encode_String(
+      apiObj.languagePolicyVersion,
+    );
+    wireObj.revision_ids = cst_encode_list_String(apiObj.revisionIds);
+    wireObj.keys = cst_encode_list_String(apiObj.keys);
+    wireObj.bodies = cst_encode_list_String(apiObj.bodies);
+    wireObj.requested_locales = cst_encode_list_String(apiObj.requestedLocales);
+    wireObj.resolved_locales = cst_encode_list_String(apiObj.resolvedLocales);
+    wireObj.fallback_reasons = cst_encode_list_String(apiObj.fallbackReasons);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_prompt_definition_dto(
+    PromptDefinitionDto apiObj,
+    wire_cst_prompt_definition_dto wireObj,
+  ) {
+    wireObj.key = cst_encode_String(apiObj.key);
+    wireObj.title = cst_encode_String(apiObj.title);
+    wireObj.editable = cst_encode_bool(apiObj.editable);
+    wireObj.locale = cst_encode_String(apiObj.locale);
+    wireObj.resolved_locale = cst_encode_String(apiObj.resolvedLocale);
+    wireObj.current_revision_id = cst_encode_String(apiObj.currentRevisionId);
+    wireObj.current_body = cst_encode_String(apiObj.currentBody);
+    wireObj.builtin_body = cst_encode_String(apiObj.builtinBody);
+    wireObj.generation = cst_encode_i_32(apiObj.generation);
+    wireObj.fallback = cst_encode_String(apiObj.fallback);
+    wireObj.tokens = cst_encode_i_32(apiObj.tokens);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_prompt_language_preferences_dto(
+    PromptLanguagePreferencesDto apiObj,
+    wire_cst_prompt_language_preferences_dto wireObj,
+  ) {
+    wireObj.instruction_locale = cst_encode_opt_String(
+      apiObj.instructionLocale,
+    );
+    wireObj.response_mode = cst_encode_String(apiObj.responseMode);
+    wireObj.response_locale = cst_encode_opt_String(apiObj.responseLocale);
+    wireObj.generation = cst_encode_i_64(apiObj.generation);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_prompt_revision_dto(
+    PromptRevisionDto apiObj,
+    wire_cst_prompt_revision_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.body = cst_encode_String(apiObj.body);
+    wireObj.origin = cst_encode_String(apiObj.origin);
+    wireObj.note = cst_encode_String(apiObj.note);
+    wireObj.created_at = cst_encode_String(apiObj.createdAt);
   }
 
   @protected
@@ -5420,6 +5820,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_ui_language_preference_dto(
+    UiLanguagePreferenceDto apiObj,
+    wire_cst_ui_language_preference_dto wireObj,
+  ) {
+    wireObj.locale = cst_encode_opt_String(apiObj.locale);
+  }
+
+  @protected
   void cst_api_fill_to_wire_unscheduled_chat_input_dto(
     UnscheduledChatInputDto apiObj,
     wire_cst_unscheduled_chat_input_dto wireObj,
@@ -5737,6 +6145,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_plan_dto(PlanDto self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_planning_profile_dto(
+    PlanningProfileDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_processing_yield_proof_dto(
     ProcessingYieldProofDto self,
     SseSerializer serializer,
@@ -5905,6 +6319,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_digest_insight_surfacing_dto(
+    DigestInsightSurfacingDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_digest_insight_tick_dto(
+    DigestInsightTickDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_due_reminder_dto(
     DueReminderDto self,
     SseSerializer serializer,
@@ -5960,6 +6386,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_goal_dto(GoalDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_goal_reference_dto(
+    GoalReferenceDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_goal_references_dto(
+    GoalReferencesDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_guidance_dto(GuidanceDto self, SseSerializer serializer);
@@ -6069,6 +6507,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_knowledge_issue(
     KnowledgeIssue self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_knowledge_language_dto(
+    KnowledgeLanguageDto self,
     SseSerializer serializer,
   );
 
@@ -6244,6 +6688,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_digest_insight_surfacing_dto(
+    List<DigestInsightSurfacingDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_due_reminder_dto(
     List<DueReminderDto> self,
     SseSerializer serializer,
@@ -6278,6 +6728,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_goal_dto(List<GoalDto> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_goal_reference_dto(
+    List<GoalReferenceDto> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_guidance_ref_dto(
@@ -6400,6 +6856,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_named_secret_dto(
+    List<NamedSecretDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_object_conflict_dto(
     List<ObjectConflictDto> self,
     SseSerializer serializer,
@@ -6444,6 +6906,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prompt_bundle_dto(
+    List<PromptBundleDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prompt_definition_dto(
+    List<PromptDefinitionDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prompt_revision_dto(
+    List<PromptRevisionDto> self,
     SseSerializer serializer,
   );
 
@@ -6605,6 +7085,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_named_count_dto(NamedCountDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_named_secret_dto(
+    NamedSecretDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_network_settings_dto(
@@ -6793,6 +7279,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_plan_dto(PlanDto self, SseSerializer serializer);
 
   @protected
+  void sse_encode_planning_profile_dto(
+    PlanningProfileDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_processing_yield_proof_dto(
     ProcessingYieldProofDto self,
     SseSerializer serializer,
@@ -6801,6 +7293,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_processor_handoff_state_dto(
     ProcessorHandoffStateDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_prompt_bundle_dto(
+    PromptBundleDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_prompt_definition_dto(
+    PromptDefinitionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_prompt_language_preferences_dto(
+    PromptLanguagePreferencesDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_prompt_revision_dto(
+    PromptRevisionDto self,
     SseSerializer serializer,
   );
 
@@ -6968,6 +7484,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_u_8(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_ui_language_preference_dto(
+    UiLanguagePreferenceDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
@@ -7335,6 +7857,21 @@ class RustLibWire implements BaseWire {
       );
   late final _cst_new_box_autoadd_plan_dto = _cst_new_box_autoadd_plan_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_plan_dto> Function()>();
+
+  ffi.Pointer<wire_cst_planning_profile_dto>
+  cst_new_box_autoadd_planning_profile_dto() {
+    return _cst_new_box_autoadd_planning_profile_dto();
+  }
+
+  late final _cst_new_box_autoadd_planning_profile_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_planning_profile_dto> Function()
+        >
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_planning_profile_dto');
+  late final _cst_new_box_autoadd_planning_profile_dto =
+      _cst_new_box_autoadd_planning_profile_dtoPtr
+          .asFunction<ffi.Pointer<wire_cst_planning_profile_dto> Function()>();
 
   ffi.Pointer<wire_cst_processing_yield_proof_dto>
   cst_new_box_autoadd_processing_yield_proof_dto() {
@@ -7743,6 +8280,27 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_deviation_report_dto> Function(int)
           >();
 
+  ffi.Pointer<wire_cst_list_digest_insight_surfacing_dto>
+  cst_new_list_digest_insight_surfacing_dto(int len) {
+    return _cst_new_list_digest_insight_surfacing_dto(len);
+  }
+
+  late final _cst_new_list_digest_insight_surfacing_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_digest_insight_surfacing_dto> Function(
+            ffi.Int32,
+          )
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_digest_insight_surfacing_dto');
+  late final _cst_new_list_digest_insight_surfacing_dto =
+      _cst_new_list_digest_insight_surfacing_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_digest_insight_surfacing_dto> Function(
+              int,
+            )
+          >();
+
   ffi.Pointer<wire_cst_list_due_reminder_dto> cst_new_list_due_reminder_dto(
     int len,
   ) {
@@ -7849,6 +8407,24 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_goal_dto');
   late final _cst_new_list_goal_dto = _cst_new_list_goal_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_list_goal_dto> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_goal_reference_dto> cst_new_list_goal_reference_dto(
+    int len,
+  ) {
+    return _cst_new_list_goal_reference_dto(len);
+  }
+
+  late final _cst_new_list_goal_reference_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_goal_reference_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_goal_reference_dto');
+  late final _cst_new_list_goal_reference_dto =
+      _cst_new_list_goal_reference_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_goal_reference_dto> Function(int)
+          >();
 
   ffi.Pointer<wire_cst_list_guidance_ref_dto> cst_new_list_guidance_ref_dto(
     int len,
@@ -8178,6 +8754,21 @@ class RustLibWire implements BaseWire {
   late final _cst_new_list_named_count_dto = _cst_new_list_named_count_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_list_named_count_dto> Function(int)>();
 
+  ffi.Pointer<wire_cst_list_named_secret_dto> cst_new_list_named_secret_dto(
+    int len,
+  ) {
+    return _cst_new_list_named_secret_dto(len);
+  }
+
+  late final _cst_new_list_named_secret_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_named_secret_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_named_secret_dto');
+  late final _cst_new_list_named_secret_dto = _cst_new_list_named_secret_dtoPtr
+      .asFunction<ffi.Pointer<wire_cst_list_named_secret_dto> Function(int)>();
+
   ffi.Pointer<wire_cst_list_object_conflict_dto>
   cst_new_list_object_conflict_dto(int len) {
     return _cst_new_list_object_conflict_dto(len);
@@ -8316,6 +8907,58 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_prim_u_8_strict');
   late final _cst_new_list_prim_u_8_strict = _cst_new_list_prim_u_8_strictPtr
       .asFunction<ffi.Pointer<wire_cst_list_prim_u_8_strict> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_prompt_bundle_dto> cst_new_list_prompt_bundle_dto(
+    int len,
+  ) {
+    return _cst_new_list_prompt_bundle_dto(len);
+  }
+
+  late final _cst_new_list_prompt_bundle_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_prompt_bundle_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_prompt_bundle_dto');
+  late final _cst_new_list_prompt_bundle_dto =
+      _cst_new_list_prompt_bundle_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_prompt_bundle_dto> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_prompt_definition_dto>
+  cst_new_list_prompt_definition_dto(int len) {
+    return _cst_new_list_prompt_definition_dto(len);
+  }
+
+  late final _cst_new_list_prompt_definition_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_prompt_definition_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_prompt_definition_dto');
+  late final _cst_new_list_prompt_definition_dto =
+      _cst_new_list_prompt_definition_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_prompt_definition_dto> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_prompt_revision_dto>
+  cst_new_list_prompt_revision_dto(int len) {
+    return _cst_new_list_prompt_revision_dto(len);
+  }
+
+  late final _cst_new_list_prompt_revision_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_prompt_revision_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_prompt_revision_dto');
+  late final _cst_new_list_prompt_revision_dto =
+      _cst_new_list_prompt_revision_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_prompt_revision_dto> Function(int)
+          >();
 
   ffi.Pointer<wire_cst_list_provider_conflict_profile_dto>
   cst_new_list_provider_conflict_profile_dto(int len) {
@@ -10051,6 +10694,84 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__db_maintenance__vacuum_databasePtr
           .asFunction<void Function(int)>();
 
+  void wire__crate__api__digest_insights__act_on_digest_insight(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> action,
+  ) {
+    return _wire__crate__api__digest_insights__act_on_digest_insight(
+      port_,
+      message_id,
+      action,
+    );
+  }
+
+  late final _wire__crate__api__digest_insights__act_on_digest_insightPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__digest_insights__act_on_digest_insight',
+      );
+  late final _wire__crate__api__digest_insights__act_on_digest_insight =
+      _wire__crate__api__digest_insights__act_on_digest_insightPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__digest_insights__list_digest_insight_surfacings(
+    int port_,
+  ) {
+    return _wire__crate__api__digest_insights__list_digest_insight_surfacings(
+      port_,
+    );
+  }
+
+  late final _wire__crate__api__digest_insights__list_digest_insight_surfacingsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__digest_insights__list_digest_insight_surfacings',
+      );
+  late final _wire__crate__api__digest_insights__list_digest_insight_surfacings =
+      _wire__crate__api__digest_insights__list_digest_insight_surfacingsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__digest_insights__pending_digest_insight_count(
+    int port_,
+  ) {
+    return _wire__crate__api__digest_insights__pending_digest_insight_count(
+      port_,
+    );
+  }
+
+  late final _wire__crate__api__digest_insights__pending_digest_insight_countPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__digest_insights__pending_digest_insight_count',
+      );
+  late final _wire__crate__api__digest_insights__pending_digest_insight_count =
+      _wire__crate__api__digest_insights__pending_digest_insight_countPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__digest_insights__tick_digest_insights(int port_) {
+    return _wire__crate__api__digest_insights__tick_digest_insights(port_);
+  }
+
+  late final _wire__crate__api__digest_insights__tick_digest_insightsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__digest_insights__tick_digest_insights',
+      );
+  late final _wire__crate__api__digest_insights__tick_digest_insights =
+      _wire__crate__api__digest_insights__tick_digest_insightsPtr
+          .asFunction<void Function(int)>();
+
   void wire__crate__api__entities__add_entity_alias(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> entity_kind,
@@ -10281,6 +11002,137 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__fonts__list_system_fonts =
       _wire__crate__api__fonts__list_system_fontsPtr
           .asFunction<void Function(int)>();
+
+  void wire__crate__api__goal_grounding__find_goal_references(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> query,
+  ) {
+    return _wire__crate__api__goal_grounding__find_goal_references(
+      port_,
+      query,
+    );
+  }
+
+  late final _wire__crate__api__goal_grounding__find_goal_referencesPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__goal_grounding__find_goal_references',
+      );
+  late final _wire__crate__api__goal_grounding__find_goal_references =
+      _wire__crate__api__goal_grounding__find_goal_referencesPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__goal_grounding__get_goal_references(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> goal_id,
+  ) {
+    return _wire__crate__api__goal_grounding__get_goal_references(
+      port_,
+      goal_id,
+    );
+  }
+
+  late final _wire__crate__api__goal_grounding__get_goal_referencesPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__goal_grounding__get_goal_references',
+      );
+  late final _wire__crate__api__goal_grounding__get_goal_references =
+      _wire__crate__api__goal_grounding__get_goal_referencesPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__goal_grounding__get_planning_profile(int port_) {
+    return _wire__crate__api__goal_grounding__get_planning_profile(port_);
+  }
+
+  late final _wire__crate__api__goal_grounding__get_planning_profilePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__goal_grounding__get_planning_profile',
+      );
+  late final _wire__crate__api__goal_grounding__get_planning_profile =
+      _wire__crate__api__goal_grounding__get_planning_profilePtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__goal_grounding__save_goal_references(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> goal_id,
+    ffi.Pointer<wire_cst_list_String> page_ids,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> expected_updated_at,
+  ) {
+    return _wire__crate__api__goal_grounding__save_goal_references(
+      port_,
+      goal_id,
+      page_ids,
+      expected_updated_at,
+    );
+  }
+
+  late final _wire__crate__api__goal_grounding__save_goal_referencesPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_String>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__goal_grounding__save_goal_references',
+      );
+  late final _wire__crate__api__goal_grounding__save_goal_references =
+      _wire__crate__api__goal_grounding__save_goal_referencesPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_String>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__goal_grounding__save_planning_profile(
+    int port_,
+    ffi.Pointer<wire_cst_planning_profile_dto> profile,
+  ) {
+    return _wire__crate__api__goal_grounding__save_planning_profile(
+      port_,
+      profile,
+    );
+  }
+
+  late final _wire__crate__api__goal_grounding__save_planning_profilePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_planning_profile_dto>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__goal_grounding__save_planning_profile',
+      );
+  late final _wire__crate__api__goal_grounding__save_planning_profile =
+      _wire__crate__api__goal_grounding__save_planning_profilePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_planning_profile_dto>)
+          >();
 
   void wire__crate__api__goals__archive_goal(
     int port_,
@@ -12528,6 +13380,163 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__language__get_knowledge_language(int port_) {
+    return _wire__crate__api__language__get_knowledge_language(port_);
+  }
+
+  late final _wire__crate__api__language__get_knowledge_languagePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__language__get_knowledge_language',
+      );
+  late final _wire__crate__api__language__get_knowledge_language =
+      _wire__crate__api__language__get_knowledge_languagePtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__language__get_prompt_language_preferences(int port_) {
+    return _wire__crate__api__language__get_prompt_language_preferences(port_);
+  }
+
+  late final _wire__crate__api__language__get_prompt_language_preferencesPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__language__get_prompt_language_preferences',
+      );
+  late final _wire__crate__api__language__get_prompt_language_preferences =
+      _wire__crate__api__language__get_prompt_language_preferencesPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__language__get_ui_language_preference(int port_) {
+    return _wire__crate__api__language__get_ui_language_preference(port_);
+  }
+
+  late final _wire__crate__api__language__get_ui_language_preferencePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__language__get_ui_language_preference',
+      );
+  late final _wire__crate__api__language__get_ui_language_preference =
+      _wire__crate__api__language__get_ui_language_preferencePtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__language__set_runtime_ui_locale(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> locale,
+  ) {
+    return _wire__crate__api__language__set_runtime_ui_locale(port_, locale);
+  }
+
+  late final _wire__crate__api__language__set_runtime_ui_localePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__language__set_runtime_ui_locale');
+  late final _wire__crate__api__language__set_runtime_ui_locale =
+      _wire__crate__api__language__set_runtime_ui_localePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__language__update_knowledge_language(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> output_locale,
+    int expected_generation,
+  ) {
+    return _wire__crate__api__language__update_knowledge_language(
+      port_,
+      output_locale,
+      expected_generation,
+    );
+  }
+
+  late final _wire__crate__api__language__update_knowledge_languagePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__language__update_knowledge_language',
+      );
+  late final _wire__crate__api__language__update_knowledge_language =
+      _wire__crate__api__language__update_knowledge_languagePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
+          >();
+
+  void wire__crate__api__language__update_prompt_language_preferences(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> instruction_locale,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> response_mode,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> response_locale,
+    int expected_generation,
+  ) {
+    return _wire__crate__api__language__update_prompt_language_preferences(
+      port_,
+      instruction_locale,
+      response_mode,
+      response_locale,
+      expected_generation,
+    );
+  }
+
+  late final _wire__crate__api__language__update_prompt_language_preferencesPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__language__update_prompt_language_preferences',
+      );
+  late final _wire__crate__api__language__update_prompt_language_preferences =
+      _wire__crate__api__language__update_prompt_language_preferencesPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+            )
+          >();
+
+  void wire__crate__api__language__update_ui_language_preference(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> locale,
+  ) {
+    return _wire__crate__api__language__update_ui_language_preference(
+      port_,
+      locale,
+    );
+  }
+
+  late final _wire__crate__api__language__update_ui_language_preferencePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__language__update_ui_language_preference',
+      );
+  late final _wire__crate__api__language__update_ui_language_preference =
+      _wire__crate__api__language__update_ui_language_preferencePtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__mcp__delete_mcp_server(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
@@ -12676,6 +13685,162 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__mcp__test_mcp_serverPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_mcp_server_dto>)
+          >();
+
+  void wire__crate__api__named_secrets__delete_named_secret(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> name,
+    bool force,
+  ) {
+    return _wire__crate__api__named_secrets__delete_named_secret(
+      port_,
+      name,
+      force,
+    );
+  }
+
+  late final _wire__crate__api__named_secrets__delete_named_secretPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__named_secrets__delete_named_secret',
+      );
+  late final _wire__crate__api__named_secrets__delete_named_secret =
+      _wire__crate__api__named_secrets__delete_named_secretPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
+          >();
+
+  void wire__crate__api__named_secrets__edit_named_secret(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> name,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> value,
+  ) {
+    return _wire__crate__api__named_secrets__edit_named_secret(
+      port_,
+      name,
+      title,
+      value,
+    );
+  }
+
+  late final _wire__crate__api__named_secrets__edit_named_secretPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__named_secrets__edit_named_secret',
+      );
+  late final _wire__crate__api__named_secrets__edit_named_secret =
+      _wire__crate__api__named_secrets__edit_named_secretPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__named_secrets__extract_named_secret(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> name,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> value,
+  ) {
+    return _wire__crate__api__named_secrets__extract_named_secret(
+      port_,
+      name,
+      title,
+      value,
+    );
+  }
+
+  late final _wire__crate__api__named_secrets__extract_named_secretPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__named_secrets__extract_named_secret',
+      );
+  late final _wire__crate__api__named_secrets__extract_named_secret =
+      _wire__crate__api__named_secrets__extract_named_secretPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__named_secrets__list_named_secrets(int port_) {
+    return _wire__crate__api__named_secrets__list_named_secrets(port_);
+  }
+
+  late final _wire__crate__api__named_secrets__list_named_secretsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__named_secrets__list_named_secrets',
+      );
+  late final _wire__crate__api__named_secrets__list_named_secrets =
+      _wire__crate__api__named_secrets__list_named_secretsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__named_secrets__save_named_secret(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> name,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> value,
+  ) {
+    return _wire__crate__api__named_secrets__save_named_secret(
+      port_,
+      name,
+      title,
+      value,
+    );
+  }
+
+  late final _wire__crate__api__named_secrets__save_named_secretPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__named_secrets__save_named_secret',
+      );
+  late final _wire__crate__api__named_secrets__save_named_secret =
+      _wire__crate__api__named_secrets__save_named_secretPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
           >();
 
   void wire__crate__api__page_marks__create_page_mark(
@@ -13170,6 +14335,164 @@ class RustLibWire implements BaseWire {
           .asFunction<
             void Function(
               int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__prompts__activate_prompt_revision(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> key,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> locale,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> revision_id,
+    int expected_generation,
+  ) {
+    return _wire__crate__api__prompts__activate_prompt_revision(
+      port_,
+      key,
+      locale,
+      revision_id,
+      expected_generation,
+    );
+  }
+
+  late final _wire__crate__api__prompts__activate_prompt_revisionPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int32,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__prompts__activate_prompt_revision',
+      );
+  late final _wire__crate__api__prompts__activate_prompt_revision =
+      _wire__crate__api__prompts__activate_prompt_revisionPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+            )
+          >();
+
+  void wire__crate__api__prompts__list_prompt_bundles(int port_, int offset) {
+    return _wire__crate__api__prompts__list_prompt_bundles(port_, offset);
+  }
+
+  late final _wire__crate__api__prompts__list_prompt_bundlesPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Int32)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__prompts__list_prompt_bundles',
+      );
+  late final _wire__crate__api__prompts__list_prompt_bundles =
+      _wire__crate__api__prompts__list_prompt_bundlesPtr
+          .asFunction<void Function(int, int)>();
+
+  void wire__crate__api__prompts__list_prompt_definitions(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> locale,
+  ) {
+    return _wire__crate__api__prompts__list_prompt_definitions(port_, locale);
+  }
+
+  late final _wire__crate__api__prompts__list_prompt_definitionsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__prompts__list_prompt_definitions',
+      );
+  late final _wire__crate__api__prompts__list_prompt_definitions =
+      _wire__crate__api__prompts__list_prompt_definitionsPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__prompts__list_prompt_revisions(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> key,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> locale,
+    int offset,
+  ) {
+    return _wire__crate__api__prompts__list_prompt_revisions(
+      port_,
+      key,
+      locale,
+      offset,
+    );
+  }
+
+  late final _wire__crate__api__prompts__list_prompt_revisionsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int32,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__prompts__list_prompt_revisions');
+  late final _wire__crate__api__prompts__list_prompt_revisions =
+      _wire__crate__api__prompts__list_prompt_revisionsPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+            )
+          >();
+
+  void wire__crate__api__prompts__save_prompt_revision(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> key,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> locale,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> body,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> parent_revision_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> note,
+  ) {
+    return _wire__crate__api__prompts__save_prompt_revision(
+      port_,
+      key,
+      locale,
+      body,
+      parent_revision_id,
+      note,
+    );
+  }
+
+  late final _wire__crate__api__prompts__save_prompt_revisionPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__prompts__save_prompt_revision');
+  late final _wire__crate__api__prompts__save_prompt_revision =
+      _wire__crate__api__prompts__save_prompt_revisionPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
@@ -15825,6 +17148,28 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__tweet__format_import_content(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
+  ) {
+    return _wire__crate__api__tweet__format_import_content(port_, content);
+  }
+
+  late final _wire__crate__api__tweet__format_import_contentPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__tweet__format_import_content');
+  late final _wire__crate__api__tweet__format_import_content =
+      _wire__crate__api__tweet__format_import_contentPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__tweet__generate_content_chat(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> content,
@@ -18030,6 +19375,92 @@ final class wire_cst_deviation_report_dto extends ffi.Struct {
     ..ref.deviations = deviations;
 }
 
+final class wire_cst_digest_insight_surfacing_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> insight_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> title;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> observation;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> action_suggestion;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> status;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> surfaced_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> surfaced_date;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> action_type;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> page_kind;
+
+  @ffi.Bool()
+  external bool page_active;
+
+  static ffi.Pointer<wire_cst_digest_insight_surfacing_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> insight_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> page_slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> observation,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> action_suggestion,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> surfaced_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> surfaced_date,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> message_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> action_type,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> page_kind,
+    required bool page_active,
+  }) => $allocator<wire_cst_digest_insight_surfacing_dto>()
+    ..ref.id = id
+    ..ref.insight_id = insight_id
+    ..ref.page_slug = page_slug
+    ..ref.kind = kind
+    ..ref.title = title
+    ..ref.observation = observation
+    ..ref.action_suggestion = action_suggestion
+    ..ref.status = status
+    ..ref.surfaced_at = surfaced_at
+    ..ref.surfaced_date = surfaced_date
+    ..ref.message_id = message_id
+    ..ref.action_type = action_type
+    ..ref.created_at = created_at
+    ..ref.updated_at = updated_at
+    ..ref.page_kind = page_kind
+    ..ref.page_active = page_active;
+}
+
+final class wire_cst_digest_insight_tick_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_String> message_ids;
+
+  @ffi.Int32()
+  external int pending_count;
+
+  static ffi.Pointer<wire_cst_digest_insight_tick_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_String> message_ids,
+    required int pending_count,
+  }) => $allocator<wire_cst_digest_insight_tick_dto>()
+    ..ref.message_ids = message_ids
+    ..ref.pending_count = pending_count;
+}
+
 final class wire_cst_due_reminder_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> todo_id;
 
@@ -18458,6 +19889,42 @@ final class wire_cst_goal_dto extends ffi.Struct {
     ..ref.created_at = created_at
     ..ref.updated_at = updated_at
     ..ref.superseded_at = superseded_at;
+}
+
+final class wire_cst_goal_reference_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> slug;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> title;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> summary;
+
+  static ffi.Pointer<wire_cst_goal_reference_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> slug,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> summary,
+  }) => $allocator<wire_cst_goal_reference_dto>()
+    ..ref.id = id
+    ..ref.slug = slug
+    ..ref.title = title
+    ..ref.summary = summary;
+}
+
+final class wire_cst_goal_references_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_goal_reference_dto> pages;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at;
+
+  static ffi.Pointer<wire_cst_goal_references_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_goal_reference_dto> pages,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at,
+  }) => $allocator<wire_cst_goal_references_dto>()
+    ..ref.pages = pages
+    ..ref.updated_at = updated_at;
 }
 
 final class wire_cst_guidance_dto extends ffi.Struct {
@@ -19212,6 +20679,40 @@ final class wire_cst_knowledge_issue extends ffi.Struct {
     ..ref.description = description;
 }
 
+final class wire_cst_knowledge_language_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> output_locale;
+
+  @ffi.Int64()
+  external int policy_version;
+
+  @ffi.Int64()
+  external int generation;
+
+  @ffi.Bool()
+  external bool supported;
+
+  @ffi.Bool()
+  external bool can_edit;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> edit_block_reason;
+
+  static ffi.Pointer<wire_cst_knowledge_language_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> output_locale,
+    required int policy_version,
+    required int generation,
+    required bool supported,
+    required bool can_edit,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> edit_block_reason,
+  }) => $allocator<wire_cst_knowledge_language_dto>()
+    ..ref.output_locale = output_locale
+    ..ref.policy_version = policy_version
+    ..ref.generation = generation
+    ..ref.supported = supported
+    ..ref.can_edit = can_edit
+    ..ref.edit_block_reason = edit_block_reason;
+}
+
 final class wire_cst_knowledge_metadata extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> applicable_when;
 
@@ -19873,6 +21374,21 @@ final class wire_cst_list_deviation_report_dto extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_digest_insight_surfacing_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_digest_insight_surfacing_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_digest_insight_surfacing_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_digest_insight_surfacing_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_digest_insight_surfacing_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_due_reminder_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_due_reminder_dto> ptr;
 
@@ -19974,6 +21490,21 @@ final class wire_cst_list_goal_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_goal_dto> ptr,
     required int len,
   }) => $allocator<wire_cst_list_goal_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_goal_reference_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_goal_reference_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_goal_reference_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_goal_reference_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_goal_reference_dto>()
     ..ref.ptr = ptr
     ..ref.len = len;
 }
@@ -20278,6 +21809,21 @@ final class wire_cst_list_named_count_dto extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_named_secret_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_named_secret_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_named_secret_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_named_secret_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_named_secret_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_object_conflict_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_object_conflict_dto> ptr;
 
@@ -20409,6 +21955,51 @@ final class wire_cst_list_prim_u_8_strict extends ffi.Struct {
     required ffi.Pointer<ffi.Uint8> ptr,
     required int len,
   }) => $allocator<wire_cst_list_prim_u_8_strict>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_prompt_bundle_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_prompt_bundle_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_prompt_bundle_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_prompt_bundle_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_prompt_bundle_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_prompt_definition_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_prompt_definition_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_prompt_definition_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_prompt_definition_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_prompt_definition_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_prompt_revision_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_prompt_revision_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_prompt_revision_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_prompt_revision_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_prompt_revision_dto>()
     ..ref.ptr = ptr
     ..ref.len = len;
 }
@@ -20828,6 +22419,8 @@ final class wire_cst_mcp_server_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> name;
 
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> keywords;
+
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> platform;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> transport;
@@ -20855,6 +22448,7 @@ final class wire_cst_mcp_server_dto extends ffi.Struct {
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> name,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> keywords,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> platform,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> transport,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> command,
@@ -20868,6 +22462,7 @@ final class wire_cst_mcp_server_dto extends ffi.Struct {
   }) => $allocator<wire_cst_mcp_server_dto>()
     ..ref.id = id
     ..ref.name = name
+    ..ref.keywords = keywords
     ..ref.platform = platform
     ..ref.transport = transport
     ..ref.command = command
@@ -21014,6 +22609,24 @@ final class wire_cst_named_count_dto extends ffi.Struct {
   }) => $allocator<wire_cst_named_count_dto>()
     ..ref.label = label
     ..ref.count = count;
+}
+
+final class wire_cst_named_secret_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> name;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> title;
+
+  external ffi.Pointer<wire_cst_list_String> references;
+
+  static ffi.Pointer<wire_cst_named_secret_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> name,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    required ffi.Pointer<wire_cst_list_String> references,
+  }) => $allocator<wire_cst_named_secret_dto>()
+    ..ref.name = name
+    ..ref.title = title
+    ..ref.references = references;
 }
 
 final class wire_cst_network_settings_dto extends ffi.Struct {
@@ -21348,6 +22961,32 @@ final class wire_cst_plan_dto extends ffi.Struct {
     ..ref.updated_at = updated_at;
 }
 
+final class wire_cst_planning_profile_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> skills;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> resources;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> limits;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> preferences;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at;
+
+  static ffi.Pointer<wire_cst_planning_profile_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> skills,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> resources,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> limits,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> preferences,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at,
+  }) => $allocator<wire_cst_planning_profile_dto>()
+    ..ref.skills = skills
+    ..ref.resources = resources
+    ..ref.limits = limits
+    ..ref.preferences = preferences
+    ..ref.updated_at = updated_at;
+}
+
 final class wire_cst_processing_yield_proof_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> dataset_id;
 
@@ -21405,6 +23044,174 @@ final class wire_cst_processor_handoff_state_dto extends ffi.Struct {
     ..ref.to_device_id = to_device_id
     ..ref.final_sequence = final_sequence
     ..ref.can_confirm = can_confirm;
+}
+
+final class wire_cst_prompt_bundle_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> owner_kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> owner_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> ui_locale;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> instruction_locale;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> response_policy_json;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> knowledge_output_locale;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> language_policy_version;
+
+  external ffi.Pointer<wire_cst_list_String> revision_ids;
+
+  external ffi.Pointer<wire_cst_list_String> keys;
+
+  external ffi.Pointer<wire_cst_list_String> bodies;
+
+  external ffi.Pointer<wire_cst_list_String> requested_locales;
+
+  external ffi.Pointer<wire_cst_list_String> resolved_locales;
+
+  external ffi.Pointer<wire_cst_list_String> fallback_reasons;
+
+  static ffi.Pointer<wire_cst_prompt_bundle_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> owner_kind,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> owner_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> ui_locale,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> instruction_locale,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> response_policy_json,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> knowledge_output_locale,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> language_policy_version,
+    required ffi.Pointer<wire_cst_list_String> revision_ids,
+    required ffi.Pointer<wire_cst_list_String> keys,
+    required ffi.Pointer<wire_cst_list_String> bodies,
+    required ffi.Pointer<wire_cst_list_String> requested_locales,
+    required ffi.Pointer<wire_cst_list_String> resolved_locales,
+    required ffi.Pointer<wire_cst_list_String> fallback_reasons,
+  }) => $allocator<wire_cst_prompt_bundle_dto>()
+    ..ref.id = id
+    ..ref.owner_kind = owner_kind
+    ..ref.owner_id = owner_id
+    ..ref.created_at = created_at
+    ..ref.ui_locale = ui_locale
+    ..ref.instruction_locale = instruction_locale
+    ..ref.response_policy_json = response_policy_json
+    ..ref.knowledge_output_locale = knowledge_output_locale
+    ..ref.language_policy_version = language_policy_version
+    ..ref.revision_ids = revision_ids
+    ..ref.keys = keys
+    ..ref.bodies = bodies
+    ..ref.requested_locales = requested_locales
+    ..ref.resolved_locales = resolved_locales
+    ..ref.fallback_reasons = fallback_reasons;
+}
+
+final class wire_cst_prompt_definition_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> key;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> title;
+
+  @ffi.Bool()
+  external bool editable;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> locale;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> resolved_locale;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> current_revision_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> current_body;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> builtin_body;
+
+  @ffi.Int32()
+  external int generation;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> fallback;
+
+  @ffi.Int32()
+  external int tokens;
+
+  static ffi.Pointer<wire_cst_prompt_definition_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> key,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> title,
+    required bool editable,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> locale,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> resolved_locale,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> current_revision_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> current_body,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> builtin_body,
+    required int generation,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> fallback,
+    required int tokens,
+  }) => $allocator<wire_cst_prompt_definition_dto>()
+    ..ref.key = key
+    ..ref.title = title
+    ..ref.editable = editable
+    ..ref.locale = locale
+    ..ref.resolved_locale = resolved_locale
+    ..ref.current_revision_id = current_revision_id
+    ..ref.current_body = current_body
+    ..ref.builtin_body = builtin_body
+    ..ref.generation = generation
+    ..ref.fallback = fallback
+    ..ref.tokens = tokens;
+}
+
+final class wire_cst_prompt_language_preferences_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> instruction_locale;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> response_mode;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> response_locale;
+
+  @ffi.Int64()
+  external int generation;
+
+  static ffi.Pointer<wire_cst_prompt_language_preferences_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> instruction_locale,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> response_mode,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> response_locale,
+    required int generation,
+  }) => $allocator<wire_cst_prompt_language_preferences_dto>()
+    ..ref.instruction_locale = instruction_locale
+    ..ref.response_mode = response_mode
+    ..ref.response_locale = response_locale
+    ..ref.generation = generation;
+}
+
+final class wire_cst_prompt_revision_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> body;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> origin;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> note;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at;
+
+  static ffi.Pointer<wire_cst_prompt_revision_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> body,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> origin,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> note,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
+  }) => $allocator<wire_cst_prompt_revision_dto>()
+    ..ref.id = id
+    ..ref.body = body
+    ..ref.origin = origin
+    ..ref.note = note
+    ..ref.created_at = created_at;
 }
 
 final class wire_cst_provider_conflict_profile_dto extends ffi.Struct {
@@ -22454,6 +24261,15 @@ final class wire_cst_tweet_fetch_dto extends ffi.Struct {
     ..ref.title = title
     ..ref.author_name = author_name
     ..ref.screen_name = screen_name;
+}
+
+final class wire_cst_ui_language_preference_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> locale;
+
+  static ffi.Pointer<wire_cst_ui_language_preference_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> locale,
+  }) => $allocator<wire_cst_ui_language_preference_dto>()..ref.locale = locale;
 }
 
 final class wire_cst_unscheduled_chat_input_dto extends ffi.Struct {

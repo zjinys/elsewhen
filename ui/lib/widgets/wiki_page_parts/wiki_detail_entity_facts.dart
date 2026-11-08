@@ -17,7 +17,7 @@ class _EntityFacts extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '结构化事实',
+            context.l10n.entityFacts,
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -46,7 +46,7 @@ class _EntityFacts extends ConsumerWidget {
                   const SizedBox(width: 7),
                   Expanded(
                     child: Text(
-                      '发现可能冲突的事实。历史来源均已保留，请查看来源后移除错误的派生事实。',
+                      context.l10n.entityFactConflictHelp,
                       style: TextStyle(
                         fontSize: 11.5,
                         height: 1.35,
@@ -98,7 +98,11 @@ class _EntityFacts extends ConsumerWidget {
                           onTap: () =>
                               _showSource(context, ref, fact.sourceEventId),
                           child: Text(
-                            '${_factDate(fact.occurredAt)} · 置信度 ${fact.confidence}/5 · 查看来源 ${_shortId(fact.sourceEventId)}',
+                            context.l10n.entityFactSource(
+                              _factDate(context, fact.occurredAt),
+                              '${fact.confidence}',
+                              _shortId(fact.sourceEventId),
+                            ),
                             style: TextStyle(
                               fontSize: 10.5,
                               color: AppTheme.accentPrimary,
@@ -109,7 +113,7 @@ class _EntityFacts extends ConsumerWidget {
                     ),
                   ),
                   IconButton(
-                    tooltip: '纠正：移除此事实',
+                    tooltip: context.l10n.entityRemoveFact,
                     icon: Icon(
                       Icons.close,
                       size: 15,
@@ -141,10 +145,10 @@ class _EntityFacts extends ConsumerWidget {
     };
   }
 
-  String _factDate(String value) {
+  String _factDate(BuildContext context, String value) {
     final parsed = DateTime.tryParse(value)?.toLocal();
     if (parsed == null) return value;
-    return '${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')}';
+    return MaterialLocalizations.of(context).formatCompactDate(parsed);
   }
 
   String _shortId(String value) =>
@@ -158,27 +162,34 @@ class _EntityFacts extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('移除这条事实？'),
-        content: const Text('只会移除知识页中的派生事实，不会删除原始事件。'),
+        title: Text(dialogContext.l10n.entityRemoveFactQuestion),
+        content: Text(dialogContext.l10n.entityRemoveFactHelp),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
+            child: Text(dialogContext.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('移除'),
+            child: Text(dialogContext.l10n.entityRemove),
           ),
         ],
       ),
     );
     if (confirmed != true || !context.mounted) return;
-    final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-    await repo.deleteEntityFact(id);
-    ref.invalidate(entityFactsProvider(slug));
-    if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('事实已移除，原始事件仍保留')));
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repo.deleteEntityFact(id);
+      ref.invalidate(entityFactsProvider(slug));
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.entityFactRemoved)));
+      }
+    } catch (error) {
+      if (context.mounted) {
+        showAppError(context, context.l10n.entityRemove, error);
+      }
     }
   }
 
@@ -188,28 +199,36 @@ class _EntityFacts extends ConsumerWidget {
     String eventId,
   ) async {
     final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
-    final detail = await repo.getEventAnalysisDetail(eventId);
-    if (!context.mounted) return;
-    if (detail == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('来源事件不存在')));
+    final EventAnalysisDetailDto? detail;
+    try {
+      detail = await repo.getEventAnalysisDetail(eventId);
+    } catch (error) {
+      if (context.mounted) showAppError(context, context.l10n.load, error);
       return;
     }
+    if (!context.mounted) return;
+    if (detail == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.entitySourceMissing)));
+      return;
+    }
+    final EventAnalysisDetailDto source = detail;
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('来源事件'),
+        title: Text(dialogContext.l10n.entitySourceEvent),
         content: SizedBox(
           width: 520,
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ContentFontScope(child: SelectableText(detail.rawText)),
-                if ((detail.summary ?? '').isNotEmpty) ...[
+                ContentFontScope(child: SelectableText(source.rawText)),
+                if ((source.summary ?? '').isNotEmpty) ...[
                   const SizedBox(height: 16),
                   Text(
-                    'AI 摘要',
+                    dialogContext.l10n.entityAiSummary,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -217,12 +236,12 @@ class _EntityFacts extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  ContentFontScope(child: SelectableText(detail.summary!)),
+                  ContentFontScope(child: SelectableText(source.summary!)),
                 ],
-                if (detail.emotion?.isNotEmpty ?? false) ...[
+                if (source.emotion?.isNotEmpty ?? false) ...[
                   const SizedBox(height: 16),
                   Text(
-                    '情绪标注（文本，无数值）',
+                    dialogContext.l10n.entityEmotionAnnotations,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -230,22 +249,27 @@ class _EntityFacts extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  for (final tag in detail.emotion!)
+                  for (final tag in source.emotion!)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 2),
                       child: ContentFontScope(
                         child: SelectableText(
                           tag.target == null || tag.target!.isEmpty
-                              ? '对这件事：${tag.feeling}'
-                              : '对 ${tag.target}：${tag.feeling}',
+                              ? dialogContext.l10n.entityEmotionAboutEvent(
+                                  tag.feeling,
+                                )
+                              : dialogContext.l10n.entityEmotionAboutTarget(
+                                  tag.target!,
+                                  tag.feeling,
+                                ),
                         ),
                       ),
                     ),
                 ],
-                if (detail.guidance != null) ...[
+                if (source.guidance != null) ...[
                   const SizedBox(height: 16),
                   Text(
-                    'AI 指导（派生层）',
+                    dialogContext.l10n.entityAiGuidance,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -253,19 +277,24 @@ class _EntityFacts extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  for (final ref in detail.guidance!.related)
+                  for (final ref in source.guidance!.related)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 2),
                       child: ContentFontScope(
-                        child: SelectableText('相关：${ref.slug} — ${ref.note}'),
+                        child: SelectableText(
+                          dialogContext.l10n.entityRelatedReference(
+                            ref.slug,
+                            ref.note,
+                          ),
+                        ),
                       ),
                     ),
-                  for (final lesson in detail.guidance!.lessons)
+                  for (final lesson in source.guidance!.lessons)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 2),
                       child: ContentFontScope(child: SelectableText(lesson)),
                     ),
-                  for (final followUp in detail.guidance!.followUpsRefined)
+                  for (final followUp in source.guidance!.followUpsRefined)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 2),
                       child: ContentFontScope(child: SelectableText(followUp)),
@@ -273,7 +302,10 @@ class _EntityFacts extends ConsumerWidget {
                 ],
                 const SizedBox(height: 16),
                 Text(
-                  '记录于 ${_factDate(detail.recordedAt)} · 分析状态 ${detail.jobStatus}',
+                  dialogContext.l10n.entityAnalysisMetadata(
+                    _factDate(dialogContext, source.recordedAt),
+                    dialogContext.l10n.entityAnalysisStatus(source.jobStatus),
+                  ),
                   style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
                 ),
               ],
@@ -283,7 +315,7 @@ class _EntityFacts extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('关闭'),
+            child: Text(dialogContext.l10n.close),
           ),
         ],
       ),

@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'dart:async';
 
 import 'package:appflowy_editor/appflowy_editor.dart';
@@ -378,7 +380,7 @@ class WikiContentEditorState extends State<WikiContentEditor>
                 1 => AppFlowyEditorL10n.current.heading1,
                 2 => AppFlowyEditorL10n.current.heading2,
                 3 => AppFlowyEditorL10n.current.heading3,
-                _ => '标题 $level',
+                _ => context.l10n.l6HeadingArg01576c((level).toString()),
               };
             },
             padding: (node) {
@@ -612,76 +614,76 @@ class _WikiEditorToolbarState extends State<_WikiEditorToolbar> {
             mainAxisSize: MainAxisSize.min,
             children: [
               _textButton(
-                label: '正文',
-                tooltip: '正文',
+                label: context.l10n.proposalBody,
+                tooltip: context.l10n.proposalBody,
                 active: _isBlock(ParagraphBlockKeys.type),
                 onPressed: () => _formatBlock(ParagraphBlockKeys.type),
               ),
               _textButton(
                 label: 'H1',
-                tooltip: '一级标题',
+                tooltip: context.l10n.l6Heading186e3d,
                 active: _isHeading(1),
                 onPressed: () => _toggleHeading(1),
               ),
               _textButton(
                 label: 'H2',
-                tooltip: '二级标题',
+                tooltip: context.l10n.l6Heading222dfe,
                 active: _isHeading(2),
                 onPressed: () => _toggleHeading(2),
               ),
               _textButton(
                 label: 'H3',
-                tooltip: '三级标题',
+                tooltip: context.l10n.l6Heading3516f9,
                 active: _isHeading(3),
                 onPressed: () => _toggleHeading(3),
               ),
               _divider(),
               _iconButton(
                 icon: Icons.format_bold,
-                tooltip: '加粗',
+                tooltip: context.l10n.l6Boldf670b,
                 active: _isFormatActive('bold'),
                 onPressed: () => _toggleAttribute('bold'),
               ),
               _iconButton(
                 icon: Icons.format_italic,
-                tooltip: '斜体',
+                tooltip: context.l10n.l6Italicaf5a2,
                 active: _isFormatActive('italic'),
                 onPressed: () => _toggleAttribute('italic'),
               ),
               _iconButton(
                 icon: Icons.format_underlined,
-                tooltip: '下划线',
+                tooltip: context.l10n.l6Underline9bc18,
                 active: _isFormatActive('underline'),
                 onPressed: () => _toggleAttribute('underline'),
               ),
               _iconButton(
                 icon: Icons.format_strikethrough,
-                tooltip: '删除线',
+                tooltip: context.l10n.l6Strikethroughc85de,
                 active: _isFormatActive('strikethrough'),
                 onPressed: () => _toggleAttribute('strikethrough'),
               ),
               _iconButton(
                 icon: Icons.code,
-                tooltip: '行内代码',
+                tooltip: context.l10n.l6InlineCode1a813,
                 active: _isFormatActive('code'),
                 onPressed: () => _toggleAttribute('code'),
               ),
               _divider(),
               _iconButton(
                 icon: Icons.format_list_bulleted,
-                tooltip: '无序列表',
+                tooltip: context.l10n.l6BulletedListb9e9a,
                 active: _isBlock(BulletedListBlockKeys.type),
                 onPressed: () => _toggleBlock(BulletedListBlockKeys.type),
               ),
               _iconButton(
                 icon: Icons.format_list_numbered,
-                tooltip: '有序列表',
+                tooltip: context.l10n.l6NumberedList0deb8,
                 active: _isBlock(NumberedListBlockKeys.type),
                 onPressed: () => _toggleBlock(NumberedListBlockKeys.type),
               ),
               _iconButton(
                 icon: Icons.format_quote,
-                tooltip: '引用',
+                tooltip: context.l10n.l6Quote23c0e,
                 active: _isBlock(QuoteBlockKeys.type),
                 onPressed: () => _toggleBlock(QuoteBlockKeys.type),
               ),

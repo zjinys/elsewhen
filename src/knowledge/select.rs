@@ -371,6 +371,18 @@ pub fn context_text(candidates: &[KnowledgeCitation]) -> Result<String> {
     Ok(format!("知识选材：\n{}", tool_context(candidates)?))
 }
 
+pub(crate) fn context_text_for_run(
+    store: &Store,
+    candidates: &[KnowledgeCitation],
+) -> Result<String> {
+    if candidates.is_empty() {
+        return store.render_supplement_instruction("knowledge_empty", &[]);
+    }
+    // This prefix is an existing evidence envelope consumed by bind.rs.
+    // Its JSON and historical spelling remain protocol, not display text.
+    context_text(candidates)
+}
+
 /// 依据当前用户问题自动挂载少量已核验知识的摘要段。
 /// 背景：2026-10 的速度优化硬掉了每轮知识预载（固定 3.2k tokens），把
 /// 「用不用知识」完全赌在模型的 search_knowledge_base 工具调用上；

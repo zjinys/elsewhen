@@ -58,7 +58,7 @@ class _ReviewNavSummary extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
           child: Text(
-            '近 7 天',
+            context.l10n.lastSevenDays,
             style: TextStyle(
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
@@ -80,8 +80,8 @@ class _ReviewNavSummary extends ConsumerWidget {
                 title: Text(
                   key ==
                           '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}'
-                      ? '今天'
-                      : key,
+                      ? context.l10n.today
+                      : DateFormat.yMd(context.l10n.localeName).format(day),
                   style: TextStyle(
                     fontSize: 13,
                     color: selected
@@ -135,7 +135,7 @@ class _RejectedSourcesTileState extends ConsumerState<_RejectedSourcesTile> {
             Icon(Icons.block_outlined, size: 13, color: AppTheme.textTertiary),
             const SizedBox(width: 6),
             Text(
-              '已否定（负知识）',
+              context.l10n.rejectedSources,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -172,7 +172,7 @@ class _RejectedSourcesTileState extends ConsumerState<_RejectedSourcesTile> {
                     vertical: AppTheme.space1,
                   ),
                   child: Text(
-                    '还没有否定的来源。',
+                    context.l10n.noRejectedSources,
                     style: TextStyle(
                       fontSize: 11,
                       color: AppTheme.textTertiary,

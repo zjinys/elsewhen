@@ -47,6 +47,7 @@ pub(crate) fn shutdown(path: &Path) -> Result<usize> {
         provider_master: None,
         conversation_snapshot: None,
         chat_run_identity: None,
+        prompt_bundle: Default::default(),
         captured_page_task: Default::default(),
     };
     for (id, (worker_path, owner)) in &registered {
@@ -172,6 +173,13 @@ fn request_on_channel(
     if !publish_draft {
         event(store, "phase", json!({"phase":"summarizing"}))?;
     }
+    if let Some(bundle) = store.prompt_bundle.borrow().as_ref() {
+        event(
+            store,
+            "request_prompts",
+            json!({"request_id":request,"bundle_id":bundle}),
+        )?;
+    }
     let mut draft = draft::DraftBuffer::default();
     // usage 锚定：捕获发送前启发式对整个 payload 的最终估（Budget 事件），
     // 与真实 prompt_tokens 配对成「低估比」，后续同会话预算按其收紧。
@@ -287,17 +295,20 @@ pub(crate) fn execute(
         .insert(run.id.clone(), (store.path.clone(), owner.into()));
     let _guard = WorkerGuard(run.id.clone());
     let result = (|| {
-        crate::logging::log_always(&format!(
-            "[generation] execute run={} 开始生成",
-            run.id
-        ));
+        crate::logging::log_always(&format!("[generation] execute run={} 开始生成", run.id));
+        let bundle = store.capture_prompt_bundle("chat_run", &run.id)?;
+        store.connection.execute(
+            "UPDATE chat_runs SET prompt_bundle_id=?1 WHERE id=?2",
+            rusqlite::params![bundle, run.id],
+        )?;
+        event(store, "prompt_bundle", json!({"bundle_id":bundle}))?;
         let mut snapshot = store.snapshot_for_input(&run.conversation_id, &run.input_message_id)?;
+        *snapshot.prompt_bundle.borrow_mut() = Some(bundle);
         snapshot.validate_chat_run_context(&run.id, &run.conversation_id)?;
         snapshot.chat_run_identity = Some(RunIdentity {
             id: run.id.clone(),
             owner: owner.into(),
             started_at: std::time::Instant::now(),
-            
         });
         super::conversation::generate_conversation_reply_core(
             &run.conversation_id,
@@ -345,10 +356,7 @@ pub(crate) fn execute(
             }
         }
         Err(error) => {
-            crate::logging::log_always(&format!(
-                "[generation] run={} 失败：{error:#}",
-                run.id
-            ));
+            crate::logging::log_always(&format!("[generation] run={} 失败：{error:#}", run.id));
             let stopped = error.downcast_ref::<ChatRunStopped>().is_some()
                 || store
                     .chat_run(&run.id)?
@@ -359,22 +367,7 @@ pub(crate) fn execute(
                 .downcast_ref::<super::budget::RequestBudgetError>()
                 .is_some()
             {
-                // R2.5：长会话的压缩是分批树式推进（节点缓存跨次复用），
-                // 预热未收敛时本地拒绝只是「还没压完」，不是永久死局；
-                // 只有最近两轮+当前输入自身就超窗的会话才真的无解。
-                let history_len: i64 = store
-                    .connection
-                    .query_row(
-                        "SELECT COUNT(*) FROM messages WHERE conversation_id=?1",
-                        [run.conversation_id.clone()],
-                        |r| r.get(0),
-                    )
-                    .unwrap_or(0);
-                let text = if history_len > 40 {
-                    "本轮上下文超过预算：会话较长，摘要压缩尚未收敛，重试本条输入通常可恢复（历史不会丢失）；若反复失败，可开新对话或手动翻篇"
-                } else {
-                    "本轮必要上下文超过预算；输入已保存，请缩小任务范围或拆分输入"
-                };
+                let text = "本轮必要上下文超过预算；输入和已完成步骤已保存。请检查模型的上下文窗口设置，或减少本轮附带资料、分批读取工具结果";
                 ("budget", text)
             } else {
                 // Never persist raw provider bodies/URLs/arguments in diagnostics.
@@ -479,9 +472,7 @@ fn launch(path: &Path, store: Store, run: ChatRun, owner: String) -> Result<Chat
         let worker_store = match Store::open(path) {
             Ok(store) => store,
             Err(error) => {
-                crate::logging::log_always(&format!(
-                    "[generation] worker 库打开失败：{error:#}"
-                ));
+                crate::logging::log_always(&format!("[generation] worker 库打开失败：{error:#}"));
                 let _ = store.finish_chat_run(
                     &run.id,
                     &owner,

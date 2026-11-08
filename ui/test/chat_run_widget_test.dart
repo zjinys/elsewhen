@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
+import 'package:elsewhen_ui/l10n/app_localizations.dart';
 import 'package:elsewhen_ui/models/conversation.dart';
 import 'package:elsewhen_ui/providers/chat_run_provider.dart';
 import 'package:elsewhen_ui/providers/conversation_provider.dart';
@@ -27,6 +28,7 @@ Widget app(
   RunTestRepository repo,
   Widget child, {
   RustBridgeRepository? wikiBridge,
+  Locale locale = const Locale('zh'),
 }) => ProviderScope(
   overrides: [
     storageRepositoryProvider.overrideWithValue(
@@ -42,10 +44,37 @@ Widget app(
     activeAiProviderProvider.overrideWith((ref) async => null),
     todayTokenUsageProvider.overrideWith((ref) async => null),
   ],
-  child: MaterialApp(home: Scaffold(body: child)),
+  child: MaterialApp(
+    locale: locale,
+    supportedLocales: AppLocalizations.supportedLocales,
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    home: Scaffold(body: child),
+  ),
 );
 
 void main() {
+  testWidgets('English input and durable stop keep the original user text', (
+    tester,
+  ) async {
+    final repo = RunTestRepository();
+    await tester.pumpWidget(
+      app(repo, const MessageArea(), locale: const Locale('en')),
+    );
+    await settleFrames(tester);
+    expect(find.text('Enter a message…'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '用户消息保持原文');
+    await tester.tap(find.byTooltip('Send'));
+    await settleFrames(tester);
+    expect(repo.messages.single.content, '用户消息保持原文');
+    expect(find.text('Stop generation'), findsOneWidget);
+    await tester.ensureVisible(find.text('Stop generation'));
+    await tester.tap(find.text('Stop generation'));
+    await settleFrames(tester);
+    expect(repo.stops, [('conv-1', 'run-1')]);
+    expect(find.text('Generation stopped'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'safe draft is plain text and tool progress never exposes raw payloads',
     (tester) async {

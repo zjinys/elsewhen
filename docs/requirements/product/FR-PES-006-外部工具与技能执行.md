@@ -69,7 +69,7 @@ MCP server 的增删改启停、trusted 开关，技能的安装启停信任操�
 
 ## 5. 约束
 
-- `skills_state.json` 不进同步域；`mcp_servers` 定义随快照分发但 `headers_json`（凭据）与 `trusted`（信任）不入快照（迁移 48）。
+- `skills_state.json` 不进同步域；`mcp_servers` 定义随快照分发，但 `headers_json` 和 `env_json` 的值（凭据）与 `trusted`（信任）保留本机。env_json 仅发空兼容字段；接收旧快照不安装其中的环境变量，已有本机配置不被覆盖（2026-11-05 边界修复）。
 - MCP 工具参数含动态 JSON，跨 FFI 边界一律字符串化（`args_json` / `headers_json` 等），不直接传 `serde_json::Value`（frb 界面限制）。
 - streamable-http 采用逐消息 POST 拉模式，不开常驻 SSE 流；HTTP 头承载鉴权。
 - trust 的粒度是 server/技能整体；不许出现「某工具免审批、其余审批」的混合态。

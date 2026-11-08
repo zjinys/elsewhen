@@ -136,6 +136,14 @@ pub fn generate_content_chat(
     crate::ai::generate_content_chat(&content, &msgs, &store)
 }
 
+/// Format an import preview, preserving source language and original text.
+/// Only token usage and the immutable prompt manifest are recorded.
+pub fn format_import_content(content: String) -> Result<String> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    crate::ai::conversation::format_import_content(&content, &store)
+}
+
 /// 当前推文抓取服务（设置页读取；当前仅支持 fxtwitter）
 pub fn get_tweet_fetch_service() -> Result<String> {
     let config = crate::config::AppConfig::load()?;

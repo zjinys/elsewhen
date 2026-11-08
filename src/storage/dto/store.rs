@@ -17,6 +17,7 @@ pub struct Store {
     pub(crate) provider_master: Option<[u8; 32]>,
     pub(crate) conversation_snapshot: Option<ConversationSnapshot>,
     pub(crate) chat_run_identity: Option<crate::ai::generation::RunIdentity>,
+    pub(crate) prompt_bundle: std::cell::RefCell<Option<String>>,
     pub(crate) captured_page_task: std::cell::RefCell<Option<(String, chat_page_tasks::PageTask)>>,
 }
 
@@ -26,6 +27,7 @@ impl Clone for Store {
         store.provider_master = self.provider_master;
         store.conversation_snapshot = self.conversation_snapshot.clone();
         store.chat_run_identity = self.chat_run_identity.clone();
+        store.prompt_bundle = self.prompt_bundle.clone();
         store.captured_page_task = self.captured_page_task.clone();
         store
     }
@@ -48,6 +50,7 @@ impl Store {
     pub fn open(path: &Path) -> Result<Self> {
         let mut connection = Connection::open(path)
             .with_context(|| format!("open SQLite database {}", path.display()))?;
+        crate::storage::knowledge_language::register_connection_capability(&connection)?;
         connection.busy_timeout(std::time::Duration::from_secs(5))?;
         connection.pragma_update(None, "foreign_keys", true)?;
         let initialized = INITIALIZED_DATABASES
@@ -68,6 +71,7 @@ impl Store {
             provider_master: None,
             conversation_snapshot: None,
             chat_run_identity: None,
+            prompt_bundle: Default::default(),
             captured_page_task: Default::default(),
         };
         if first_open {

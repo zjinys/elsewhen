@@ -54,8 +54,9 @@ class GlassPanel extends StatelessWidget {
     final dark = tokens.isDark;
     final radius = BorderRadius.circular(borderRadius);
     final sigma = blur ?? tokens.glassBlur;
-    final fill = (fillColor ?? AppTheme.surface1)
-        .withValues(alpha: fillOpacity ?? tokens.glassFillOpacity);
+    final fill = (fillColor ?? AppTheme.surface1).withValues(
+      alpha: fillOpacity ?? tokens.glassFillOpacity,
+    );
 
     final shadows = switch (elevation) {
       1 => ShadowTokens.level1(dark),
@@ -71,8 +72,9 @@ class GlassPanel extends StatelessWidget {
         // 发丝边框：深色用白光、浅色用墨色——浅色背景上白边不可见，
         // 深色背景上墨边也看不见，两边都得反向取色。
         border: Border.all(
-          color: (dark ? Colors.white : AppTheme.textPrimary)
-              .withValues(alpha: tokens.glassBorderOpacity),
+          color: (dark ? Colors.white : AppTheme.textPrimary).withValues(
+            alpha: tokens.glassBorderOpacity,
+          ),
         ),
       ),
       // 透明 Material 垫底：带背景色的 DecoratedBox 不能挡在 ListTile 与其
@@ -105,10 +107,7 @@ class GlassPanel extends StatelessWidget {
     return RepaintBoundary(
       child: Container(
         margin: margin,
-        decoration: BoxDecoration(
-          borderRadius: radius,
-          boxShadow: shadows,
-        ),
+        decoration: BoxDecoration(borderRadius: radius, boxShadow: shadows),
         child: onTap == null
             ? content
             : Material(
@@ -151,13 +150,12 @@ class GlassBar extends StatelessWidget implements PreferredSizeWidget {
       height: height + topInset,
       padding: EdgeInsets.only(top: topInset),
       decoration: BoxDecoration(
-        color: AppTheme.surface1.withValues(
-          alpha: tokens.isDark ? 0.62 : 0.78,
-        ),
+        color: AppTheme.surface1.withValues(alpha: tokens.isDark ? 0.62 : 0.78),
         border: Border(
           bottom: BorderSide(
-            color: AppTheme.surface3
-                .withValues(alpha: tokens.isDark ? 0.65 : 0.9),
+            color: AppTheme.surface3.withValues(
+              alpha: tokens.isDark ? 0.65 : 0.9,
+            ),
           ),
         ),
       ),
@@ -213,7 +211,10 @@ class GlassDialog extends StatelessWidget {
       transitionDuration: MotionTokens.panel,
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return FadeTransition(
-          opacity: CurvedAnimation(parent: animation, curve: MotionTokens.standard),
+          opacity: CurvedAnimation(
+            parent: animation,
+            curve: MotionTokens.standard,
+          ),
           child: child,
         );
       },
@@ -256,9 +257,7 @@ class GlassDialog extends StatelessWidget {
                   ),
                   const SizedBox(height: AppTheme.space4),
                 ],
-                Flexible(
-                  child: SingleChildScrollView(child: content),
-                ),
+                Flexible(child: SingleChildScrollView(child: content)),
                 if (actions != null && actions!.isNotEmpty) ...[
                   const SizedBox(height: AppTheme.space6),
                   Row(

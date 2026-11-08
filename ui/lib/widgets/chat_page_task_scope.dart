@@ -1,3 +1,5 @@
+import '../l10n/app_localizations_zh.dart';
+
 import 'dart:convert';
 
 import 'package:collection/collection.dart';
@@ -5,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../bridge/api.dart';
 import '../bridge/rust_bridge_repository.dart';
+import '../l10n/localization.dart';
 
 class ChatPageTask {
   final String kind;
@@ -25,7 +28,7 @@ class ChatPageTask {
         jsonDecode(material.basisJson),
         basis,
       )) {
-        throw StateError('原任务材料已变化，请明确重新选择任务与材料；不会自动沿用新版本。');
+        throw ChatPageTaskMaterialChanged();
       }
       materials.add(material);
     }
@@ -47,14 +50,28 @@ class ChatPageTask {
   });
 
   String get label => labels[kind] ?? kind;
-  static const labels = {
-    'local_question': '局部问答',
-    'full_summary': '全文总结',
-    'compare': '跨来源对照',
-    'local_edit': '局部编辑',
-    'full_revision': '全页修订',
-    'none': '独立新问题',
+  static String localizedLabel(BuildContext context, String kind) =>
+      switch (kind) {
+        'local_question' => context.l10n.taskLocalQuestion,
+        'full_summary' => context.l10n.taskFullSummary,
+        'compare' => context.l10n.taskCompare,
+        'local_edit' => context.l10n.taskLocalEdit,
+        'full_revision' => context.l10n.taskFullRevision,
+        'none' => context.l10n.taskIndependent,
+        _ => kind,
+      };
+  static final labels = {
+    'local_question': AppLocalizationsZh().taskLocalQuestion,
+    'full_summary': AppLocalizationsZh().taskFullSummary,
+    'compare': AppLocalizationsZh().taskCompare,
+    'local_edit': AppLocalizationsZh().taskLocalEdit,
+    'full_revision': AppLocalizationsZh().taskFullRevision,
+    'none': AppLocalizationsZh().taskIndependent,
   };
+}
+
+class ChatPageTaskMaterialChanged extends StateError {
+  ChatPageTaskMaterialChanged() : super('page_task_material_changed');
 }
 
 /// Selection and revision tokens come from the same displayed material snapshot.
@@ -86,13 +103,18 @@ class ChatPageTaskScope extends StatelessWidget {
       children: [
         Expanded(
           child: Text(
-            '材料范围：${task.label}${task.startChar == null ? '' : ' · ${task.startChar}–${task.endChar}字'}',
+            context.l10n.materialScope(
+              ChatPageTask.localizedLabel(context, task.kind),
+              task.startChar == null
+                  ? ''
+                  : context.l10n.materialRange(task.startChar!, task.endChar!),
+            ),
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
         TextButton(
           onPressed: enabled ? () => _choose(context) : null,
-          child: const Text('查看 / 选择材料'),
+          child: Text(context.l10n.chooseMaterial),
         ),
       ],
     ),
@@ -113,7 +135,8 @@ class _TaskDialogState extends State<_TaskDialog> {
   late int? start = widget.initial.startChar;
   late int? end = widget.initial.endChar;
   final slug = TextEditingController();
-  String? error;
+  bool selectionTooLong = false;
+  bool loadFailed = false;
   bool loading = false;
   @override
   void dispose() {
@@ -124,7 +147,8 @@ class _TaskDialogState extends State<_TaskDialog> {
   Future<void> _load(String value, {bool refresh = false}) async {
     setState(() {
       loading = true;
-      error = null;
+      selectionTooLong = false;
+      loadFailed = false;
     });
     try {
       final material = await widget.repository.getWikiChatMaterial(
@@ -141,7 +165,10 @@ class _TaskDialogState extends State<_TaskDialog> {
         }
       });
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) {
+        context.errorMessage(context.l10n.load, e);
+        setState(() => loadFailed = true);
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -156,7 +183,7 @@ class _TaskDialogState extends State<_TaskDialog> {
         (kind != 'compare' || materials.length >= 2) &&
         (kind != 'local_edit' || start != null && end != null && end! > start!);
     return AlertDialog(
-      title: const Text('任务与显示版本'),
+      title: Text(context.l10n.taskDisplayedRevision),
       content: SizedBox(
         width: 640,
         height: 460,
@@ -168,7 +195,10 @@ class _TaskDialogState extends State<_TaskDialog> {
               isExpanded: true,
               items: ChatPageTask.labels.entries
                   .map(
-                    (e) => DropdownMenuItem(value: e.key, child: Text(e.value)),
+                    (e) => DropdownMenuItem(
+                      value: e.key,
+                      child: Text(ChatPageTask.localizedLabel(context, e.key)),
+                    ),
                   )
                   .toList(),
               onChanged: loading
@@ -179,16 +209,16 @@ class _TaskDialogState extends State<_TaskDialog> {
                       end = null;
                     }),
             ),
-            const Text(
-              '后续问题沿用这里的任务和版本；新任务请重新选择。全页修订按连续分块处理，完成后仍需审阅。',
-              style: TextStyle(fontSize: 12),
-            ),
+            Text(context.l10n.taskScopeHint, style: TextStyle(fontSize: 12)),
             if (main != null)
               Row(
                 children: [
                   Expanded(
                     child: Text(
-                      '${main.title} · ${main.contentMd.runes.length} 字',
+                      context.l10n.materialTitleCount(
+                        main.title,
+                        main.contentMd.runes.length,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -196,7 +226,7 @@ class _TaskDialogState extends State<_TaskDialog> {
                     onPressed: loading
                         ? null
                         : () => _load(main.slug, refresh: true),
-                    child: const Text('明确刷新版本'),
+                    child: Text(context.l10n.refreshMaterialRevision),
                   ),
                 ],
               ),
@@ -206,25 +236,33 @@ class _TaskDialogState extends State<_TaskDialog> {
                   Expanded(
                     child: TextField(
                       controller: slug,
-                      decoration: const InputDecoration(labelText: '对照材料 slug'),
+                      decoration: InputDecoration(
+                        labelText: context.l10n.comparisonSlug,
+                      ),
                     ),
                   ),
                   TextButton(
                     onPressed: loading || materials.length >= 4
                         ? null
                         : () => _load(slug.text),
-                    child: const Text('读取并加入'),
+                    child: Text(context.l10n.readAndAdd),
                   ),
                 ],
               ),
-            if (error != null)
+            if (selectionTooLong || loadFailed)
               Text(
-                error!,
+                selectionTooLong
+                    ? context.l10n.selectionTooLong
+                    : context.l10n.operationFailed(context.l10n.load),
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             if (kind == 'local_question' || kind == 'local_edit')
               Text(
-                '在下方原文选择要处理的文字（最多6000字）。当前：${start == null ? '未选区；问答将自动选取相关片段' : '$start–$end'}',
+                context.l10n.selectionHint(
+                  start == null
+                      ? context.l10n.selectionAutomatic
+                      : '$start–$end',
+                ),
                 style: const TextStyle(fontSize: 12),
               ),
             const Divider(),
@@ -243,8 +281,9 @@ class _TaskDialogState extends State<_TaskDialog> {
                               !{'local_question', 'local_edit'}.contains(kind)
                           ? null
                           : (selection, _) {
-                              if (!selection.isValid || selection.isCollapsed)
+                              if (!selection.isValid || selection.isCollapsed) {
                                 return;
+                              }
                               final a = material.contentMd
                                   .substring(0, selection.start)
                                   .runes
@@ -256,7 +295,7 @@ class _TaskDialogState extends State<_TaskDialog> {
                               setState(() {
                                 start = a;
                                 end = b;
-                                error = b - a > 6000 ? '选区超过6000字，请缩小' : null;
+                                selectionTooLong = b - a > 6000;
                               });
                             },
                     ),
@@ -271,7 +310,7 @@ class _TaskDialogState extends State<_TaskDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
+          child: Text(context.l10n.cancel),
         ),
         FilledButton(
           onPressed: valid && (start == null || end! - start! <= 6000)
@@ -289,7 +328,7 @@ class _TaskDialogState extends State<_TaskDialog> {
                   ),
                 )
               : null,
-          child: const Text('使用显示的版本'),
+          child: Text(context.l10n.useDisplayedRevision),
         ),
       ],
     );

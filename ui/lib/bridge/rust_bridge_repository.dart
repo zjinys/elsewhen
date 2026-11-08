@@ -54,6 +54,51 @@ class RustBridgeRepository implements StorageRepository {
     null,
   );
   bool _initialized = false;
+
+  Future<api.UiLanguagePreferenceDto> getUiLanguagePreference() =>
+      api.getUiLanguagePreference();
+
+  Future<api.UiLanguagePreferenceDto> updateUiLanguagePreference(
+    String? locale,
+  ) => api.updateUiLanguagePreference(locale: locale);
+
+  Future<void> setRuntimeUiLocale(String locale) =>
+      api.setRuntimeUiLocale(locale: locale);
+
+  // Import forms use virtual dispatch so locale and review tests can keep all
+  // fetch/write operations inside a fake repository.
+  Future<WikiPage> saveTextPage({
+    required String text,
+    String? title,
+    List<String> tags = const [],
+  }) async {
+    final dto = await api.saveTextPage(text: text, title: title, tags: tags);
+    return WikiPage.fromDto(dto);
+  }
+
+  /// 把一段文本保存为「主题」（kind=topic）页——创建主题及对话消息「存为主题」入口。
+  /// 文本完整写入，标题留空时取正文首行前 60 字；tags 可选。
+  Future<WikiPage> saveTopicPage({
+    required String text,
+    String? title,
+    List<String> tags = const [],
+  }) async {
+    final dto = await api.saveTopicPage(text: text, title: title, tags: tags);
+    return WikiPage.fromDto(dto);
+  }
+
+  Future<String> guessImportKind(String url) => api.guessImportKind(url: url);
+
+  Future<api.HabitNudgeSuggestionDto> getHabitNudgeSuggestion(
+    String pageSlug,
+  ) => api.getHabitNudgeSuggestion(pageSlug: pageSlug);
+
+  Future<api.HabitNudgeDto> saveHabitNudge(api.HabitNudgeInputDto input) async {
+    final dto = await api.saveHabitNudge(input: input);
+    habitNudgeRevision.value++;
+    return dto;
+  }
+
   bool _analysisWorkerRunning = false;
   bool _analysisWorkerScheduled = false;
   bool _analysisRerunRequested = false;
@@ -102,9 +147,11 @@ class RustBridgeRepository implements StorageRepository {
 
   /// 习惯问候插入/回答后递增，驱动主对话消息重查。
   final ValueNotifier<int> habitNudgeRevision = ValueNotifier(0);
+  final ValueNotifier<int> digestInsightRevision = ValueNotifier(0);
 
   /// 未处理习惯问候数（侧边栏「对话」未读点）。
   final ValueNotifier<int> pendingHabitNudges = ValueNotifier(0);
+  final ValueNotifier<int> pendingDigestInsights = ValueNotifier(0);
 
   /// 打包成 .app（macOS DMG）后，frb 默认加载路径（CWD 相对的 ioDirectory /
   /// elsewhen.framework）在 Finder 启动时找不到 dylib——CWD 是 `/`。
@@ -180,6 +227,7 @@ class RustBridgeRepository implements StorageRepository {
         try {
           await _tickDueReminders();
           await _tickHabitNudges();
+          await _tickDigestInsights();
           // 航向校准检测器工作在 3~5 天尺度，无需跟 5s 拍：降频至分钟级
           // （每 12 拍 ≈ 60s），失败隔离与响应路径不变。
           _compassTickCounter++;
@@ -202,6 +250,7 @@ class RustBridgeRepository implements StorageRepository {
     });
     await _tickDueReminders();
     await _tickHabitNudges();
+    await _tickDigestInsights();
     await _tickGoalCompass();
     _wakeAnalysisWorker();
   }
@@ -599,6 +648,26 @@ class RustBridgeRepository implements StorageRepository {
   }
 
   /// 针对一段抓取内容做一次性对话回复（不写库，供保存前与 AI 讨论内容）
+  Future<List<api.PageGuidanceDto>> listPageGuidance(String slug) =>
+      api.listPageGuidance(slug: slug);
+
+  /// guidance 采纳反馈（遗留收口切片 B）：只记不外推；feedback null = 清
+  /// 除（toggle off）。与 rule_hit feedback 同纪律，未知值 fail-closed。
+  Future<bool> setGuidanceFeedback({
+    required String analysisId,
+    required String slug,
+    String? note,
+    String? feedback,
+  }) => api.setGuidanceFeedback(
+    analysisId: analysisId,
+    slug: slug,
+    note: note,
+    feedback: feedback,
+  );
+
+  Future<String> formatImportContent(String content) =>
+      api.formatImportContent(content: content);
+
   Future<String> generateContentChat({
     required String content,
     required List<ContentChatMessage> messages,
@@ -741,6 +810,37 @@ final pendingHabitNudgesProvider = Provider<int>((ref) {
   ref.onDispose(() => pending.removeListener(onChange));
   return pending.value;
 });
+
+/// 洞见浮现修订号：消息列表与洞见卡片状态订阅它。
+final digestInsightRevisionProvider = Provider<int>((ref) {
+  final repo = ref.watch(storageRepositoryProvider);
+  if (repo is! RustBridgeRepository) return 0;
+  final revision = repo.digestInsightRevision;
+  void onChange() => ref.invalidateSelf();
+  revision.addListener(onChange);
+  ref.onDispose(() => revision.removeListener(onChange));
+  return revision.value;
+});
+
+/// 侧边栏未读点：未动作的洞见卡片数。
+final pendingDigestInsightsProvider = Provider<int>((ref) {
+  final repo = ref.watch(storageRepositoryProvider);
+  if (repo is! RustBridgeRepository) return 0;
+  final pending = repo.pendingDigestInsights;
+  void onChange() => ref.invalidateSelf();
+  pending.addListener(onChange);
+  ref.onDispose(() => pending.removeListener(onChange));
+  return pending.value;
+});
+
+/// 洞见浮现台账（卡片状态/建议/来源页）。按需重查，随修订号失效。
+final digestInsightSurfacingsProvider =
+    FutureProvider<List<api.DigestInsightSurfacingDto>>((ref) async {
+      ref.watch(digestInsightRevisionProvider);
+      final repo = ref.watch(storageRepositoryProvider);
+      if (repo is! RustBridgeRepository) return const [];
+      return repo.listDigestInsightSurfacings();
+    });
 
 /// 今日问候状态（卡片显示已记录/已推迟）。按需重查。
 final habitNudgeStatesProvider = FutureProvider<List<api.HabitNudgeStateDto>>((

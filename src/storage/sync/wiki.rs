@@ -332,6 +332,9 @@ impl Store {
                 revision.created_at,
             ],
         )?;
+        if let Some(language) = &revision.language {
+            self.put_artifact_language("wiki_revision", &revision.id, language)?;
+        }
         // 修订不推进 head：不是 CAS 对象；落行即可（否则删除头会被误清、
         // 后续页 op 的 base 判定会被打乱）。
         let _ = op;

@@ -128,6 +128,11 @@ impl Store {
             .collect::<Vec<_>>();
         let context_hash = content_hash(&serde_json::to_string(&context_basis)?);
         self.record_run_event_in_tx(&id, "created", &json!({"input_message_id":input,"context_hash":context_hash,"message_count":context.len()}))?;
+        let bundle = self.capture_prompt_bundle("chat_run", &id)?;
+        self.connection.execute(
+            "UPDATE chat_runs SET prompt_bundle_id=?1 WHERE id=?2",
+            params![bundle, id],
+        )?;
         if let Some(tx) = tx {
             tx.commit()?;
         }
@@ -387,6 +392,12 @@ impl Store {
         self.check_chat_run_owner(run, owner)?;
         let id = uuid::Uuid::new_v4().to_string();
         self.connection.execute("INSERT INTO chat_run_requests(id,run_id,provider_name,model,status,started_at) VALUES(?1,?2,?3,?4,'running',?5)",params![id,run,provider,model,chrono::Utc::now().to_rfc3339()])?;
+        if let Some(bundle) = self.prompt_bundle.borrow().as_ref() {
+            self.connection.execute(
+                "UPDATE chat_run_requests SET prompt_bundle_id=?1 WHERE id=?2",
+                params![bundle, id],
+            )?;
+        }
         self.connection.execute("UPDATE chat_runs SET status='running',phase='requesting',request_count=request_count+1 WHERE id=?1",[run])?;
         let event = self.record_run_event_in_tx(
             run,

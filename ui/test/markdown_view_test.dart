@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/widgets/markdown_view.dart';
@@ -165,6 +166,85 @@ void main() {
     expect(find.byType(Table), findsNothing);
     expect(_richTextContaining('不是'), findsOneWidget);
   });
+
+  testWidgets('markdown 渲染：知识页裸 slug、wikilink 与内部链接点击', (tester) async {
+    String? clickedSlug;
+    const testMarkdown = '''
+这是 AI 的回复：规则的查看入口、知识页的修订方式 kb-Elsewhen-5ae954d0，请查收。
+
+相关引用还有 [[topic-架构|架构设计]] 以及 [[kb-test-12345]]。
+还可以通过 [查看详情](kb-link-target) 进行跳转。
+注意：代码中的 `kb-code-ignore` 不应被点击。
+普通英文单词 well-known 与 sub-topic 不应被当作知识页识别。
+''';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: MarkdownView(
+              markdown: testMarkdown,
+              onTapWikiPage: (slug) => clickedSlug = slug,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // 1. 验证正文展示
+    expect(_richTextContaining('kb-Elsewhen-5ae954d0'), findsOneWidget);
+    expect(_richTextContaining('架构设计'), findsOneWidget);
+    expect(_richTextContaining('kb-test-12345'), findsOneWidget);
+    expect(_richTextContaining('查看详情'), findsOneWidget);
+    expect(_richTextContaining('kb-code-ignore'), findsOneWidget);
+
+    // 2. 验证裸 slug 的手势识别与点击
+    final bareSlugRecognizer = _findRecognizer(tester, 'kb-Elsewhen-5ae954d0');
+    expect(bareSlugRecognizer, isNotNull, reason: '裸 slug 应挂载点击手势');
+    bareSlugRecognizer!.onTap!();
+    expect(clickedSlug, 'kb-Elsewhen-5ae954d0');
+
+    // 3. 验证 wikilink 的手势识别与目标 slug
+    final wikiLinkRecognizer = _findRecognizer(tester, '架构设计');
+    expect(wikiLinkRecognizer, isNotNull, reason: '[[target|label]] 应挂载点击手势');
+    wikiLinkRecognizer!.onTap!();
+    expect(clickedSlug, 'topic-架构');
+
+    // 4. 验证不带别名的 wikilink
+    final directWikiRecognizer = _findRecognizer(tester, 'kb-test-12345');
+    expect(directWikiRecognizer, isNotNull, reason: '[[target]] 应挂载点击手势');
+    directWikiRecognizer!.onTap!();
+    expect(clickedSlug, 'kb-test-12345');
+
+    // 5. 验证 markdown 链接中的 slug
+    final mdLinkRecognizer = _findRecognizer(tester, '查看详情');
+    expect(mdLinkRecognizer, isNotNull, reason: '[label](slug) 应挂载点击手势');
+    mdLinkRecognizer!.onTap!();
+    expect(clickedSlug, 'kb-link-target');
+
+    // 6. 验证代码块内不挂载 wiki recognizer
+    final codeRecognizer = _findRecognizer(tester, 'kb-code-ignore');
+    expect(codeRecognizer, isNull, reason: '行内代码中的 slug 不应被挂载点击手势');
+  });
+}
+
+TapGestureRecognizer? _findRecognizer(WidgetTester tester, String text) {
+  for (final element in find.byType(RichText).evaluate()) {
+    final rt = element.widget as RichText;
+    final span = rt.text;
+    TapGestureRecognizer? hit;
+    span.visitChildren((child) {
+      if (child is TextSpan &&
+          child.text == text &&
+          child.recognizer is TapGestureRecognizer) {
+        hit = child.recognizer as TapGestureRecognizer;
+        return false;
+      }
+      return true;
+    });
+    if (hit != null) return hit;
+  }
+  return null;
 }
 
 Finder _richTextContaining(String needle) => find.byWidgetPredicate(

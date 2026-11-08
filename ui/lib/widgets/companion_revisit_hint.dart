@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -63,8 +65,8 @@ class _CompanionRevisitHintState extends ConsumerState<CompanionRevisitHint> {
     final recordedAt = DateTime.tryParse(item.recordedAt)?.toLocal();
     final when = recordedAt == null
         ? ''
-        : '${DateFormat('M月d日').format(recordedAt)} ';
-    final feeling = item.feeling == null ? '' : '，${item.feeling}';
+        : '${DateFormat.MMMd(context.l10n.localeName).format(recordedAt)} ';
+    final feeling = item.feeling == null ? '' : ', ${item.feeling}';
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(
@@ -92,7 +94,11 @@ class _CompanionRevisitHintState extends ConsumerState<CompanionRevisitHint> {
           const SizedBox(width: AppTheme.space3),
           Expanded(
             child: Text(
-              '$when你记录过：「${item.excerpt}」$feeling——还记得这件事。',
+              context.l10n.l6Arg0YouRecordedArg1Arg2Ac3209(
+                (when).toString(),
+                (item.excerpt).toString(),
+                (feeling).toString(),
+              ),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(color: AppTheme.textSecondary, fontSize: 12.5),
@@ -101,7 +107,7 @@ class _CompanionRevisitHintState extends ConsumerState<CompanionRevisitHint> {
           IconButton(
             icon: const Icon(Icons.close, size: 16),
             color: AppTheme.textTertiary,
-            tooltip: '知道了',
+            tooltip: context.l10n.acknowledge,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             onPressed: () => setState(() => _dismissed = true),

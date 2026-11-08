@@ -88,8 +88,8 @@ CREATE TABLE mcp_servers (
 
 `mcp_servers` 整表进快照域（v1 曾整表排除，理由是 stdio 命令的本机绑定；平台标签把「本机绑定」变成行级元数据后，整表分发 + 激活过滤更统一）。行的同步面：
 
-- **带**：id/name/platform/transport/command/args_json/env_json/url/enabled/时间戳——定义随人走，换设备不再重配远程端点。
-- **不带**：`headers_json`（凭据不离本机，与 provider key 同一先例；接收端调用 401 是显式失败，UI 提示补头）；`trusted`（信任是本机事实，apply 强制置 0——URL 可以搭车，豁免不搭车）。
+- **带**：id/name/platform/transport/command/args_json/url/enabled/时间戳——定义随人走，换设备不再重配远程端点。
+- **不带**：`headers_json` 与 `env_json` 的值（均可能含凭据，保留本机；env_json 在线格式仍保留空对象兼容字段，接收旧快照也不安装其中的环境变量）；`trusted`（信任是本机事实，apply 强制置 0）。其他设备需补齐本机环境变量与鉴权头；已存在的本机配置继续获胜。见[环境变量边界修复](../../notes/implemented/bug-fix/2026-11-05-mcp-environment-snapshot-boundary.md)。
 - **本机获胜**：接收端已有同 id 或同 `(name, platform)` 行则远端行跳过（INSERT OR IGNORE 对两个唯一目标同效），与技能「目录获胜」同构——本机是用户此刻的意图。
 - **协议代价**：`Record::McpServer` 是新 serde 变体，跨版本两端必须同升（旧端整份拒收快照，显式隔离；对应 SNAPSHOT_VERSION v4→v5）。
 - 后续方向：移动端执行委托（云端/本地执行选择），见 `docs/notes/proposed/architecture/2026-10-18-mobile-execution-delegation.md`。

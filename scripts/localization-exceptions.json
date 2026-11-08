@@ -1,0 +1,240 @@
+[
+  {
+    "path": "ui/lib/bridge/rust_bridge_parts/conversations.dart",
+    "text": "快记",
+    "count": 1,
+    "category": "audit",
+    "reason": "既有快记写入的修订审计原因；不随界面语言改写。"
+  },
+  {
+    "path": "ui/lib/bridge/rust_bridge_repository.dart",
+    "text": "初始化存储失败: {arg0}",
+    "count": 1,
+    "category": "diagnostic",
+    "reason": "内部日志/异常诊断原文；应用入口使用稳定错误或本地化回退，仅主动查看详情时展示。"
+  },
+  {
+    "path": "ui/lib/bridge/rust_bridge_repository.dart",
+    "text": "统一输入没有关联 message",
+    "count": 1,
+    "category": "diagnostic",
+    "reason": "内部日志/异常诊断原文；应用入口使用稳定错误或本地化回退，仅主动查看详情时展示。"
+  },
+  {
+    "path": "ui/lib/bridge/rust_bridge_repository.dart",
+    "text": "GUI 编辑",
+    "count": 1,
+    "category": "audit",
+    "reason": "已落盘的人工编辑/确认审计原因，语言切换不改变修订来源。"
+  },
+  {
+    "path": "ui/lib/l10n/localization.dart",
+    "text": "摘要",
+    "count": 1,
+    "category": "protocol",
+    "reason": "既有产物 content_type 值；显示标签独立映射中英文资源。"
+  },
+  {
+    "path": "ui/lib/l10n/localization.dart",
+    "text": "观点",
+    "count": 1,
+    "category": "protocol",
+    "reason": "既有产物 content_type 值；显示标签独立映射中英文资源。"
+  },
+  {
+    "path": "ui/lib/l10n/localization.dart",
+    "text": "灵感",
+    "count": 1,
+    "category": "protocol",
+    "reason": "既有产物 content_type 值；显示标签独立映射中英文资源。"
+  },
+  {
+    "path": "ui/lib/l10n/localization.dart",
+    "text": "脚本",
+    "count": 1,
+    "category": "protocol",
+    "reason": "既有产物 content_type 值；显示标签独立映射中英文资源。"
+  },
+  {
+    "path": "ui/lib/l10n/localization.dart",
+    "text": "AI 总结",
+    "count": 1,
+    "category": "protocol",
+    "reason": "既有产物 content_type 值；显示标签独立映射中英文资源。"
+  },
+  {
+    "path": "ui/lib/providers/conversation_provider.dart",
+    "text": "主对话流",
+    "count": 6,
+    "category": "identity",
+    "reason": "主对话历史识别与迁移使用的持久化身份值；界面标题由当前 locale 渲染。"
+  },
+  {
+    "path": "ui/lib/providers/conversation_provider.dart",
+    "text": "主对话流不存在：应用初始化未完成或主对话已被删除",
+    "count": 1,
+    "category": "diagnostic",
+    "reason": "内部日志/异常诊断原文；应用入口使用稳定错误或本地化回退，仅主动查看详情时展示。"
+  },
+  {
+    "path": "ui/lib/providers/tool_progress_details.dart",
+    "text": "[工具调用]",
+    "count": 1,
+    "category": "protocol",
+    "reason": "历史工具调用文本协议标记，用于过滤/识别协议，界面工具标签单独翻译。"
+  },
+  {
+    "path": "ui/lib/sync/sync_enrollment_controller.dart",
+    "text": "[sync-pairing] enrollment: pause 放弃等待失联的 tick ({arg0}s)",
+    "count": 1,
+    "category": "diagnostic",
+    "reason": "内部日志/异常诊断原文；应用入口使用稳定错误或本地化回退，仅主动查看详情时展示。"
+  },
+  {
+    "path": "ui/lib/utils/error_report.dart",
+    "text": "[{arg0}][ui] {arg1} 失败：{arg2}",
+    "count": 1,
+    "category": "diagnostic",
+    "reason": "内部日志/异常诊断原文；应用入口使用稳定错误或本地化回退，仅主动查看详情时展示。"
+  },
+  {
+    "path": "ui/lib/utils/error_report.dart",
+    "text": "[{arg0}][ui] {arg1} 堆栈：{arg2}",
+    "count": 1,
+    "category": "diagnostic",
+    "reason": "内部日志/异常诊断原文；应用入口使用稳定错误或本地化回退，仅主动查看详情时展示。"
+  },
+  {
+    "path": "ui/lib/utils/error_report.dart",
+    "text": "未捕获的框架异常",
+    "count": 1,
+    "category": "diagnostic",
+    "reason": "内部日志/异常诊断原文；应用入口使用稳定错误或本地化回退，仅主动查看详情时展示。"
+  },
+  {
+    "path": "ui/lib/utils/error_report.dart",
+    "text": "未捕获的异步异常",
+    "count": 1,
+    "category": "diagnostic",
+    "reason": "内部日志/异常诊断原文；应用入口使用稳定错误或本地化回退，仅主动查看详情时展示。"
+  },
+  {
+    "path": "ui/lib/widgets/markdown_view.dart",
+    "text": "[工具调用]",
+    "count": 1,
+    "category": "protocol",
+    "reason": "历史工具调用文本协议标记，用于过滤/识别协议，界面工具标签单独翻译。"
+  },
+  {
+    "path": "ui/lib/widgets/message_area.dart",
+    "text": "^进入主题[：:]\\s*(.+)$",
+    "count": 1,
+    "category": "protocol",
+    "reason": "兼容旧主题/AI消息格式的解析正则；用户原文不改写。"
+  },
+  {
+    "path": "ui/lib/widgets/message_area_parts/digest_insight_bubble.dart",
+    "text": "💡 认知洞察｜",
+    "count": 1,
+    "category": "protocol",
+    "reason": "用于解析已持久化洞察消息的旧正文分隔符；不作为应用标题输出。"
+  },
+  {
+    "path": "ui/lib/widgets/message_area_parts/digest_insight_bubble.dart",
+    "text": "\n\n建议行动：",
+    "count": 1,
+    "category": "protocol",
+    "reason": "用于解析已持久化洞察消息的旧正文分隔符；不作为应用标题输出。"
+  },
+  {
+    "path": "ui/lib/widgets/message_area_parts/digest_insight_bubble.dart",
+    "text": "\n\n来源：",
+    "count": 1,
+    "category": "protocol",
+    "reason": "用于解析已持久化洞察消息的旧正文分隔符；不作为应用标题输出。"
+  },
+  {
+    "path": "ui/lib/widgets/save_topic_dialog.dart",
+    "text": "^\\*{0,2}标题\\*{0,2}\\s*[:：]\\s*(.+?)\\s*$",
+    "count": 1,
+    "category": "protocol",
+    "reason": "兼容旧主题/AI消息格式的解析正则；用户原文不改写。"
+  },
+  {
+    "path": "ui/lib/widgets/save_topic_dialog.dart",
+    "text": "\\*{0,2}正文\\*{0,2}\\s*[:：]",
+    "count": 1,
+    "category": "protocol",
+    "reason": "兼容旧主题/AI消息格式的解析正则；用户原文不改写。"
+  },
+  {
+    "path": "ui/lib/widgets/save_topic_dialog.dart",
+    "text": "[（(]\\s*提交中[…\\.。]*\\s*[)）]\\s*$",
+    "count": 1,
+    "category": "protocol",
+    "reason": "兼容旧主题/AI消息格式的解析正则；用户原文不改写。"
+  },
+  {
+    "path": "ui/lib/widgets/save_topic_dialog.dart",
+    "text": "^\\s*\\*{0,2}(标题|类型)\\*{0,2}\\s*[:：]",
+    "count": 1,
+    "category": "protocol",
+    "reason": "兼容旧主题/AI消息格式的解析正则；用户原文不改写。"
+  },
+  {
+    "path": "ui/lib/widgets/wiki_ai_chat_panel_parts/panel_task.dart",
+    "text": "页内 AI 对话确认替换项目资产档案",
+    "count": 1,
+    "category": "audit",
+    "reason": "已落盘的人工编辑/确认审计原因，语言切换不改变修订来源。"
+  },
+  {
+    "path": "ui/lib/widgets/wiki_ai_chat_panel_parts/panel_task.dart",
+    "text": "AI 总结",
+    "count": 1,
+    "category": "protocol",
+    "reason": "既有产物 content_type 值；显示标签独立映射中英文资源。"
+  },
+  {
+    "path": "ui/lib/widgets/wiki_detail_page_chips.dart",
+    "text": "被mentions",
+    "count": 1,
+    "category": "protocol",
+    "reason": "既有反向关系 wire 别名；显示标签独立映射中英文。"
+  },
+  {
+    "path": "ui/lib/widgets/wiki_detail_page_chips.dart",
+    "text": "被part_of",
+    "count": 1,
+    "category": "protocol",
+    "reason": "既有反向关系 wire 别名；显示标签独立映射中英文。"
+  },
+  {
+    "path": "ui/lib/widgets/wiki_detail_page_chips.dart",
+    "text": "被supports",
+    "count": 1,
+    "category": "protocol",
+    "reason": "既有反向关系 wire 别名；显示标签独立映射中英文。"
+  },
+  {
+    "path": "ui/lib/widgets/wiki_detail_page_chips.dart",
+    "text": "被contradicts",
+    "count": 1,
+    "category": "protocol",
+    "reason": "既有反向关系 wire 别名；显示标签独立映射中英文。"
+  },
+  {
+    "path": "ui/lib/widgets/wiki_page_parts/wiki_detail_body_edit.dart",
+    "text": "GUI 编辑（冲突后覆盖）",
+    "count": 1,
+    "category": "audit",
+    "reason": "已落盘的人工编辑/确认审计原因，语言切换不改变修订来源。"
+  },
+  {
+    "path": "ui/lib/widgets/wiki_page_parts/wiki_detail_body_edit.dart",
+    "text": "GUI 编辑",
+    "count": 1,
+    "category": "audit",
+    "reason": "已落盘的人工编辑/确认审计原因，语言切换不改变修订来源。"
+  }
+]

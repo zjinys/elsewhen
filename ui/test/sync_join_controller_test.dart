@@ -1,3 +1,5 @@
+import 'package:elsewhen_ui/l10n/notice_messages.dart';
+import 'package:elsewhen_ui/l10n/app_localizations_zh.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -83,7 +85,7 @@ void main() {
     expect(f.bridge.proofs, 1);
     expect(f.storage.values['elsewhen.sync.revision.v1.join-install'], 'v1:2');
     expect(f.controller.state?.phase, 'proof_sent');
-    expect(f.controller.notice, contains('没有切换'));
+    expect(resolveNotice(f.controller.notice, AppLocalizationsZh()), contains('没有切换'));
     await f.close();
   });
 
@@ -154,7 +156,7 @@ void main() {
     await f.join();
     f.bridge.failProof = true;
     await f.controller.inspectApproval();
-    expect(f.controller.error, contains('中继步骤未确认'));
+    expect(resolveNotice(f.controller.error, AppLocalizationsZh()), contains('中继步骤未确认'));
     expect(f.controller.error, isNot(contains('SYNTHETIC_SECRET')));
     expect(f.bridge.proofs, 1);
     expect(f.bridge.released, isEmpty);

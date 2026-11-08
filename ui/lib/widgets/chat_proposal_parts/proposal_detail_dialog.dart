@@ -57,6 +57,12 @@ class _ChatProposalDetailDialogState
 
   List<String> get _editableFields => switch (_proposal.action) {
     'activate_rule' => ['content'],
+    'propose_planning_profile' => [
+      'skills',
+      'resources',
+      'limits',
+      'preferences',
+    ],
     'create_todo' => ['title', 'note', 'due_at', 'priority'],
     'save_knowledge_draft' => ['title', 'content_md'],
     'save_wiki_revision' => ['title', 'content_md', 'change_note'],
@@ -77,7 +83,7 @@ class _ChatProposalDetailDialogState
       'done_criteria',
     ],
     // P2 计划拆解：意图原文是身份锚不可改；假设/步骤是结构化数组，不入口
-    // 纯文本编辑（Dart toString 会污染 JSON）；本切片只放行文本型字段。
+    // 纯文本编辑（Dart toString 会污染 JSON）；本阶段只放行文本型字段。
     'create_plan' => ['vision', 'assessment'],
     _ => [],
   };
@@ -158,7 +164,9 @@ class _ChatProposalDetailDialogState
       // 面板模式下决策完成即通知父级刷新列表（面板内已显示回执，
       // 父级刷新后会收起面板，回执记录可在「处理记录」页查看）。
     } catch (e) {
-      if (mounted) setState(() => _error = '$e\n请关闭后重新打开审阅，不会自动接受新的版本。');
+      if (mounted) {
+        setState(() => _error = appFailure(e));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -189,11 +197,14 @@ class _ChatProposalDetailDialogState
                     TextButton.icon(
                       onPressed: _busy ? null : panelClose,
                       icon: const Icon(Icons.arrow_back_ios_new, size: 15),
-                      label: const Text('返回列表'),
+                      label: Text(context.l10n.backToList),
                     ),
                   const Spacer(),
                   Text(
-                    '${_actionLabel(_proposal.action)} · 版本 ${_proposal.version}',
+                    context.l10n.proposalVersion(
+                      _actionLabel(context, _proposal.action),
+                      _proposal.version.toString(),
+                    ),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ],
@@ -221,7 +232,10 @@ class _ChatProposalDetailDialogState
       canPop: !_busy,
       child: AlertDialog(
         title: Text(
-          '${_actionLabel(_proposal.action)} · 版本 ${_proposal.version}',
+          context.l10n.proposalVersion(
+            _actionLabel(context, _proposal.action),
+            _proposal.version.toString(),
+          ),
         ),
         content: SizedBox(
           width: 620,
@@ -241,15 +255,19 @@ class _ChatProposalDetailDialogState
   List<Widget> _detailBlocks(BuildContext context) => [
     if (_receipt != null) ...[
       Text(
-        _statusLabel(_receipt!.status),
+        _statusLabel(context, _receipt!.status),
         style: Theme.of(context).textTheme.titleMedium,
       ),
       _ReceiptText(_receipt!.result),
       const Divider(),
     ],
     if (_error != null)
-      Text(
-        _error!,
+      AppErrorMessage(
+        action: context.l10n.load,
+        error: _error!,
+        message: context.l10n.proposalReopen(
+          context.errorMessage(context.l10n.save, _error!),
+        ),
         style: TextStyle(color: Theme.of(context).colorScheme.error),
       ),
     if (_editing)
@@ -275,24 +293,28 @@ class _ChatProposalDetailDialogState
             decoration: InputDecoration(
               labelText:
                   {
-                    'title': '标题',
-                    'content_md': '正文',
+                    'title': context.l10n.proposalTitle,
+                    'content_md': context.l10n.proposalBody,
                     'content': _proposal.action == 'create_goal'
-                        ? '目标愿景'
-                        : '规则内容',
-                    'raw_text': '记录内容',
-                    'note': '备注',
-                    'due_at': '截止时间（ISO 8601，可留空）',
-                    'priority': '优先级（low/normal/high）',
-                    'change_note': '修改说明',
-                    'new_title': '新标题',
-                    'phase': '周期阶段（near/mid/long）',
-                    'vision': '愿景（可留空）',
-                    'assessment': '现实性评估（可留空）',
-                    'why': '为什么做 / 核心动力',
-                    'current_focus': '当前 1~2 周启动抓手',
-                    'blocker': '已知卡点 / 困难预判',
-                    'done_criteria': '完成判据 / 验收标准',
+                        ? context.l10n.goalVisionShort
+                        : context.l10n.ruleContent,
+                    'raw_text': context.l10n.recordContent,
+                    'note': context.l10n.note,
+                    'due_at': context.l10n.dueIsoOptional,
+                    'priority': context.l10n.priorityOptions,
+                    'change_note': context.l10n.changeNote,
+                    'new_title': context.l10n.newTitle,
+                    'phase': context.l10n.phaseOptions,
+                    'vision': context.l10n.visionOptional,
+                    'assessment': context.l10n.assessmentOptional,
+                    'why': context.l10n.whyMotivation,
+                    'skills': context.l10n.skillsExperience,
+                    'resources': context.l10n.availableResources,
+                    'limits': context.l10n.timeConstraints,
+                    'preferences': context.l10n.preferencesBoundaries,
+                    'current_focus': context.l10n.actionWeeks,
+                    'blocker': context.l10n.obstaclesExpected,
+                    'done_criteria': context.l10n.completionCriteria,
                   }[entry.key] ??
                   entry.key,
             ),
@@ -303,10 +325,10 @@ class _ChatProposalDetailDialogState
       _ProposalContent(argsJson: _proposal.argsJson),
     if (_proposal.targetBasisJson != '[]')
       ExpansionTile(
-        title: const Text('审阅所依据的目标版本'),
+        title: Text(context.l10n.reviewGoalBasis),
         children: [SelectableText(_proposal.targetBasisJson)],
       ),
-    if (_editing) const Text('保存修改只更新草稿；重新查看后，仍需点击接受才执行业务操作。'),
+    if (_editing) Text(context.l10n.editDraftHint),
   ];
 
   Widget _actionButtons(BuildContext context) {
@@ -325,29 +347,31 @@ class _ChatProposalDetailDialogState
                 : () {
                     Navigator.maybePop(context, _changed);
                   },
-            child: const Text('关闭'),
+            child: Text(context.l10n.close),
           ),
         if (_receipt == null && !_editing) ...[
           if (_editableFields.isNotEmpty && _args(_proposal.argsJson) != null)
             TextButton(
               onPressed: _busy ? null : _beginEdit,
-              child: const Text('编辑'),
+              child: Text(context.l10n.edit),
             ),
           TextButton(
             onPressed: _busy ? null : () => _decide(false),
-            child: const Text('拒绝这项'),
+            child: Text(context.l10n.rejectThis),
           ),
           FilledButton(
             onPressed: _busy || _args(_proposal.argsJson) == null
                 ? null
                 : () => _decide(true),
-            child: Text(_busy ? '处理中…' : '接受这项'),
+            child: Text(
+              _busy ? context.l10n.processingEllipsis : context.l10n.acceptThis,
+            ),
           ),
         ],
         if (_editing)
           FilledButton(
             onPressed: _busy ? null : _saveEdit,
-            child: const Text('保存修改，不执行'),
+            child: Text(context.l10n.saveWithoutExecution),
           ),
       ],
     );
@@ -388,7 +412,7 @@ class _ReceiptTextState extends State<_ReceiptText> {
             alignment: Alignment.centerLeft,
             child: TextButton(
               onPressed: () => setState(() => _expanded = true),
-              child: Text('展开完整回执（全文 ${result.length} 字）'),
+              child: Text(context.l10n.fullReceiptCount(result.length)),
             ),
           ),
       ],

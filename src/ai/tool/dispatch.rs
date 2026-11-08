@@ -7,7 +7,7 @@ use crate::storage::Store;
 use anyhow::{Context, Result};
 use serde_json::{Value, json};
 
-pub(super) fn user_skills_roster() -> String {
+pub(super) fn user_skills_roster(registry: &ToolRegistry) -> String {
     let Ok(cfg) = crate::config::AppConfig::load() else {
         return String::new();
     };
@@ -20,13 +20,14 @@ pub(super) fn user_skills_roster() -> String {
             let total = active.len();
             let mut out = String::new();
             for skill in active.iter().take(crate::ai::skills::USER_SKILL_LIMIT) {
-                out.push_str(&format!("- {}（用户技能）：{}\n", skill.id, skill.brief));
+                out.push_str(&registry.meta_render(
+                    "user_skill_roster",
+                    format!("- {}（用户技能）：{}\n", skill.id, skill.brief),
+                    &[("id", skill.id.clone()), ("brief", skill.brief.clone())],
+                ));
             }
             if total > crate::ai::skills::USER_SKILL_LIMIT {
-                out.push_str(&format!(
-                    "（用户技能共 {total} 个，仅列出前 {} 个；其余仍可按名称 enable，但请在设置页建议用户清理不用的技能）\n",
-                    crate::ai::skills::USER_SKILL_LIMIT
-                ));
+                out.push_str(&registry.meta_render("user_skill_more", format!("（用户技能共 {total} 个，仅列出前 {} 个；其余仍可按名称 enable，但请在设置页建议用户清理不用的技能）\n", crate::ai::skills::USER_SKILL_LIMIT), &[("total", total.to_string()), ("limit", crate::ai::skills::USER_SKILL_LIMIT.to_string())]));
             }
             out
         }
@@ -156,11 +157,7 @@ impl ToolRegistry {
         self.tools
             .iter()
             .filter(|tool| allow_record_event || tool.name() != "record_event")
-            .map(|t| ToolSpec {
-                name: t.name().to_string(),
-                description: t.description().to_string(),
-                parameters: t.parameters_schema(),
-            })
+            .map(|t| self.builtin_spec(t.as_ref()))
             .chain(self.mcp_tools.iter().map(|t| ToolSpec {
                 name: t.name.clone(),
                 description: t.description.clone(),
@@ -175,7 +172,26 @@ impl ToolRegistry {
     }
 
     pub fn prompt_block_for(&self, allow_record_event: bool) -> String {
-        Self::prompt_for_specs(&self.provider_specs_for(allow_record_event))
+        self.localized_prompt_for_specs(&self.provider_specs_for(allow_record_event))
+    }
+
+    pub(crate) fn localized_prompt_for_specs(&self, specs: &[ToolSpec]) -> String {
+        let mut out = self.meta_literal("tools_header", "可用工具（name：用途）：\n");
+        for spec in specs {
+            out.push_str(&self.meta_render(
+                "tool_prompt",
+                format!(
+                    "- {}：{}\n参数 JSON Schema：{}\n",
+                    spec.name, spec.description, spec.parameters
+                ),
+                &[
+                    ("name", spec.name.clone()),
+                    ("description", spec.description.clone()),
+                    ("schema", spec.parameters.to_string()),
+                ],
+            ));
+        }
+        out
     }
 
     pub fn prompt_for_specs(specs: &[ToolSpec]) -> String {

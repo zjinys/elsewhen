@@ -1,3 +1,5 @@
+import '../l10n/notice_messages.dart';
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -81,7 +83,7 @@ class SyncJoinController extends ChangeNotifier {
         return;
       }
       _accept(next);
-      notice = '已批准的交接正在自动协调；初始快照、回执和当前数据集切换是不同阶段。';
+      notice = appNotice('l6TheApprovedHandoffIsBeingCoordinated7e9e2');
       _changed();
     } catch (_) {
       // Keep the displayed operation, never adopt a newer session on a late read.
@@ -91,7 +93,7 @@ class SyncJoinController extends ChangeNotifier {
   void enrollmentReleased(api.SyncEnrollmentStateDto released) {
     if (released.role != 'joiner' || released.operationId != _operation) return;
     _operation = null;
-    error = '交接的原生修订未能确认，已停止本机会话。请解锁恢复原暂存项，不要重新加入。';
+    error = appNotice('l6TheNativeHandoffRevisionCouldNot775d0');
     _changed();
   }
 
@@ -114,7 +116,7 @@ class SyncJoinController extends ChangeNotifier {
     if (active) throw StateError('sync_join_already_open');
     debugPrint('[sync-pairing] joiner: preview invitation (offline decode)');
     _own(await _bridge.preview(code.trim()));
-    notice = '预览未连接中继。请核对邀请来源、地址和设备指纹。';
+    notice = appNotice('l6PreviewDidNotConnectToThed4c19');
   });
 
   Future<void> join(
@@ -124,7 +126,7 @@ class SyncJoinController extends ChangeNotifier {
     required bool consent,
   }) async {
     if (!consent || name.trim().isEmpty) {
-      error = '填写设备名称，并明确同意连接显示的中继、接收 Provider 配置和 API Key。';
+      error = appNotice('l6EnterADeviceNameAndExplicitly802c8');
       _changed();
       return;
     }
@@ -149,7 +151,7 @@ class SyncJoinController extends ChangeNotifier {
         debugPrint(
           '[sync-pairing] joiner: request delivered, owner fingerprint=${state?.ownerFingerprint}',
         );
-        notice = '加入请求已投递。请在已有设备核对本机指纹并明确批准。';
+        notice = appNotice('l6JoinRequestDeliveredVerifyThisDevice8e98f');
       }
     });
   }
@@ -158,7 +160,9 @@ class SyncJoinController extends ChangeNotifier {
     final pending = await _bridge.pending();
     _requireOpen();
     entries = pending;
-    notice = pending.isEmpty ? '没有未完成的加入暂存项。' : '恢复只读取原安装的密钥，不会创建替代密钥。';
+    notice = pending.isEmpty
+        ? appNotice('l6NoUnfinishedEnrollmentStagingEntriesaa853')
+        : appNotice('l6RecoveryReadsTheOriginalInstallationS770c9');
   });
 
   /// 删除一个可恢复的加入暂存项：Rust 端只受理 staging（ready 数据集
@@ -170,7 +174,7 @@ class SyncJoinController extends ChangeNotifier {
       await _keys.deleteInstallation(entry.installationId);
     } catch (_) {
       // 密钥抹除失败不回滚 staging 删除：数据目录已清，残键无害孤儿。
-      notice = '暂存项已删除，但本机密钥清理失败，可稍后在密钥健康里检查。';
+      notice = appNotice('l6StagingEntryDeletedButKeyCleanup3ce20');
       final pending = await _bridge.pending();
       _requireOpen();
       entries = pending;
@@ -179,7 +183,9 @@ class SyncJoinController extends ChangeNotifier {
     final pending = await _bridge.pending();
     _requireOpen();
     entries = pending;
-    notice = '已删除暂存项「${entry.name}」。';
+    notice = appNotice('l6StagingEntryArg0Deleted0f067', [
+      (entry.name).toString(),
+    ]);
   });
 
   Future<void> resume(api.SyncJoinEntryDto entry) => _action(() async {
@@ -197,7 +203,7 @@ class SyncJoinController extends ChangeNotifier {
     _requireOpen();
     if (state?.phase == 'awaiting_membership') {
       _accept(await _bridge.sendProof(_operation!));
-      notice = '已重发原安装证明，仍等待成员授权和初始同步；没有重新批准或重新生成密钥。';
+      notice = appNotice('l6OriginalInstallationProofResentWaitingForee8e7');
     }
   });
 
@@ -273,7 +279,7 @@ class SyncJoinController extends ChangeNotifier {
     final operation = _operation;
     if (operation == null) throw StateError('sync_join_session_missing');
     _accept(await _bridge.sendRequest(operation));
-    notice = '已按原请求重发，等待已有设备明确批准。';
+    notice = appNotice('l6OriginalRequestResentWaitingForExplicitb70c0');
   });
 
   Future<void> inspectApproval() => _action(() async {
@@ -286,9 +292,11 @@ class SyncJoinController extends ChangeNotifier {
       await _confirm(next);
       _requireOpen();
       _accept(await _bridge.sendProof(operation));
-      notice = '安装证明已投递；仍等待成员授权和初始同步，当前数据集没有切换。';
+      notice = appNotice(
+        'l6InstallationProofDeliveredWaitingForAuthorization69cc4',
+      );
     } else {
-      notice = '尚未收到可用审批，请在已有设备核对并批准。';
+      notice = appNotice('l6NoUsableApprovalYetVerifyAnd0b6c4');
     }
   });
 
@@ -296,7 +304,7 @@ class SyncJoinController extends ChangeNotifier {
     final operation = _operation;
     if (operation == null) throw StateError('sync_join_session_missing');
     _accept(await _bridge.sendProof(operation));
-    notice = '已重发同一安装证明；投递不表示设备已加入或同步完成。';
+    notice = appNotice('l6TheSameInstallationProofWasResent1abc4');
   });
 
   Future<void> _releaseOwned() async {
@@ -309,7 +317,7 @@ class SyncJoinController extends ChangeNotifier {
   Future<void> cancel() => _action(() async {
     await _releaseOwned();
     state = null;
-    notice = '已停止本机加入流程，暂存库和密钥保留。临时投递权限会到期；本操作不撤销已发出的请求或可能已获批准的成员资格。';
+    notice = appNotice('l6EnrollmentStoppedStagedDataAndKeys9b648');
   });
 
   Future<void> close() async {
@@ -326,34 +334,40 @@ class SyncJoinController extends ChangeNotifier {
   String _message(Object failure) {
     if (failure is SyncKeyStoreException) {
       return switch (failure.code) {
-        SyncKeyStoreError.missing => '缺少本机密钥或受保护修订，不能恢复；不会生成替代密钥。',
-        SyncKeyStoreError.revisionRollback => '受保护修订发生回退，已停止加入；原库和暂存数据保留。',
-        SyncKeyStoreError.corrupt => '本机密钥记录损坏，已停止加入；不会覆盖已有密钥。',
-        _ => '系统密钥库未能安全保存或回读，已停止加入；解锁系统密钥库后恢复暂存项。',
+        SyncKeyStoreError.missing => appNotice(
+          'l6DeviceKeysOrProtectedRevisionsAre5de96',
+        ),
+        SyncKeyStoreError.revisionRollback => appNotice(
+          'l6ProtectedRevisionsRolledBackEnrollmentStoppedd7e35',
+        ),
+        SyncKeyStoreError.corrupt => appNotice(
+          'l6DeviceKeyRecordsAreDamagedEnrollment76c86',
+        ),
+        _ => appNotice('l6SecureKeyStorageCouldNotSave6f761'),
       };
     }
     final text = failure.toString();
     if (text.contains('runtime_in_use') ||
         text.contains('already_open') ||
         text.contains('processing_must_finish')) {
-      return '工作区已有同步会话或后台任务，请先结束任务或锁定当前同步，再发起加入。';
+      return appNotice('l6ThisWorkspaceHasAnActiveSync69142');
     }
     if (text.contains('expired') ||
         text.contains('requires_new_invitation') ||
         text.contains('not_recoverable')) {
-      return '本次邀请已过期或没有可恢复的已审批检查点。请停止本次流程并获取新邀请；已有数据保留。';
+      return appNotice('l6TheInvitationExpiredOrHasNo6c654');
     }
     if (text.contains('delivery_unconfirmed') ||
         text.contains('relay_unavailable')) {
-      return '中继步骤未确认。可检查审批或重发原请求/已保存的证明，不要重新生成密钥。';
+      return appNotice('l6TheRelayStepIsUnconfirmedCheck92aea');
     }
-    return '加入步骤未完成，已停止继续推进。请检查原邀请、解锁状态和暂存项；当前数据集未切换。';
+    return appNotice('l6EnrollmentIsIncompleteAndHasStopped1c448');
   }
 
   Future<void> _action(Future<void> Function() action) async {
     if (busy || _closed || _disposed || isSessionBusy?.call() == true) return;
     if (!previewEnabled) {
-      error = '设备同步已在当前构建中关闭（编译开关 ELSEWHEN_SYNC_PREVIEW）。';
+      error = appNotice('l6DeviceSyncIsDisabledInThise1b42');
       _changed();
       return;
     }
@@ -364,7 +378,7 @@ class SyncJoinController extends ChangeNotifier {
     _changed();
     // 配对请求/核对审批/投递证明都是中继上的网络往返；本步没做完就
     // 被系统冻结会退化成「发了但永远没回」。
-    SyncKeepAlive.hold('sync-join', text: '正在与已有设备配对');
+    SyncKeepAlive.hold('sync-join');
     try {
       final coordinator = enrollment;
       if (coordinator != null && coordinator.enabled) {

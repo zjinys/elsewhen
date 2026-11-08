@@ -31,6 +31,10 @@ pub fn propose_people_relations_from_events(store: &Store) -> Result<serde_json:
         anyhow::bail!("事件库为空，没有可提取的内容");
     }
 
+    let _scope = store.prompt_scope(
+        "background_task",
+        &format!("people-relations:{}", uuid::Uuid::new_v4()),
+    )?;
     // @/# 标注：用户在事件里明确写死的实体，权威且必须全部纳入
     let annotations: AnnotationSet =
         parse_annotations_many(events.iter().map(|e| e.raw_text.as_str()));
@@ -44,32 +48,34 @@ pub fn propose_people_relations_from_events(store: &Store) -> Result<serde_json:
     }
     let mut annotated = String::new();
     if !annotations.people.is_empty() {
-        annotated.push_str(&format!("联系人标注：{}\n", annotations.people.join("、")));
+        annotated.push_str(&store.render_knowledge_instruction(
+            "relations_people",
+            &[("people", annotations.people.join("、"))],
+        )?);
     }
     if !annotations.targets.is_empty() {
-        annotated.push_str(&format!(
-            "事情/项目标注：{}",
-            annotations.targets.join("、")
-        ));
+        annotated.push_str(&store.render_knowledge_instruction(
+            "relations_targets",
+            &[("targets", annotations.targets.join("、"))],
+        )?);
     }
 
-    let system = r#"你是 elsewhen 个人知识库的「联系人关系」批量提取器。任务：阅读用户的事件，输出「联系人 + 联系人↔事情/项目关系」。
-
-抽取规则：
-- 事件里用 @人名 标注的一定是人、#事情 标注的一定是事情/项目（如「@李四 负责 #网站改版」）。已标注实体必须全部纳入 people / relations；同名但备注不同（「李四（市场部）」「李四（设计）」）是不同的人，不能合并。
-- 未标注的联系人：只提取信息具体、对用户重要的人（有称呼、有身份或参与的明确事情），不为随口一提的名字建条目。
-- relations 的 person/target 必须来自 people 或已标注实体；relation 用 负责/参与/合作/对接/跟进/顾问 等 2~4 字动词。
-- role_note 一句话身份/背景，来自事件上下文；没有可写信息就留空字符串。
-- 宁缺毋滥：没有把握的关系不要编造。
-
-严格输出 JSON（不要代码块围栏、不要其他任何文字）：
-{"people":[{"name":"姓名","role_note":"身份备注"}],"relations":[{"person":"姓名","target":"事情/项目","relation":"负责","note":"补充说明"}]}"#;
-    let user = format!(
-        "共 {total} 条事件（展示最近 {} 条）：\n\n{event_lines}\n{annotated}",
-        sampled.len()
+    let system = format!(
+        "{}\n{}",
+        store.render_knowledge_instruction("relations_system", &[])?,
+        store.output_language_directive(false)?
     );
+    let user = store.render_knowledge_instruction(
+        "relations_input",
+        &[
+            ("total", total.to_string()),
+            ("count", sampled.len().to_string()),
+            ("events", event_lines),
+            ("annotations", annotated),
+        ],
+    )?;
 
-    let reply = call_provider(store, system, &user, 4000)?;
+    let reply = call_provider(store, &system, &user, 4000)?;
     let parsed = parse_json_value(&reply).map_err(|_| {
         anyhow::anyhow!(
             "批量提取失败：AI 返回无法解析——{}…",
@@ -154,32 +160,6 @@ fn parse_json_value(reply: &str) -> Result<serde_json::Value> {
     anyhow::bail!("无法解析 AI 返回的 JSON")
 }
 
-const DIGEST_SYSTEM_PROMPT: &str = r#"你是 elsewhen 个人知识库的 wiki 维护者。任务：读新事件，把它们承载的"持久事实"提炼并写进 wiki 页面。
-
-页面 kind 枚举（必须严格使用其一）：
-- profile：关于用户身份、背景、状态的基本事实
-- person：对话/事件中出现的重要联系人（姓名、身份、TA 参与或负责的事情/项目），一人一页，跨事件合并，不重复建档
-- recurring_cost：反复出现的固定支出或反复动作（通勤、固定费用、例行事务）
-- capability：用户掌握的技能/能力（含正在学习的）
-- asset：用户拥有但可能闲置/未充分利用的资产（设备、空间、时间块、关系）
-- project：用户参与的项目
-- relationship：重要人际关系/合作
-- decision：重要决策及理由（尤其涉及钱、时间、取舍的）
-- habit：规律习惯
-- constraint：约束条件
-- topic：其他值得长期记住的主题
-
-写页规则：
-- 只提炼事件里【有依据】的事实，绝不编造；不确定就在内容里标注（待确认）。
-- slug：小写 kebab-case，格式 <kind 去下划线>/<简短名>，例如 recurring-cost/dongguan-huizhou-commute。
-- 已有页面需要更新时 op=update，给出【全文新内容】（基于旧内容增量修补，不丢失旧事实）。
-- 若事件没有产生任何新事实，返回空数组。
-- 索引或「相关现有页面全文」中已有同主题页时【必须 op=update】，不得新建同义
-  slug；凡标题或标签命中的候选页，逐页判断是否需要更新，并在 reason 里说明
-  为什么改或不改。
-- 每个页面变更的 source_event_ids 必须列出支撑它的事件编号（至少一个，只能用本次给出的编号）。
-- 宁缺毋滥：一条事件 0~2 个页面变更，允许 0；与已有页相关时优先更新而不是新建。"#;
-
 /// LLM 返回的页面变更提议
 #[derive(Debug, Clone, Deserialize)]
 pub struct DigestProposal {
@@ -202,8 +182,18 @@ pub struct DigestProposal {
 /// 单批最多事件数与事件原文字符预算（提示词里还会附带索引与相关页全文）。
 const DIGEST_BATCH_MAX_EVENTS: usize = 20;
 const DIGEST_BATCH_MAX_CHARS: usize = 6000;
-/// 单条事件在提示词里的展示上限（超长事件单独成批时防止上下文失控）。
-const DIGEST_EVENT_MAX_CHARS: usize = 4000;
+// Auxiliary knowledge must not grow with the entire library. Count UTF-8
+// bytes here, matching the conservative estimator used for unknown models.
+const DIGEST_INDEX_MAX_BYTES: usize = 8000;
+const DIGEST_INDEX_MAX_PAGES: usize = 24;
+
+fn utf8_prefix(text: &str, max_bytes: usize) -> &str {
+    let mut end = text.len().min(max_bytes);
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    &text[..end]
+}
 
 /// 后台知识消化一次 tick 的结果。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -223,44 +213,48 @@ fn build_digest_user_prompt(
     events: &[EventRecord],
     store: &Store,
     max_chars: usize,
+    index_bytes: usize,
+    ranked: &[crate::storage::WikiPage],
 ) -> Result<String> {
-    let mut out = String::from("这是等待消化的新事件（[编号] 时间 | 内容）：\n");
+    let mut out = store.render_processing_instruction("digest_events", &[])?;
     for (i, e) in events.iter().enumerate() {
-        let text: String = e.raw_text.chars().take(DIGEST_EVENT_MAX_CHARS).collect();
-        out.push_str(&format!("[{}] {} | {}\n", i + 1, e.recorded_at, text));
+        out.push_str(&format!("[{}] {} | {}\n", i + 1, e.recorded_at, e.raw_text));
     }
 
-    let pages = store.list_wiki_pages(None, None)?;
-    let index = build_index_md(&pages);
-    out.push_str("\n当前 wiki 索引：\n");
+    let mut index_pages = Vec::new();
+    for page in ranked.iter().take(DIGEST_INDEX_MAX_PAGES) {
+        let mut compact = page.clone();
+        compact.summary = utf8_prefix(&compact.summary, 480).to_string();
+        index_pages.push(compact);
+    }
+    let mut index = String::new();
+    for line in build_index_md(&index_pages).lines() {
+        if index.len() + line.len() + 1 > index_bytes {
+            break;
+        }
+        index.push_str(line);
+        index.push('\n');
+    }
+    out.push_str(&store.render_processing_instruction("digest_index", &[])?);
     out.push_str(&index);
 
-    // memo 全文不进 digest 上下文（只留给「知识引用式」按需挂载，评审 D3）。
-    let kinds: Vec<&str> = WIKI_KINDS
-        .iter()
-        .copied()
-        .filter(|k| *k != "memo")
-        .collect();
-    // 提案 A：相关性选页——本批事件提到的页必然拿到正文，不再只看证据数。
-    let context = select_context_pages_for_events(events, pages, &kinds, max_chars);
-    if !context.is_empty() {
-        out.push_str("\n相关现有页面全文（合并/更新时参考）：\n");
-        for p in &context {
-            let cost = p.content_md.len().min(4000);
-            out.push_str(&format!(
-                "\n--- {} ---\n{}",
-                p.slug,
-                p.content_md.chars().take(cost).collect::<String>()
-            ));
+    let mut used = 0;
+    let mut wrote_header = false;
+    for page in ranked {
+        let body = utf8_prefix(&page.content_md, page.content_md.len().min(4000));
+        let detail = format!("\n--- {} ---\n{}", page.slug, body);
+        if used + detail.len() > max_chars {
+            continue;
         }
+        if !wrote_header {
+            out.push_str(&store.render_processing_instruction("digest_pages", &[])?);
+            wrote_header = true;
+        }
+        out.push_str(&detail);
+        used += detail.len();
     }
 
-    out.push_str(
-        "\n\n输出 JSON 数组，不要输出任何其他文字、不要代码块围栏：\n\
-         [{\"op\":\"create|update\",\"kind\":\"...\",\"slug\":\"...\",\"title\":\"...\",\n\
-         \"summary\":\"一行摘要\",\"content\":\"markdown 正文，用 - 要点\",\n\
-         \"tags\":[\"...\"],\"source_event_ids\":[\"编号\"],\"reason\":\"为什么建/改\"}]",
-    );
+    out.push_str(&store.render_processing_instruction("digest_output", &[])?);
     Ok(out)
 }
 
@@ -303,14 +297,19 @@ pub fn process_digest_queue(
     model: Option<&str>,
 ) -> Result<DigestTick> {
     store.settle_digest_queue()?;
-    let Some(batch) =
+    let Some(mut batch) =
         store.claim_digest_batch(DIGEST_BATCH_MAX_EVENTS, DIGEST_BATCH_MAX_CHARS, model)?
     else {
         return Ok(DigestTick::Idle);
     };
+    let bundle = store.digest_prompt_bundle(&batch.id)?;
+    let _prompt_scope = store.use_prompt_bundle(&bundle);
+    let applied =
+        digest_batch_drafts(store, provider, &batch.events).and_then(|(drafts, selected)| {
+            store.resize_digest_batch(&mut batch, selected)?;
+            store.apply_digest_batch(&batch, &drafts)
+        });
     let events = batch.events.len();
-    let applied = digest_batch_drafts(store, provider, &batch.events)
-        .and_then(|drafts| store.apply_digest_batch(&batch, &drafts));
     match applied {
         Ok(outcome) => Ok(DigestTick::Processed { events, outcome }),
         Err(error) => {
@@ -329,15 +328,113 @@ fn digest_batch_drafts(
     store: &Store,
     provider: &dyn AiProvider,
     events: &[EventRecord],
-) -> Result<Vec<WikiPageDraft>> {
-    let user = build_digest_user_prompt(events, store, 8000)?;
+) -> Result<(Vec<WikiPageDraft>, usize)> {
+    let system = format!(
+        "{}\n{}\n{}",
+        store.prompt_for_run("digest.policy")?,
+        store.prompt_for_run("digest.fixed_contract")?,
+        store.output_language_directive(false)?
+    );
+    // One library snapshot per tick; no repeated full scans for token probes.
+    let pages = store.list_wiki_pages(None, None)?;
+    let kinds: Vec<&str> = WIKI_KINDS
+        .iter()
+        .copied()
+        .filter(|kind| *kind != "memo")
+        .collect();
+    let ranked_cache = std::cell::RefCell::new(None::<(usize, Vec<crate::storage::WikiPage>)>);
+    let selected = std::cell::Cell::new(0usize);
+    // Preparation is local and repeated for each actual failover candidate.
+    let prepare = |fits: &crate::ai::provider::RequestFit<'_>| {
+        let request = |count: usize,
+                       detail_bytes: usize,
+                       index_bytes: usize|
+         -> Result<Vec<ContextMessage>> {
+            let mut cache = ranked_cache.borrow_mut();
+            if (detail_bytes > 0 || index_bytes > 0)
+                && cache.as_ref().map(|(cached, _)| *cached) != Some(count)
+            {
+                *cache = Some((
+                    count,
+                    select_context_pages_for_events(
+                        &events[..count],
+                        pages.clone(),
+                        &kinds,
+                        usize::MAX,
+                    ),
+                ));
+            }
+            let ranked = if detail_bytes == 0 && index_bytes == 0 {
+                &[][..]
+            } else {
+                cache
+                    .as_ref()
+                    .expect("ranked material prepared")
+                    .1
+                    .as_slice()
+            };
+            Ok(vec![
+                ContextMessage::new("system", system.clone()),
+                ContextMessage::new(
+                    "user",
+                    build_digest_user_prompt(
+                        &events[..count],
+                        store,
+                        detail_bytes,
+                        index_bytes,
+                        ranked,
+                    )?,
+                ),
+            ])
+        };
+        // Required input is admitted first. Never trim an event to make it fit.
+        let mut count = events.len();
+        loop {
+            let required = request(count, 0, 0)?;
+            if fits(&required)? {
+                break;
+            }
+            if count == 1 {
+                return Err(crate::ai::budget::RequestBudgetError(
+                    "digest_required_input_exceeds_budget: 单条完整事件与固定指令已超出该 Provider 输入预算；事件保留在队列中，未截断或确认为已消化".into()).into());
+            }
+            count -= 1;
+        }
+        // Allocate optional relevance context against the exact transport
+        // envelope, tokenizer, output reserve and configured context window.
+        let mut low = 0;
+        let mut high = DIGEST_INDEX_MAX_BYTES;
+        let mut best = request(count, 0, 0)?;
+        while low < high {
+            let size = low + (high - low).div_ceil(2);
+            let candidate = request(count, size, size)?;
+            if fits(&candidate)? {
+                low = size;
+                best = candidate;
+            } else {
+                high = size - 1;
+            }
+        }
+        crate::logging::log_always(&format!(
+            "[digest-budget] prepared events={}/{} optional_context_bytes={} messages={}",
+            count,
+            events.len(),
+            low,
+            best.len()
+        ));
+        selected.set(count);
+        Ok(best)
+    };
     let reply = provider
-        .generate_reply(vec![
-            ContextMessage::new("system", DIGEST_SYSTEM_PROMPT.to_string()),
-            ContextMessage::new("user", user),
-        ])
+        .generate_prepared(&prepare)
         .context("调用模型失败")?
         .content;
+    let selected = selected.get();
+    anyhow::ensure!(
+        selected > 0 && selected <= events.len(),
+        "digest preparation did not select an event batch"
+    );
+    let events = &events[..selected];
     let mut proposals = parse_proposals(&reply)?;
     // 先补全模型漏写的 kind 前缀，再做同义新建重定向。缺前缀的 slug 是
     // 「同一习惯被当成新页」的直接来源：例如 habit 提案给 after-lunch-walk，
@@ -345,10 +442,11 @@ fn digest_batch_drafts(
     normalize_proposal_slugs(store, &mut proposals)?;
     // 提案 B：同义新建改写为对既有页的 update（kind+归一化标题+tag 重合）。
     let proposals = redirect_synonym_creates(store, proposals)?;
-    proposals
+    let drafts = proposals
         .iter()
         .map(|p| proposal_to_draft(p, events))
-        .collect()
+        .collect::<Result<Vec<_>>>()?;
+    Ok((drafts, selected))
 }
 
 /// 补全 digest 提议里漏写的 kind 前缀（如 `after-lunch-walk` →

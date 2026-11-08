@@ -85,7 +85,7 @@ pub(crate) mod failover;
 mod ollama;
 mod openai;
 
-pub use contract::{AiProvider, AiReply, ProviderEvent, TokenUsage};
+pub use contract::{AiProvider, AiReply, PrepareRequest, ProviderEvent, RequestFit, TokenUsage};
 pub(crate) use failover::{
     FailoverEntry, FailoverProvider, active_first_provider_chain, last_good_background_provider,
 };

@@ -319,6 +319,22 @@ impl Store {
         Ok(())
     }
 
+    pub(crate) fn sync_delete_goal(&self, id: &str) -> Result<()> {
+        if self.sync_identity()?.is_none() {
+            return Ok(());
+        }
+        let goal = self.sync_goal_record(id)?.context("sync_goal_missing")?;
+        let base_revision = self.sync_object_head("goal", id)?.map(|h| h.0);
+        if let Some(op_id) = self.append_sync_mutation(SyncMutation::GoalChanged {
+            goal,
+            base_revision,
+            deleted: true,
+        })? {
+            self.sync_set_head("goal", id, &op_id, true)?;
+        }
+        Ok(())
+    }
+
     /// 计划捕获点（新建/元数据/状态同一入口）。删除必须先捕获再删行；
     /// `deleted=true` 随整行广播，收端物理删行。
     pub(crate) fn sync_record_plan(&self, id: &str, deleted: bool) -> Result<()> {

@@ -41,7 +41,15 @@ class _IssueResolutionState
           .resolutionTargets(widget.issue.fingerprint);
       if (mounted) setState(() => _targets = targets);
     } catch (e) {
-      if (mounted) setState(() => _error = _failure(e, '读取可关联知识'));
+      if (mounted) {
+        setState(
+          () => _error = _failure(
+            context,
+            e,
+            context.l10n.l6LoadLinkableKnowledgea71cb,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -60,7 +68,15 @@ class _IssueResolutionState
           .revisions(slug!);
       if (mounted) setState(() => _revision = revisions.firstOrNull);
     } catch (e) {
-      if (mounted) setState(() => _error = _failure(e, '读取解决修订'));
+      if (mounted) {
+        setState(
+          () => _error = _failure(
+            context,
+            e,
+            context.l10n.l6LoadResolutionRevision2bf89,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -85,7 +101,7 @@ class _IssueResolutionState
       widget.onChanged();
     } catch (e) {
       if (mounted) {
-        setState(() => _error = '${_failure(e, '关联解决记录')} 来源或修订可能已变化，请重新选择。');
+        setState(() => _error = appFailure(e));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -94,21 +110,24 @@ class _IssueResolutionState
 
   @override
   Widget build(BuildContext context) => _done
-      ? const Text('已保存解决记录')
+      ? Text(context.l10n.l6ResolutionSavedf80e5)
       : ExpansionTile(
-          title: const Text('关联解决记录'),
-          subtitle: const Text('将问题关联到覆盖全部依据的知识修订'),
+          title: Text(context.l10n.l6LinkedResolutionsb26bd),
+          subtitle: Text(context.l10n.l6LinkTheIssueToAKnowledge08e6c),
           onExpansionChanged: (open) {
             if (open && _targets == null && !_busy) _load();
           },
           children: [
             if (_targets?.isEmpty ?? false)
-              const Text('暂无覆盖这些来源的知识页。请先在相关主题中整理分歧及适用条件，再回到此处关联。'),
+              Text(context.l10n.l6NoKnowledgePageCoversTheseSources10eed),
             if (_targets?.isNotEmpty ?? false)
               DropdownButtonFormField<String>(
                 initialValue: _slug,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: '解决问题的知识页'),
+                decoration: InputDecoration(
+                  labelText:
+                      context.l10n.l6KnowledgePageThatResolvesTheIssueb3d20,
+                ),
                 items: [
                   for (final p in _targets!)
                     DropdownMenuItem(
@@ -119,9 +138,13 @@ class _IssueResolutionState
                 onChanged: _busy ? null : _select,
               ),
             if (_revision != null) ...[
-              Text('当前修订：${_revision!.createdAt}'),
+              Text(
+                context.l10n.l6CurrentRevisionArg0beb34(
+                  (_revision!.createdAt).toString(),
+                ),
+              ),
               ExpansionTile(
-                title: const Text('核对修订正文'),
+                title: Text(context.l10n.l6ReviewRevisionContent73b70),
                 children: [
                   SelectionArea(
                     child: MarkdownView(markdown: _revision!.contentMd),
@@ -133,20 +156,25 @@ class _IssueResolutionState
                 maxLength: 1000,
                 minLines: 2,
                 maxLines: 4,
-                decoration: const InputDecoration(labelText: '这次修订如何处理分歧'),
+                decoration: InputDecoration(
+                  labelText: context
+                      .l10n
+                      .l6HowThisRevisionResolvesTheDisagreemented5c3,
+                ),
                 onChanged: (_) => setState(() {}),
               ),
               FilledButton(
                 onPressed: _busy || _note.text.trim().isEmpty ? null : _resolve,
-                child: const Text('确认关联解决'),
+                child: Text(context.l10n.l6ConfirmLinkedResolution5427f),
               ),
             ],
             if (_busy) const LinearProgressIndicator(),
-            if (_error != null) Text(_error!),
+            if (_error != null)
+              AppErrorMessage(action: context.l10n.load, error: _error!),
             if (_error != null)
               TextButton(
                 onPressed: _busy ? null : _load,
-                child: const Text('刷新可关联知识'),
+                child: Text(context.l10n.l6RefreshLinkableKnowledge5a5b4),
               ),
           ],
         );

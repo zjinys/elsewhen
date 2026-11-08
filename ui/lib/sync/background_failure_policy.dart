@@ -54,10 +54,9 @@ class BackgroundFailurePolicy {
     _backoff = _backoff == Duration.zero
         ? initialBackoff
         : Duration(
-            milliseconds: (_backoff.inMilliseconds * 2).clamp(
-              0,
-              maxBackoff.inMilliseconds,
-            ).toInt(),
+            milliseconds: (_backoff.inMilliseconds * 2)
+                .clamp(0, maxBackoff.inMilliseconds)
+                .toInt(),
           );
     _blockedUntil = _clock().add(_backoff);
     return _reported.add(_terminalKey(text));

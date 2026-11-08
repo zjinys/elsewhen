@@ -1,7 +1,11 @@
+import '../l10n/notice_messages.dart';
+import 'app_error_notice.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/knowledge_provider.dart';
+import '../l10n/localization.dart';
 
 /// 「反馈这条建议」入口开关，当前默认关闭。
 ///
@@ -62,7 +66,9 @@ class _FeedbackState extends ConsumerState<SuggestionFeedbackControl> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _error = '读取反馈失败：$e');
+      if (mounted) {
+        setState(() => _error = appFailure(e));
+      }
     }
   }
 
@@ -84,7 +90,9 @@ class _FeedbackState extends ConsumerState<SuggestionFeedbackControl> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _error = '反馈未保存：$e');
+      if (mounted) {
+        setState(() => _error = appFailure(e));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -104,35 +112,38 @@ class _FeedbackState extends ConsumerState<SuggestionFeedbackControl> {
           _open ? Icons.expand_less : Icons.rate_review_outlined,
           size: 14,
         ),
-        label: const Text('反馈这条建议', style: TextStyle(fontSize: 12)),
+        label: Text(
+          context.l10n.feedbackSuggestion,
+          style: TextStyle(fontSize: 12),
+        ),
         onPressed: () {
           setState(() => _open = !_open);
           if (_open) _load();
         },
       ),
       if (_open) ...[
-        const Text('选择回复中的建议原文。接受表示认可建议，实际行动仍需另行确认。'),
+        Text(context.l10n.feedbackHelp),
         TextField(
           controller: _suggestion,
           minLines: 2,
           maxLines: 5,
-          decoration: const InputDecoration(labelText: '建议原文（可缩小到其中一段）'),
+          decoration: InputDecoration(labelText: context.l10n.feedbackOriginal),
         ),
         TextField(
           controller: _rewrite,
           minLines: 1,
           maxLines: 4,
           maxLength: 6000,
-          decoration: const InputDecoration(labelText: '我的改写（可选）'),
+          decoration: InputDecoration(labelText: context.l10n.feedbackRewrite),
         ),
         Wrap(
           spacing: 8,
           children: [
             for (final e in {
-              'accepted': '接受',
-              'ignored': '忽略',
-              'rewritten': '保存改写',
-              'cleared': '撤回反馈',
+              'accepted': context.l10n.feedbackAccept,
+              'ignored': context.l10n.feedbackIgnore,
+              'rewritten': context.l10n.feedbackSaveRewrite,
+              'cleared': context.l10n.feedbackWithdraw,
             }.entries)
               TextButton(
                 onPressed: _busy ? null : () => _save(e.key),
@@ -143,9 +154,18 @@ class _FeedbackState extends ConsumerState<SuggestionFeedbackControl> {
         if (_busy) const LinearProgressIndicator(),
         if (_decision != null)
           Text(
-            '已记录：${{'accepted': '接受', 'ignored': '忽略', 'rewritten': '改写', 'cleared': '撤回'}[_decision]}',
+            context.l10n.recordedText(
+              {
+                    'accepted': context.l10n.feedbackAccept,
+                    'ignored': context.l10n.feedbackIgnore,
+                    'rewritten': context.l10n.feedbackRewritten,
+                    'cleared': context.l10n.feedbackWithdrawn,
+                  }[_decision] ??
+                  _decision!,
+            ),
           ),
-        if (_error != null) Text(_error!),
+        if (_error != null)
+          AppErrorMessage(action: context.l10n.load, error: _error!),
       ],
     ],
   );

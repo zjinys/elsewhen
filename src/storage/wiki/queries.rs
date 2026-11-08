@@ -110,6 +110,32 @@ impl Store {
             .map_err(Into::into)
     }
 
+    pub(crate) fn list_wiki_directory(
+        &self,
+        kind: Option<&str>,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(i64, Vec<WikiPageMeta>)> {
+        let total = self.connection.query_row(
+            "SELECT COUNT(*) FROM wiki_pages
+             WHERE COALESCE(area, 'insight') != 'derivative' AND (?1 IS NULL OR kind = ?1)",
+            params![kind],
+            |row| row.get(0),
+        )?;
+        let mut statement = self.connection.prepare_cached(&format!(
+            "SELECT {WIKI_PAGE_META_COLS} FROM wiki_pages
+             WHERE COALESCE(area, 'insight') != 'derivative' AND (?1 IS NULL OR kind = ?1)
+             ORDER BY updated_at DESC, slug ASC LIMIT ?2 OFFSET ?3"
+        ))?;
+        let pages = statement
+            .query_map(
+                params![kind, limit.clamp(1, 20), offset.max(0)],
+                map_wiki_page_meta,
+            )?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok((total, pages))
+    }
+
     pub fn list_wiki_pages(&self, kind: Option<&str>, area: Option<&str>) -> Result<Vec<WikiPage>> {
         let mut sql = String::from("SELECT ");
         sql.push_str(WIKI_PAGE_COLS);

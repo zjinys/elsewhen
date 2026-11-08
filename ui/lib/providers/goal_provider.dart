@@ -1,3 +1,5 @@
+import '../l10n/app_localizations_zh.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/goal.dart';
@@ -7,10 +9,9 @@ import 'state_holder.dart';
 
 /// 目标页选中的目标 ID：左栏工作台清单（GoalWorkbenchPanel）与主区
 /// 详情/讨论面板共享，两栏渲染同一目标。null = 未选中（主区显占位指引）。
-final selectedGoalIdProvider =
-    NotifierProvider<StateHolder<String?>, String?>(
-      () => StateHolder(null),
-    );
+final selectedGoalIdProvider = NotifierProvider<StateHolder<String?>, String?>(
+  () => StateHolder(null),
+);
 
 /// 目标页的状态过滤（活跃/暂停搁置/已达成），多选、缺省看活跃；
 /// 由左栏工作台清单持有，主区详情只读。不允许清空为空集
@@ -22,12 +23,15 @@ final goalStatusFilterProvider =
 
 /// 目标清单的状态过滤枚举（含中文标签，供胶囊直接用）。
 enum GoalStatusFilter {
-  active('活跃'),
-  paused('暂停搁置'),
-  completed('已达成');
+  active,
+  paused,
+  completed;
 
-  const GoalStatusFilter(this.label);
-  final String label;
+  String get label => switch (this) {
+    active => AppLocalizationsZh().activeGoals,
+    paused => AppLocalizationsZh().pausedGoals,
+    completed => AppLocalizationsZh().achievedGoals,
+  };
 }
 
 /// 切换某个状态的选中态（多选）。最后一个选中项不可被取消：

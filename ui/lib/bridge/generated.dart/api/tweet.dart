@@ -72,6 +72,11 @@ Future<String> generateContentChat({
   messages: messages,
 );
 
+/// Format an import preview, preserving source language and original text.
+/// Only token usage and the immutable prompt manifest are recorded.
+Future<String> formatImportContent({required String content}) =>
+    RustLib.instance.api.crateApiTweetFormatImportContent(content: content);
+
 /// 当前推文抓取服务（设置页读取；当前仅支持 fxtwitter）
 Future<String> getTweetFetchService() =>
     RustLib.instance.api.crateApiTweetGetTweetFetchService();

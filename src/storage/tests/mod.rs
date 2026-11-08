@@ -55,6 +55,7 @@ fn wiki_draft(slug: &str, kind: &str, content_md: &str) -> WikiPageDraft {
 
 mod analysis_jobs;
 mod digest_content;
+mod digest_insights;
 mod entities;
 mod events;
 mod habit_nudges;

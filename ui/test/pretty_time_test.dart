@@ -1,9 +1,56 @@
 import 'package:elsewhen_ui/utils/pretty_time.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/widgets.dart';
+import 'package:elsewhen_ui/l10n/app_localizations.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 
 /// prettyTime：审阅列表等元数据用的相对时间打印。
 void main() {
   final now = DateTime(2026, 11, 4, 10, 0);
+
+  test('英文相对时间使用复数，日期按locale展示', () async {
+    await initializeDateFormatting();
+    final strings = lookupAppLocalizations(const Locale('en'));
+    expect(prettyTime(now, now: now, strings: strings), 'Just now');
+    expect(
+      prettyTime(
+        now.subtract(const Duration(minutes: 1)),
+        now: now,
+        strings: strings,
+      ),
+      '1 minute ago',
+    );
+    expect(
+      prettyTime(
+        now.subtract(const Duration(minutes: 5)),
+        now: now,
+        strings: strings,
+      ),
+      '5 minutes ago',
+    );
+    expect(
+      prettyTime(
+        now.subtract(const Duration(hours: 2)),
+        now: now,
+        strings: strings,
+      ),
+      '2 hours ago',
+    );
+    expect(
+      prettyTime(
+        now.subtract(const Duration(days: 2)),
+        now: now,
+        strings: strings,
+      ),
+      '2 days ago',
+    );
+    final date = DateTime(2025, 12, 30);
+    expect(
+      prettyTime(date, now: now, strings: strings),
+      DateFormat.yMd('en').format(date),
+    );
+  });
 
   test('一分钟内 → 刚刚', () {
     expect(

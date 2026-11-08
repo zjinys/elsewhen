@@ -1,3 +1,7 @@
+import 'app_error_notice.dart';
+import '../l10n/notice_messages.dart';
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 
 import '../bridge/api.dart' as api;
@@ -29,10 +33,14 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
   int _maxResults = 5;
 
   /// 引擎选项：(存储标识, 显示名, 一句话说明)。
-  static const _engines = <(String, String, String)>[
-    ('tavily', 'Tavily', '托管服务，面向 AI 检索优化，免费额度'),
-    ('brave', 'Brave Search', '托管服务，隐私导向的独立索引'),
-    ('searxng', 'SearxNG', '自托管元搜索，无需 API key'),
+  List<(String, String, String)> get _engines => <(String, String, String)>[
+    ('tavily', 'Tavily', context.l10n.l6HostedSearchOptimizedForAiWith46b67),
+    (
+      'brave',
+      'Brave Search',
+      context.l10n.l6HostedSearchWithAnIndependentPrivacy51ea0,
+    ),
+    ('searxng', 'SearxNG', context.l10n.l6SelfHostedMetasearchNoApiKey0926f),
   ];
 
   /// 各引擎默认 base_url（切换引擎且当前为默认/空时自动填入）。
@@ -74,7 +82,7 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _loadError = '$e';
+        _loadError = appFailure(e);
       });
     }
   }
@@ -98,19 +106,12 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
         _hasApiKey = search.hasApiKey;
         _apiKeyController.clear();
       });
-      _toast('外网搜索设置已保存', ok: true);
+      _toast(context.l10n.l6WebSearchSettingsSaved30dee, ok: true);
     } catch (e) {
-      _toast('保存失败：${_firstLine(e)}', ok: false);
+      if (mounted) showAppError(context, context.l10n.save, e);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
-  }
-
-  String _firstLine(Object e) {
-    final s = '$e';
-    return s
-        .split('\n')
-        .firstWhere((l) => l.trim().isNotEmpty, orElse: () => s.trim());
   }
 
   void _toast(String message, {required bool ok}) {
@@ -136,8 +137,9 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
       );
     }
     if (_loadError != null) {
-      return Text(
-        '外网搜索设置读取失败：${_firstLine(_loadError!)}',
+      return AppErrorMessage(
+        action: context.l10n.load,
+        error: _loadError!,
         style: TextStyle(color: AppTheme.error, fontSize: 12),
       );
     }
@@ -162,7 +164,7 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '搜索引擎',
+          context.l10n.l6SearchEnginee5837,
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -262,7 +264,9 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          isSearxng ? 'SearxNG 实例地址' : 'API 地址',
+          isSearxng
+              ? context.l10n.l6SearxngInstanceUrla3267
+              : context.l10n.l6ApiUrlacd8a,
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -276,7 +280,7 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
           style: TextStyle(color: AppTheme.textPrimary),
           decoration: _inputDecoration(
             isSearxng
-                ? 'http://localhost:8080 或你的 SearxNG 地址'
+                ? context.l10n.l6HttpLocalhost8080OrYourSearxngba754
                 : _engineDefaults[_engine] ?? '',
           ),
           onChanged: (v) => _baseUrl = v.trim(),
@@ -284,7 +288,7 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
         if (isSearxng) ...[
           const SizedBox(height: 6),
           Text(
-            'SearxNG 是自托管元搜索，无需 API key。需在你的实例开启 JSON 输出格式。',
+            context.l10n.l6SearxngIsSelfHostedMetasearchNoe6c57,
             style: TextStyle(
               fontSize: 12,
               color: AppTheme.textSecondary.withValues(alpha: 0.7),
@@ -304,7 +308,7 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '启用外网搜索',
+                context.l10n.l6EnableWebSearch9ee9a,
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -313,7 +317,7 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
               ),
               const SizedBox(height: 4),
               Text(
-                '开启后，AI 可在你询问最新/新闻/热点类问题时联网检索',
+                context.l10n.l6AllowAiToSearchTheWeb1ea6a,
                 style: TextStyle(
                   fontSize: 12,
                   color: AppTheme.textSecondary.withValues(alpha: 0.7),
@@ -333,8 +337,8 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
 
   Widget _buildApiKeyField() {
     final hint = switch (_engine) {
-      'tavily' => 'tvly-...（tavily.com 免费注册即有额度）',
-      'brave' => 'BSA...（brave.com/search/api 申请）',
+      'tavily' => context.l10n.l6TvlyFreeAllowanceAtTavilyCom279ec,
+      'brave' => context.l10n.l6BsaApplyAtBraveComSearch6c59c,
       _ => 'API key',
     };
     return Column(
@@ -354,7 +358,9 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
           obscureText: true,
           style: TextStyle(color: AppTheme.textPrimary),
           decoration: _inputDecoration(
-            _hasApiKey ? '已配置（输入新值覆盖，留空保持不变）' : hint,
+            _hasApiKey
+                ? context.l10n.l6ConfiguredEnterAValueToReplace1d9d7
+                : hint,
           ),
         ),
       ],
@@ -376,7 +382,7 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
                 ),
               )
             : const Icon(Icons.save_outlined, size: 16),
-        label: Text(_saving ? '保存中' : '保存'),
+        label: Text(_saving ? context.l10n.l6Savinga032e : context.l10n.save),
         style: FilledButton.styleFrom(
           backgroundColor: AppTheme.accentPrimary,
           shape: RoundedRectangleBorder(

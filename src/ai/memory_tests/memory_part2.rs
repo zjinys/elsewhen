@@ -102,8 +102,14 @@ fn goal_block_states_navigation_baseline_and_tool_timing() {
     let (store, conversation_id, path) = setup_store();
     store.create_goal("上线 v1", GoalPhase::Near).unwrap();
     let prompt = system_prompt_of(&store, &conversation_id);
-    assert!(prompt.contains("航向基准"), "段头应声明航向基准定位：\n{prompt}");
-    assert!(prompt.contains("默认对照"), "准则应含主动对照语义：\n{prompt}");
+    assert!(
+        prompt.contains("航向基准"),
+        "段头应声明航向基准定位：\n{prompt}"
+    );
+    assert!(
+        prompt.contains("默认对照"),
+        "准则应含主动对照语义：\n{prompt}"
+    );
     assert!(
         !prompt.contains("战略背景"),
         "旧「战略背景」被动定位应退场：\n{prompt}"
@@ -121,7 +127,7 @@ fn goal_block_states_navigation_baseline_and_tool_timing() {
     let _ = std::fs::remove_file(path);
 }
 
-/// 目标认知切片（why, focus, blocker, done）正确注入到航向基准段中。
+/// 目标目标背景（why, focus, blocker, done）正确注入到航向基准段中。
 #[test]
 fn goal_block_injects_cognitive_facets() {
     use crate::storage::GoalPhase;
@@ -138,10 +144,22 @@ fn goal_block_injects_cognitive_facets() {
         .unwrap();
     let prompt = system_prompt_of(&store, &conversation_id);
     assert!(prompt.contains("跑通多端同步"), "应包含目标内容:\n{prompt}");
-    assert!(prompt.contains("核心动力：实现无感互联"), "应包含核心动力:\n{prompt}");
-    assert!(prompt.contains("当前抓手：攻克快照收敛"), "应包含当前抓手:\n{prompt}");
-    assert!(prompt.contains("已知卡点：弱网重放冲突"), "应包含已知卡点:\n{prompt}");
-    assert!(prompt.contains("完成判据：三端冒烟通过"), "应包含完成判据:\n{prompt}");
+    assert!(
+        prompt.contains("核心动力：实现无感互联"),
+        "应包含核心动力:\n{prompt}"
+    );
+    assert!(
+        prompt.contains("当前行动：攻克快照收敛"),
+        "应包含当前行动:\n{prompt}"
+    );
+    assert!(
+        prompt.contains("当前困难：弱网重放冲突"),
+        "应包含当前困难:\n{prompt}"
+    );
+    assert!(
+        prompt.contains("完成判据：三端冒烟通过"),
+        "应包含完成判据:\n{prompt}"
+    );
     let _ = std::fs::remove_file(path);
 }
 

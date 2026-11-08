@@ -2,6 +2,7 @@ pub mod chat_proposals;
 pub mod chat_runs;
 pub mod conversations;
 pub mod db_maintenance;
+pub mod digest_insights;
 pub mod entities;
 pub mod event_stats;
 pub mod fonts;
@@ -11,6 +12,7 @@ pub mod import;
 pub mod knowledge;
 pub mod knowledge_digest;
 pub mod knowledge_workflows;
+pub mod language;
 pub mod mcp;
 pub mod page_marks;
 pub mod plans;
@@ -36,6 +38,7 @@ use anyhow::{Context, Result};
 pub use chat_proposals::*;
 pub use chat_runs::*;
 pub use conversations::*;
+pub use digest_insights::*;
 pub use entities::*;
 pub use fonts::*;
 pub use import::*;
@@ -97,3 +100,9 @@ mod record_event_tests;
 #[cfg(test)]
 #[path = "period_stats_tests.rs"]
 mod period_stats_tests;
+
+pub mod named_secrets;
+
+pub mod prompts;
+
+pub mod goal_grounding;

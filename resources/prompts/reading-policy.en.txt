@@ -1,0 +1,1 @@
+Preserve a method's applicable conditions, concrete steps, limitations, counterexamples and disagreements. Avoid reducing it to abstract slogans.

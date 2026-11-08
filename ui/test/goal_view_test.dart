@@ -1,4 +1,5 @@
 import 'package:elsewhen_ui/bridge/api.dart' as api;
+import 'package:elsewhen_ui/l10n/app_localizations.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/models/conversation.dart';
 import 'package:elsewhen_ui/models/goal.dart';
@@ -94,6 +95,7 @@ _goalOverrides({
 
 /// 左栏工作台（GoalWorkbenchPanel）：独立挂载，不起整个左侧栏。
 Widget _workbench({
+  Locale locale = const Locale('zh'),
   List<Goal> active = const [],
   List<Goal> archived = const [],
   FakeGoalChatRepo? repository,
@@ -106,7 +108,12 @@ Widget _workbench({
       repository: repository,
       planBoard: planBoard,
     ),
-    child: const MaterialApp(home: Scaffold(body: GoalWorkbenchPanel())),
+    child: MaterialApp(
+      locale: locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      home: const Scaffold(body: GoalWorkbenchPanel()),
+    ),
   );
 }
 
@@ -135,7 +142,28 @@ void main() {
   }
 
   group('GoalWorkbenchPanel（左栏工作台）', () {
-    testWidgets('长程计划看板：意图/当前步/进度/下一步渲染，点击选中当前步', (tester) async {
+    testWidgets('英文窄目标栏可筛选，用户目标原文保留', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(320, 780));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        _workbench(
+          locale: const Locale('en'),
+          active: [_goal('active', '保留用户的目标原文', currentFocus: '用户自己的行动')],
+          archived: [_goal('paused', '另一个暂停目标', status: 'paused')],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Goals'), findsOneWidget);
+      expect(find.text('Near term'), findsOneWidget);
+      expect(find.text('保留用户的目标原文'), findsOneWidget);
+      await tester.tap(find.text('Paused'));
+      await tester.pumpAndSettle();
+      expect(find.text('另一个暂停目标'), findsOneWidget);
+      expect(find.text('暂停搁置'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('计划树仅显示一次步骤，支持状态过滤、收起与选中', (tester) async {
       final plan = GoalPlan(
         id: 'p-1',
         intentText: '3 年内月入 10 万',
@@ -182,11 +210,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('长程计划'), findsOneWidget);
+      expect(find.text('长程计划'), findsNothing);
       expect(find.text('3 年内月入 10 万'), findsOneWidget);
-      expect(find.textContaining('当前步：第一步：验证付费意愿'), findsOneWidget);
-      expect(find.textContaining('下一步：第二步：最小可售卖方案'), findsOneWidget);
-      expect(find.text('进度 0/3'), findsOneWidget);
+      expect(find.text('第一步：验证付费意愿'), findsOneWidget);
+      expect(find.text('第二步：最小可售卖方案'), findsNothing);
+      expect(find.text('进度 0/3'), findsNothing);
 
       await tester.tap(find.text('3 年内月入 10 万'));
       await tester.pumpAndSettle();
@@ -194,6 +222,19 @@ void main() {
         tester.element(find.byType(GoalWorkbenchPanel)),
       );
       expect(container.read(selectedGoalIdProvider), activeStep.id);
+      await tester.tap(find.byTooltip('收起阶段'));
+      await tester.pumpAndSettle();
+      expect(find.text('第一步：验证付费意愿'), findsNothing);
+      await tester.tap(find.byTooltip('展开阶段'));
+      await tester.pumpAndSettle();
+      expect(find.text('第一步：验证付费意愿'), findsOneWidget);
+      await tester.tap(find.text('暂停搁置'));
+      await tester.pumpAndSettle();
+      expect(find.text('第一步：验证付费意愿'), findsOneWidget);
+      expect(find.text('第二步：最小可售卖方案'), findsOneWidget);
+      await tester.tap(find.text('第二步：最小可售卖方案'));
+      await tester.pumpAndSettle();
+      expect(container.read(selectedGoalIdProvider), nextStep.id);
     });
 
     testWidgets('标题「目标」+ 右上「新建」按钮；过滤多选且单行三枚', (tester) async {
@@ -343,7 +384,7 @@ void main() {
   });
 
   group('GoalListView（主区：详情 | AI 讨论）', () {
-    testWidgets('自动选中首个活跃目标：详情高亮切片 + 讨论面板并排', (tester) async {
+    testWidgets('自动选中首个活跃目标：详情高亮阶段 + 讨论面板并排', (tester) async {
       useWideLayout(tester);
       await tester.pumpWidget(
         _mainView(
@@ -363,7 +404,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('发布 Elsewhen 1.0'), findsWidgets); // 详情卡 + 讨论面板标题
-      expect(find.textContaining('攻克多端同步快照收敛'), findsOneWidget); // 抓手条
+      expect(find.textContaining('攻克多端同步快照收敛'), findsOneWidget); // 行动条
       expect(find.textContaining('网络环境证书配置繁琐'), findsOneWidget);
       expect(find.textContaining('验证个人认知系统闭环'), findsOneWidget);
       expect(find.textContaining('双端自动化测试全绿'), findsOneWidget);
@@ -372,7 +413,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('点击抓手条弹出滚动抓手对话框', (tester) async {
+    testWidgets('点击行动条弹出调整当前行动对话框', (tester) async {
       useWideLayout(tester);
       await tester.pumpWidget(
         _mainView(
@@ -380,25 +421,25 @@ void main() {
             _goal(
               'g1',
               '发布 Elsewhen 1.0',
-              currentFocus: '首发切片 A',
-              blocker: '卡点 B',
+              currentFocus: '首发阶段 A',
+              blocker: '困难 B',
             ),
           ],
         ),
       );
       await tester.pumpAndSettle();
 
-      // 点击抓手区域弹出滚动抓手对话框
-      await tester.tap(find.textContaining('首发切片 A'));
+      // 点击行动区域弹出调整当前行动对话框
+      await tester.tap(find.textContaining('首发阶段 A'));
       await tester.pumpAndSettle();
 
-      expect(find.text('滚动抓手 · 发布 Elsewhen 1.0'), findsOneWidget);
-      expect(find.widgetWithText(TextField, '首发切片 A'), findsOneWidget);
-      expect(find.widgetWithText(TextField, '卡点 B'), findsOneWidget);
-      expect(find.text('更新抓手'), findsOneWidget);
-      // 长切片文本（AI 共同立项可能写入长句）：字段多行自适应显示
+      expect(find.text('调整当前行动 · 发布 Elsewhen 1.0'), findsOneWidget);
+      expect(find.widgetWithText(TextField, '首发阶段 A'), findsOneWidget);
+      expect(find.widgetWithText(TextField, '困难 B'), findsOneWidget);
+      expect(find.text('更新行动'), findsOneWidget);
+      // 长阶段文本（AI 共同立项可能写入长句）：字段多行自适应显示
       final focusField = tester.widget<TextField>(
-        find.widgetWithText(TextField, '首发切片 A'),
+        find.widgetWithText(TextField, '首发阶段 A'),
       );
       expect(focusField.minLines, 2);
       expect(focusField.maxLines, 8);
@@ -457,7 +498,7 @@ void main() {
       await tester.tap(find.text('打开目标面板'));
       await tester.pumpAndSettle();
 
-      // 活跃目标切片完整呈现
+      // 活跃目标阶段完整呈现
       expect(find.text('发布 Elsewhen 1.0'), findsOneWidget);
       expect(find.textContaining('攻克快照收敛'), findsOneWidget);
       expect(find.textContaining('证书配置繁琐'), findsOneWidget);

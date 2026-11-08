@@ -8,6 +8,43 @@ use crate::{
     },
 };
 
+#[test]
+fn dataset_selection_does_not_replace_installation_display_language() {
+    let workspace = Workspace::new();
+    let original = workspace.original();
+    crate::language::write_ui_preference(&workspace.0, Some("en")).unwrap();
+    let catalog = DatasetCatalog::open(&workspace.0).unwrap();
+    let (entry, master) = imported(&catalog);
+    catalog
+        .select_import(&catalog.prepare_selection(&entry.id).unwrap(), &master, 2)
+        .unwrap();
+    assert_eq!(
+        selected_database_path(&workspace.0).unwrap(),
+        Some(catalog.path_for(&entry.id).unwrap())
+    );
+    assert_eq!(
+        crate::language::read_ui_preference(&workspace.0)
+            .unwrap()
+            .as_deref(),
+        Some("en")
+    );
+    drop(catalog);
+    let catalog = DatasetCatalog::open(&workspace.0).unwrap();
+    catalog.select_default(catalog.revision().unwrap()).unwrap();
+    assert!(selected_database_path(&workspace.0).unwrap().is_none());
+    assert_eq!(
+        crate::language::read_ui_preference(&workspace.0)
+            .unwrap()
+            .as_deref(),
+        Some("en")
+    );
+    let count: i64 = original
+        .connection
+        .query_row("SELECT count(*) FROM events", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(count, 1);
+}
+
 struct Workspace(PathBuf);
 impl Workspace {
     fn new() -> Self {
@@ -487,9 +524,7 @@ fn a_dataset_that_left_sync_still_opens_on_the_next_start() {
         let store = Store::open(&path).unwrap();
         store
             .connection
-            .execute_batch(
-                "DELETE FROM sync_authority; DELETE FROM sync_authority_versions;",
-            )
+            .execute_batch("DELETE FROM sync_authority; DELETE FROM sync_authority_versions;")
             .unwrap();
         store.clear_local_sync_identity().unwrap();
     }
@@ -547,7 +582,10 @@ fn a_changed_installation_or_unapplied_snapshot_is_still_a_startup_error() {
         let store = Store::open(&path).unwrap();
         store
             .connection
-            .execute("UPDATE sync_local_vault SET installation_id='another-installation'", [])
+            .execute(
+                "UPDATE sync_local_vault SET installation_id='another-installation'",
+                [],
+            )
             .unwrap();
     }
     let error = selected_database_path(&workspace.0).unwrap_err();

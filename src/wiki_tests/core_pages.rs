@@ -380,3 +380,40 @@ fn apply_people_relations_uses_explicit_disambiguation_slugs() {
     drop(store);
     let _ = std::fs::remove_file(path);
 }
+
+#[test]
+fn user_created_topic_is_editable_and_protected_from_background_replacement() {
+    let path =
+        std::env::temp_dir().join(format!("elsewhen-topic-create-{}.db", uuid::Uuid::new_v4()));
+    let store = Store::open(&path).unwrap();
+    let page =
+        crate::wiki::save_text_page_with_kind("原始主题正文", Some("主题"), &[], "topic", &store)
+            .unwrap();
+    assert_eq!(page.kind, "topic");
+    assert!(page.human_edited_at.is_some());
+    let edited = store
+        .save_wiki_page_content(&page.slug, "人工修改正文", "test", Some(&page.updated_at))
+        .unwrap();
+    assert_eq!(edited.content_md, "人工修改正文");
+    let outcome = store
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                slug: page.slug.clone(),
+                kind: "topic".into(),
+                title: "主题".into(),
+                summary: "summary".into(),
+                content_md: "后台覆盖正文".into(),
+                tags: vec![],
+                source_event_ids: vec![],
+                status: "active".into(),
+                reason: "fixture".into(),
+                source_url: None,
+            },
+            ContentPolicy::PreserveHumanEdits,
+        )
+        .unwrap();
+    assert!(outcome.protected);
+    assert_eq!(outcome.page.content_md, "人工修改正文");
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}

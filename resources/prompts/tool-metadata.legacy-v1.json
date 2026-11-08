@@ -1,0 +1,228 @@
+{
+  "skill_web-search_title": {
+    "text": "联网检索",
+    "variables": []
+  },
+  "skill_web-search_tags": {
+    "text": "联网/搜索/网页/抓取/链接",
+    "variables": []
+  },
+  "skill_web-search_brief": {
+    "text": "搜索网页、抓取指定 URL 或推文，获取实时信息",
+    "variables": []
+  },
+  "skill_web-search_instructions": {
+    "text": "使用要点：\n- 优先 web_search 找线索，再 fetch_page 读原文；有具体 URL 或推特链接时直接抓取。\n- 回答时引用来源（链接/标题），不要凭记忆转述搜索结果。\n- 抓取失败或页面为空时如实告知，不要编造内容或 URL。\n- 用户只是问事实而你不确定时，先搜再答；闲聊不需要联网。",
+    "variables": []
+  },
+  "skill_wiki-maintenance_title": {
+    "text": "知识库维护",
+    "variables": []
+  },
+  "skill_wiki-maintenance_tags": {
+    "text": "改名/归档/整理/导入网页/wiki",
+    "variables": []
+  },
+  "skill_wiki-maintenance_brief": {
+    "text": "重命名知识页、按标题归档会话、把网页导入知识库",
+    "variables": []
+  },
+  "skill_wiki-maintenance_instructions": {
+    "text": "使用要点：\n- rename_wiki_page 会同步到所有设备，改名前告知用户影响。\n- archive_conversations_by_title 是批量操作：先向用户复述将归档的清单再执行。\n- import_url_to_wiki 仅在用户明确给出链接并要求保存时使用；导入后提示用户检查内容。\n- 这些操作不可轻易撤销，宁可多确认一次。",
+    "variables": []
+  },
+  "skill_todo-actions_title": {
+    "text": "待办管理",
+    "variables": []
+  },
+  "skill_todo-actions_tags": {
+    "text": "待办/任务/清单/备忘",
+    "variables": []
+  },
+  "skill_todo-actions_brief": {
+    "text": "创建待办事项",
+    "variables": []
+  },
+  "skill_todo-actions_instructions": {
+    "text": "使用要点：\n- 仅在用户明确要求记录待办、或出现明确的承诺性事项（截止日期、应许动作）时创建。\n- 标题写清动作与对象，避免模糊描述。\n- 一般疑问、想法、临时话题不要建待办；查询已有待办用常驻的 list_todos。\n- 用户要在未来某个时刻被提醒（「X 点提醒我」「明早提醒」）时用 create_reminder，\n它必须带明确到期时间，确认卡片回显已解析时间，确认才建条。",
+    "variables": []
+  },
+  "skill_people-graph_title": {
+    "text": "人物关系",
+    "variables": []
+  },
+  "skill_people-graph_tags": {
+    "text": "人物/关系/人脉",
+    "variables": []
+  },
+  "skill_people-graph_brief": {
+    "text": "从对话或知识页提取人物关系并形成提案",
+    "variables": []
+  },
+  "skill_people-graph_instructions": {
+    "text": "使用要点：\n- propose_people_relations 形成单个提案，batch_extract_people_relations 批量提取。\n- 只提取有证据支撑的关系（对话中明说、知识页可引用），不臆测。\n- 结果是提案，需用户确认后才生效；回复中说明提案数量与依据。",
+    "variables": []
+  },
+  "skill_directory-import_title": {
+    "text": "目录导入",
+    "variables": []
+  },
+  "skill_directory-import_tags": {
+    "text": "目录/项目/代码/导入/桌面",
+    "variables": []
+  },
+  "skill_directory-import_brief": {
+    "text": "把本地目录作为项目或文件导入知识库（桌面端）",
+    "variables": []
+  },
+  "skill_directory-import_instructions": {
+    "text": "使用要点：\n- 仅桌面端可用；移动端调用会失败。\n- import_directory_as_project 先做有限证据扫描并给出项目分析提案，用户确认后才保存知识页。\n- 目录文件片段会发送给当前 AI Provider，涉及敏感项目时先提醒用户。\n- 用户没有明确指定目录路径时，先问清楚再扫。",
+    "variables": []
+  },
+  "skill_event-record_title": {
+    "text": "手动记录",
+    "variables": []
+  },
+  "skill_event-record_tags": {
+    "text": "记录/记住/记一下/事件",
+    "variables": []
+  },
+  "skill_event-record_brief": {
+    "text": "把第一人称事实、决定、行动手动记入时间线",
+    "variables": []
+  },
+  "skill_event-record_instructions": {
+    "text": "使用要点：\n- 仅记录第一人称的事实、决定、行动或进展；AI 的评价、闲聊不记。\n- 用户说\"记一下/记到知识库/记住这件事\"时使用。\n- occurred_at 可缺省（默认现在），用户提到过去时间时转换成 ISO 8601。",
+    "variables": []
+  },
+  "skill_goal-management_title": {
+    "text": "目标管理",
+    "variables": []
+  },
+  "skill_goal-management_tags": {
+    "text": "目标/立项/愿景/行动/困难/对齐",
+    "variables": []
+  },
+  "skill_goal-management_brief": {
+    "text": "目标与航向：查询目标清单与长程计划、把长期意图拆解为计划草案（假设清单 + 里程碑步骤）、提议立项或调整当前行动与困难、暂停达成与读档复活（变更均需确认）",
+    "variables": []
+  },
+  "skill_goal-management_instructions": {
+    "text": "使用要点：\n- 活跃目标上限严格为 3 条。活跃目标已常驻在系统提示词中；list_goals 可查暂停或已达成目标。\n- create_goal 与 update_goal_facets 均为草拟待确认制，需用户在审阅卡确认后真正落库。\n- 立项时协助用户提炼愿景、核心动力(why)、近1~2周首发启动阶段(current_focus)、当前困难(blocker)与完成判据(done_criteria)。\n- 目标推进或困难化解时，使用 update_goal_facets 滚动更新行动或记录困难，不要频繁重建目标。\n- 涉及取舍、规划或知识沉淀方向时，默认对照活跃目标的当前行动，帮他判断这件事在不在航向上；用户推进停滞或重心偏移时可提议校准，但不唠叨式催办。\n- pause_goal / complete_goal / reactivate_goal 同为草拟待确认制；仅在用户明确表达暂停、达成或重启意愿时提议，不要主动劝用户放弃目标。\n- 用户提出长期意图/愿望（如「3 年内月入 10 万」）时，用 create_plan 一次给出计划全貌与第一步：先给现实性评估（可查知识库、必要时 web_search 核实关键事实），再列假设清单（软时间窗/现状/路径/风险），每条假设都可被用户纠正；intent_text 引用用户原话，不改写。\n- 拆解方法论：里程碑由近及远；每步 1~2 周内可启动、带可验证判据；用户给出期望步数（「用 5 步实现」）时按该数量拆。接受后第一步直接推进，其余自动排队——不要把「名额」当作拒绝理由。\n- 计划进入下一段或用户细化路径时用 add_plan_steps 追加；用 list_plans 查计划与进度，不要为同一意图重复建计划。\n- 计划推进循环：一步达成时先做复盘（事实 vs 假设，对照完成判据与假设清单），再用 advance_plan_step 一次提议「达成当前步 + 激活队列中的下一步 / 追加新步骤」；活跃名额满时新步骤自动保持排队，不要因此拒绝推进。\n- 「直接建一条目标」会自动包成单步计划；长期意图优先走 create_plan（含假设清单与里程碑），单步计划适合还没想清楚、先干起来的念头。",
+    "variables": []
+  },
+  "meta_description": {
+    "text": "按需加载技能包（一次可多个），调用后返回技能使用说明与其打包工具的完整参数定义，同一轮稍后即可调用这些工具。可用技能包：\n<<builtin>><<user>><<mcp>>",
+    "variables": [
+      "builtin",
+      "user",
+      "mcp"
+    ]
+  },
+  "meta_skills": {
+    "text": "要启用的技能包 id，至少一个，必须来自上面的名单",
+    "variables": []
+  },
+  "skill_roster": {
+    "text": "- <<id>>（<<title>>）：<<brief>>。tags: <<tags>>",
+    "variables": [
+      "id",
+      "title",
+      "brief",
+      "tags"
+    ]
+  },
+  "user_skill_roster": {
+    "text": "- <<id>>（用户技能）：<<brief>>\n",
+    "variables": [
+      "id",
+      "brief"
+    ]
+  },
+  "user_skill_more": {
+    "text": "（用户技能共 <<total>> 个，仅列出前 <<limit>> 个；其余仍可按名称 enable，但请在设置页建议用户清理不用的技能）\n",
+    "variables": [
+      "total",
+      "limit"
+    ]
+  },
+  "mcp_catalog_header": {
+    "text": "\n第三方 MCP 工具（调用前必须先 enable_tools 登记全名）：\n",
+    "variables": []
+  },
+  "mcp_catalog_footer": {
+    "text": "  …（还有 <<count>> 个工具未列出；enable_tools 登记全名后返回完整定义）\n",
+    "variables": [
+      "count"
+    ]
+  },
+  "mcp_intent": {
+    "text": "【关联意图：<<keywords>>】",
+    "variables": [
+      "keywords"
+    ]
+  },
+  "mcp_group": {
+    "text": "- <<server>>（<<count>> 个工具）<<intent>>：\n",
+    "variables": [
+      "server",
+      "count",
+      "intent"
+    ]
+  },
+  "user_skill_body": {
+    "text": "【用户技能 <<id>>】\n<<body>>",
+    "variables": [
+      "id",
+      "body"
+    ]
+  },
+  "mcp_enabled": {
+    "text": "== MCP 工具 <<name>> 已启用 ==\n<<description>>\n参数 JSON Schema：<<schema>>\n\n",
+    "variables": [
+      "name",
+      "description",
+      "schema"
+    ]
+  },
+  "skills_enabled": {
+    "text": "已启用技能包：<<skills>>。\n\n",
+    "variables": [
+      "skills"
+    ]
+  },
+  "skill_instructions": {
+    "text": "== <<id>>（<<title>>）使用说明 ==\n<<instructions>>\n",
+    "variables": [
+      "id",
+      "title",
+      "instructions"
+    ]
+  },
+  "tool_schema": {
+    "text": "工具 <<name>>: <<description>>\n参数 JSON Schema：<<schema>>\n\n",
+    "variables": [
+      "name",
+      "description",
+      "schema"
+    ]
+  },
+  "unknown_skills": {
+    "text": "未知的技能包：<<skills>>（可用技能包见 enable_tools 描述；MCP 工具可传服务器名整组启用，或传全名 mcp__<服务器>__<工具> 单个启用）。",
+    "variables": [
+      "skills"
+    ]
+  },
+  "tools_header": {
+    "text": "可用工具（name：用途）：\n",
+    "variables": []
+  },
+  "tool_prompt": {
+    "text": "- <<name>>：<<description>>\n参数 JSON Schema：<<schema>>\n",
+    "variables": [
+      "name",
+      "description",
+      "schema"
+    ]
+  }
+}

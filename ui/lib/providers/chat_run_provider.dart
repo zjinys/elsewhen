@@ -1,3 +1,6 @@
+import '../l10n/notice_messages.dart';
+import '../l10n/app_localizations.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -22,7 +25,18 @@ class ChatToolProgress {
   final String name;
   final String outcome;
   final String details;
-  const ChatToolProgress(this.id, this.name, this.outcome, this.details);
+  final Object? content;
+  const ChatToolProgress(
+    this.id,
+    this.name,
+    this.outcome,
+    this.details, {
+    this.content,
+  });
+  String localizedDetails(AppLocalizations strings) => content == null
+      ? (resolveNotice(details, strings) ??
+            toolProgressDetails(name, outcome, null, localizations: strings))
+      : toolProgressDetails(name, outcome, content, localizations: strings);
 }
 
 class ChatRunView {
@@ -125,12 +139,11 @@ class ChatRunController extends ChangeNotifier {
   /// FGS 进程默认豁免冻结；run 进入终态或控制器销毁时立即释放，不做常驻保活。
   void _syncKeepAlive() {
     final run = _run;
-    final active =
-        !_disposed && run != null && chatRunIsActive(run.status);
+    final active = !_disposed && run != null && chatRunIsActive(run.status);
     if (active) {
       SyncKeepAlive.hold(
         'chat-run-$conversationId',
-        text: '正在生成回复；切走也能继续，完成后自动停止。',
+        text: appNotice('l6GeneratingAReplyItContinuesWhence0b9'),
       );
     } else {
       SyncKeepAlive.release('chat-run-$conversationId');
@@ -188,7 +201,9 @@ class ChatRunController extends ChangeNotifier {
       _connectionError = null;
     } catch (_) {
       if (_current(epoch)) {
-        _connectionError = '无法读取生成状态，请重新连接；不会自动重新生成。';
+        _connectionError = appNotice(
+          'l6CouldNotLoadGenerationStatusReconnect2eabb',
+        );
       }
     } finally {
       if (_current(epoch)) {
@@ -232,7 +247,9 @@ class ChatRunController extends ChangeNotifier {
     } catch (_) {
       if (_current(epoch)) {
         // The request may have committed. Retain its exact key for re-delivery.
-        _connectionError = '启动结果待核实。重新连接会查询同一次请求，不会重复保存输入。';
+        _connectionError = appNotice(
+          'l6TheStartResultIsUnconfirmedReconnecting3cc5d',
+        );
       }
     } finally {
       if (_current(epoch)) {
@@ -266,7 +283,9 @@ class ChatRunController extends ChangeNotifier {
       _connectionError = null;
     } catch (_) {
       if (_current(epoch)) {
-        _connectionError = '停止请求尚未确认，请重新连接查看状态。';
+        _connectionError = appNotice(
+          'l6TheStopRequestIsUnconfirmedReconnectdaf8d',
+        );
       }
     } finally {
       if (_current(epoch)) {
@@ -352,7 +371,9 @@ class ChatRunController extends ChangeNotifier {
       _connectionError = null;
     } catch (_) {
       if (_current(epoch)) {
-        _connectionError = '生成状态暂不可用；已保存的输入不会重发。';
+        _connectionError = appNotice(
+          'l6GenerationStatusIsTemporarilyUnavailableSaved71c5d',
+        );
         try {
           final snapshot = await repository.getChatRun(conversationId, run.id);
           if (!_current(epoch)) return;
@@ -404,6 +425,7 @@ class ChatRunController extends ChangeNotifier {
         name,
         outcome,
         toolProgressDetails(name, outcome, payload['content']),
+        content: payload['content'],
       );
       while (_tools.length > 20) {
         _tools.remove(_tools.keys.first);

@@ -55,7 +55,8 @@ impl HttpSession {
             req = req.header("Mcp-Session-Id", sid);
         }
         for (k, v) in &self.headers {
-            req = req.header(k.as_str(), v.as_str());
+            let resolved = super::runtime::resolve_credential(v)?;
+            req = req.header(k.as_str(), resolved);
         }
         Ok(req)
     }

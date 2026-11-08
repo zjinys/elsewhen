@@ -175,6 +175,12 @@ impl Store {
         );
         let mut roster = current.roster;
         roster.revision = proof.roster_revision;
+        let language = self.knowledge_language_policy()?;
+        self.require_language_processor_capability(
+            &proof.to_device_id,
+            &language.output_locale,
+            language.policy_version,
+        )?;
         roster.processor_device_id = proof.to_device_id.clone();
         roster.handoff = Some(proof.clone());
         let signed = SignedRoster::sign(roster, owner)?;

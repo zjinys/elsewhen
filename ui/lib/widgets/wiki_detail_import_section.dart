@@ -14,13 +14,16 @@ class _ImportTab extends ConsumerStatefulWidget {
   ConsumerState<_ImportTab> createState() => _ImportTabState();
 }
 
+enum _ImportValidation { urlRequired, contentRequired }
+
 class _ImportTabState extends ConsumerState<_ImportTab> {
   final _urlController = TextEditingController();
   final _titleController = TextEditingController();
   final _tagsController = TextEditingController();
   final _editorKey = GlobalKey<WikiContentEditorState>();
   bool _busy = false;
-  String? _error;
+  Object? _error;
+  _ImportValidation? _validation;
   late bool _isUrlMode;
 
   @override
@@ -48,12 +51,16 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
   Future<void> _fetchUrl() async {
     final url = _urlController.text.trim();
     if (url.isEmpty) {
-      setState(() => _error = '请先粘贴一个链接');
+      setState(() {
+        _error = null;
+        _validation = _ImportValidation.urlRequired;
+      });
       return;
     }
     setState(() {
       _busy = true;
       _error = null;
+      _validation = null;
     });
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
@@ -76,7 +83,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      setState(() => _error = e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -89,18 +96,22 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
         ? ''
         : wikiDocumentToMarkdown(editor.editorState.document).trim();
     if (text.isEmpty) {
-      setState(() => _error = '请先输入要保存的内容');
+      setState(() {
+        _error = null;
+        _validation = _ImportValidation.contentRequired;
+      });
       return;
     }
     setState(() {
       _busy = true;
       _error = null;
+      _validation = null;
     });
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
       final title = _titleController.text.trim();
-      // 标签随保存一次写入（Rust 侧会保留「note」锚点标签并去重）
-      var page = await repo.saveTextPage(
+      // 创建主题走 topic 入口，保留直接编辑与人工正文保护。
+      var page = await repo.saveTopicPage(
         text: text,
         title: title.isEmpty ? null : title,
         tags: _parsedTags(),
@@ -116,13 +127,13 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
       widget.onCompleted?.call();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('已保存到知识库：《${page.title}》'),
+          content: Text(context.l10n.wikiSavedTitle(page.title)),
           behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      setState(() => _error = e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -162,29 +173,26 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
                 ),
               ),
             ),
-            if (_error != null) ...[
+            if (_error != null || _validation != null) ...[
               const SizedBox(height: AppTheme.space2),
-              Text(
-                _error!,
-                style: TextStyle(fontSize: 12, color: AppTheme.error),
-              ),
+              _buildError(),
             ],
             const SizedBox(height: AppTheme.space3),
-            Row(
-              children: [
-                const Spacer(),
-                FilledButton.icon(
-                  onPressed: _busy ? null : _saveText,
-                  icon: _busy
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.bookmark_add_outlined, size: 16),
-                  label: Text(_busy ? '保存中…' : '保存到知识库'),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                onPressed: _busy ? null : _saveText,
+                icon: _busy
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.bookmark_add_outlined, size: 16),
+                label: Text(
+                  _busy ? context.l10n.saving : context.l10n.wikiSave,
                 ),
-              ],
+              ),
             ),
           ],
         ),
@@ -196,24 +204,31 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildUrlInput(),
-          if (_error != null) ...[
+          if (_error != null || _validation != null) ...[
             const SizedBox(height: AppTheme.space2),
-            Text(
-              _error!,
-              style: TextStyle(fontSize: 12, color: AppTheme.error),
-            ),
+            _buildError(),
           ],
         ],
       ),
     );
   }
 
+  Widget _buildError() => _error != null
+      ? AppErrorMessage(
+          action: _isUrlMode ? context.l10n.wikiFetch : context.l10n.save,
+          error: _error!,
+        )
+      : Text(switch (_validation!) {
+          _ImportValidation.urlRequired => context.l10n.wikiEnterUrl,
+          _ImportValidation.contentRequired => context.l10n.wikiEnterContent,
+        }, style: TextStyle(fontSize: 12, color: AppTheme.error));
+
   Widget _buildUrlInput() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '粘贴任意网址：x.com/twitter.com 推文或其他网页链接，也支持文章型推文',
+          context.l10n.wikiUrlHelp,
           style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
         ),
         const SizedBox(height: AppTheme.space2),
@@ -224,7 +239,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
                 controller: _urlController,
                 enabled: !_busy,
                 decoration: InputDecoration(
-                  hintText: 'https://x.com/… 或 https://example.com/…',
+                  hintText: context.l10n.wikiUrlHint,
                   hintStyle: TextStyle(
                     fontSize: 13,
                     color: AppTheme.textTertiary,
@@ -264,7 +279,9 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.link, size: 16),
-              label: Text(_busy ? '抓取中…' : '抓取'),
+              label: Text(
+                _busy ? context.l10n.wikiFetching : context.l10n.wikiFetch,
+              ),
             ),
           ],
         ),
@@ -286,7 +303,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  '抓取后会新开预览 tab，预览内容后点「保存到知识库」才会入库',
+                  context.l10n.wikiPreviewHelp,
                   style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
                 ),
               ),
@@ -308,7 +325,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
           textAlignVertical: TextAlignVertical.top,
           // 全应用表单文本框的唯一尺子（本字段即 [AppTheme.fieldDecoration] 出处）
           decoration: AppTheme.fieldDecoration(
-            hintText: '标题（可选，留空自动取前 60 字）',
+            hintText: context.l10n.wikiTitleHint,
           ),
         ),
         const SizedBox(height: AppTheme.space2),
@@ -319,7 +336,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
           style: TextStyle(fontSize: 13.5, color: AppTheme.textPrimary),
           cursorColor: AppTheme.accentPrimary,
           decoration: AppTheme.fieldDecoration(
-            hintText: '标签（可选，空格或逗号分隔，例如：工作 投资）',
+            hintText: context.l10n.wikiTagsHint,
             prefixIcon: Icon(
               Icons.sell_outlined,
               size: 16,

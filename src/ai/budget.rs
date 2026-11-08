@@ -379,7 +379,33 @@ impl RequestPolicies {
             // 与砍轮只剩 7 条，「invisible turn」直接 completed 幻觉）。宁可
             // 在此 fail-fast 走诚实失败，也不交付一个注定失忆的 run。
             if turns.len() <= 2 {
-                return Err(RequestBudgetError(format!("请求输入约 {count} token，超过当前输入预算 {limit}（窗口 {window}，输出预留 {output}）；最近两轮对话不可省略，无法再压缩——请检查 Provider 窗口或减少附带上下文")).into());
+                // R2.5 通用恢复（2026-11-05）：只剩最近两轮、砍无可砍仍超限
+                // 时，把最大的近期工具结果带披露地截断，而不是整轮拒绝。
+                // 工具结果可重新调用取回；小结果（写操作回执等，截断下限
+                // 4000 字符）原样保留。截到保留下限仍装不下，才诚实失败并
+                // 给出可操作建议——「上下文超限」不应是用户可见的死局。
+                let index = {
+                    let messages = request["messages"].as_array().expect("request messages");
+                    largest_trimmable_tool_result(messages)
+                };
+                if let Some(index) = index {
+                    let messages = request["messages"]
+                        .as_array_mut()
+                        .expect("request messages");
+                    let content = messages[index]["content"]
+                        .as_str()
+                        .unwrap_or_default()
+                        .to_string();
+                    if let Some(halved) = tool_result_halved(&content) {
+                        messages[index]["content"] = serde_json::Value::String(halved.clone());
+                        if let Some(policy) = self.messages.get_mut(index) {
+                            policy.segment.version =
+                                crate::storage::knowledge::content_hash(&halved);
+                        }
+                        continue;
+                    }
+                }
+                return Err(RequestBudgetError(format!("请求输入约 {count} token，超过当前输入预算 {limit}（窗口 {window}，输出预留 {output}）；最近两轮对话不可省略，工具结果已截到下限，无法再压缩——可改用更大上下文窗口的 Provider、停用不常用的 MCP 服务，或缩短本次输入后重试")).into());
             }
             // Remove whole earlier user/assistant/tool groups. Required system
             // evidence survives; temporal hints follow their owner instead.
@@ -472,6 +498,50 @@ fn supplement_halved(content: &str) -> Option<String> {
     }
     let head: String = body.chars().take(total / 2).collect();
     Some(format!("{head}{SUPPLEMENT_HALVED_SUFFIX}"))
+}
+
+/// 工具结果截断声明的固定尾巴（strip 用，勿改动文案）。
+pub(crate) const TOOL_RESULT_HALVED_SUFFIX: &str = "……\n【工具结果因超过请求预算被截断；以上只是部分内容，不得当作完整结果使用。需要完整内容请重新调用工具或缩小查询范围。】";
+
+/// R2.5 通用恢复（2026-11-05）：只剩最近两轮、砍无可砍仍超预算时，把
+/// 最大的近期工具结果带披露地砰半。工具结果可重新调用取回，带自明标记
+/// 的降级优于整轮拒绝（「永不拒绝」红线）。未截断且不足 4000 字符的
+/// 小结果（可能是写入回执）不动；已截断的大结果可继续收敛到 2000 字符。
+fn tool_result_halved(content: &str) -> Option<String> {
+    let truncated = content.ends_with(TOOL_RESULT_HALVED_SUFFIX);
+    let body = content
+        .strip_suffix(TOOL_RESULT_HALVED_SUFFIX)
+        .unwrap_or(content);
+    let total = body.chars().count();
+    // Once a large result has been truncated, finish at the actual 2,000-char
+    // floor. Stopping at 2,001–3,999 solely because another halving would
+    // overshoot leaves recoverable requests over budget. Untouched small
+    // receipts still never enter this path.
+    if total <= 2000 || !truncated && total < 4000 {
+        return None;
+    }
+    let head: String = body.chars().take((total / 2).max(2000)).collect();
+    Some(format!("{head}{TOOL_RESULT_HALVED_SUFFIX}"))
+}
+
+/// 找内容最大、还能继续截断的工具结果消息下标（只认 string content；
+/// 多模态数组与已到截断下限的不算）。
+fn largest_trimmable_tool_result(messages: &[Value]) -> Option<usize> {
+    let mut best: Option<(usize, usize)> = None;
+    for (i, message) in messages.iter().enumerate() {
+        if message["role"].as_str() != Some("tool") {
+            continue;
+        }
+        let trimable = message["content"]
+            .as_str()
+            .and_then(tool_result_halved)
+            .map(|halved| halved.chars().count())
+            .unwrap_or(0);
+        if trimable > 0 && best.is_none_or(|(_, n)| trimable > n) {
+            best = Some((i, trimable));
+        }
+    }
+    best.map(|(i, _)| i)
 }
 
 /// 内容启发式估算的安全系数：所有比率均在样本基准上加 12% 余量，

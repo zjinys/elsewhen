@@ -1,3 +1,4 @@
+import '../l10n/app_localizations_zh.dart';
 import '../bridge/api.dart' as api;
 
 /// 计划状态机（与 Rust 侧 PlanStatus 同构）。
@@ -25,13 +26,13 @@ enum PlanStatus {
   String get label {
     switch (this) {
       case PlanStatus.proposed:
-        return '待定';
+        return AppLocalizationsZh().legacyPlanPending;
       case PlanStatus.active:
-        return '推进中';
+        return AppLocalizationsZh().legacyPlanActive;
       case PlanStatus.paused:
-        return '暂停搁置';
+        return AppLocalizationsZh().pausedGoals;
       case PlanStatus.completed:
-        return '已达成';
+        return AppLocalizationsZh().achievedGoals;
     }
   }
 }

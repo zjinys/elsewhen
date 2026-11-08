@@ -17,15 +17,15 @@ class _HomeTab extends ConsumerWidget {
                   children: [
                     _HomeAction(
                       icon: Icons.link_outlined,
-                      title: '网址导入',
-                      subtitle: '抓取网页或推文，确认后保存',
+                      title: context.l10n.wikiImportUrl,
+                      subtitle: context.l10n.wikiImportUrlHelp,
                       onTap: () => openWikiImportDialog(context, urlMode: true),
                     ),
                     const SizedBox(height: 8),
                     _HomeAction(
                       icon: Icons.notes_outlined,
-                      title: '创建主题',
-                      subtitle: '输入内容并创建知识页',
+                      title: context.l10n.wikiCreateTopic,
+                      subtitle: context.l10n.wikiCreateTopicHelp,
                       onTap: () => openCreateTopicDialog(context),
                     ),
                   ],
@@ -35,8 +35,8 @@ class _HomeTab extends ConsumerWidget {
                     Expanded(
                       child: _HomeAction(
                         icon: Icons.link_outlined,
-                        title: '网址导入',
-                        subtitle: '抓取网页或推文，确认后保存',
+                        title: context.l10n.wikiImportUrl,
+                        subtitle: context.l10n.wikiImportUrlHelp,
                         onTap: () =>
                             openWikiImportDialog(context, urlMode: true),
                       ),
@@ -45,8 +45,8 @@ class _HomeTab extends ConsumerWidget {
                     Expanded(
                       child: _HomeAction(
                         icon: Icons.notes_outlined,
-                        title: '创建主题',
-                        subtitle: '输入内容并创建知识页',
+                        title: context.l10n.wikiCreateTopic,
+                        subtitle: context.l10n.wikiCreateTopicHelp,
                         onTap: () => openCreateTopicDialog(context),
                       ),
                     ),
@@ -94,7 +94,7 @@ class _MaintenanceEntry extends ConsumerWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '知识审阅',
+                  context.l10n.knowledgeReview,
                   style: TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w500,
@@ -123,7 +123,7 @@ class _MaintenanceEntry extends ConsumerWidget {
                 )
               else
                 Text(
-                  '无待办',
+                  context.l10n.noPendingWork,
                   style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
                 ),
               const SizedBox(width: 4),
@@ -245,20 +245,20 @@ class _WikiTabBar extends ConsumerWidget {
     final action = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('关闭前确认'),
-        content: const Text('该页面还有未保存的编辑，关闭将丢失这些修改。'),
+        title: Text(dialogContext.l10n.wikiCloseConfirm),
+        content: Text(dialogContext.l10n.wikiUnsavedChanges),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop('cancel'),
-            child: const Text('取消'),
+            child: Text(dialogContext.l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop('discard'),
-            child: const Text('放弃修改并关闭'),
+            child: Text(dialogContext.l10n.wikiDiscardClose),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop('save'),
-            child: const Text('保存并关闭'),
+            child: Text(dialogContext.l10n.wikiSaveClose),
           ),
         ],
       ),
@@ -314,7 +314,13 @@ class _WikiTabChip extends StatelessWidget {
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 150),
                   child: Text(
-                    tab.title,
+                    switch (tab) {
+                      ImportTabEntry() => context.l10n.wikiHome,
+                      TweetTabEntry(:final fetch) => context.l10n.wikiPostTab(
+                        fetch.tweetId,
+                      ),
+                      _ => tab.title,
+                    },
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -328,7 +334,7 @@ class _WikiTabChip extends StatelessWidget {
                 ),
                 if (onClose != null) ...[
                   const SizedBox(width: 2),
-                  _buildCloseButton(),
+                  _buildCloseButton(context),
                 ] else
                   const SizedBox(width: 8),
               ],
@@ -339,9 +345,9 @@ class _WikiTabChip extends StatelessWidget {
     );
   }
 
-  Widget _buildCloseButton() {
+  Widget _buildCloseButton(BuildContext context) {
     return Tooltip(
-      message: '关闭标签页',
+      message: context.l10n.wikiCloseTab,
       waitDuration: const Duration(milliseconds: 500),
       child: Material(
         color: Colors.transparent,

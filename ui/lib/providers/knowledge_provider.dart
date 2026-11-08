@@ -79,9 +79,11 @@ class KnowledgeRepository {
       api.listKnowledgeWorkQueue(offset: offset, status: status);
   Future<api.KnowledgePageDetails> details(String slug) =>
       api.getKnowledgePageDetails(slug: slug);
+
   /// 手动「重新整理此页」（提案 P1）：单页再汇总，同步返回结果说明。
   Future<String> reconsolidate(String slug) =>
       api.reconsolidateKnowledgePage(slug: slug);
+
   /// 人工添加「相关页面」边（P3；relation 固定 related，校验在 Rust 层）。
   Future<String> addRelatedPage(String fromSlug, String toSlug) =>
       api.addKnowledgeRelation(
@@ -89,6 +91,7 @@ class KnowledgeRepository {
         toSlug: toSlug,
         relation: 'related',
       );
+
   /// 删除人工相关边；派生边（citation）Rust 层会拒绝并说明。
   Future<void> removeRelatedPage(String slug, String relationId) =>
       api.removeKnowledgeRelation(slug: slug, relationId: relationId);
@@ -103,9 +106,14 @@ class KnowledgeRepository {
       api.getKnowledgeSourceSnapshot(id: id);
   Future<String> propose(String slug, String kind) =>
       api.proposeKnowledgePage(slug: slug, kind: kind);
+
   /// 摘录定论（孵化闭环 2026-10-20）：endorse 要求已采用派生稿（未采用
   /// 会被服务端拒绝并给原因）；reject 必填原因。
-  Future<api.WikiPageDto> decideSource(String slug, String decision, String reason) =>
+  Future<api.WikiPageDto> decideSource(
+    String slug,
+    String decision,
+    String reason,
+  ) =>
       api.decideKnowledgeSource(slug: slug, decision: decision, reason: reason);
   Future<List<api.RejectedSourceRow>> rejectedSources() =>
       api.listRejectedSources();
@@ -191,12 +199,14 @@ final knowledgeRevisionsProvider = FutureProvider.autoDispose
       ref.watch(knowledgeRevisionProvider);
       return ref.read(knowledgeRepositoryProvider).revisions(slug);
     });
+
 /// 负知识（已否定来源）列表：身份 + 否定原因；导入后同源命中提示共用。
 final rejectedSourcesProvider =
     FutureProvider.autoDispose<List<api.RejectedSourceRow>>((ref) {
       ref.watch(knowledgeRevisionProvider);
       return ref.read(knowledgeRepositoryProvider).rejectedSources();
     });
+
 /// 知识管道健康（P0-a 可见性的用户面）：评测/库存/摘要管线/孵化闸门。
 final knowledgeHealthProvider =
     FutureProvider.autoDispose<api.KnowledgeHealthReport>((ref) {

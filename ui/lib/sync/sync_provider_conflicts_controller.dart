@@ -1,3 +1,5 @@
+import '../l10n/notice_messages.dart';
+
 import 'package:flutter/foundation.dart';
 
 import '../bridge/api.dart' as api;
@@ -122,18 +124,18 @@ class SyncProviderConflictsController extends ChangeNotifier {
   static String _describe(Object e) {
     final text = e.toString();
     if (text.contains('provider_key_locked')) {
-      return '本机同步密钥已锁定：请先在上方解锁后审阅冲突。';
+      return appNotice('l6UnlockThisDeviceSSyncKeysfc734');
     }
     if (text.contains('provider_conflict_local_changed')) {
-      return '本地配置已变化，请重新审阅下方最新列表。';
+      return appNotice('l6LocalSettingsChangedReviewTheUpdated3cd59');
     }
     if (text.contains('provider_conflict_revision_mismatch')) {
-      return '冲突内容已变化，请重新审阅下方最新列表。';
+      return appNotice('l6TheConflictChangedReviewTheUpdated936b5');
     }
     if (text.contains('provider_conflict_not_pending')) {
-      return '该冲突已裁决，请刷新列表。';
+      return appNotice('errorConflictResolved');
     }
-    return '操作失败：$text';
+    return appFailure(text);
   }
 
   @override

@@ -62,7 +62,7 @@ class SyncObjectConflictsController extends ChangeNotifier {
     try {
       conflicts = await _bridge.listConflicts();
     } catch (e) {
-      error = _describe(e);
+      error = e.toString();
     } finally {
       busy = false;
       _changed();
@@ -89,26 +89,12 @@ class SyncObjectConflictsController extends ChangeNotifier {
       conflicts = await _bridge.listConflicts();
       return true;
     } catch (e) {
-      error = _describe(e);
+      error = e.toString();
       return false;
     } finally {
       busy = false;
       _changed();
     }
-  }
-
-  static String _describe(Object e) {
-    final text = e.toString();
-    if (text.contains('object_conflict_local_changed')) {
-      return '本端记录已变化，请刷新后重新审阅。';
-    }
-    if (text.contains('object_conflict_not_pending')) {
-      return '该冲突已裁决，请刷新列表。';
-    }
-    if (text.contains('goal_active_limit')) {
-      return '本端活跃目标已满，无法直接采纳对端；请先归档目标或选择保留本端。';
-    }
-    return '操作失败：$text';
   }
 
   @override

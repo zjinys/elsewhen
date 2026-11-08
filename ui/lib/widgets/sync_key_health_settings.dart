@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 
 import '../sync/sync_key_store.dart';
@@ -67,27 +69,27 @@ class _SyncKeyHealthSettingsState extends State<SyncKeyHealthSettings> {
     SyncKeyStoreHealth.ok => (
       Icons.verified_user_outlined,
       theme.colorScheme.primary,
-      '本机密钥由系统安全存储托管（仅限本设备，不进云备份/云同步）。',
+      context.l10n.l6DeviceKeysAreHeldInSystem9ad4e,
     ),
     SyncKeyStoreHealth.missing => (
       Icons.key_off_outlined,
       theme.colorScheme.error,
-      '缺少本机密钥记录。请通过原设备恢复；不会生成替代密钥。',
+      context.l10n.l6DeviceKeyRecordsAreMissingRecover91b1e,
     ),
     SyncKeyStoreHealth.corrupt => (
       Icons.gpp_bad_outlined,
       theme.colorScheme.error,
-      '本机密钥记录损坏，已停止解锁且不会覆盖原记录。',
+      context.l10n.l6DeviceKeyRecordsAreDamagedUnlocking1284a,
     ),
     SyncKeyStoreHealth.unavailable => (
       Icons.lock_clock_outlined,
       theme.colorScheme.error,
-      '系统安全存储不可用或已锁定，请解锁系统密钥库后刷新。',
+      context.l10n.l6SystemSecureStorageIsUnavailableOr5cc06,
     ),
     null => (
       Icons.hourglass_empty_outlined,
       theme.colorScheme.outline,
-      '正在检查本机密钥存储…',
+      context.l10n.l6CheckingDeviceKeyStorage3d187,
     ),
   };
 
@@ -110,7 +112,7 @@ class _SyncKeyHealthSettingsState extends State<SyncKeyHealthSettings> {
           ),
           TextButton(
             onPressed: _probing ? null : _probe,
-            child: const Text('检查'),
+            child: Text(context.l10n.l6Check40ffb),
           ),
         ],
       ),

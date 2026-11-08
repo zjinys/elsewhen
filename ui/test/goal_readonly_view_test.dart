@@ -167,11 +167,11 @@ void main() {
 
       // 主区自动选中首条活跃目标：详情 + 讨论就位，占位提示消失
       expect(find.byType(GoalChatPanel), findsOneWidget);
-      expect(find.textContaining('当前抓手：'), findsOneWidget);
+      expect(find.textContaining('当前行动：'), findsOneWidget);
       expect(find.textContaining('网络分区下的分片停滞'), findsOneWidget);
       expect(find.text('AI 立项工作室'), findsNothing); // 选中目标时不显示工作室
       expect(find.byIcon(Icons.more_horiz), findsWidgets);
-      // ⚙ 滚动抓手按钮已移除（入口收敛到 ⋯ 菜单与抓手条点击）
+      // ⚙ 调整当前行动按钮已移除（入口收敛到 ⋯ 菜单与行动条点击）
       expect(find.byIcon(Icons.tune_outlined), findsNothing);
       expect(tester.takeException(), isNull);
     });
@@ -225,7 +225,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('目标讨论 · 学法语'), findsOneWidget);
 
-      // ⋯ 菜单 → 重新激活（读档唤醒）：回显历史动力与抓手
+      // ⋯ 菜单 → 重新激活（读档唤醒）：回显历史动力与行动
       await tester.tap(find.byIcon(Icons.more_horiz));
       await tester.pumpAndSettle();
       await tester.tap(find.text('重新激活（读档唤醒）'));
@@ -235,7 +235,7 @@ void main() {
       expect(find.textContaining('💡 核心动力回顾：想去巴黎旅行交流'), findsOneWidget);
       expect(find.widgetWithText(TextField, '背完 500 个基础词汇'), findsOneWidget);
       expect(find.widgetWithText(TextField, '缺少日常发音纠正环境'), findsOneWidget);
-      // 长切片文本：读档唤醒字段同样多行自适应
+      // 长阶段文本：读档唤醒字段同样多行自适应
       final wakeFocus = tester.widget<TextField>(
         find.widgetWithText(TextField, '背完 500 个基础词汇'),
       );
@@ -441,9 +441,7 @@ void main() {
     testWidgets('工作室发言写进保留会话，不混进普通对话', (tester) async {
       useWideLayout(tester);
       final repo = FakeGoalChatRepo();
-      await tester.pumpWidget(
-        _goalDomain(atGoalTab: true, goalChatRepo: repo),
-      );
+      await tester.pumpWidget(_goalDomain(atGoalTab: true, goalChatRepo: repo));
       await tester.pumpAndSettle();
 
       await tester.enterText(

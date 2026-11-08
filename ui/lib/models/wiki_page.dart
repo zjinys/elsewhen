@@ -1,3 +1,4 @@
+import '../l10n/app_localizations_zh.dart';
 import '../bridge/api.dart' as api;
 
 /// 知识页的元数据字段面：全页对象（WikiPage）与列表元数据（WikiPageMeta）
@@ -54,6 +55,7 @@ class WikiPage implements WikiPageRef {
   final String area;
   final String? basedOn;
   final String? contentType;
+
   /// 孵化定论（提案 2026-10-19）：null=孵化中（source/note 待定论），
   /// 'endorse'/'reject' 已定。非素材 kind 恒 null。
   final String? opinion;
@@ -140,6 +142,7 @@ class WikiPageMeta implements WikiPageRef {
   final String? sourceUrl;
   @override
   final String area;
+
   /// 孵化定论：null=孵化中；'endorse'/'reject' 已定（非素材 kind 恒 null）。
   final String? opinion;
 
@@ -196,37 +199,38 @@ bool isIncubatingPage(String kind, String? opinion) {
 }
 
 /// 展示 helper（两态共用）：只依赖元数据字段面。
-extension WikiPageRefX on WikiPageRef {  /// kind 的中文展示名
+extension WikiPageRefX on WikiPageRef {
+  /// kind 的中文展示名
   String get kindLabel {
-    const labels = {
-      'profile': '档案',
-      'person': '联系人',
-      'recurring_cost': '固定成本',
-      'capability': '能力',
-      'asset': '资产',
-      'project': '项目',
-      'relationship': '关系',
-      'decision': '决策',
-      'habit': '习惯',
-      'constraint': '约束',
-      'insight': '洞察',
-      'topic': '主题',
-      'method': '方法',
-      'case': '案例',
-      'principle': '规律',
-      'series': '系列',
-      'source': '来源',
+    final labels = {
+      'profile': AppLocalizationsZh().pageKindProfile,
+      'person': AppLocalizationsZh().pageKindPerson,
+      'recurring_cost': AppLocalizationsZh().pageKindRecurringCost,
+      'capability': AppLocalizationsZh().pageKindCapability,
+      'asset': AppLocalizationsZh().pageKindAsset,
+      'project': AppLocalizationsZh().pageKindProject,
+      'relationship': AppLocalizationsZh().pageKindRelationship,
+      'decision': AppLocalizationsZh().pageKindDecision,
+      'habit': AppLocalizationsZh().pageKindHabit,
+      'constraint': AppLocalizationsZh().pageKindConstraint,
+      'insight': AppLocalizationsZh().pageKindInsight,
+      'topic': AppLocalizationsZh().pageKindTopic,
+      'method': AppLocalizationsZh().pageKindMethod,
+      'case': AppLocalizationsZh().pageKindCase,
+      'principle': AppLocalizationsZh().pageKindPrinciple,
+      'series': AppLocalizationsZh().pageKindSeries,
+      'source': AppLocalizationsZh().wikiSources,
     };
     return labels[kind] ?? kind;
   }
 
   /// 来源/用途分区的中文名
   String get areaLabel {
-    const labels = {
-      'imported': '素材库',
-      'network': '联系人/项目',
-      'insight': '知识沉淀',
-      'derivative': '派生产物',
+    final labels = {
+      'imported': AppLocalizationsZh().libraryImported,
+      'network': AppLocalizationsZh().legacyPeopleProjects,
+      'insight': AppLocalizationsZh().libraryInsight,
+      'derivative': AppLocalizationsZh().legacyArtifacts,
     };
     return labels[area] ?? area;
   }
@@ -248,8 +252,9 @@ extension WikiPageRefX on WikiPageRef {  /// kind 的中文展示名
     final url = sourceUrl;
     if (url == null || !url.startsWith('file://')) return null;
     var rest = url.substring('file://'.length);
-    if (rest.startsWith('localhost/'))
+    if (rest.startsWith('localhost/')) {
       rest = rest.substring('localhost'.length);
+    }
     return Uri.decodeComponent(rest);
   }
 }

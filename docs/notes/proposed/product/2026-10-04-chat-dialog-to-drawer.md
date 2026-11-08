@@ -1,7 +1,7 @@
 # 对话界面「对话框 → 侧边抽屉」改造报告
 
 - 日期：2026-10-04
-- 状态：proposed（调研完成，待定方案与范围）
+- 状态：`partial`（2026-11-05 复核：底部面板统一与审阅内嵌已完成；非模态右侧工作区未实现，旧入口范围待重定）
 - 范围：对话主界面（`message_area.dart`）及相邻的审阅/历史/待办/目标入口
 - 性质：交互与信息架构调整，不涉及业务逻辑、SQL 或同步语义
 
@@ -141,3 +141,13 @@ ui/lib/widgets/
 
 1. **范围**：仅对话界面（#1–#10），还是连带知识页详情里同类弹窗一起？
 2. **形态**：右侧滑出抽屉（推荐，方案 B）还是底部上滑面板（方案 C）？
+
+## 2026-11-05 代码复核与剩余范围
+
+- `ui/lib/widgets/adaptive_panel.dart` 的 `showPanelSheet` 全平台调用 `showModalBottomSheet`，已统一呈现形态，但仍为模态。
+- `message_area.dart` 的 `openTodoDialog` / `openGoalDialog` 已使用 `AdaptivePanelSheet`；目标主工作区另有独立页面，旧“目标列表弹窗迁移”不再作为未实现能力排期。
+- `chat_proposal_review.dart` 的审阅入口已使用底部面板；`proposal_review_dialog.dart` 通过 `_buildPanes` / `_buildDetailPane` 内嵌 `ChatProposalDetailPanel`、`ChatProposalBatchPanel`，详情和批量操作不必再弹二级 Dialog。兼容 Dialog 类仍存在，不据类名判断主入口未改造。
+- 旧 `_KnowledgeDraftsDialog` / `_KnowledgeDraftDialog` 与 `chat_run_history.dart` / `_RunHistoryDialog` 在当前 UI 源码中已不存在；生成侧现有 `ChatRunStatus`。旧 P2/P4 需先重定产品范围，不恢复历史入口来满足旧清单。
+- 尚未交付的核心目标是“非模态、对话输入仍可用”的伴随工作区；现有 bottom sheet 不能算该目标已完成。原 P1–P4 与验收表为历史设计，执行时以本节复核为准。
+
+证据来自上述调用路径与实现代码。本次只核实状态和范围，未修改 UI 或运行新测试。

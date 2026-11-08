@@ -200,21 +200,45 @@ extension RepoWorkerReminders on RustBridgeRepository {
     }
   }
 
-  Future<api.HabitNudgeSuggestionDto> getHabitNudgeSuggestion(
-    String pageSlug,
-  ) => api.getHabitNudgeSuggestion(pageSlug: pageSlug);
+  // ── 知识库洞见浮现（Surfacing Digest Insights）────────────────────
+
+  Future<void> _tickDigestInsights() async {
+    try {
+      final result = await api.tickDigestInsights();
+      if (_disposed) return;
+      pendingDigestInsights.value = result.pendingCount;
+      if (result.messageIds.isNotEmpty) {
+        digestInsightRevision.value++;
+      }
+    } catch (e) {
+      // 故障隔离：洞见浮现 tick 失败不能影响提醒/问候/分析/同步。
+      debugPrint('digest insight tick failed: $e');
+    }
+  }
+
+  Future<List<api.DigestInsightSurfacingDto>> listDigestInsightSurfacings() =>
+      api.listDigestInsightSurfacings();
+
+  /// 四重闭环出口（rule / habit_nudge / todo / dismiss）：成功后刷新
+  /// 修订号让卡片状态与未读计数即时更新。
+  Future<api.DigestInsightSurfacingDto> actOnDigestInsight(
+    String messageId,
+    String action,
+  ) async {
+    final dto = await api.actOnDigestInsight(
+      messageId: messageId,
+      action: action,
+    );
+    digestInsightRevision.value++;
+    pendingDigestInsights.value = await api.pendingDigestInsightCount();
+    return dto;
+  }
 
   Future<api.HabitNudgeDto?> getHabitNudgeForPage(String pageSlug) =>
       api.getHabitNudgeForPage(pageSlug: pageSlug);
 
   Future<api.HabitNudgeDto?> getHabitNudge(String id) =>
       api.getHabitNudge(id: id);
-
-  Future<api.HabitNudgeDto> saveHabitNudge(api.HabitNudgeInputDto input) async {
-    final dto = await api.saveHabitNudge(input: input);
-    habitNudgeRevision.value++;
-    return dto;
-  }
 
   Future<bool> deleteHabitNudge(String id) async {
     final deleted = await api.deleteHabitNudge(id: id);

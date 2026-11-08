@@ -1,3 +1,7 @@
+import '../l10n/notice_messages.dart';
+import 'app_error_notice.dart';
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -47,7 +51,7 @@ class _TopicOrganizationSectionState
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _error = '读取整理方案失败：$e');
+      if (mounted) setState(() => _error = appFailure(e));
     }
   }
 
@@ -62,7 +66,7 @@ class _TopicOrganizationSectionState
       widget.onChanged();
       await _load();
     } catch (e) {
-      if (mounted) setState(() => _error = '整理未完成，原主题保留：$e');
+      if (mounted) setState(() => _error = appFailure(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -75,7 +79,7 @@ class _TopicOrganizationSectionState
           .browse(_query, null, 'topic', null, null, 0);
       if (mounted) setState(() => _candidates = rows.items);
     } catch (e) {
-      if (mounted) setState(() => _error = '查找失败：$e');
+      if (mounted) setState(() => _error = appFailure(e));
     }
   }
 
@@ -104,14 +108,14 @@ class _TopicOrganizationSectionState
               color: AppTheme.textSecondary,
             ),
           ),
-          title: const Text(
-            '整理主题结构',
+          title: Text(
+            context.l10n.l6OrganizeTopicscabf2,
             style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(
-              '合并相近主题或拆分过大的主题，预览确认后生效',
+              context.l10n.l6MergeSimilarTopicsOrSplitA6542f,
               style: TextStyle(fontSize: 11.5, color: AppTheme.textTertiary),
             ),
           ),
@@ -138,7 +142,9 @@ class _TopicOrganizationSectionState
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            '确认后旧主题归档保留，来源和历史仍可追溯。新主题作为参考知识，不会升级为个人规则。',
+                            context
+                                .l10n
+                                .l6OldTopicsAreArchivedAfterConfirmationf5e56,
                             style: TextStyle(
                               fontSize: 11.5,
                               color: AppTheme.textSecondary,
@@ -156,7 +162,7 @@ class _TopicOrganizationSectionState
                         Expanded(
                           child: TextField(
                             decoration: InputDecoration(
-                              hintText: '搜索待合并的主题…',
+                              hintText: context.l10n.l6SearchTopicsToMergef60aa,
                               hintStyle: TextStyle(
                                 fontSize: 12.5,
                                 color: AppTheme.textTertiary,
@@ -190,8 +196,8 @@ class _TopicOrganizationSectionState
                         OutlinedButton.icon(
                           onPressed: _busy ? null : _search,
                           icon: const Icon(Icons.search, size: 15),
-                          label: const Text(
-                            '查找主题',
+                          label: Text(
+                            context.l10n.l6FindTopicsa638d,
                             style: TextStyle(fontSize: 12),
                           ),
                           style: OutlinedButton.styleFrom(
@@ -231,8 +237,8 @@ class _TopicOrganizationSectionState
                     children: [
                       OutlinedButton.icon(
                         icon: const Icon(Icons.merge_outlined, size: 15),
-                        label: const Text(
-                          '预览合并',
+                        label: Text(
+                          context.l10n.l6PreviewMerge6d8f5,
                           style: TextStyle(fontSize: 12),
                         ),
                         onPressed:
@@ -251,8 +257,8 @@ class _TopicOrganizationSectionState
                       ),
                       OutlinedButton.icon(
                         icon: const Icon(Icons.call_split, size: 15),
-                        label: const Text(
-                          '预览拆分本页',
+                        label: Text(
+                          context.l10n.l6PreviewSplit6f910,
                           style: TextStyle(fontSize: 12),
                         ),
                         onPressed: _busy || widget.page.status == 'archived'
@@ -269,8 +275,9 @@ class _TopicOrganizationSectionState
                   if (_error != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        _error!,
+                      child: AppErrorMessage(
+                        action: context.l10n.load,
+                        error: _error!,
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.error,
                           fontSize: 12,
@@ -295,7 +302,15 @@ class _TopicOrganizationSectionState
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      '${plan.mode == 'merge' ? '合并' : '拆分'}方案 · ${plan.inputSlugs.length} 页 → ${plan.topics.length} 页',
+                                      context.l10n
+                                          .l6Arg0ProposalArg1PagesArg2Pages2ee4f(
+                                            (plan.mode == 'merge'
+                                                    ? context.l10n.l6Mergee5bad
+                                                    : context.l10n.l6Split726ca)
+                                                .toString(),
+                                            (plan.inputSlugs.length).toString(),
+                                            (plan.topics.length).toString(),
+                                          ),
                                       style: const TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
@@ -317,10 +332,15 @@ class _TopicOrganizationSectionState
                                     ),
                                     child: Text(
                                       {
-                                            'pending': '待确认',
-                                            'accepted': '已采纳',
-                                            'rejected': '已拒绝',
-                                            'undone': '已撤销',
+                                            'pending': context
+                                                .l10n
+                                                .l6AwaitingConfirmation27b58,
+                                            'accepted':
+                                                context.l10n.knowledgeAccepted,
+                                            'rejected':
+                                                context.l10n.knowledgeRejected,
+                                            'undone':
+                                                context.l10n.l6Revoked61063,
                                           }[plan.status] ??
                                           plan.status,
                                       style: TextStyle(
@@ -339,8 +359,8 @@ class _TopicOrganizationSectionState
                                   padding: const EdgeInsets.only(top: 6),
                                   child: TextButton.icon(
                                     icon: const Icon(Icons.undo, size: 15),
-                                    label: const Text(
-                                      '撤销整批整理',
+                                    label: Text(
+                                      context.l10n.l6UndoThisBatch7aa0a,
                                       style: TextStyle(fontSize: 12),
                                     ),
                                     onPressed: _busy
@@ -384,7 +404,13 @@ class _TopicOrganizationSectionState
                                           ),
                                         ),
                                         subtitle: Text(
-                                          '${topic.snapshotIds.length} 份原料 · ${topic.eventIds.length} 个事件',
+                                          context.l10n
+                                              .l6SourcesArg0EventsArg10f288(
+                                                (topic.snapshotIds.length)
+                                                    .toString(),
+                                                (topic.eventIds.length)
+                                                    .toString(),
+                                              ),
                                           style: TextStyle(
                                             fontSize: 11,
                                             color: AppTheme.textTertiary,
@@ -406,7 +432,11 @@ class _TopicOrganizationSectionState
                                                     .applicableWhen
                                                     .isNotEmpty) ...[
                                                   Text(
-                                                    '适用条件：${topic.applicableWhen}',
+                                                    context.l10n
+                                                        .l6ConditionsArg006edc(
+                                                          (topic.applicableWhen)
+                                                              .toString(),
+                                                        ),
                                                     style: TextStyle(
                                                       fontSize: 11.5,
                                                       color: AppTheme
@@ -447,7 +477,11 @@ class _TopicOrganizationSectionState
                                                       true,
                                                     );
                                               }),
-                                        child: const Text('确认整理并归档旧主题'),
+                                        child: Text(
+                                          context
+                                              .l10n
+                                              .l6ConfirmAndArchiveOldTopics37635,
+                                        ),
                                       ),
                                       TextButton(
                                         onPressed: _busy
@@ -462,7 +496,9 @@ class _TopicOrganizationSectionState
                                                       false,
                                                     );
                                               }),
-                                        child: const Text('拒绝方案'),
+                                        child: Text(
+                                          context.l10n.l6RejectPlan8b441,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -477,8 +513,8 @@ class _TopicOrganizationSectionState
                       padding: const EdgeInsets.only(top: 6),
                       child: TextButton(
                         onPressed: _busy ? null : () => _load(more: true),
-                        child: const Text(
-                          '加载更早整理方案',
+                        child: Text(
+                          context.l10n.l6LoadEarlierPlans65e31,
                           style: TextStyle(fontSize: 12),
                         ),
                       ),

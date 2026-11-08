@@ -75,6 +75,48 @@ fn mcp_catalog_groups_and_budgets() {
     assert!(crate::ai::budget::text_tokens("deepseek-flash", &catalog) < full / 4);
 }
 
+#[test]
+fn mcp_catalog_exposes_server_intents_once_without_enabling_tools() {
+    let mut registry = ToolRegistry::deferred_runtime();
+    let mut search = mcp_tool("social-kit", "search_notes", 1);
+    search.keywords = "小红书,种草,RED".into();
+    let mut read = mcp_tool("social-kit", "read_note", 1);
+    read.keywords = search.keywords.clone();
+    registry.set_mcp_tools(vec![search, read, mcp_tool("files", "read_file", 1)]);
+    let meta = registry.meta_spec().unwrap();
+    assert_eq!(meta.description.matches("【关联意图：").count(), 1);
+    assert!(meta.description.contains("【关联意图：RED/小红书/种草】"));
+    assert!(meta.description.contains("files（1 个工具）："));
+    assert!(
+        registry
+            .eager_specs(true)
+            .iter()
+            .all(|spec| !spec.name.starts_with("mcp__"))
+    );
+    let mut enabled = std::collections::HashSet::new();
+    registry.enable_result(&["social-kit".into()], &mut enabled);
+    assert!(enabled.contains("mcp__social-kit__search_notes"));
+    assert!(enabled.contains("mcp__social-kit__read_note"));
+}
+
+#[test]
+fn mcp_catalog_intent_headers_share_the_total_budget() {
+    let mut registry = ToolRegistry::deferred_runtime();
+    registry.set_mcp_tools(
+        (0..32)
+            .map(|index| {
+                let mut tool = mcp_tool(&format!("server-{index:02}"), "search", 1);
+                tool.keywords = "关".repeat(256);
+                tool
+            })
+            .collect(),
+    );
+    let catalog = registry.mcp_catalog_text();
+    assert!(catalog.contains("关联意图"));
+    assert!(catalog.contains("个工具未列出"));
+    assert!(crate::ai::budget::text_tokens("deepseek-flash", &catalog) <= 2000);
+}
+
 /// enable_result：MCP 全名登记 + 完整 schema 回传；未知全名走 unknown 报错。
 #[test]
 fn enable_result_registers_mcp_fullnames() {

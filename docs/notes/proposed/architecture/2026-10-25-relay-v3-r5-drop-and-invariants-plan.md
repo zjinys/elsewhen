@@ -4,7 +4,7 @@
 上位方案：[relay 存储放大与配额失效修复](2026-10-24-relay-storage-amplification-and-quota.md) §3.3 / §3.4。
 前置：R0 ~ R4 已完成（信箱 + blob 两本账、窗口化快照、`/blob/*` 六端点）。
 
-状态：实施中（本文先落盘，代码按 §3 顺序推进，每完成一项回填 roadmap 证据列）。
+状态：已落地（2026-11-05 修正滞后标记；R5-1～R5-3 于 2026-10-25 全部完成，证据见 `docs/roadmap/2026-10-24-relay-v3-dataplane-roadmap.md` 的 R5 表与同日实施记录：relay 41/41、Rust 926 passed / 19 ignored、真 relay e2e 通过）。
 
 ---
 

@@ -259,3 +259,111 @@ fn incomplete_or_truncated_revision_is_not_a_proposal() {
     );
     assert!(s.pending_actions_for_conversation(&c).unwrap().is_empty());
 }
+
+#[test]
+fn bilingual_page_processing_keeps_language_snapshot_source_coverage_and_review() {
+    for (locale, next_locale, query, task_marker, summary_marker, chunk_marker, revision_marker) in [
+        (
+            "en",
+            "zh-Hans",
+            "Summarize the entire page.",
+            "Page task=full_summary",
+            "not verbatim source text",
+            "Summarize this consecutive source range",
+            "Ordinary revisions retain the page language",
+        ),
+        (
+            "zh-Hans",
+            "en",
+            "总结全文。",
+            "页面任务=full_summary",
+            "非逐字原文",
+            "归纳这一连续原文片段",
+            "普通修订保留页面语言",
+        ),
+    ] {
+        let db = Db::new();
+        let s = &db.store;
+        let original = format!(
+            "{}。尾部事实 <<kind>> {{secret:key}}。",
+            "中文原文😀。".repeat(700)
+        );
+        page(s, &original);
+        let conversation = s
+            .create_wiki_chat_conversation("task-page", "language fixture")
+            .unwrap();
+        s.save_prompt_language_preferences(Some(locale), "fixed", Some(locale), 0)
+            .unwrap();
+        let _scope = s.prompt_scope("preview", "english-page").unwrap();
+        s.save_prompt_language_preferences(Some(next_locale), "fixed", Some(next_locale), 1)
+            .unwrap();
+        let provider = stub(false);
+        let material = prepare(
+            s,
+            &conversation,
+            &task(s, "full_summary"),
+            query,
+            &provider,
+            "fixture",
+        )
+        .unwrap();
+        assert!(material.content.contains(task_marker));
+        assert!(material.content.contains(summary_marker));
+        let requests = provider.calls.borrow();
+        assert!(requests.len() > 1);
+        assert!(
+            requests
+                .iter()
+                .all(|request| { request[0].content.starts_with(chunk_marker) })
+        );
+        assert!(requests.iter().all(|request| {
+            request
+                .iter()
+                .any(|m| m.content.contains(&format!("Output language: {locale}")))
+        }));
+        assert_eq!(
+            requests
+                .iter()
+                .map(|request| request.last().unwrap().content.as_str())
+                .collect::<String>(),
+            original
+        );
+        drop(requests);
+        let revision_task = task(s, "full_revision");
+        s.save_page_task_input(
+            &conversation,
+            "Revise the page while preserving its language.",
+            "english-revision",
+            &revision_task,
+        )
+        .unwrap();
+        let reviser = stub(true);
+        revise_full(
+            s,
+            &conversation,
+            &revision_task,
+            "Preserve the facts.",
+            &reviser,
+            "fixture",
+            &[],
+        )
+        .unwrap();
+        assert!(
+            reviser
+                .calls
+                .borrow()
+                .iter()
+                .all(|request| { request[0].content.contains(revision_marker) })
+        );
+        assert_eq!(
+            s.pending_actions_for_conversation(&conversation)
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            s.get_wiki_page("task-page").unwrap().unwrap().content_md,
+            original
+        );
+    }
+}

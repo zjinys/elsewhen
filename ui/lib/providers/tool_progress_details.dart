@@ -1,6 +1,10 @@
+import '../l10n/localization.dart';
+
+import 'package:flutter/widgets.dart';
+
 import 'dart:convert';
 
-String _excerpt(Object? value, int limit) {
+String _excerpt(AppLocalizations strings, Object? value, int limit) {
   if (value is! String) return '';
   final chars = value.runes.take(limit + 1).toList();
   final visible = String.fromCharCodes(chars.take(limit));
@@ -12,18 +16,28 @@ String _excerpt(Object? value, int limit) {
     '[工具调用]',
     '<|dsml|>',
   ].any(lower.contains)) {
-    return '含协议标记的内容未在进度中展开，请查看原始记录。';
+    return strings.l6ContentContainingProtocolMarkersIsHidden50ad8;
   }
-  return visible + (chars.length > limit ? '…（片段）' : '');
+  return visible + (chars.length > limit ? strings.l6Excerptfba71 : '');
 }
 
 /// Project only known business-result fields, never dump arbitrary tool JSON.
 /// These are historical retrieval results, not final answer citations or a fresh
 /// page revision. No live lookup may attach newer identities to these excerpts.
-String toolProgressDetails(String name, String outcome, Object? content) {
-  if (outcome == 'failed') return '此步骤未成功；请查看最终状态和审阅回执，不会自动重复执行。';
-  if (outcome == 'uncertain') return '没有可核实的完成回执；请检查实际结果，不会自动重做。';
-  if (outcome == 'proposal_ready') return '具体内容、目标版本和接受/拒绝操作见下方审阅卡。';
+String toolProgressDetails(
+  String name,
+  String outcome,
+  Object? content, {
+  AppLocalizations? localizations,
+}) {
+  final strings = localizations ?? lookupAppLocalizations(const Locale('zh'));
+  if (outcome == 'failed') return strings.l6ThisStepFailedCheckTheFinal1ac2e;
+  if (outcome == 'uncertain') {
+    return strings.l6NoCompletionReceiptCouldBeVerifiede00f1;
+  }
+  if (outcome == 'proposal_ready') {
+    return strings.l6SeeTheReviewCardBelowFord5a60;
+  }
   if (content is! String) return '';
   if (const {
     'list_rules',
@@ -33,7 +47,7 @@ String toolProgressDetails(String name, String outcome, Object? content) {
     'list_events_by_date',
     'record_event',
   }.contains(name)) {
-    return _excerpt(content, 1200);
+    return _excerpt(strings, content, 1200);
   }
   if (name != 'get_wiki_page' && name != 'search_knowledge_base') return '';
   Object? decoded;
@@ -48,19 +62,32 @@ String toolProgressDetails(String name, String outcome, Object? content) {
   if (candidates is List) {
     for (final item in candidates.take(5)) {
       if (item is! Map<String, dynamic>) continue;
-      lines.add('检索时的证据片段 · ${_excerpt(item['title'], 80)}');
-      lines.add(_excerpt(item['excerpt'], 400));
+      lines.add(
+        strings.l6EvidenceAtRetrievalArg0cb747(
+          (_excerpt(strings, item['title'], 80)).toString(),
+        ),
+      );
+      lines.add(_excerpt(strings, item['excerpt'], 400));
       final sources = item['sources'];
       if (sources is List) {
         for (final source in sources.take(3)) {
           if (source is! Map<String, dynamic>) continue;
           lines.add(
-            '来源：${_excerpt(source['title'], 80)} · 版本 ${source['version'] is num ? source['version'] : '未知'} · 快照 ${_excerpt(source['snapshot_id'], 80)}',
+            strings.l6SourceArg0VersionArg1SnapshotArg2d0032(
+              (_excerpt(strings, source['title'], 80)).toString(),
+              (source['version'] is num
+                      ? source['version']
+                      : strings.l6Unknownd9c32)
+                  .toString(),
+              (_excerpt(strings, source['snapshot_id'], 80)).toString(),
+            ),
           );
         }
       }
-      final hash = _excerpt(item['content_hash'], 80);
-      if (hash.isNotEmpty) lines.add('检索时页面依据：$hash');
+      final hash = _excerpt(strings, item['content_hash'], 80);
+      if (hash.isNotEmpty) {
+        lines.add(strings.l6PageHashAtRetrievalArg05808a((hash).toString()));
+      }
     }
   }
   final events = decoded['events'];
@@ -68,17 +95,24 @@ String toolProgressDetails(String name, String outcome, Object? content) {
     for (final event in events.take(5)) {
       if (event is! Map<String, dynamic>) continue;
       lines.add(
-        '用户记录 ${_excerpt(event['event_id'], 80)}：${_excerpt(event['excerpt'], 350)}',
+        strings.l6UserRecordArg0Arg1902d4(
+          (_excerpt(strings, event['event_id'], 80)).toString(),
+          (_excerpt(strings, event['excerpt'], 350)).toString(),
+        ),
       );
     }
   }
   final unverified = decoded['unverified_page'];
   if (unverified is Map<String, dynamic>) {
-    lines.add('未核验页面 · ${_excerpt(unverified['title'], 80)}');
-    lines.add(_excerpt(unverified['notice'], 300));
-    lines.add(_excerpt(unverified['content_md'], 400));
+    lines.add(
+      strings.l6UnverifiedPageArg01a6ef(
+        (_excerpt(strings, unverified['title'], 80)).toString(),
+      ),
+    );
+    lines.add(_excerpt(strings, unverified['notice'], 300));
+    lines.add(_excerpt(strings, unverified['content_md'], 400));
   }
-  if (lines.isEmpty) return '没有返回可展开的证据片段。';
-  lines.add('以上是本次查询返回的数据；来源可能随后变化，最终回答引用另行核验。');
-  return _excerpt(lines.join('\n'), 3000);
+  if (lines.isEmpty) return strings.l6NoEvidenceExcerptsWereReturned013a1;
+  lines.add(strings.l6TheseAreTheResultsReturnedBy46276);
+  return _excerpt(strings, lines.join('\n'), 3000);
 }

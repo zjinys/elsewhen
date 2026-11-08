@@ -52,7 +52,10 @@ fn cooldown_slot() -> &'static Mutex<Vec<(String, CooldownState)>> {
 
 #[cfg(test)]
 pub(crate) fn reset_provider_cooldowns() {
-    cooldown_slot().lock().unwrap_or_else(|e| e.into_inner()).clear();
+    cooldown_slot()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clear();
 }
 
 fn cooling_provider(id: &str, now: std::time::Instant) -> bool {
@@ -142,6 +145,49 @@ impl FailoverProvider {
         }
     }
 
+    fn try_each(&self, call: &dyn Fn(&dyn AiProvider) -> Result<AiReply>) -> Result<AiReply> {
+        let len = self.entries.len();
+        anyhow::ensure!(len > 0, "没有可用的 AI provider");
+        let (order, skipped) = self.attempt_order();
+        let mut errors = Vec::with_capacity(len);
+        for index in order {
+            let entry = &self.entries[index];
+            match call(entry.provider.as_ref()) {
+                Ok(reply) => {
+                    if let Some(reason) = unusable_background_reply(&reply) {
+                        crate::logging::log_always(&format!(
+                            "[provider-failover] 后台渠道「{}」返回不可用响应，换下一个：{reason}",
+                            entry.name
+                        ));
+                        record_provider_failure(&entry.id);
+                        errors.push(format!("[{}] {reason}", entry.name));
+                        continue;
+                    }
+                    self.preferred.store(index, Ordering::Relaxed);
+                    record_provider_success(&entry.id);
+                    remember_last_good(&entry.id);
+                    return Ok(reply);
+                }
+                Err(error) => {
+                    // 渠道级错误（5xx/429/超时/鉴权/余额）都继续试下一个：
+                    // 后台链路没有前台那样的用户可重试入口，能换就换。
+                    crate::logging::log_always(&format!(
+                        "[provider-failover] 后台渠道「{}」失败，换下一个：{error:#}",
+                        entry.name
+                    ));
+                    if !error
+                        .chain()
+                        .any(|cause| cause.is::<crate::ai::budget::RequestBudgetError>())
+                    {
+                        record_provider_failure(&entry.id);
+                    }
+                    errors.push(format!("[{}] {error:#}", entry.name));
+                }
+            }
+        }
+        errors.extend(skipped);
+        anyhow::bail!("所有 AI provider 均失败：{}", errors.join(" | "))
+    }
     fn preferred_entry(&self) -> Result<&FailoverEntry> {
         let len = self.entries.len();
         anyhow::ensure!(len > 0, "没有可用的 AI provider");
@@ -215,45 +261,25 @@ impl AiProvider for FailoverProvider {
         messages: Vec<ContextMessage>,
         tools: Option<&[ToolSpec]>,
     ) -> Result<AiReply> {
-        let len = self.entries.len();
-        anyhow::ensure!(len > 0, "没有可用的 AI provider");
-        let (order, skipped) = self.attempt_order();
-        let mut errors = Vec::with_capacity(len);
+        self.try_each(&|provider| provider.generate_reply_with_tools(messages.clone(), tools))
+    }
+
+    fn fits_request(&self, messages: &[ContextMessage]) -> Result<bool> {
+        let (order, _) = self.attempt_order();
         for index in order {
-            let entry = &self.entries[index];
-            match entry
+            if self.entries[index]
                 .provider
-                .generate_reply_with_tools(messages.clone(), tools)
+                .fits_request(messages)
+                .unwrap_or(false)
             {
-                Ok(reply) => {
-                    if let Some(reason) = unusable_background_reply(&reply) {
-                        crate::logging::log_always(&format!(
-                            "[provider-failover] 后台渠道「{}」返回不可用响应，换下一个：{reason}",
-                            entry.name
-                        ));
-                        record_provider_failure(&entry.id);
-                        errors.push(format!("[{}] {reason}", entry.name));
-                        continue;
-                    }
-                    self.preferred.store(index, Ordering::Relaxed);
-                    record_provider_success(&entry.id);
-                    remember_last_good(&entry.id);
-                    return Ok(reply);
-                }
-                Err(error) => {
-                    // 渠道级错误（5xx/429/超时/鉴权/余额）都继续试下一个：
-                    // 后台链路没有前台那样的用户可重试入口，能换就换。
-                    crate::logging::log_always(&format!(
-                        "[provider-failover] 后台渠道「{}」失败，换下一个：{error:#}",
-                        entry.name
-                    ));
-                    record_provider_failure(&entry.id);
-                    errors.push(format!("[{}] {error:#}", entry.name));
-                }
+                return Ok(true);
             }
         }
-        errors.extend(skipped);
-        anyhow::bail!("所有 AI provider 均失败：{}", errors.join(" | "))
+        Ok(false)
+    }
+
+    fn generate_prepared(&self, prepare: &PrepareRequest<'_>) -> Result<AiReply> {
+        self.try_each(&|provider| provider.generate_prepared(prepare))
     }
 
     fn generate_observed(
@@ -384,6 +410,28 @@ mod tests {
                 .take()
                 .expect("scripted provider called more than once")
         }
+    }
+
+    #[test]
+    fn local_preparation_budget_failure_does_not_cool_a_healthy_channel() {
+        let _guard = COOLDOWN_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        reset_provider_cooldowns();
+        let id = "budget-probe-healthy";
+        let chain = FailoverProvider::new(vec![FailoverEntry::new(
+            id,
+            id,
+            Box::new(ScriptedProvider::ok("ok")),
+        )]);
+        assert!(
+            chain
+                .generate_prepared(&|_| Err(crate::ai::budget::RequestBudgetError(
+                    "required input too large".into()
+                )
+                .into()))
+                .is_err()
+        );
+        assert!(!provider_in_cooldown(id, std::time::Instant::now()));
+        assert_eq!(chain.generate_reply(Vec::new()).unwrap().content, "ok");
     }
 
     #[test]

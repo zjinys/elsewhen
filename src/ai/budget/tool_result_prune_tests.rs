@@ -135,3 +135,117 @@ fn when_pruning_is_not_enough_turn_dropping_takes_over() {
                 .contains("较早对话因请求预算已省略")
     }));
 }
+
+/// R2.5 通用恢复（2026-11-05）：只剩最近两轮、砍无可砍时，超大工具结果
+/// 带披露地砰半而不是整轮拒绝；头部保留、协议配对不动、当前问题完整。
+#[test]
+fn oversized_recent_tool_result_is_truncated_with_disclosure_not_rejected() {
+    let mut request = serde_json::json!({
+        "messages": [
+            {"role":"user","content":"请读这个列表"},
+            {"role":"assistant","content":"","tool_calls":[{"id":"c1","type":"function","function":{"name":"t","arguments":"{}"}}]},
+            tool_msg("c1", 60000),
+            {"role":"user","content":"当前问题必须完整保留"}
+        ]
+    });
+    let mut policies = RequestPolicies::plain(&request);
+    // 窗口 20000、输出 2048 → 输入预算 16952：初始约 19.9K 必超；只剩
+    // 两轮不可砍轮，只能走「截断近期工具结果」这条通用恢复路径。
+    let count = policies
+        .fit("unknown", &mut request, 20000, 2048)
+        .expect("工具结果截断后应回到预算内");
+    assert!(count <= 20000 - 2048 - 1000);
+    let messages = request["messages"].as_array().unwrap();
+    let content = messages.iter().find(|m| m["tool_call_id"] == "c1").unwrap()["content"]
+        .as_str()
+        .unwrap();
+    assert!(
+        content.contains("工具结果因超过请求预算被截断"),
+        "应带自明截断声明"
+    );
+    assert!(content.starts_with("xxx"), "头部内容保留");
+    // 协议配对原样（assistant tool_calls 与 tool 消息都在位）
+    assert!(
+        messages
+            .iter()
+            .any(|m| m["role"] == "assistant" && m["tool_calls"][0]["id"] == "c1")
+    );
+    assert!(
+        messages
+            .iter()
+            .any(|m| m["content"] == "当前问题必须完整保留")
+    );
+}
+
+/// 已截断的结果在更紧预算下继续收敛（strip 后重截），声明不叠加；
+/// 同预算重试幂等。
+#[test]
+fn tool_result_truncation_converges_without_duplicate_markers() {
+    let mut request = serde_json::json!({
+        "messages": [
+            {"role":"user","content":"q"},
+            {"role":"assistant","content":"","tool_calls":[{"id":"c1","type":"function","function":{"name":"t","arguments":"{}"}}]},
+            tool_msg("c1", 60000),
+            {"role":"user","content":"latest"}
+        ]
+    });
+    let mut policies = RequestPolicies::plain(&request);
+    policies.fit("unknown", &mut request, 20000, 2048).unwrap();
+    // 更紧预算：同一请求继续砰半，声明不重复。
+    policies.fit("unknown", &mut request, 8000, 1024).unwrap();
+    let content = request["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["tool_call_id"] == "c1")
+        .unwrap()["content"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert_eq!(
+        content.matches("工具结果因超过请求预算被截断").count(),
+        1,
+        "重复截断不得叠加声明"
+    );
+    let len = content.chars().count();
+    assert!(len < 15200, "应继续收敛到约 15K 字符，实际 {len}");
+    // 同预算重试幂等：内容不再变化。
+    let before = content.clone();
+    policies.fit("unknown", &mut request, 8000, 1024).unwrap();
+    let after = request["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["tool_call_id"] == "c1")
+        .unwrap()["content"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert_eq!(before, after);
+}
+
+/// 小工具结果（写操作回执等不可再生证据，低于截断下限）永不参与截断；
+/// 确实装不下时仍是诚实失败，但错误给出可操作建议。
+#[test]
+fn small_tool_result_receipts_are_never_truncated() {
+    let mut request = serde_json::json!({
+        "messages": [
+            {"role":"user","content":"q"},
+            {"role":"assistant","content":"","tool_calls":[{"id":"c1","type":"function","function":{"name":"t","arguments":"{}"}}]},
+            tool_msg("c1", 500),
+            {"role":"user","content":"最新问题".repeat(300)}
+        ]
+    });
+    let mut policies = RequestPolicies::plain(&request);
+    let error = policies
+        .fit("unknown", &mut request, 1200, 256)
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("最近两轮对话不可省略"), "实际错误：{error}");
+    assert!(error.contains("MCP"), "应给出可操作建议：{error}");
+    let messages = request["messages"].as_array().unwrap();
+    let content = messages.iter().find(|m| m["tool_call_id"] == "c1").unwrap()["content"]
+        .as_str()
+        .unwrap();
+    assert_eq!(content.len(), 500, "回执类小结果必须原样保留");
+}

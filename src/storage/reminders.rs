@@ -88,7 +88,7 @@ impl Store {
             params![until, chrono::Utc::now().to_rfc3339(), todo_id],
         )?;
         if changed == 0 {
-            anyhow::bail!("未找到待办（id={todo_id}）");
+            anyhow::bail!(crate::user_error::UserError::missing("todo"));
         }
         self.sync_record_todo(todo_id, false)?;
         self.connection.execute(
@@ -116,12 +116,17 @@ impl Store {
                 Some(due) => {
                     let parsed = chrono::DateTime::parse_from_rfc3339(&due);
                     let past = matches!(parsed, Ok(ts) if ts <= chrono::Utc::now());
-                    anyhow::ensure!(
-                        !past,
-                        "该待办的截止时间已过（{due}），请先设一个未来的提醒时间"
-                    );
+                    if past {
+                        anyhow::bail!(crate::user_error::UserError::new(
+                            "reminder_time_past",
+                            serde_json::json!({})
+                        ));
+                    }
                 }
-                None => anyhow::bail!("请先为该待办设置截止时间，再开启提醒"),
+                None => anyhow::bail!(crate::user_error::UserError::new(
+                    "reminder_time_required",
+                    serde_json::json!({})
+                )),
             }
         }
         let changed = self.connection.execute(

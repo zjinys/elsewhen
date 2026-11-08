@@ -63,6 +63,31 @@ void main() {
       '旧原文',
     );
     expect(await repo.listWikiPages(), hasLength(1));
+    // The creation form uses the topic endpoint; imported source protection
+    // still applies independently of the page title and UI language.
+    final topic = await repo.saveTopicPage(
+      text: '用户主题原文',
+      title: '主题',
+      tags: ['tag'],
+    );
+    expect(topic.kind, 'topic');
+    final edited = await repo.saveWikiPageContent(
+      slug: topic.slug,
+      contentMd: '用户修改后的主题',
+      reason: 'test',
+      expectedUpdatedAt: topic.updatedAt.toUtc().toIso8601String(),
+    );
+    expect(edited.contentMd, '用户修改后的主题');
+    await expectLater(
+      repo.saveWikiPageContent(
+        slug: page.slug,
+        contentMd: '不能覆盖原材料',
+        reason: 'test',
+      ),
+      throwsA(anything),
+    );
+    expect((await repo.getWikiPage(page.slug))!.contentMd, '新原文');
+
     final derivative = await repo.createWikiDerivative(
       basedOnSlug: page.slug,
       contentType: 'summary',

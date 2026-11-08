@@ -152,6 +152,19 @@ fn ollama_response_tool_calls(raw: Vec<OllamaResponseToolCall>) -> Vec<ToolCall>
 }
 
 impl AiProvider for OllamaProvider {
+    fn fits_request(&self, messages: &[ContextMessage]) -> Result<bool> {
+        crate::ai::budget::validate_context_exchanges(messages)?;
+        let (payload, _) = self.request_parts(messages.to_vec(), None)?;
+        let limit = crate::ai::budget::input_limit(
+            self.config.context_window.unwrap_or(32768) as usize,
+            self.config.max_tokens.unwrap_or(4096) as usize,
+        )?;
+        Ok(
+            crate::ai::budget::input_tokens(&self.config.model, &payload).saturating_add(512)
+                <= limit,
+        )
+    }
+
     fn generate_reply_with_tools(
         &self,
         messages: Vec<ContextMessage>,
@@ -172,17 +185,16 @@ impl AiProvider for OllamaProvider {
 }
 
 impl OllamaProvider {
-    fn generate_impl(
+    fn request_parts(
         &self,
         messages: Vec<ContextMessage>,
         tools: Option<&[ToolSpec]>,
-        mut observer: Option<&mut dyn FnMut(ProviderEvent<'_>) -> Result<()>>,
-    ) -> Result<AiReply> {
+    ) -> Result<(Value, crate::ai::budget::RequestPolicies)> {
         let messages = crate::ai::time_context::enrich_history(
             messages,
             &crate::ai::time_context::SystemClock,
         );
-        let mut policies = crate::ai::budget::RequestPolicies::from_context(&messages);
+        let policies = crate::ai::budget::RequestPolicies::from_context(&messages);
         let ollama_messages: Vec<OllamaMessage> = messages
             .into_iter()
             .map(|m| OllamaMessage {
@@ -209,16 +221,23 @@ impl OllamaProvider {
             }
         }
 
+        Ok((serde_json::to_value(&request)?, policies))
+    }
+
+    fn generate_impl(
+        &self,
+        messages: Vec<ContextMessage>,
+        tools: Option<&[ToolSpec]>,
+        mut observer: Option<&mut dyn FnMut(ProviderEvent<'_>) -> Result<()>>,
+    ) -> Result<AiReply> {
+        let (mut payload, mut policies) = self.request_parts(messages, tools)?;
+        let window = self.config.context_window.unwrap_or(32768) as usize;
+        let output = self.config.max_tokens.unwrap_or(4096) as usize;
         let url = format!("{}/api/chat", self.config.base_url.trim_end_matches('/'));
-        let mut payload = serde_json::to_value(&request)?;
         if let Some(observer) = observer.as_deref_mut() {
             observer(ProviderEvent::Poll)?;
-            let (result, report) = policies.fit_reported(
-                &self.config.model,
-                &mut payload,
-                request.options.num_ctx,
-                request.options.num_predict,
-            );
+            let (result, report) =
+                policies.fit_reported(&self.config.model, &mut payload, window, output);
             observer(ProviderEvent::Budget {
                 attempt: 1,
                 trigger: "initial",
@@ -226,12 +245,7 @@ impl OllamaProvider {
             })?;
             result?;
         } else {
-            policies.fit(
-                &self.config.model,
-                &mut payload,
-                request.options.num_ctx,
-                request.options.num_predict,
-            )?;
+            policies.fit(&self.config.model, &mut payload, window, output)?;
         }
         let ollama_response: OllamaResponse = if let Some(observer) = observer {
             serde_json::from_value(streaming::cancellable_json(&url, &payload, observer)?)?

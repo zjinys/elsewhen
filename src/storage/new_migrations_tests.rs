@@ -116,6 +116,14 @@ fn migrations_are_discovered_from_the_directory() {
             "67-goal-chat-conversations",
             "68-goal-plans",
             "69-goal-compass-plan-context",
+            "70-named-secrets",
+            "71-digest-insight-surfacings",
+            "72-mcp-intent-keywords",
+            "73-prompt-management",
+            "74-knowledge-language-policy",
+            "75-analysis-prompt-generation-repair",
+            "76-knowledge-artifact-language-repair",
+            "77-manual-topic-editing",
         ],
         "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
     );
@@ -147,12 +155,39 @@ fn migration_applies_goals_table() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 69, "六十九条迁移跑完，user_version 应为 69");
+    assert_eq!(version, 77, "全部迁移跑完，user_version 应为 77");
     assert_eq!(
         latest_version().unwrap(),
         version,
         "latest_version 必须与迁移目录推导出的 user_version 一致"
     );
+}
+
+#[test]
+fn mcp_keywords_upgrade_preserves_existing_server_configuration() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    migrations()
+        .unwrap()
+        .to_version(&mut connection, 71)
+        .unwrap();
+    connection
+        .execute(
+        "INSERT INTO mcp_servers(id,name,transport,command,env_json,trusted,created_at,updated_at)
+         VALUES('legacy-mcp','legacy','stdio','fixture','{\"TOKEN\":\"local-value\"}',1,'t','t')",
+            [],
+        )
+        .unwrap();
+    initialize(&mut connection).unwrap();
+    let (keywords, env_json, trusted): (String, String, bool) = connection
+        .query_row(
+            "SELECT keywords,env_json,trusted FROM mcp_servers WHERE id='legacy-mcp'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .unwrap();
+    assert!(keywords.is_empty());
+    assert_eq!(env_json, r#"{"TOKEN":"local-value"}"#);
+    assert!(trusted);
 }
 
 #[test]
@@ -691,11 +726,9 @@ fn v65_cognitive_goals_migration_keeps_data_and_updates_status() {
 
     // 验证活跃目标仍为 active
     let active_status: String = connection
-        .query_row(
-            "SELECT status FROM goals WHERE id='g-active'",
-            [],
-            |r| r.get(0),
-        )
+        .query_row("SELECT status FROM goals WHERE id='g-active'", [], |r| {
+            r.get(0)
+        })
         .unwrap();
     assert_eq!(active_status, "active");
 
@@ -759,10 +792,7 @@ fn v65_cognitive_goals_migration_keeps_data_and_updates_status() {
 
     // 验证复活（UPDATE status='active'）也会受触发器拦截
     let err_update = connection
-        .execute(
-            "UPDATE goals SET status='active' WHERE id='g-archived'",
-            [],
-        )
+        .execute("UPDATE goals SET status='active' WHERE id='g-archived'", [])
         .unwrap_err();
     assert!(err_update.to_string().contains(ACTIVE_GOAL_LIMIT_REACHED));
 }
@@ -775,7 +805,7 @@ fn v66_goal_compass_nudges_table_created() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 69);
+    assert_eq!(version, latest_version().unwrap());
 
     // 插入活跃目标和关联 nudge
     connection
@@ -812,7 +842,7 @@ fn v67_goal_chat_conversations_column_added() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 69);
+    assert_eq!(version, latest_version().unwrap());
 
     // 普通会话旧行保持 NULL goal_id
     connection
@@ -979,7 +1009,7 @@ fn v69_compass_nudges_gain_plan_context_columns() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 69);
+    assert_eq!(version, latest_version().unwrap());
 
     // 旧行两列回填为 NULL；新行可携带计划上下文。
     let (plan_id, plan_intent): (Option<String>, Option<String>) = connection
@@ -1013,4 +1043,251 @@ fn v69_compass_nudges_gain_plan_context_columns() {
         .unwrap();
     assert_eq!(pid.as_deref(), Some("p-1"));
     assert_eq!(intent.as_deref(), Some("三年十个月入十万"));
+}
+
+#[test]
+fn knowledge_language_upgrade_preserves_legacy_prompt_tasks_and_immutable_bundles() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    initialize_test_version(&mut connection, 73).unwrap();
+    connection.execute("INSERT INTO prompt_bundles VALUES('old-bundle','background_task','old-reading','zh-Hans','zh-Hans','{\"mode\":\"knowledge\"}','zh-Hans',1,'prompts-v1','locale-v1','render-v1',?1,'original-time')",["a".repeat(64)]).unwrap();
+    connection
+        .execute(
+            "INSERT INTO prompt_reading_tasks VALUES('snapshot','v1','old-bundle','old-strategy')",
+            [],
+        )
+        .unwrap();
+    initialize(&mut connection).unwrap();
+    let saved: (String, String, i64) = connection
+        .query_row(
+            "SELECT bundle_id,strategy,policy_generation FROM prompt_reading_tasks",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .unwrap();
+    assert_eq!(saved, ("old-bundle".into(), "old-strategy".into(), 0));
+    assert!(
+        connection
+            .execute("UPDATE prompt_reading_tasks SET strategy='new'", [])
+            .is_err()
+    );
+    assert!(
+        connection
+            .execute("UPDATE prompt_bundles SET created_at='new-time'", [])
+            .is_err()
+    );
+    let saved: String = connection
+        .query_row("SELECT created_at FROM prompt_bundles", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(saved, "original-time");
+}
+
+#[test]
+fn early_v74_missing_analysis_generation_is_repaired_without_resetting_jobs() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    initialize_test_version(&mut connection, 74).unwrap();
+    connection.execute_batch("ALTER TABLE analysis_jobs DROP COLUMN prompt_generation;
+        INSERT INTO events(id,raw_text,recorded_at,occurred_at,source,status,created_at,updated_at) VALUES('legacy-event','原文保留','t','t','manual','pending','t','t');
+        INSERT INTO analysis_jobs(id,event_id,status,attempts,last_error,available_at,created_at,updated_at) VALUES('legacy-job','legacy-event','retry',3,'old diagnostic','t','t','t');").unwrap();
+    initialize(&mut connection).unwrap();
+    let state: (i64,String,i64,String,String) = connection.query_row(
+        "SELECT j.prompt_generation,j.status,j.attempts,j.last_error,e.raw_text FROM analysis_jobs j JOIN events e ON e.id=j.event_id WHERE j.id='legacy-job'",[],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))).unwrap();
+    assert_eq!(
+        state,
+        (
+            0,
+            "retry".into(),
+            3,
+            "old diagnostic".into(),
+            "原文保留".into()
+        )
+    );
+    connection
+        .execute(
+            "UPDATE analysis_jobs SET prompt_generation=7 WHERE id='legacy-job'",
+            [],
+        )
+        .unwrap();
+    initialize(&mut connection).unwrap();
+    assert_eq!(
+        connection
+            .query_row(
+                "SELECT prompt_generation FROM analysis_jobs WHERE id='legacy-job'",
+                [],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+        7
+    );
+}
+
+#[test]
+fn current_v74_analysis_generation_survives_repair_upgrade() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    initialize_test_version(&mut connection, 74).unwrap();
+    connection.execute_batch("INSERT INTO events(id,raw_text,recorded_at,occurred_at,source,status,created_at,updated_at) VALUES('e','original','t','t','manual','pending','t','t');
+        INSERT INTO analysis_jobs(id,event_id,prompt_generation,available_at,created_at,updated_at) VALUES('j','e',9,'t','t','t');").unwrap();
+    initialize(&mut connection).unwrap();
+    assert_eq!(
+        connection
+            .query_row(
+                "SELECT prompt_generation FROM analysis_jobs WHERE id='j'",
+                [],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+        9
+    );
+}
+
+#[test]
+fn early_v74_foreground_upgrade_allows_worker_claim_and_requeue_generation() {
+    let path =
+        std::env::temp_dir().join(format!("elsewhen-v74-repair-{}.db", uuid::Uuid::new_v4()));
+    {
+        let mut connection = Connection::open(&path).unwrap();
+        initialize_test_version(&mut connection, 74).unwrap();
+        connection.execute_batch("ALTER TABLE analysis_jobs DROP COLUMN prompt_generation;
+          INSERT INTO events(id,raw_text,recorded_at,occurred_at,source,status,created_at,updated_at) VALUES('event','original event','t','t','manual','pending','t','t');
+          INSERT INTO analysis_jobs(id,event_id,available_at,created_at,updated_at) VALUES('job','event','2000-01-01','t','t');").unwrap();
+    }
+    assert!(
+        crate::storage::Store::open_background(&path)
+            .unwrap()
+            .is_none()
+    );
+    let store = crate::storage::Store::open(&path).unwrap();
+    store.register_prompts().unwrap();
+    let job = store.claim_analysis_job().unwrap().unwrap();
+    assert_eq!(job.raw_text, "original event");
+    let first = store.analysis_prompt_bundle(&job.id).unwrap();
+    store.fail_analysis(&job, "fixture").unwrap();
+    assert!(store.requeue_event_analysis(&job.event_id).unwrap());
+    let second = store.claim_analysis_job().unwrap().unwrap();
+    let second_bundle = store.analysis_prompt_bundle(&second.id).unwrap();
+    assert_ne!(first, second_bundle);
+    let generation: i64 = store
+        .connection
+        .query_row(
+            "SELECT prompt_generation FROM analysis_jobs WHERE id='job'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(generation, 1);
+    assert!(
+        crate::storage::Store::open_background(&path)
+            .unwrap()
+            .is_some()
+    );
+    drop(store);
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn early_v75_missing_artifact_languages_upgrades_without_rewriting_analysis() {
+    let path = std::env::temp_dir().join(format!(
+        "elsewhen-artifact-repair-{}.db",
+        uuid::Uuid::new_v4()
+    ));
+    {
+        let mut connection = Connection::open(&path).unwrap();
+        initialize_test_version(&mut connection, 75).unwrap();
+        connection.execute_batch("DROP TABLE knowledge_artifact_languages;
+          INSERT INTO events(id,raw_text,recorded_at,occurred_at,source,status,created_at,updated_at) VALUES('e','保留原文','t','t','manual','pending','t','t');
+          INSERT INTO analysis_jobs(id,event_id,prompt_generation,available_at,created_at,updated_at) VALUES('j','e',4,'2000-01-01','t','t');").unwrap();
+    }
+    assert!(
+        crate::storage::Store::open_background(&path)
+            .unwrap()
+            .is_none()
+    );
+    let store = crate::storage::Store::open(&path).unwrap();
+    let job = store.claim_analysis_job().unwrap().unwrap();
+    store.complete_analysis(&job, "fixture", "{}").unwrap();
+    assert_eq!(
+        store
+            .connection
+            .query_row("SELECT status FROM analysis_jobs WHERE id='j'", [], |r| {
+                r.get::<_, String>(0)
+            })
+            .unwrap(),
+        "succeeded"
+    );
+    assert_eq!(
+        store
+            .connection
+            .query_row(
+                "SELECT prompt_generation FROM analysis_jobs WHERE id='j'",
+                [],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+        4
+    );
+    assert_eq!(
+        store
+            .connection
+            .query_row("SELECT raw_text FROM events WHERE id='e'", [], |r| r
+                .get::<_, String>(0))
+            .unwrap(),
+        "保留原文"
+    );
+    assert!(
+        crate::storage::Store::open_background(&path)
+            .unwrap()
+            .is_some()
+    );
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn manual_topic_upgrade_preserves_identity_and_imported_sources_stay_readonly() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    initialize_test_version(&mut connection, 76).unwrap();
+    for (id, slug, reason, url) in [
+        ("manual", "note-legacy", "用户粘贴文本导入", None),
+        ("imported", "note-imported", "import", None),
+        (
+            "web",
+            "note-web",
+            "用户粘贴文本导入",
+            Some("https://example.invalid"),
+        ),
+    ] {
+        connection.execute("INSERT INTO wiki_pages(id,slug,kind,title,content_md,area,first_seen_at,last_seen_at,created_at,updated_at,source_url) VALUES(?1,?2,'note','title','original body','imported','t','t','t','t',?3)",rusqlite::params![id,slug,url]).unwrap();
+        connection.execute("INSERT INTO wiki_revisions(id,page_id,content_md,reason,created_at) VALUES(?1,?2,'original body',?3,'t')",rusqlite::params![format!("r-{id}"),id,reason]).unwrap();
+    }
+    initialize(&mut connection).unwrap();
+    let result: (String, String, String, String) = connection
+        .query_row(
+            "SELECT slug,kind,content_md,human_edited_at FROM wiki_pages WHERE id='manual'",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )
+        .unwrap();
+    assert_eq!(
+        result,
+        (
+            "note-legacy".into(),
+            "topic".into(),
+            "original body".into(),
+            "t".into()
+        )
+    );
+    let protected: i64 = connection
+        .query_row(
+            "SELECT count(*) FROM wiki_pages WHERE id IN ('imported','web') AND kind='note'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(protected, 2);
+    assert_eq!(
+        connection
+            .query_row("SELECT count(*) FROM wiki_revisions", [], |r| r
+                .get::<_, i64>(0))
+            .unwrap(),
+        3
+    );
 }

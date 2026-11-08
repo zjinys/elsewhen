@@ -1,0 +1,53 @@
+{
+  "token_heading": {
+    "text": "每日 token 用量：\n",
+    "variables": []
+  },
+  "token_empty": {
+    "text": "（最近 7 天没有 AI 调用记录）",
+    "variables": []
+  },
+  "token_line": {
+    "text": "- <<date>>：<<tokens>> tokens（<<calls>> 次调用）\n",
+    "variables": [
+      "calls",
+      "date",
+      "tokens"
+    ]
+  },
+  "token_label": {
+    "text": "token 用量",
+    "variables": []
+  },
+  "rules_heading": {
+    "text": "已生效的个人规则：\n",
+    "variables": []
+  },
+  "rules_empty": {
+    "text": "（规则库为空，还没有沉淀过规则）",
+    "variables": []
+  },
+  "rules_label": {
+    "text": "个人规则库",
+    "variables": []
+  },
+  "goals_heading": {
+    "text": "知识库中的目标相关页面：\n",
+    "variables": []
+  },
+  "goals_empty": {
+    "text": "（暂未找到目标页面）",
+    "variables": []
+  },
+  "goals_line": {
+    "text": "- 《<<title>>》：<<excerpt>>\n",
+    "variables": [
+      "excerpt",
+      "title"
+    ]
+  },
+  "goals_label": {
+    "text": "当前目标",
+    "variables": []
+  }
+}

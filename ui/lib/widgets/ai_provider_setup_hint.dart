@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -65,7 +67,7 @@ class _AiProviderSetupHintState extends ConsumerState<AiProviderSetupHint> {
           const SizedBox(width: AppTheme.space3),
           Expanded(
             child: Text(
-              '首次使用提示：尚未配置 AI Provider，AI 对话与自动分析暂不可用。',
+              context.l10n.l6SetUpAnAiProviderToc8ad4,
               style: TextStyle(color: AppTheme.textSecondary, fontSize: 12.5),
             ),
           ),
@@ -76,12 +78,12 @@ class _AiProviderSetupHintState extends ConsumerState<AiProviderSetupHint> {
               padding: const EdgeInsets.symmetric(horizontal: AppTheme.space3),
               minimumSize: const Size(0, 32),
             ),
-            child: const Text('去配置'),
+            child: Text(context.l10n.l6Configurea44df),
           ),
           IconButton(
             icon: const Icon(Icons.close, size: 16),
             color: AppTheme.textTertiary,
-            tooltip: '关闭',
+            tooltip: context.l10n.close,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             onPressed: () => setState(() => _dismissed = true),

@@ -9,17 +9,37 @@ class _InputGuidePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const items = [
-      (Icons.person_outline, '@人名', '标注联系人', '@张伟 '),
-      (Icons.tag_outlined, '#主题名', '进入主题', '#付款流程'),
-      (Icons.link_outlined, '链接', '导入内容', 'https://'),
+    final items = [
+      (
+        Icons.person_outline,
+        context.l10n.mentionPerson,
+        context.l10n.inputGuidePerson,
+        context.l10n.examplePerson,
+      ),
+      (
+        Icons.tag_outlined,
+        context.l10n.tagTopic,
+        context.l10n.inputGuideTopic,
+        context.l10n.exampleTopic,
+      ),
+      (
+        Icons.link_outlined,
+        context.l10n.link,
+        context.l10n.inputGuideLink,
+        'https://',
+      ),
       (
         Icons.folder_open_outlined,
-        '目录',
-        '导入项目或文件',
-        '看看 `/path/to/project` 下的项目，导入到知识库',
+        context.l10n.directory,
+        context.l10n.formatDirectory,
+        context.l10n.formatDirectoryHelp,
       ),
-      (Icons.check_circle_outline, '确认 / 取消', '处理 AI 草案', '确认'),
+      (
+        Icons.check_circle_outline,
+        context.l10n.formatConfirm,
+        context.l10n.formatConfirmHelp,
+        context.l10n.confirm,
+      ),
     ];
     return Container(
       width: double.infinity,
@@ -68,69 +88,71 @@ class _InputCompletionPanel extends StatelessWidget {
         child: Material(
           type: MaterialType.transparency,
           child: Container(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final page in pages)
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    hoverColor: AppTheme.surface2,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    onTap: () => onSelected(page.title),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final page in pages)
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      hoverColor: AppTheme.surface2,
+                      borderRadius: BorderRadius.circular(
+                        AppTheme.radiusMedium,
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            marker == '@'
-                                ? Icons.person_outline
-                                : Icons.tag_outlined,
-                            size: 15,
-                            color: AppTheme.accentPrimary,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              '$marker${page.title}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
+                      onTap: () => onSelected(page.title),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              marker == '@'
+                                  ? Icons.person_outline
+                                  : Icons.tag_outlined,
+                              size: 15,
+                              color: AppTheme.accentPrimary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '$marker${page.title}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppTheme.surface3.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              page.kindLabel,
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                color: AppTheme.textTertiary,
+                            const SizedBox(width: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.surface3.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                context.pageKindLabel(page.kind),
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  color: AppTheme.textTertiary,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
-          ),
+              ],
+            ),
           ),
         ),
       ),
@@ -202,7 +224,7 @@ Future<void> _copyToClipboard(
   if (!context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
-      content: Text('已复制$label'),
+      content: Text(context.l10n.copiedItem(label)),
       duration: const Duration(seconds: 1),
       behavior: SnackBarBehavior.floating,
       shape: const RoundedRectangleBorder(
@@ -213,11 +235,16 @@ Future<void> _copyToClipboard(
 }
 
 /// 把整段对话格式化为可粘贴文本（角色 + 时间 + 内容）
-String _formatConversationForCopy(List<Message> messages) {
+String _formatConversationForCopy(
+  BuildContext context,
+  List<Message> messages,
+) {
   return messages
       .map((m) {
-        final role = m.isUser ? '我' : 'AI';
-        final time = DateFormat('MM-dd HH:mm').format(m.createdAt);
+        final role = m.isUser ? context.l10n.me : 'AI';
+        final time = DateFormat.Md(context.l10n.localeName)
+            .add_Hm()
+            .format(m.createdAt);
         return '$role ($time)\n${m.content}';
       })
       .join('\n\n');

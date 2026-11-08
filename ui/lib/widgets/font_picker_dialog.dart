@@ -4,6 +4,7 @@ import '../models/settings.dart';
 import '../theme/app_theme.dart';
 import '../utils/system_fonts.dart';
 import 'glass.dart';
+import '../l10n/localization.dart';
 
 /// 「跟随全局」哨兵：编辑器字体覆盖用，调用方映射回 null。
 const String kFontFollowGlobal = '__follow_global__';
@@ -16,14 +17,14 @@ Future<String?> showFontPickerDialog(
   BuildContext context, {
   required String? current,
   bool includeFollowGlobal = false,
-  String title = '选择字体',
+  String? title,
 }) {
   // 玻璃外壳 + 固定高度列表区：GlassDialog 的 content 自带滚动，
   // 但这里内部是 FutureBuilder + ListView 需要自己撑高。
   return GlassDialog.show<String>(
     context,
     maxWidth: 520,
-    title: Text(title),
+    title: Text(title ?? context.l10n.chooseFont),
     content: SizedBox(
       height: 560,
       child: _FontPickerBody(
@@ -79,13 +80,13 @@ class _FontPickerBodyState extends State<_FontPickerBody> {
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: '搜索字体…',
+              hintText: context.l10n.searchFonts,
               prefixIcon: const Icon(Icons.search, size: 18),
               suffixIcon: _query.isEmpty
                   ? null
                   : IconButton(
                       icon: const Icon(Icons.close, size: 16),
-                      tooltip: '清除',
+                      tooltip: context.l10n.clear,
                       onPressed: () {
                         _searchController.clear();
                         setState(() => _query = '');
@@ -122,10 +123,11 @@ class _FontPickerBodyState extends State<_FontPickerBody> {
     final items = <_Item>[
       if (widget.includeFollowGlobal) _FollowGlobalItem(),
       _SystemDefaultItem(),
-      if (matchLocal.isNotEmpty) _HeaderItem('本地字体 (${matchLocal.length})'),
+      if (matchLocal.isNotEmpty)
+        _HeaderItem(context.l10n.localFontCount(matchLocal.length)),
       for (final e in matchLocal) _LocalItem(e),
       if (matchLocal.isEmpty && !widget.includeFollowGlobal)
-        _HintItem('没有匹配的字体'),
+        _HintItem(context.l10n.noMatchingFonts),
     ];
 
     return ListView.builder(
@@ -135,15 +137,15 @@ class _FontPickerBodyState extends State<_FontPickerBody> {
         final item = items[index];
         return switch (item) {
           _FollowGlobalItem() => _Row(
-            title: '跟随全局',
-            subtitle: '使用全局字体设置',
+            title: context.l10n.followGlobal,
+            subtitle: context.l10n.useGlobalFont,
             preview: null,
             selected: widget.current == null,
             onTap: () => Navigator.of(context).pop(kFontFollowGlobal),
           ),
           _SystemDefaultItem() => _Row(
-            title: '系统默认',
-            subtitle: '跟随操作系统，不指定字体',
+            title: context.l10n.systemDefault,
+            subtitle: context.l10n.useSystemFont,
             preview: null,
             selected: widget.current == AppFonts.system,
             onTap: () => Navigator.of(context).pop(AppFonts.system),
@@ -205,7 +207,9 @@ class FontNameLabel extends StatelessWidget {
     final parsed = parseStoredFont(stored);
     if (parsed.kind != 'local') {
       return Text(
-        AppFonts.displayNameOf(stored),
+        parsed.kind == 'system'
+            ? context.l10n.systemDefault
+            : AppFonts.displayNameOf(stored),
         style: fallbackStyle,
         overflow: TextOverflow.ellipsis,
       );
@@ -265,7 +269,7 @@ class _Row extends StatelessWidget {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       title: Text(title, style: preview, overflow: TextOverflow.ellipsis),
       subtitle: Text(
-        '${preview != null ? '中文测试 AaBbGg 1234 · ' : ''}$subtitle',
+        '${preview != null ? context.l10n.fontPreview : ''}$subtitle',
         style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
         overflow: TextOverflow.ellipsis,
       ),

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:elsewhen_ui/bridge/api.dart' as api;
+import 'package:elsewhen_ui/l10n/app_localizations.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/providers/conversation_provider.dart';
 import 'package:elsewhen_ui/widgets/chat_proposal_review.dart';
@@ -97,19 +98,55 @@ Future<void> mount(
   ReviewRepo repo,
   Widget child, {
   Size size = const Size(900, 850),
+  Locale locale = const Locale('zh'),
 }) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     ProviderScope(
       overrides: [conversationRepositoryProvider.overrideWithValue(repo)],
-      child: MaterialApp(home: Scaffold(body: child)),
+      child: MaterialApp(
+        locale: locale,
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: Scaffold(body: child),
+      ),
     ),
   );
   await tester.pumpAndSettle();
 }
 
 void main() {
+  testWidgets(
+    'English review keeps the displayed version and original JSON keys',
+    (tester) async {
+      final repo = ReviewRepo()..stale = true;
+      await mount(
+        tester,
+        repo,
+        ChatProposalDetailDialog(proposal: proposal('用户标题')),
+        locale: const Locale('en'),
+        size: const Size(420, 850),
+      );
+      expect(find.text('用户标题'), findsOneWidget);
+      await tester.tap(find.text('Accept this'));
+      await tester.pumpAndSettle();
+      expect(repo.requests.single.proposalId, '用户标题');
+      expect(repo.requests.single.expectedVersion, 1);
+      expect(repo.requests.single.approvalToken, '用户标题-v1');
+      expect(
+        find.textContaining(
+          'A new revision will not be accepted automatically',
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Accept this'));
+      await tester.pumpAndSettle();
+      expect(repo.requests.map((r) => r.approvalToken), ['用户标题-v1', '用户标题-v1']);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets(
     'accept uses the displayed version and never refreshes authorization on error',
     (tester) async {
@@ -422,7 +459,7 @@ void main() {
 
     await mount(tester, repo, ChatProposalDetailDialog(proposal: goalProposal));
 
-    // 验证切片卡片结构化呈现
+    // 验证阶段卡片结构化呈现
     expect(find.text('发布 Elsewhen 1.0'), findsOneWidget);
     expect(find.text('近期目标'), findsOneWidget);
     expect(find.textContaining('攻克多端同步快照收敛'), findsOneWidget);
@@ -434,12 +471,12 @@ void main() {
     await tester.tap(find.text('编辑'));
     await tester.pumpAndSettle();
 
-    // 验证可编辑切片字段输入框存在
+    // 验证可编辑阶段字段输入框存在
     expect(find.widgetWithText(TextField, '攻克多端同步快照收敛'), findsOneWidget);
-    expect(find.text('当前 1~2 周启动抓手'), findsOneWidget);
+    expect(find.text('当前 1~2 周具体行动'), findsOneWidget);
     expect(find.text('目标愿景'), findsOneWidget);
 
-    // 修改抓手
+    // 修改行动
     await tester.enterText(
       find.widgetWithText(TextField, '攻克多端同步快照收敛'),
       '跑通 Android 真机自同步',

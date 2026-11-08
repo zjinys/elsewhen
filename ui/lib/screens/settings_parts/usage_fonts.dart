@@ -1,4 +1,5 @@
 part of '../settings_screen.dart';
+
 // ignore_for_file: invalid_use_of_protected_member — setState 从 State 子类方法平移至 extension，receiver 类型不变
 
 //! 记忆设置、用量图表、推文服务与字体/字号设置。
@@ -8,13 +9,16 @@ extension _UsageFonts on _SettingsScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildDropdownField(
-          label: '策略类型',
+          label: context.l10n.strategyType,
           value: settings.memory.strategyType,
-          items: const [
-            DropdownMenuItem(value: 'simple', child: Text('简单记忆 (最近 N 条)')),
+          items: [
+            DropdownMenuItem(
+              value: 'simple',
+              child: Text(context.l10n.simpleMemory),
+            ),
             DropdownMenuItem(
               value: 'sliding-window',
-              child: Text('滑动窗口 (Token 限制)'),
+              child: Text(context.l10n.slidingWindowMemory),
             ),
           ],
           onChanged: (value) {
@@ -28,16 +32,16 @@ extension _UsageFonts on _SettingsScreenState {
         const SizedBox(height: 16),
         if (settings.memory.strategyType == 'simple')
           _buildTextField(
-            label: '最大消息数',
+            label: context.l10n.maximumMessages,
             controller: _maxMessagesController,
             hint: '20',
             keyboardType: TextInputType.number,
           ),
         if (settings.memory.strategyType == 'sliding-window')
           _buildTextField(
-            label: '对话记忆预算（可选）',
+            label: context.l10n.memoryBudget,
             controller: _maxTokensController,
-            hint: '留空按 Provider 上下文窗口推算',
+            hint: context.l10n.memoryBudgetHint,
             keyboardType: TextInputType.number,
           ),
         const SizedBox(height: 16),
@@ -48,7 +52,7 @@ extension _UsageFonts on _SettingsScreenState {
           alignment: Alignment.centerRight,
           child: FilledButton.icon(
             icon: const Icon(Icons.check, size: 18),
-            label: const Text('保存'),
+            label: Text(context.l10n.save),
             onPressed: _saveSettings,
             style: FilledButton.styleFrom(
               backgroundColor: AppTheme.accentPrimary,
@@ -78,7 +82,7 @@ extension _UsageFonts on _SettingsScreenState {
     if (usageError != null) return usageError;
     if (_dailyUsage.isEmpty) {
       return Text(
-        '暂无 AI 调用记录。发起对话并生成 AI 回复后，这里会按天统计 token 用量。',
+        context.l10n.noAiUsage,
         style: TextStyle(
           color: AppTheme.textSecondary,
           fontSize: 13,
@@ -98,15 +102,15 @@ extension _UsageFonts on _SettingsScreenState {
           children: [
             Expanded(
               child: _buildUsageMetric(
-                label: '近 30 天 Total',
+                label: context.l10n.last30DaysTokens,
                 value: _fmtInt(totalTokens),
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: _buildUsageMetric(
-                label: '累计调用',
-                value: '${_fmtInt(totalCalls)} 次',
+                label: context.l10n.totalCalls,
+                value: context.l10n.callCount(totalCalls),
               ),
             ),
           ],
@@ -142,16 +146,8 @@ extension _UsageFonts on _SettingsScreenState {
     );
   }
 
-  /// 千分位格式化（避免依赖 intl locale 初始化）
-  String _fmtInt(int n) {
-    final s = n.toString();
-    final buf = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
+  String _fmtInt(int n) =>
+      NumberFormat.decimalPattern(context.l10n.localeName).format(n);
 
   String _isoDate(DateTime dt) {
     final m = dt.month.toString().padLeft(2, '0');
@@ -164,7 +160,7 @@ extension _UsageFonts on _SettingsScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildDropdownField(
-          label: '抓取服务',
+          label: context.l10n.l6FetchingServicebfb3a,
           value: _tweetService,
           items: const [
             DropdownMenuItem(value: 'fxtwitter', child: Text('fxTwitter')),
@@ -179,7 +175,7 @@ extension _UsageFonts on _SettingsScreenState {
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('推文抓取服务已更新'),
+                  content: Text(context.l10n.l6PostFetchingServiceUpdated1c8a1),
                   backgroundColor: AppTheme.accentPrimary,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
@@ -191,7 +187,13 @@ extension _UsageFonts on _SettingsScreenState {
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(reportUiError('保存推文抓取服务', e)),
+                  content: AppErrorMessage(
+                    action: context.l10n.load,
+                    error: _settingsFailure(
+                      context.l10n.l6SavePostFetchingService23d23,
+                      e,
+                    ),
+                  ),
                   backgroundColor: AppTheme.error,
                   behavior: SnackBarBehavior.floating,
                   shape: const RoundedRectangleBorder(
@@ -210,7 +212,7 @@ extension _UsageFonts on _SettingsScreenState {
         ],
         const SizedBox(height: 12),
         Text(
-          '当前支持的抓取服务：fxTwitter —— 把 x.com 推文链接自动解析为长文，\n接口 https://api.fxtwitter.com/status/{推文id}',
+          context.l10n.l6SupportedServiceFxtwitterConvertsXCom0989a,
           style: TextStyle(
             fontSize: 12,
             color: AppTheme.textSecondary.withValues(alpha: 0.7),
@@ -227,12 +229,47 @@ extension _UsageFonts on _SettingsScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildDropdownField(
-          label: '主题模式',
+          label: context.l10n.language,
+          value: settings.language ?? 'system',
+          items: [
+            DropdownMenuItem(
+              value: 'zh-Hans',
+              child: Text(context.l10n.chinese),
+            ),
+            DropdownMenuItem(value: 'en', child: Text(context.l10n.english)),
+            DropdownMenuItem(
+              value: 'system',
+              child: Text(context.l10n.followSystem),
+            ),
+          ],
+          onChanged: (value) async {
+            try {
+              await notifier.updateLanguage(value == 'system' ? null : value);
+            } catch (e) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: AppErrorMessage(
+                    action: context.l10n.language,
+                    error: e,
+                  ),
+                ),
+              );
+            }
+          },
+        ),
+        const SizedBox(height: 16),
+        _buildDropdownField(
+          label: context.l10n.themeMode,
           value: settings.themeMode.name,
           items: AppThemeMode.values.map((mode) {
             return DropdownMenuItem(
               value: mode.name,
-              child: Text(mode.displayName),
+              child: Text(switch (mode) {
+                AppThemeMode.light => context.l10n.lightTheme,
+                AppThemeMode.dark => context.l10n.darkTheme,
+                AppThemeMode.system => context.l10n.followSystem,
+              }),
             );
           }).toList(),
           onChanged: (value) {
@@ -248,12 +285,17 @@ extension _UsageFonts on _SettingsScreenState {
         ),
         const SizedBox(height: 16),
         _buildDropdownField(
-          label: '主题配色',
+          label: context.l10n.themeColors,
           value: settings.themePreset.name,
           items: AppThemePreset.values.map((preset) {
             return DropdownMenuItem(
               value: preset.name,
-              child: Text(preset.displayName),
+              child: Text(switch (preset) {
+                AppThemePreset.amber => context.l10n.amberTheme,
+                AppThemePreset.indigo => context.l10n.indigoTheme,
+                AppThemePreset.aqua => context.l10n.aquaTheme,
+                AppThemePreset.violet => context.l10n.violetTheme,
+              }),
             );
           }).toList(),
           onChanged: (value) {
@@ -282,7 +324,7 @@ extension _UsageFonts on _SettingsScreenState {
         Row(
           children: [
             Text(
-              '正文字号',
+              context.l10n.bodyFontSize,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -326,7 +368,7 @@ extension _UsageFonts on _SettingsScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '内容字体',
+          context.l10n.contentFont,
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -335,7 +377,7 @@ extension _UsageFonts on _SettingsScreenState {
         ),
         const SizedBox(height: 4),
         Text(
-          '作用于知识库正文、对话消息等内容区；界面文字使用固定字体',
+          context.l10n.contentFontDescription,
           style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
         ),
         const SizedBox(height: 8),
@@ -370,7 +412,7 @@ extension _UsageFonts on _SettingsScreenState {
             ),
             const SizedBox(width: 8),
             ChoiceChip(
-              label: const Text(AppFonts.systemDisplayName),
+              label: Text(context.l10n.systemDefault),
               selected: isSystem,
               onSelected: (selected) {
                 if (selected) {
@@ -404,6 +446,7 @@ extension _UsageFonts on _SettingsScreenState {
     required TextEditingController controller,
     String? hint,
     bool obscure = false,
+    ValueChanged<String>? onChanged,
     TextInputType? keyboardType,
     // 警告态（如「API Key 未配置」）：label 换警告色并挂提示徽标。
     bool warning = false,
@@ -413,7 +456,7 @@ extension _UsageFonts on _SettingsScreenState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (warning)
-          ProviderKeyWarningFieldLabel(label: label, warningHint: warningHint ?? '未配置')
+          ProviderKeyWarningFieldLabel(label: label, warningHint: warningHint)
         else
           Text(
             label,
@@ -427,6 +470,7 @@ extension _UsageFonts on _SettingsScreenState {
         TextFormField(
           controller: controller,
           obscureText: obscure,
+          onChanged: onChanged,
           keyboardType: keyboardType,
           style: TextStyle(color: AppTheme.textPrimary),
           decoration: InputDecoration(

@@ -3,6 +3,7 @@ import "package:flutter/services.dart";
 
 import "../theme/app_theme.dart";
 import "../utils/app_lock.dart";
+import '../l10n/localization.dart';
 
 /// 启动锁屏：已设置打开密码时，App 初始化完成后先停在本页，
 /// 输入正确密码回调 [onUnlocked] 才进入主界面。无返回键、无跳过入口；
@@ -10,6 +11,8 @@ import "../utils/app_lock.dart";
 ///
 /// 密码固定 4 位：4 个格子输满即自动校验，没有「解锁」按钮。旧版本设置过
 /// 非 4 位密码时通过页面底部的小入口退回自由输入（按回车解锁）。
+enum _LockError { incorrectPassword, storageUnavailable }
+
 class LockScreen extends StatefulWidget {
   const LockScreen({super.key, required this.onUnlocked, this.service});
 
@@ -30,7 +33,12 @@ class _LockScreenState extends State<LockScreen> {
   late final AppLockService _service;
   final _pinFocus = FocusNode();
   final _fallbackFocus = FocusNode();
-  String? _error;
+  _LockError? _error;
+  String? get _errorText => switch (_error) {
+    _LockError.incorrectPassword => context.l10n.incorrectPassword,
+    _LockError.storageUnavailable => context.l10n.secureStorageUnavailable,
+    null => null,
+  };
   bool _verifying = false;
   bool _biometricReady = false;
   bool _biometricBusy = false;
@@ -63,7 +71,9 @@ class _LockScreenState extends State<LockScreen> {
     if (_biometricBusy || _verifying) return;
     setState(() => _biometricBusy = true);
     try {
-      final ok = await _service.authenticateWithBiometrics();
+      final ok = await _service.authenticateWithBiometrics(
+        reason: context.l10n.biometricReason,
+      );
       if (!mounted) return;
       if (ok) {
         widget.onUnlocked();
@@ -104,7 +114,7 @@ class _LockScreenState extends State<LockScreen> {
       } else {
         setState(() {
           _verifying = false;
-          _error = "密码不正确";
+          _error = _LockError.incorrectPassword;
         });
         _controller.clear();
         if (_fallbackEntry && mounted) {
@@ -117,7 +127,7 @@ class _LockScreenState extends State<LockScreen> {
       if (!mounted) return;
       setState(() {
         _verifying = false;
-        _error = "安全存储暂不可用，请稍后重试";
+        _error = _LockError.storageUnavailable;
       });
     }
   }
@@ -146,7 +156,7 @@ class _LockScreenState extends State<LockScreen> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  "Elsewhen 已锁定",
+                  context.l10n.lockedTitle,
                   style: TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 18,
@@ -179,7 +189,7 @@ class _LockScreenState extends State<LockScreen> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 6),
                       child: Text(
-                        _error!,
+                        _errorText!,
                         style: TextStyle(color: AppTheme.error, fontSize: 12),
                       ),
                     ),
@@ -195,9 +205,9 @@ class _LockScreenState extends State<LockScreen> {
                       textAlign: TextAlign.center,
                       onSubmitted: (_) => _submit(),
                       decoration: InputDecoration(
-                        hintText: "输入打开密码，输完按回车",
+                        hintText: context.l10n.passwordInputHint,
                         border: const OutlineInputBorder(),
-                        errorText: _verifying ? null : _error,
+                        errorText: _verifying ? null : _errorText,
                       ),
                     ),
                   ),
@@ -216,7 +226,11 @@ class _LockScreenState extends State<LockScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _biometricBusy ? null : _tryBiometric,
                       icon: const Icon(Icons.fingerprint, size: 20),
-                      label: Text(_biometricBusy ? "验证中…" : "使用指纹/面容解锁"),
+                      label: Text(
+                        _biometricBusy
+                            ? context.l10n.verifying
+                            : context.l10n.biometricUnlock,
+                      ),
                     ),
                   ),
                 ],
@@ -235,7 +249,11 @@ class _LockScreenState extends State<LockScreen> {
                     foregroundColor: AppTheme.textTertiary,
                     textStyle: const TextStyle(fontSize: 12),
                   ),
-                  child: Text(_fallbackEntry ? "改用 4 格输入" : "旧密码不是 4 位？换输入方式"),
+                  child: Text(
+                    _fallbackEntry
+                        ? context.l10n.usePinEntry
+                        : context.l10n.legacyPasswordEntry,
+                  ),
                 ),
               ],
             ),

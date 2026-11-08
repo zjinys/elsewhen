@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -30,10 +32,10 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
         children: [
           Icon(Icons.format_size, size: 20, color: AppTheme.accentPrimary),
           const SizedBox(width: 8),
-          const Text('正文阅读设置'),
+          Text(context.l10n.l6ReadingSettings9033d),
           const Spacer(),
           IconButton(
-            tooltip: '关闭',
+            tooltip: context.l10n.close,
             visualDensity: VisualDensity.compact,
             onPressed: () => Navigator.of(context).pop(),
             icon: const Icon(Icons.close, size: 18),
@@ -49,12 +51,12 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
           children: [
             _buildFontField(context, settings, notifier),
             const Divider(height: 24),
-            _buildFontSizeSlider(settings, notifier),
+            _buildFontSizeSlider(context, settings, notifier),
             const Divider(height: 24),
-            _buildLineHeightSlider(settings, notifier),
+            _buildLineHeightSlider(context, settings, notifier),
             const SizedBox(height: 8),
             Text(
-              '三项独立生效；「跟随全局」恢复继承，两个滑块和字体互不影响。',
+              context.l10n.l6TheThreeSettingsAreIndependentFollow172b0,
               style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
             ),
             const SizedBox(height: 8),
@@ -78,7 +80,7 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
         Row(
           children: [
             Text(
-              '字体',
+              context.l10n.l6Fontb50d4,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -87,7 +89,9 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
             ),
             const Spacer(),
             Text(
-              following ? '继承全局' : '覆盖全局',
+              following
+                  ? context.l10n.l6InheritGlobal2a499
+                  : context.l10n.l6OverrideGlobal93d3e,
               style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
             ),
           ],
@@ -109,7 +113,10 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: following
-                          ? const Text('跟随全局', overflow: TextOverflow.ellipsis)
+                          ? Text(
+                              context.l10n.followGlobal,
+                              overflow: TextOverflow.ellipsis,
+                            )
                           : FontNameLabel(
                               stored: override,
                               fallbackStyle: null,
@@ -127,7 +134,7 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
             const SizedBox(width: 8),
             _FollowGlobalChip(
               key: const Key('reading-font-reset'),
-              label: '跟随全局',
+              label: context.l10n.followGlobal,
               selected: following,
               onPressed: following
                   ? null
@@ -144,7 +151,11 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
   }
 
   /// 字号覆盖：滑块 12–24（拖拽实时预览、松手持久化，与设置页观感一致）
-  Widget _buildFontSizeSlider(AppSettings settings, SettingsNotifier notifier) {
+  Widget _buildFontSizeSlider(
+    BuildContext context,
+    AppSettings settings,
+    SettingsNotifier notifier,
+  ) {
     final following = settings.editorFontSize == null;
     final size = settings.contentFontSize;
     return Column(
@@ -153,7 +164,7 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
         Row(
           children: [
             Text(
-              '字号',
+              context.l10n.l6FontSize576cc,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -172,7 +183,7 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
             const SizedBox(width: 8),
             _FollowGlobalChip(
               key: const Key('reading-size-reset'),
-              label: '跟随全局',
+              label: context.l10n.followGlobal,
               selected: following,
               onPressed: following
                   ? null
@@ -202,6 +213,7 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
 
   /// 行距覆盖：滑块 1.0–2.5（步进 0.1）
   Widget _buildLineHeightSlider(
+    BuildContext context,
     AppSettings settings,
     SettingsNotifier notifier,
   ) {
@@ -213,7 +225,7 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
         Row(
           children: [
             Text(
-              '行距',
+              context.l10n.l6LineSpacing514b5,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -232,7 +244,7 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
             const SizedBox(width: 8),
             _FollowGlobalChip(
               key: const Key('reading-height-reset'),
-              label: '跟随全局',
+              label: context.l10n.followGlobal,
               selected: following,
               onPressed: following
                   ? null
@@ -271,7 +283,7 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
       context,
       current: current,
       includeFollowGlobal: true,
-      title: '选择正文阅读字体',
+      title: context.l10n.l6ChooseAReadingFont8189e,
     );
     if (picked == null || !context.mounted) return;
     // 「跟随全局」映射回 null（清除覆盖），其余先预热再落库

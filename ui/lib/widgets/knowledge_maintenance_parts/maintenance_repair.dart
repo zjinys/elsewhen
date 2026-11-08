@@ -48,7 +48,15 @@ class _SourceRepairState extends ConsumerState<KnowledgeSourceRepairSection> {
           );
       });
     } catch (e) {
-      if (mounted) setState(() => _error = _failure(e, '读取可用来源'));
+      if (mounted) {
+        setState(
+          () => _error = _failure(
+            context,
+            e,
+            context.l10n.l6LoadAvailableSourcesefee2,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -72,7 +80,7 @@ class _SourceRepairState extends ConsumerState<KnowledgeSourceRepairSection> {
       );
     } catch (e) {
       if (mounted) {
-        setState(() => _error = _repairFailure(e));
+        setState(() => _error = _repairFailure(context, e));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -81,23 +89,23 @@ class _SourceRepairState extends ConsumerState<KnowledgeSourceRepairSection> {
 
   @override
   Widget build(BuildContext context) => ExpansionTile(
-    title: const Text('修复来源依据'),
-    subtitle: const Text('保留有效来源，或选择替代原料；审阅后更新知识'),
+    title: Text(context.l10n.l6RepairSourceEvidence7c494),
+    subtitle: Text(context.l10n.l6KeepValidSourcesOrChooseReplacementse7069),
     onExpansionChanged: (open) {
       if (open && _sources == null && !_busy) _load();
     },
     children: [
-      const Text('不认可或已归档的来源不能继续支持新结论。下方默认保留有效来源，原知识在确认修订前保留。'),
+      Text(context.l10n.l6RejectedOrArchivedSourcesCannotSupport758ff),
       if (_sources != null) ...[
         TextField(
-          decoration: const InputDecoration(
-            labelText: '查找替代原料',
+          decoration: InputDecoration(
+            labelText: context.l10n.l6FindReplacementSources05a6a,
             prefixIcon: Icon(Icons.search),
           ),
           onChanged: (value) => setState(() => _search = value),
         ),
         if (_sources!.length > 50)
-          const Text('列表显示前 50 项，可输入标题定位其他原料。已选来源仍保留。'),
+          Text(context.l10n.l6TheFirst50SourcesAreShown7e891),
         ConstrainedBox(
           constraints: const BoxConstraints(maxHeight: 300),
           child: ListView(
@@ -115,10 +123,12 @@ class _SourceRepairState extends ConsumerState<KnowledgeSourceRepairSection> {
                   title: Text('${source.title} · v${source.version}'),
                   subtitle: Text(
                     !source.eligible
-                        ? '不可用，将从新修订依据中排除'
+                        ? context
+                              .l10n
+                              .l6UnavailableExcludedFromEvidenceForThe84882
                         : source.selected
-                        ? '当前知识的来源'
-                        : '可作为替代来源',
+                        ? context.l10n.l6SourcesForThisKnowledgec088b
+                        : context.l10n.l6AvailableAsAReplacementSourceda692,
                   ),
                   value: _selected.contains(source.snapshotId),
                   onChanged: _busy || !source.eligible
@@ -133,8 +143,9 @@ class _SourceRepairState extends ConsumerState<KnowledgeSourceRepairSection> {
           ),
         ),
         if (_selected.isEmpty && !widget.hasEvents)
-          const Text('剩余依据不足。请选择或先导入有效原料；当前知识仍待补证据。'),
-        if (_selected.length > 8) const Text('最多选择 8 份原料，请缩小范围。'),
+          Text(context.l10n.l6ThereIsNotEnoughEvidenceSelect1b56c),
+        if (_selected.length > 8)
+          Text(context.l10n.l6ChooseUpTo8SourcesNarrow5655d),
         Wrap(
           spacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
@@ -147,21 +158,22 @@ class _SourceRepairState extends ConsumerState<KnowledgeSourceRepairSection> {
                   ? null
                   : _prepare,
               icon: const Icon(Icons.fact_check_outlined),
-              label: const Text('准备修复建议'),
+              label: Text(context.l10n.l6PrepareRepairProposale29a1),
             ),
             TextButton(
               onPressed: _busy ? null : _load,
-              child: const Text('刷新来源'),
+              child: Text(context.l10n.l6RefreshSources59684),
             ),
           ],
         ),
       ],
       if (_busy) const LinearProgressIndicator(),
-      if (_error != null) Text(_error!),
+      if (_error != null)
+        AppErrorMessage(action: context.l10n.load, error: _error!),
       if (_error != null && _sources == null)
         TextButton(
           onPressed: _busy ? null : _load,
-          child: const Text('重新读取来源'),
+          child: Text(context.l10n.l6ReloadSources59500),
         ),
       if (_preview != null) widget.previewBuilder(_preview!),
     ],

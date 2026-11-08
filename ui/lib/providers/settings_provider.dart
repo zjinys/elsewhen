@@ -1,11 +1,15 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/widgets.dart';
 
 import '../bridge/rust_bridge_repository.dart';
 import '../models/settings.dart';
 import '../utils/system_fonts.dart';
+import '../l10n/app_locale.dart';
+import '../utils/editor_localization.dart';
+import '../utils/window_service.dart';
+import '../sync/sync_keep_alive.dart';
 
 /// Settings state notifier
 class SettingsNotifier extends Notifier<AppSettings> {
@@ -76,9 +80,43 @@ class SettingsNotifier extends Notifier<AppSettings> {
     );
   }
 
-  void updateLanguage(String? language) {
+  Future<void> _languageOperations = Future.value();
+
+  Future<void> _queueLanguage(Future<void> Function() action) {
+    final next = _languageOperations.then((_) async {
+      if (ref.mounted) await action();
+    });
+    _languageOperations = next.catchError((Object _) {});
+    return next;
+  }
+
+  Future<void> _applyLanguage(String? language) async {
+    final locale = resolveAppLocale(
+      language,
+      WidgetsBinding.instance.platformDispatcher.locales,
+    );
+    await configureEditorLocalization(locale);
+    if (!ref.mounted) return;
+    await _repo.setRuntimeUiLocale(promptLocaleFor(locale));
+    if (!ref.mounted) return;
+    SyncKeepAlive.setLocale(locale);
+    await WindowService().updateLocale(locale);
+    if (!ref.mounted) return;
     state = state.copyWith(language: language);
   }
+
+  Future<void> loadLanguageFromBridge() => _queueLanguage(() async {
+    final preference = await _repo.getUiLanguagePreference();
+    if (ref.mounted) await _applyLanguage(preference.locale);
+  });
+
+  Future<void> updateLanguage(String? language) => _queueLanguage(() async {
+    final preference = await _repo.updateUiLanguagePreference(language);
+    if (ref.mounted) await _applyLanguage(preference.locale);
+  });
+
+  Future<void> synchronizeLanguage() =>
+      _queueLanguage(() => _applyLanguage(state.language));
 
   /// 从 Rust app_meta 读取持久化的主题偏好（模式 + 配色预设）
   Future<void> loadThemeFromBridge() async {

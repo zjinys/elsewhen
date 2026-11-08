@@ -47,34 +47,40 @@ fn parse_page_references(content: &str) -> Option<(Vec<String>, &str)> {
 /// 知识引用展开为挂载视图：每页只带 AI 摘要 + 指向全文的取回路径
 /// （get_wiki_page 工具），这正是知识库「按需检索」的本意；引用不存在的
 /// 页面就地如实声明。纯文本补充不受影响。
-fn expand_page_references(store: &Store, content: &str) -> String {
+fn expand_page_references(store: &Store, content: &str) -> Result<String> {
     let Some((slugs, instruction)) = parse_page_references(content) else {
-        return content.to_string();
+        return Ok(content.to_string());
     };
-    let mut blocks = vec!["【知识引用展开：此处只挂载摘要，不携带全文】".to_string()];
+    let mut blocks = vec![store.render_supplement_instruction("references", &[])?];
     for slug in &slugs {
         match store.get_wiki_page(slug) {
             Ok(Some(page)) => {
                 let summary = if page.summary.trim().is_empty() {
-                    "（该页摘要缺失）"
+                    &store.render_supplement_instruction("no_summary", &[])?
                 } else {
                     page.summary.trim()
                 };
-                blocks.push(format!(
-                    "- 《{}》（{} · {}）：{}\n  （全文未挂载；需要细读时用 get_wiki_page 工具按 slug 取回）",
-                    page.title, page.kind, page.slug, summary
-                ));
+                blocks.push(store.render_supplement_instruction(
+                    "page",
+                    &[
+                        ("title", page.title.clone()),
+                        ("kind", page.kind.clone()),
+                        ("slug", page.slug.clone()),
+                        ("summary", summary.into()),
+                    ],
+                )?);
             }
-            Ok(None) | Err(_) => blocks.push(format!(
-                "- （@wiki({slug}) 引用的页面不存在或已删除；不得假设看到过它）"
-            )),
+            Ok(None) | Err(_) => blocks
+                .push(store.render_supplement_instruction("missing", &[("slug", slug.clone())])?),
         }
     }
     let instruction = instruction.trim();
     if !instruction.is_empty() {
-        blocks.push(format!("用户原话：{instruction}"));
+        blocks.push(
+            store.render_supplement_instruction("instruction", &[("body", instruction.into())])?,
+        );
     }
-    blocks.join("\n")
+    Ok(blocks.join("\n"))
 }
 
 /// 挂载预检上限（2026-10-18 事故「预算前移」）：补充材料由客户端提交，
@@ -82,24 +88,38 @@ fn expand_page_references(store: &Store, content: &str) -> String {
 /// 补充一个宽松上限，超限截断并在材料内如实声明；完整原文仍在输入队列
 /// 记录里，未丢失。预算内的最终把关仍在各 Provider 的 fit。
 const SUPPLEMENT_MOUNT_CHAR_LIMIT: usize = 24000;
-const SUPPLEMENT_MOUNT_TRUNCATED: &str = "\n……【补充材料过长，已按挂载上限截断：以上只是部分内容，不得当作全文使用；完整原文保存在输入队列记录中，需要完整材料请分批或缩小范围重新提供。】";
-
-fn clipped(content: &str) -> String {
+fn clipped(store: &Store, content: &str) -> Result<String> {
     if content.chars().count() <= SUPPLEMENT_MOUNT_CHAR_LIMIT {
-        return content.to_string();
+        return Ok(content.to_string());
     }
     let head: String = content.chars().take(SUPPLEMENT_MOUNT_CHAR_LIMIT).collect();
-    format!("{head}{SUPPLEMENT_MOUNT_TRUNCATED}")
+    Ok(format!(
+        "{head}{}",
+        store.render_supplement_instruction("clipped", &[])?
+    ))
 }
 
-pub(crate) fn context(store: &Store, input: &ChatSupplement) -> ContextMessage {
+pub(crate) fn context(store: &Store, input: &ChatSupplement) -> Result<ContextMessage> {
     // 先展开知识引用（若有），再应用挂载上限：两道预检都写在材料内。
-    ContextMessage::new("system", format!(
-        "【用户显式补充当前任务】\n以下是用户已保存的补充要求，发送时间 {}，只在安全工具轮边界加入（显式重试沿用），不改变原问题及其发送时间。它不构成任何业务动作或规则的确认；现有草稿如需改变必须重新生成并审阅。\n{}",
-        input.created_at,
-        clipped(&expand_page_references(store, &input.content)),
-    )).with_segment(SegmentPurpose::TaskSupplement, SegmentOrigin::StoredMessage,
-        Some(&input.input_id), OmissionPolicy::Required)
+    Ok(ContextMessage::new(
+        "system",
+        store.render_supplement_instruction(
+            "context",
+            &[
+                ("time", input.created_at.clone()),
+                (
+                    "body",
+                    clipped(store, &expand_page_references(store, &input.content)?)?,
+                ),
+            ],
+        )?,
+    )
+    .with_segment(
+        SegmentPurpose::TaskSupplement,
+        SegmentOrigin::StoredMessage,
+        Some(&input.input_id),
+        OmissionPolicy::Required,
+    ))
 }
 
 pub(crate) fn restore(
@@ -116,7 +136,7 @@ pub(crate) fn restore(
             valid_basis(&input) && store.supplement_is_plain(&input)?,
             "原任务的补充材料已经变化，不能静默沿用，请重新提交任务"
         );
-        messages.push(context(store, &input));
+        messages.push(context(store, &input)?);
         super::generation::event(
             store,
             "input_restored",
@@ -151,7 +171,7 @@ pub(crate) fn inject_next(
         store.defer_chat_supplement(input.queue_id, &run.id, "input_changed")?;
         return Ok(None);
     }
-    let context = context(store, &input);
+    let context = context(store, &input)?;
     let mut candidate = request_context.to_vec();
     candidate.push(context.clone());
     if !provider.accepts_supplement(&candidate, tools)? {

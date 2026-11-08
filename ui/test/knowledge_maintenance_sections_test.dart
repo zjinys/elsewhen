@@ -271,7 +271,12 @@ void main() {
     await tester.tap(find.text('整理队列'));
     await tester.pumpAndSettle();
     expect(find.textContaining('共 51 项任务'), findsOneWidget);
-    expect(find.textContaining('等待全文阅读'), findsOneWidget);
+    expect(find.textContaining('等待全文阅读'), findsNothing);
+    await tester.tap(find.text('处理说明'));
+    await tester.pumpAndSettle();
+    expect(find.text('等待全文阅读'), findsOneWidget);
+    await tester.tap(find.text('关闭'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('加载更多任务'));
     await tester.pumpAndSettle();
     expect(fake.offsets, [0, 1]);

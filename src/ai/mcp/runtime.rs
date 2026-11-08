@@ -61,8 +61,11 @@ pub(crate) fn connect(
         let conn = match server.transport.as_str() {
             "stdio" => {
                 let args: Vec<String> = serde_json::from_str(&server.args_json).unwrap_or_default();
-                let env: HashMap<String, String> =
+                let mut env: HashMap<String, String> =
                     serde_json::from_str(&server.env_json).unwrap_or_default();
+                for value in env.values_mut() {
+                    *value = resolve_credential(value)?;
+                }
                 McpConn::Stdio(Arc::new(Mutex::new(McpSession::spawn(
                     &server.command,
                     &args,
@@ -108,6 +111,7 @@ pub fn list_tools_for_server(server: &crate::storage::McpServerConfig) -> Result
             name: format!("{MCP_PREFIX}{}__{raw_name}", server.name),
             server: server.name.clone(),
             server_id: server.id.clone(),
+            keywords: server.keywords.clone(),
             raw_name,
             description: tool
                 .get("description")
@@ -126,4 +130,13 @@ pub fn list_tools_for_server(server: &crate::storage::McpServerConfig) -> Result
         });
     }
     Ok(out)
+}
+
+/// Avoid opening storage for configurations without references.
+pub(super) fn resolve_credential(raw: &str) -> Result<String> {
+    if !raw.contains("{{secret:") {
+        return Ok(raw.to_owned());
+    }
+    let config = crate::config::AppConfig::load()?;
+    crate::storage::Store::open(&config.database_path)?.resolve_secret_placeholders(raw)
 }

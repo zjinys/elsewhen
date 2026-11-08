@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 
 /// 配对进度步骤条：owner/joiner 两个视角共用（用户要求绑定页面能看出
@@ -155,12 +157,12 @@ class SyncSnapshotProgress extends StatelessWidget {
     super.key,
     required this.received,
     required this.total,
-    this.label = '初始快照传输',
+    this.label,
   });
 
   final int received;
   final int total;
-  final String label;
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
@@ -172,7 +174,7 @@ class SyncSnapshotProgress extends StatelessWidget {
         Row(
           children: [
             Text(
-              label,
+              label ?? context.l10n.initialSnapshotTransfer,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
               ),

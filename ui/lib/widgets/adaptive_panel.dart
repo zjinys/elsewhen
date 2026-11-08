@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../l10n/localization.dart';
 
 /// 移动端（Android / iOS，非 Web）判定；消息气泡长按菜单等仍在用。
 bool get isMobilePanel => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
@@ -73,7 +74,7 @@ class AdaptivePanelSheet extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  tooltip: '关闭',
+                  tooltip: context.l10n.close,
                   icon: const Icon(Icons.close, size: 20),
                   color: AppTheme.textSecondary,
                   onPressed: () => Navigator.of(context).pop(),

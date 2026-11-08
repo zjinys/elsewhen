@@ -108,9 +108,11 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
   }
 
   Future<void> _pickDirectoryForImport() async {
-    final path = await FilePicker.getDirectoryPath(dialogTitle: '选择要导入的目录');
+    final path = await FilePicker.getDirectoryPath(
+      dialogTitle: context.l10n.chooseDirectory,
+    );
     if (!mounted || path == null || path.trim().isEmpty) return;
-    final prompt = '看看 `$path` 下的项目，导入到知识库';
+    final prompt = context.l10n.importDirectoryPrompt(path);
     _controller
       ..text = prompt
       ..selection = TextSelection.collapsed(offset: prompt.length);
@@ -126,7 +128,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
 
     final conversationId = ref.read(selectedConversationIdProvider);
     if (conversationId == null) {
-      _showError('请先选择一个会话');
+      _showError(context.l10n.selectConversation);
       return;
     }
     final repository = ref.read(conversationRepositoryProvider);
@@ -142,7 +144,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
         : null;
     if (mode == ChatInputMode.supplement &&
         (targetRun == null || !chatRunIsActive(targetRun.status))) {
-      _showError('当前没有可补充的任务，请选择保存或排队。');
+      _showError(context.l10n.noSupplementTask);
       return;
     }
 
@@ -197,7 +199,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
       ref.invalidate(conversationsProvider);
     } catch (e) {
       // 写库失败：明确反馈（文字仍保留在输入框，可手动重发）
-      _showError('发送失败：$e');
+      _showError(context.errorMessage(context.l10n.send, e));
       return;
     } finally {
       if (mounted) {
@@ -219,11 +221,14 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
           );
         } else {
           await repository.scheduleChatInput(conversationId, inputMessageId);
-          if (mounted)
+          if (mounted) {
             await ref.read(chatRunControllerProvider(conversationId)).restore();
+          }
         }
       } catch (_) {
-        if (mounted) _showError('输入已保存，但生成资格未确认。请从该消息继续生成，不要重新发送。');
+        if (mounted) {
+          _showError(context.l10n.savedButNotEligible);
+        }
       }
       return;
     }
@@ -255,8 +260,9 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
     ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
     openWikiPageTab(ref, page);
     if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('已进入主题：${page.title}')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.enteredTopic(page.title))),
+      );
     }
   }
 
@@ -303,6 +309,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
       ref,
       conversationId,
       inputMessageId: inputMessageId,
+      strings: () => context.l10n,
       isMounted: () => mounted,
       onError: () {
         if (mounted) setState(() {});
@@ -409,17 +416,19 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
                   enabled: !_isSubmitting,
                   style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
                   decoration: InputDecoration(
-                    hintText: isGenerating ? 'AI 正在思考，您可以先输入下一条消息…' : '输入消息...',
+                    hintText: isGenerating
+                        ? context.l10n.thinkingNext
+                        : context.l10n.inputMessage,
                     prefixIcon: _showInputGuide
                         ? IconButton(
-                            tooltip: '关闭输入格式',
+                            tooltip: context.l10n.closeInputFormat,
                             icon: const Icon(Icons.close, size: 20),
                             color: AppTheme.textSecondary,
                             onPressed: () =>
                                 setState(() => _showInputGuide = false),
                           )
                         : PopupMenuButton<String>(
-                            tooltip: '添加内容',
+                            tooltip: context.l10n.addContent,
                             icon: const Icon(
                               Icons.add_circle_outline,
                               size: 20,
@@ -431,7 +440,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
                                 setState(() => _showInputGuide = true);
                               }
                             },
-                            itemBuilder: (_) => const [
+                            itemBuilder: (_) => [
                               PopupMenuItem(
                                 value: 'directory',
                                 child: ListTile(
@@ -440,7 +449,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
                                     Icons.folder_open_outlined,
                                     size: 18,
                                   ),
-                                  title: Text('选择目录'),
+                                  title: Text(context.l10n.selectDirectory),
                                 ),
                               ),
                               PopupMenuItem(
@@ -448,7 +457,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
                                 child: ListTile(
                                   contentPadding: EdgeInsets.zero,
                                   leading: Icon(Icons.help_outline, size: 18),
-                                  title: Text('查看输入格式'),
+                                  title: Text(context.l10n.viewInputFormat),
                                 ),
                               ),
                             ],
@@ -503,7 +512,9 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.arrow_upward, size: 16),
-                  tooltip: isGenerating && queueEnabled ? '保存并排队下一问' : '发送',
+                  tooltip: isGenerating && queueEnabled
+                      ? context.l10n.queueNext
+                      : context.l10n.send,
                 ),
               ),
             ],

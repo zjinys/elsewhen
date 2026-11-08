@@ -367,6 +367,7 @@ mod page_marks {
                 "fixture-owner",
             )
             .unwrap();
+        store.capture_prompt_bundle("chat_run", &run.id).unwrap();
         store.chat_run_identity = Some(crate::ai::generation::RunIdentity {
             id: run.id.clone(),
             owner: "fixture-owner".into(),
@@ -468,3 +469,59 @@ mod history_requests;
 mod coverage_integrity;
 
 mod diagnostics;
+
+#[test]
+fn knowledge_policy_separates_new_summary_trees_and_preserves_historical_marks() {
+    let (_dir, store, conversation) = fixture();
+    add_history(&store, &conversation);
+    let history = store.list_messages(&conversation).unwrap();
+    let boundary = history[1].id.clone();
+    let provider = FakeProvider::new(good_reply());
+    let old = generate_page_mark(
+        &store,
+        &conversation,
+        &boundary,
+        &provider,
+        "fixture",
+        "config",
+        "gpt-4o",
+        "manual",
+    )
+    .unwrap();
+    let old_count = provider.requests.get();
+    assert!(old_count > 0);
+    store.set_knowledge_language("en", 0).unwrap();
+    let new = generate_page_mark(
+        &store,
+        &conversation,
+        &history[3].id,
+        &provider,
+        "fixture",
+        "config",
+        "gpt-4o",
+        "manual",
+    )
+    .unwrap();
+    assert_ne!(old, new);
+    assert!(provider.requests.get() > old_count);
+    let strategies: i64 = store
+        .connection
+        .query_row(
+            "SELECT COUNT(DISTINCT strategy) FROM chat_summary_nodes WHERE conversation_id=?1",
+            [&conversation],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(strategies, 2);
+    let mixed: i64 = store.connection.query_row("SELECT COUNT(*) FROM chat_summary_nodes p,json_each(p.children_json) c JOIN chat_summary_nodes child ON child.id=c.value WHERE p.strategy<>child.strategy",[],|r|r.get(0)).unwrap();
+    assert_eq!(mixed, 0);
+    let marks: i64 = store
+        .connection
+        .query_row(
+            "SELECT COUNT(*) FROM conversation_page_marks WHERE conversation_id=?1",
+            [&conversation],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(marks, 2);
+}

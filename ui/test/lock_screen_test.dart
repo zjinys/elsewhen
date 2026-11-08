@@ -5,6 +5,7 @@ import "package:flutter_secure_storage/flutter_secure_storage.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:elsewhen_ui/screens/lock_screen.dart";
 import "package:elsewhen_ui/utils/app_lock.dart";
+import 'package:elsewhen_ui/l10n/app_localizations.dart';
 
 class _FakeAppLockService extends AppLockService {
   _FakeAppLockService(this.password) : super(storage: const _NoStorage());
@@ -51,6 +52,28 @@ class _HostState extends State<_Host> {
 }
 
 void main() {
+  testWidgets('锁屏切语言保留错误状态，仍可输入正确密码解锁', (tester) async {
+    Widget app(Locale locale) => MaterialApp(
+      locale: locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      home: const _Host(password: '9999'),
+    );
+    await tester.pumpWidget(app(const Locale('en')));
+    await tester.pumpAndSettle();
+    expect(find.text('Elsewhen is locked'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '1234');
+    await tester.pumpAndSettle();
+    expect(find.text('Incorrect password'), findsOneWidget);
+    await tester.pumpWidget(app(const Locale('zh')));
+    await tester.pumpAndSettle();
+    expect(find.text('密码不正确'), findsOneWidget);
+    expect(find.text('Incorrect password'), findsNothing);
+    await tester.enterText(find.byType(TextField), '9999');
+    await tester.pumpAndSettle();
+    expect(find.text('unlocked'), findsOneWidget);
+  });
+
   testWidgets("输满 4 位自动解锁，没有解锁按钮", (tester) async {
     await tester.pumpWidget(const MaterialApp(home: _Host(password: "1234")));
 

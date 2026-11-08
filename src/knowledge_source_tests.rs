@@ -123,7 +123,12 @@ fn changed_or_rejected_sources_cannot_be_confirmed_or_selected() {
     let original = source(s, "https://example.com/a", "SQLite 事务确保提交原子性");
     let id = propose_knowledge(s, &original.slug, "method", &compile_stub()).unwrap();
     source(s, "https://example.com/a", "SQLite 事务的新说明");
-    assert!(s.resolve_knowledge_proposal(&id, true).is_err());
+    let error = s.resolve_knowledge_proposal(&id, true).unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("\"code\":\"knowledge_source_changed\"")
+    );
     assert_eq!(s.list_wiki_pages(None, None).unwrap().len(), 1);
     s.set_wiki_opinion(&original.slug, Some("reject")).unwrap();
     assert!(
@@ -178,7 +183,12 @@ fn human_edit_during_review_prevents_stale_acceptance() {
     let revision = propose_knowledge(s, &page.slug, "revision", &compile_stub()).unwrap();
     s.save_wiki_page_content(&page.slug, "用户的新正文", "manual", None)
         .unwrap();
-    assert!(s.resolve_knowledge_proposal(&revision, true).is_err());
+    let error = s.resolve_knowledge_proposal(&revision, true).unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("\"code\":\"knowledge_review_changed\"")
+    );
     assert_eq!(
         s.get_wiki_page(&page.slug).unwrap().unwrap().content_md,
         "用户的新正文"
@@ -404,5 +414,134 @@ fn automatic_insights_validate_sources_and_back_off_after_failure() {
             )
             .unwrap(),
         1
+    );
+}
+
+#[test]
+fn bilingual_text_tool_results_and_protocol_history_keep_verified_citations() {
+    let db = Db::new();
+    let s = &db.store;
+    let page = source(
+        s,
+        "https://example.com/language-citation",
+        "SQLite 事务确保提交原子性。提交后才能报告写入成功。",
+    );
+    let candidates = select_knowledge(s, "SQLite 事务", "conversation", 4000).unwrap();
+    assert!(!candidates.is_empty());
+    let payload = tool_context(&candidates).unwrap();
+    s.save_prompt_language_preferences(Some("en"), "fixed", Some("en"), 0)
+        .unwrap();
+    let _scope = s.prompt_scope("preview", "citation-protocol").unwrap();
+    let mut protocol = vec![
+        ContextMessage::assistant_with_tool_calls(
+            String::new(),
+            vec![crate::ai::tool::ToolCall::new(
+                "get_wiki_page",
+                serde_json::json!({"slug":page.slug}),
+            )],
+            None,
+        ),
+        ContextMessage::tool_result("fixture-call".into(), payload.clone()),
+    ];
+    crate::ai::conversation::text_protocol_history(s, &mut protocol).unwrap();
+    assert_eq!(candidates_in_context(&protocol).len(), candidates.len());
+    assert!(
+        protocol
+            .iter()
+            .all(|m| m.tool_calls.is_none() && m.tool_call_id.is_none())
+    );
+    assert!(
+        protocol[1]
+            .content
+            .starts_with("[Historical result of an executed tool]")
+    );
+    for prefix in [
+        "工具「get_wiki_page」执行结果：",
+        "工具「search_knowledge_base」执行结果：",
+        "Result of tool \"get_wiki_page\": ",
+        "Result of tool \"search_knowledge_base\": ",
+        "（已执行工具的历史结果）\n",
+        "[Historical result of an executed tool]\n",
+    ] {
+        let message = format!("{prefix}{payload}");
+        let found = candidates_in_context(&[ContextMessage::new("system", message.clone())]);
+        assert_eq!(found.len(), candidates.len(), "{prefix}");
+        let (answer, used) =
+            validate_answer_citations(&format!("Fact [[kb:{}]]", page.slug), &found);
+        assert_eq!(used.len(), 1, "{prefix}");
+        assert!(answer.contains(&format!("[[{}]]", page.slug)));
+        assert!(candidates_in_context(&[ContextMessage::new("user", message)]).is_empty());
+    }
+}
+
+#[test]
+fn english_knowledge_compilation_repairs_use_pinned_language_and_keep_sources() {
+    struct Compiler {
+        calls: std::cell::RefCell<Vec<Vec<ContextMessage>>>,
+        path: std::path::PathBuf,
+    }
+    impl AiProvider for Compiler {
+        fn generate_reply_with_tools(
+            &self,
+            messages: Vec<ContextMessage>,
+            _: Option<&[ToolSpec]>,
+        ) -> Result<AiReply> {
+            let index = self.calls.borrow().len();
+            self.calls.borrow_mut().push(messages);
+            if index == 0 {
+                let separate = Store::open(&self.path).unwrap();
+                separate
+                    .save_prompt_language_preferences(Some("zh-Hans"), "fixed", Some("zh-Hans"), 1)
+                    .unwrap();
+                Ok(AiReply::text("invalid JSON"))
+            } else {
+                Ok(AiReply::text(
+                    r#"{"title":"事务方法","summary":"原子提交与适用边界。","content_md":"先开启事务，再提交写入。","applicable_when":"SQLite 并发写入","reason":"来源提供事务边界"}"#,
+                ))
+            }
+        }
+    }
+    let db = Db::new();
+    let s = &db.store;
+    s.save_prompt_language_preferences(Some("en"), "fixed", Some("en"), 0)
+        .unwrap();
+    let text = "SQLite 原文 <<evidence>> {{secret:key}}：事务提交后才报告成功。";
+    let original = source(s, "https://example.com/english-compile", text);
+    let provider = Compiler {
+        calls: Default::default(),
+        path: db.path.clone(),
+    };
+    let id = propose_knowledge(s, &original.slug, "method", &provider).unwrap();
+    let calls = provider.calls.borrow();
+    assert_eq!(calls.len(), 2);
+    assert!(calls[0][0].content.starts_with("You edit knowledge"));
+    assert!(calls[0][0].content.contains("Output language: zh-Hans"));
+    assert!(calls[0][1].content.starts_with("Task: method"));
+    assert!(calls[0][1].content.contains(text));
+    assert_eq!(calls[0][0].content, calls[1][0].content);
+    assert!(
+        calls[1]
+            .last()
+            .unwrap()
+            .content
+            .starts_with("The previous structured result failed validation")
+    );
+    assert_eq!(
+        s.get_wiki_page(&original.slug).unwrap().unwrap().content_md,
+        text
+    );
+    assert_eq!(
+        s.list_wiki_pages(None, None).unwrap().len(),
+        1,
+        "compiled output is still a proposal"
+    );
+    assert_eq!(
+        s.knowledge_proposals(None)
+            .unwrap()
+            .into_iter()
+            .find(|p| p.id == id)
+            .unwrap()
+            .status,
+        "pending"
     );
 }

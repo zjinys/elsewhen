@@ -50,6 +50,12 @@ impl MemoryProvider for SimpleMemory {
         }
         if let Some(today) = today_memory_background(store, conversation_id)? {
             context.insert(next_index, today);
+            next_index += 1;
+        }
+        // 认知画像切片（2026-11-05 洞见浮现 §6）：近期提炼的习惯/洞察/
+        // 固定成本作为长效记忆随背景段注入；仅提示，不要求刻意复述。
+        if let Some(profile) = user_cognition_profile_background(store, conversation_id)? {
+            context.insert(next_index, profile);
         }
 
         Ok(context)
@@ -377,6 +383,9 @@ pub(crate) fn prepare_uncompressed_context(
     if let Some(today) = today_memory_background(store, conversation_id)? {
         context.push(today);
     }
+    if let Some(profile) = user_cognition_profile_background(store, conversation_id)? {
+        context.push(profile);
+    }
     Ok(context)
 }
 
@@ -395,6 +404,9 @@ impl MemoryProvider for SlidingWindowMemory {
         }
         if let Some(today) = today_memory_background(store, conversation_id)? {
             context.push(today);
+        }
+        if let Some(profile) = user_cognition_profile_background(store, conversation_id)? {
+            context.push(profile);
         }
         compress_context_for_model(&mut context, self.max_tokens, &self.model);
 

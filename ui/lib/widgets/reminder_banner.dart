@@ -5,6 +5,10 @@ import '../bridge/api.dart' as api;
 import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
 
+import 'package:intl/intl.dart';
+
+import '../l10n/localization.dart';
+
 /// 到期提醒横幅：挂在 _NowStatus 状态栏下方，单条独占一条。
 /// 数据源 = RustBridgeRepository.dueReminders（5s tick 发现 + 记 fire + 广播）。
 /// 确认/推迟走独立 API（confirmReminder / snoozeReminder），关闭只移除本机横幅。
@@ -31,7 +35,10 @@ class ReminderBanner extends ConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '提醒：${d.title}（${_fmtDue(d.dueAt)}）',
+                  context.l10n.reminderTitle(
+                    d.title,
+                    _fmtDue(context, d.dueAt),
+                  ),
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,
@@ -41,15 +48,15 @@ class ReminderBanner extends ConsumerWidget {
               ),
               TextButton(
                 onPressed: () => repo.snoozeReminder(d.todoId),
-                child: const Text('+10分钟'),
+                child: Text(context.l10n.reminderTenMinutes),
               ),
               const SizedBox(width: 4),
               FilledButton.tonal(
                 onPressed: () => repo.confirmReminder(d.todoId),
-                child: const Text('完成'),
+                child: Text(context.l10n.done),
               ),
               IconButton(
-                tooltip: '关闭（不标记完成）',
+                tooltip: context.l10n.dismissReminderHint,
                 icon: const Icon(Icons.close, size: 18),
                 onPressed: () => repo.dismissReminder(d.todoId),
               ),
@@ -61,14 +68,15 @@ class ReminderBanner extends ConsumerWidget {
   }
 }
 
-String _fmtDue(String dueAt) {
+String _fmtDue(BuildContext context, String dueAt) {
   if (dueAt.isEmpty) return '';
   final dt = DateTime.tryParse(dueAt)?.toLocal();
   if (dt == null) return dueAt;
   final now = DateTime.now();
   final sameDay =
       dt.year == now.year && dt.month == now.month && dt.day == now.day;
-  final hm =
-      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  return sameDay ? hm : '${dt.month}/${dt.day} $hm';
+  return (sameDay
+          ? DateFormat.Hm(context.l10n.localeName)
+          : DateFormat.Md(context.l10n.localeName).add_Hm())
+      .format(dt);
 }

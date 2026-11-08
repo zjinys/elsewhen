@@ -1,3 +1,6 @@
+import '../l10n/localization.dart';
+
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/api.dart' as api;
@@ -51,10 +54,13 @@ final deviationReportsProvider = FutureProvider.autoDispose
     });
 
 /// 偏差类型中文呈现（枚举封闭，未知的原样透出，便于发现协议漂移）。
-String deviationTypeLabel(String type) => switch (type) {
-      'no_progress' => '无进展',
-      'stalled' => '停滞',
-      'conflict' => '相悖',
-      'scope_drift' => '目标偏移',
-      _ => type,
-    };
+String deviationTypeLabel(String type, {AppLocalizations? strings}) {
+  final labels = strings ?? lookupAppLocalizations(const Locale('zh'));
+  return switch (type) {
+    'no_progress' => labels.deviationNoProgress,
+    'stalled' => labels.deviationStalled,
+    'conflict' => labels.deviationConflict,
+    'scope_drift' => labels.deviationScopeDrift,
+    _ => type,
+  };
+}

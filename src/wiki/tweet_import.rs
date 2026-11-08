@@ -500,6 +500,11 @@ pub fn save_text_page_with_kind(
         reason: "用户粘贴文本导入".to_string(),
         source_url: None,
     };
+    let transaction = if kind == "topic" {
+        store.begin_write_transaction()?
+    } else {
+        None
+    };
     let outcome = store.upsert_wiki_page(&draft, ContentPolicy::Always)?;
     // 随手记生而入册（摘录孵化闭环，提案 2026-10-19 评审澄清）：进孵化
     // 闸门的只有导入流（confirm_knowledge_source）——用户「存下来就是
@@ -510,5 +515,15 @@ pub fn save_text_page_with_kind(
     if matches!(kind, "note" | "source") {
         store.set_wiki_opinion(&outcome.page.slug, Some("endorse"))?;
     }
-    Ok(outcome.page)
+    let page = if kind == "topic" {
+        // User-authored topics are held by the user from creation, just like
+        // subsequent manual edits; background digest must not replace them.
+        store.save_wiki_page_content(&outcome.page.slug, trimmed, "用户创建主题", None)?
+    } else {
+        outcome.page
+    };
+    if let Some(transaction) = transaction {
+        transaction.commit()?;
+    }
+    Ok(page)
 }

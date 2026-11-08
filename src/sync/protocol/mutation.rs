@@ -5,6 +5,13 @@ use super::*;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SyncMutation {
+    KnowledgeLanguageChanged {
+        policy: crate::language::policy::KnowledgeLanguagePolicy,
+        base_revision: Option<String>,
+    },
+    LanguageCapabilityDeclared {
+        capability: crate::language::policy::LanguageCapability,
+    },
     Capture {
         event: EventRecord,
         input: Option<InputRecord>,
@@ -93,6 +100,8 @@ pub enum SyncMutation {
 impl SyncMutation {
     pub(crate) fn validate(&self) -> Result<()> {
         match self {
+            Self::KnowledgeLanguageChanged { policy, .. } => policy.validate()?,
+            Self::LanguageCapabilityDeclared { capability } => capability.validate()?,
             Self::Capture {
                 event,
                 input,
@@ -123,6 +132,9 @@ impl SyncMutation {
             }
             Self::MessageAppended { message } => message.validate()?,
             Self::AnalysisCompleted { analysis } => {
+                if let Some(language) = &analysis.language {
+                    language.validate()?;
+                }
                 validate_id(&analysis.id)?;
                 validate_id(&analysis.event_id)?;
                 ensure!(
@@ -182,6 +194,9 @@ impl SyncMutation {
                 }
             }
             Self::WikiPageRevisionAppended { revision } => {
+                if let Some(language) = &revision.language {
+                    language.validate()?;
+                }
                 validate_id(&revision.id)?;
                 validate_id(&revision.page_id)?;
                 ensure!(!revision.content_md.is_empty(), "sync_wiki_revision_empty");
@@ -304,7 +319,10 @@ impl SyncMutation {
                     "sync_goal_phase_invalid"
                 );
                 ensure!(
-                    matches!(goal.status.as_str(), "active" | "paused" | "completed" | "superseded"),
+                    matches!(
+                        goal.status.as_str(),
+                        "active" | "paused" | "completed" | "superseded"
+                    ),
                     "sync_goal_status_invalid"
                 );
                 if let Some(ref why) = goal.why {
@@ -319,7 +337,9 @@ impl SyncMutation {
                 if let Some(ref criteria) = goal.done_criteria {
                     ensure!(criteria.len() <= 2048, "sync_goal_field_invalid");
                 }
-                ensure!(!deleted, "sync_goal_delete_invalid");
+                // Explicit goal workspace reset emits deletion tombstones.
+                // Ordinary goal completion continues to use status changes.
+                let _ = deleted;
             }
             Self::PlanChanged { plan, .. } => plan.validate()?,
             Self::RuleChanged {

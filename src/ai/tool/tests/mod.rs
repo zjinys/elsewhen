@@ -24,6 +24,7 @@ fn mcp_tool(server: &str, raw: &str, desc_len: usize) -> crate::ai::mcp::McpTool
         name: format!("mcp__{server}__{raw}"),
         server: server.to_string(),
         server_id: format!("{server}-id"),
+        keywords: String::new(),
         raw_name: raw.to_string(),
         description: format!(
             "列出仓库 issue 并返回分页结果。{}",

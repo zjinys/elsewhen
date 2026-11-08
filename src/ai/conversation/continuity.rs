@@ -5,6 +5,7 @@ use super::{ContextMessage, ToolResultMsg, future_promise_detected};
 use crate::storage::Store;
 use anyhow::Result;
 
+#[cfg(test)]
 pub(crate) const FINAL_ANSWER_NUDGE: &str = "本轮必须向用户交付最终答复，不再调用工具或提出新动作。根据已经得到的结果说明：做完了什么、什么尚未完成、哪些草稿等待确认。需要生成文字时现在给出正文。不得只说我去做、稍等或稍后回复；结束这条回复后没有后台任务替你继续。没有可用结果时坦诚说明原任务尚未完成，保留原要求，不要要求用户重发，也不要把模型空回复等内部错误当作答复。";
 
 #[derive(Debug)]
@@ -23,33 +24,36 @@ pub(super) fn is_progress_question(text: &str) -> bool {
     {
         return true;
     }
-    matches!(
-        t.trim_end_matches(['?', '？', '!', '！', '。', '.', ' ']),
-        "怎么样了"
-            | "现在怎么样了"
-            | "进展如何"
-            | "进度如何"
-            | "什么情况"
-            | "好了没"
-            | "好了没有"
-            | "好了吗"
-            | "搞定了吗"
-            | "做完了吗"
-            | "处理好了吗"
-            | "处理完了吗"
-            | "有结果了吗"
-            | "结果呢"
-            | "然后呢"
-            | "怎么没回复"
-            | "怎么没有回复"
-            | "还在吗"
-            | "继续"
-            | "继续吧"
-    )
+    super::english::progress_question(t)
+        || matches!(
+            t.trim_end_matches(['?', '？', '!', '！', '。', '.', ' ']),
+            "怎么样了"
+                | "现在怎么样了"
+                | "进展如何"
+                | "进度如何"
+                | "什么情况"
+                | "好了没"
+                | "好了没有"
+                | "好了吗"
+                | "搞定了吗"
+                | "做完了吗"
+                | "处理好了吗"
+                | "处理完了吗"
+                | "有结果了吗"
+                | "结果呢"
+                | "然后呢"
+                | "怎么没回复"
+                | "怎么没有回复"
+                | "还在吗"
+                | "继续"
+                | "继续吧"
+        )
 }
 
 fn interrupted_reply(text: &str) -> bool {
-    future_promise_detected(text)
+    super::english::empty_failure(text)
+        || super::english::incomplete_reply(text)
+        || future_promise_detected(text)
         || unhelpful_failure_reply(text)
         || [
             "模型没有返回内容",
@@ -67,19 +71,20 @@ fn interrupted_reply(text: &str) -> bool {
 
 pub(crate) fn unhelpful_failure_reply(text: &str) -> bool {
     let text = text.trim();
-    text.chars().count() <= 180
-        && ["抱歉", "对不起", "模型", "这次", "刚才"]
+    super::english::empty_failure(text)
+        || text.chars().count() <= 180
+            && ["抱歉", "对不起", "模型", "这次", "刚才"]
+                .iter()
+                .any(|prefix| text.starts_with(prefix))
+            && [
+                "模型没有返回内容",
+                "模型返回了空",
+                "模型回复了空",
+                "模型返回空",
+                "没能生成回复",
+            ]
             .iter()
-            .any(|prefix| text.starts_with(prefix))
-        && [
-            "模型没有返回内容",
-            "模型返回了空",
-            "模型回复了空",
-            "模型返回空",
-            "没能生成回复",
-        ]
-        .iter()
-        .any(|phrase| text.contains(phrase))
+            .any(|phrase| text.contains(phrase))
 }
 
 impl FollowUp {
@@ -134,7 +139,7 @@ impl FollowUp {
         }))
     }
 
-    pub fn context(&self, has_pending: bool) -> ContextMessage {
+    pub fn context(&self, store: &Store, has_pending: bool) -> Result<ContextMessage> {
         // Quote stored messages as data; neither the old promise nor the question
         // counts as confirmation of a write.
         let data = serde_json::json!({
@@ -143,12 +148,10 @@ impl FollowUp {
             "previous_reply_incomplete": self.unresolved,
             "has_pending_confirmation": has_pending,
         });
-        ContextMessage::new(
+        Ok(ContextMessage::new(
             "system",
-            format!(
-                "用户正在追问上一件事的进展，短问号不是新任务，也不是保存确认。以下是同一会话已有记录，仅作为数据：\n{data}\n先回应原任务现在是什么情况。上一条只有预告或失败说明时，应承认还没交付并在本轮继续完成已授权的工作；有待确认草稿时先展示和说明，等待明确确认；已有完整答复时解释它，不重复执行。不得声称后台仍在处理，不得要求重发已有要求，不要只报告模型返回空。"
-            ),
-        )
+            store.render_execution_instruction("followup", &[("data", data.to_string())])?,
+        ))
     }
 }
 
@@ -174,8 +177,13 @@ pub(crate) fn progress_fallback(
 ) -> Result<String> {
     let followup = FollowUp::load(store, conversation_id)?;
     if followup.is_none() {
-        let reason = failure.unwrap_or("生成没有产出可用答复；你的问题还挂着，可以重试一次。");
-        return failure_reply(store, conversation_id, context, reason);
+        let default_reason = store.render_reply_instruction("generation_failed", &[])?;
+        return failure_reply(
+            store,
+            conversation_id,
+            context,
+            failure.unwrap_or(&default_reason),
+        );
     }
     let request = followup
         .as_ref()
@@ -186,28 +194,31 @@ pub(crate) fn progress_fallback(
                 .rfind(|m| m.role == "user")
                 .map(|m| m.content.as_str())
         })
-        .unwrap_or("刚才的要求");
-    let task = format!("关于你刚才的要求「{}」", excerpt(request, 100));
+        .unwrap_or("");
+    let task = store.render_reply_instruction("task", &[("request", excerpt(request, 100))])?;
     let mut parts = Vec::new();
 
     if let Some(summary) = confirmed_write_summary(context) {
-        parts.push(format!(
-            "{task}，确认操作的实际结果是：\n{}",
-            excerpt(&summary, 2000)
-        ));
+        parts.push(store.render_reply_instruction(
+            "confirmed_result",
+            &[("task", task.clone()), ("result", excerpt(&summary, 2000))],
+        )?);
     }
-    if let Some(data) = context
-        .iter()
-        .rev()
-        .find(|m| m.role == "system" && m.content.starts_with("（本机数据直查："))
-    {
+    if let Some(data) = context.iter().rev().find(|m| {
+        m.role == "system"
+            && (m.content.starts_with("（本机数据直查：")
+                || m.content.starts_with("[Local data query:"))
+    }) {
         if let Some((_, body)) = data.content.split_once('\n') {
-            parts.push(format!("{task}，查到的结果如下：\n{}", excerpt(body, 2000)));
+            parts.push(store.render_reply_instruction(
+                "query_result",
+                &[("task", task.clone()), ("result", excerpt(body, 2000))],
+            )?);
         }
     }
 
     let pending = store.pending_actions_for_conversation(conversation_id)?;
-    if let Some(notice) = pending_notice(&pending) {
+    if let Some(notice) = pending_notice(store, &pending)? {
         parts.push(notice);
     }
 
@@ -216,49 +227,65 @@ pub(crate) fn progress_fallback(
     // trigger never gets here.
     for result in results.iter().rev().take(3).rev() {
         if !result.success {
-            parts.push(format!("有一步没有完成：{}", excerpt(&result.content, 400)));
+            parts.push(store.render_reply_instruction(
+                "step_failed",
+                &[("reason", excerpt(&result.content, 400))],
+            )?);
         } else if pending.is_empty() {
-            parts.push(format!("已取得的结果：\n{}", readable_result(result)));
+            parts.push(store.render_reply_instruction(
+                "available_result",
+                &[("result", readable_result(store, result)?)],
+            )?);
         }
     }
     if !parts.is_empty() {
         return Ok(parts.join("\n\n"));
     }
     if let Some(followup) = followup.filter(|f| !f.unresolved) {
-        return Ok(format!(
-            "{task}，上一条答复是：\n{}\n目前没有新的处理结果。",
-            excerpt(&followup.previous_reply, 1600)
-        ));
+        return store.render_reply_instruction(
+            "previous_reply",
+            &[
+                ("task", task),
+                ("reply", excerpt(&followup.previous_reply, 1600)),
+            ],
+        );
     }
-    Ok(format!(
-        "{task}，这件事还没有完成，我还没有交付可用结果。当前没有后台任务继续处理；原要求仍保留在这段对话里，你不需要重新输入。"
-    ))
+    store.render_reply_instruction("unfinished", &[("task", task)])
 }
 
-fn pending_notice(pending: &[crate::storage::PendingAction]) -> Option<String> {
+fn pending_notice(
+    store: &Store,
+    pending: &[crate::storage::PendingAction],
+) -> Result<Option<String>> {
     if pending.is_empty() {
-        return None;
+        return Ok(None);
     }
     let mut drafts = Vec::new();
+    let default_title = store.render_reply_instruction("pending_action", &[])?;
     for action in pending.iter().take(3) {
         let args: serde_json::Value = serde_json::from_str(&action.args_json).unwrap_or_default();
         let title = args
             .get("title")
             .or_else(|| args.get("project_name"))
             .and_then(|v| v.as_str())
-            .unwrap_or("待确认操作");
+            .unwrap_or(&default_title);
         let preview = args
             .get("content_md")
             .and_then(|v| v.as_str())
             .map(|s| format!("\n{}", excerpt(s, 1200)))
             .unwrap_or_default();
-        drafts.push(format!("「{}」{preview}", excerpt(title, 100)));
+        drafts.push(store.render_reply_instruction(
+            "draft_preview",
+            &[("title", excerpt(title, 100)), ("preview", preview)],
+        )?);
     }
-    Some(format!(
-        "当前会话有 {} 项操作等待确认，尚未执行保存：\n{}\n请查看草稿后明确确认，或取消；确认后才会执行保存。",
-        pending.len(),
-        drafts.join("\n\n")
-    ))
+    Ok(Some(store.render_reply_instruction(
+        "pending_notice",
+        &[
+            ("count", pending.len().to_string()),
+            ("drafts", drafts.join("\n\n")),
+        ],
+    )?))
 }
 
 /// 最近的未交付请求：若最新一条用户输入本身是新请求就取它（点名的是「现在
@@ -322,17 +349,13 @@ pub(super) fn failure_reply(
                     .find(|m| m.role == "user")
                     .map(|m| m.content.clone())
             })
-            .unwrap_or_else(|| "刚才的要求".into());
-        parts.push(format!(
-            "关于你刚才的要求「{}」，确认操作的实际结果是：\n{}",
-            excerpt(&request, 100),
-            excerpt(&summary, 2000)
-        ));
-        if let Some(notice) =
-            pending_notice(&store.pending_actions_for_conversation(conversation_id)?)
-        {
-            parts.push(notice);
-        }
+            .unwrap_or(store.render_reply_instruction("previous_request", &[])?);
+        let task =
+            store.render_reply_instruction("task", &[("request", excerpt(&request, 100))])?;
+        parts.push(store.render_reply_instruction(
+            "confirmed_result",
+            &[("task", task), ("result", excerpt(&summary, 2000))],
+        )?);
         return Ok(parts.join("\n\n"));
     }
     let (mut request, mut promised, was_confirmation) =
@@ -363,30 +386,46 @@ pub(super) fn failure_reply(
                 // 确认词失败且此前无预告：措辞贴着「确认的操作没生效」走，
                 // 不套「问题还挂着说继续」的模板（2026-11-02 事故）。
                 // 若此前有预告（promised），仍走下方模板承认没做到。
-                parts.push(format!(
-                    "你刚才确认的「保存」这一轮没有生效：{reason}。要保存的内容（关于「{}」）还在对话里，再说一次「保存」即可重试。",
-                    excerpt(&request, 100)
-                ));
+                parts.push(store.render_reply_instruction(
+                    "confirmation_failed",
+                    &[
+                        ("reason", reason.into()),
+                        ("request", excerpt(&request, 100)),
+                    ],
+                )?);
             } else {
-                let task = format!("关于你刚才的要求「{}」", excerpt(&request, 120));
-                let promised_line = if promised {
-                    "另外，我之前说过要接着处理这件事，这次同样没有做到；它还挂着，不会被当作已完成。"
+                let task = store
+                    .render_reply_instruction("task", &[("request", excerpt(&request, 120))])?;
+                let promise = if promised {
+                    store.render_reply_instruction("promise_unfulfilled", &[])?
                 } else {
-                    ""
+                    String::new()
                 };
-                parts.push(format!("{task}，这一轮还没有完成：{reason}{promised_line}"));
+                parts.push(store.render_reply_instruction(
+                    "failure",
+                    &[
+                        ("task", task),
+                        ("reason", reason.into()),
+                        ("promise", promise),
+                    ],
+                )?);
             }
         }
-        None => parts.push(format!("这一轮还没有完成：{reason}")),
+        None => {
+            parts.push(store.render_reply_instruction(
+                "failure_without_request",
+                &[("reason", reason.into())],
+            )?)
+        }
     }
-    if let Some(notice) = pending_notice(&store.pending_actions_for_conversation(conversation_id)?)
-    {
+    if let Some(notice) = pending_notice(
+        store,
+        &store.pending_actions_for_conversation(conversation_id)?,
+    )? {
         parts.push(notice);
     }
     if !was_confirmation || promised {
-        parts.push(
-            "现在还没有交付可用结果；原要求仍保留在这段对话里，说「继续」或换个问法即可。".into(),
-        );
+        parts.push(store.render_reply_instruction("continue_hint", &[])?);
     }
     Ok(parts.join("\n\n"))
 }
@@ -411,7 +450,7 @@ pub(crate) fn failure_notice(store: &Store, conversation_id: &str, reason: &str)
     failure_reply(store, conversation_id, &[], reason)
 }
 
-fn readable_result(result: &ToolResultMsg) -> String {
+fn readable_result(store: &Store, result: &ToolResultMsg) -> Result<String> {
     if matches!(
         result.call_name.as_str(),
         "get_wiki_page" | "search_knowledge_base"
@@ -435,22 +474,29 @@ fn readable_result(result: &ToolResultMsg) -> String {
             if let Some(page) = data.get("unverified_page") {
                 found.push(format!(
                     "{}\n{}\n{}",
-                    page["title"].as_str().unwrap_or("知识页"),
-                    page["notice"].as_str().unwrap_or("来源尚未核验"),
+                    page["title"]
+                        .as_str()
+                        .unwrap_or(&store.render_reply_instruction("page", &[])?),
+                    page["notice"]
+                        .as_str()
+                        .unwrap_or(&store.render_reply_instruction("unverified", &[])?),
                     excerpt(page["content_md"].as_str().unwrap_or(""), 700)
                 ));
             }
             for event in data["events"].as_array().into_iter().flatten().take(3) {
                 if let Some(body) = event["excerpt"].as_str() {
-                    found.push(format!("已有记录：{}", excerpt(body, 200)));
+                    found.push(store.render_reply_instruction(
+                        "existing_record",
+                        &[("body", excerpt(body, 200))],
+                    )?);
                 }
             }
             return if found.is_empty() {
-                "没有找到可用的材料。".into()
+                store.render_reply_instruction("no_material", &[])
             } else {
-                found.join("\n\n")
+                Ok(found.join("\n\n"))
             };
         }
     }
-    excerpt(&result.content, 1600)
+    Ok(excerpt(&result.content, 1600))
 }

@@ -24,6 +24,7 @@ import '../widgets/goal_view.dart';
 import '../widgets/chat_proposal_review.dart';
 import '../widgets/sync_workspace.dart';
 import '../bridge/rust_bridge_repository.dart';
+import '../l10n/localization.dart';
 
 class MainScreen extends ConsumerWidget {
   const MainScreen({super.key});
@@ -67,7 +68,7 @@ class MainScreen extends ConsumerWidget {
                   ? Builder(
                       builder: (context) => IconButton(
                         icon: const Icon(Icons.menu_outlined),
-                        tooltip: '打开导航',
+                        tooltip: context.l10n.openNavigation,
                         onPressed: () => Scaffold.of(context).openDrawer(),
                       ),
                     )
@@ -89,7 +90,7 @@ class MainScreen extends ConsumerWidget {
                     icon: const Icon(Icons.settings_outlined),
                     iconSize: 16,
                     color: const Color(0xFF6C7A89),
-                    tooltip: '设置',
+                    tooltip: context.l10n.settings,
                     onPressed: () async {
                       await Navigator.of(context).push(
                         MaterialPageRoute(
@@ -164,7 +165,7 @@ class MainScreen extends ConsumerWidget {
                                 if (repository is! RustBridgeRepository) {
                                   return Center(
                                     child: Text(
-                                      '同步在此平台暂不可用',
+                                      context.l10n.syncPlatformUnavailable,
                                       style: TextStyle(
                                         color: AppTheme.textTertiary,
                                         fontSize: 13,
@@ -172,9 +173,7 @@ class MainScreen extends ConsumerWidget {
                                     ),
                                   );
                                 }
-                                return SyncWorkspace(
-                                  repository: repository,
-                                );
+                                return SyncWorkspace(repository: repository);
                               },
                             ),
                           ),
@@ -206,12 +205,12 @@ class _WikiTabTitleBarActions extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _TitleBarIconAction(
-          tooltip: '创建主题',
+          tooltip: context.l10n.createTopic,
           icon: Icons.note_add_outlined,
           onPressed: () => openCreateTopicDialog(context),
         ),
         _TitleBarIconAction(
-          tooltip: '网址导入',
+          tooltip: context.l10n.importUrl,
           icon: Icons.link_outlined,
           onPressed: () => openWikiImportDialog(context, urlMode: true),
         ),
@@ -231,14 +230,14 @@ class _TabNavTitleBarActions extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _TitleBarIconAction(
-          tooltip: '对话',
+          tooltip: context.l10n.conversation,
           icon: Icons.chat_bubble_outline,
           onPressed: () => ref
               .read(sidebarTabProvider.notifier)
               .set(SidebarTab.conversation),
         ),
         _TitleBarIconAction(
-          tooltip: '知识',
+          tooltip: context.l10n.knowledge,
           icon: Icons.menu_book_outlined,
           onPressed: () {
             ref.read(wikiActiveTabIdProvider.notifier).set('import');
@@ -299,7 +298,7 @@ class TodayTitleBarActions extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _TitleBarIconAction(
-          tooltip: '目标${activeGoals.isEmpty ? '' : '（${activeGoals.length}）'}',
+          tooltip: context.l10n.goalsCount(activeGoals.length),
           icon: Icons.flag_outlined,
           color: activeGoals.isEmpty
               ? AppTheme.accentPrimary
@@ -307,12 +306,12 @@ class TodayTitleBarActions extends ConsumerWidget {
           onPressed: () => openGoalDialog(context),
         ),
         _TitleBarIconAction(
-          tooltip: '待办（${openTodos ?? 0}）',
+          tooltip: context.l10n.todoCount(openTodos ?? 0),
           icon: Icons.check_circle_outlined,
           onPressed: () => openTodoDialog(context),
         ),
         _TitleBarIconAction(
-          tooltip: '创建主题',
+          tooltip: context.l10n.createTopic,
           icon: Icons.note_add_outlined,
           onPressed: () => openCreateTopicDialog(context),
         ),
@@ -326,7 +325,9 @@ class TodayTitleBarActions extends ConsumerWidget {
             compact: true,
           ),
         _TitleBarIconAction(
-          tooltip: searchVisible ? '隐藏搜索' : '搜索与日期定位',
+          tooltip: searchVisible
+              ? context.l10n.hideSearch
+              : context.l10n.searchAndDate,
           icon: searchVisible ? Icons.search_off : Icons.search,
           color: searchVisible ? AppTheme.accentPrimary : null,
           onPressed: conversationId == null

@@ -10,7 +10,8 @@ class KnowledgeLibrary extends ConsumerStatefulWidget {
 
 class _LibraryState extends ConsumerState<KnowledgeLibrary> {
   final _query = TextEditingController(), _tag = TextEditingController();
-  String? _area, _kind, _state, _error;
+  String? _area, _kind, _state;
+  Object? _error;
   List<api.LibraryEntry> _items = [];
   bool _busy = false, _more = false;
   int _request = 0;
@@ -56,7 +57,7 @@ class _LibraryState extends ConsumerState<KnowledgeLibrary> {
       }
     } catch (e) {
       if (mounted && request == _request) {
-        setState(() => _error = '读取知识列表失败：$e');
+        setState(() => _error = e);
       }
     } finally {
       if (mounted && request == _request) setState(() => _busy = false);
@@ -73,18 +74,31 @@ class _LibraryState extends ConsumerState<KnowledgeLibrary> {
     String? value,
     Map<String, String> labels,
     void Function(String?) update,
-  ) => DropdownButton<String>(
-    value: value,
-    hint: Text(label),
-    items: [
-      DropdownMenuItem<String>(value: null, child: Text('全部$label')),
-      for (final e in labels.entries)
-        DropdownMenuItem(value: e.key, child: Text(e.value)),
-    ],
-    onChanged: (v) {
-      setState(() => update(v));
-      _load();
-    },
+  ) => IntrinsicWidth(
+    child: DropdownButton<String>(
+      isExpanded: true,
+      value: value,
+      hint: Text(label),
+      items: [
+        DropdownMenuItem<String>(
+          value: null,
+          child: Text(
+            context.l10n.libraryAllFilter(label),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        for (final e in labels.entries)
+          DropdownMenuItem(
+            value: e.key,
+            child: Text(e.value, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+      ],
+      onChanged: (v) {
+        setState(() => update(v));
+        _load();
+      },
+    ),
   );
   @override
   Widget build(BuildContext context) {
@@ -99,7 +113,7 @@ class _LibraryState extends ConsumerState<KnowledgeLibrary> {
                 controller: _query,
                 onChanged: (_) => _search(),
                 decoration: InputDecoration(
-                  hintText: '搜索标题或全文',
+                  hintText: context.l10n.librarySearchHint,
                   prefixIcon: Icon(
                     Icons.search,
                     color: AppTheme.textTertiary,
@@ -128,7 +142,7 @@ class _LibraryState extends ConsumerState<KnowledgeLibrary> {
                   ),
                   suffixIcon: _query.text.isNotEmpty
                       ? IconButton(
-                          tooltip: '清除搜索',
+                          tooltip: context.l10n.clearSearch,
                           icon: Icon(
                             Icons.clear,
                             color: AppTheme.textTertiary,
@@ -147,28 +161,33 @@ class _LibraryState extends ConsumerState<KnowledgeLibrary> {
                 spacing: 12,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  _filter('分区', _area, {
-                    'imported': '素材库',
-                    'insight': '知识沉淀',
-                    'network': '联系人与项目',
+                  _filter(context.l10n.libraryArea, _area, {
+                    'imported': context.l10n.libraryImported,
+                    'insight': context.l10n.libraryInsight,
+                    'network': context.l10n.libraryNetwork,
                   }, (v) => _area = v),
-                  _filter('类型', _kind, {
-                    'source': '原料',
-                    'note': '笔记',
-                    'method': '方法',
-                    'case': '案例',
-                    'principle': '规律',
-                    'topic': '主题',
-                    'person': '联系人',
-                    'project': '项目',
+                  _filter(context.l10n.libraryKind, _kind, {
+                    'source': libraryKindLabel(context, 'source'),
+                    'note': libraryKindLabel(context, 'note'),
+                    'method': libraryKindLabel(context, 'method'),
+                    'case': libraryKindLabel(context, 'case'),
+                    'principle': libraryKindLabel(context, 'principle'),
+                    'topic': libraryKindLabel(context, 'topic'),
+                    'person': libraryKindLabel(context, 'person'),
+                    'project': libraryKindLabel(context, 'project'),
                   }, (v) => _kind = v),
-                  _filter('阅读状态', _state, readingLabels, (v) => _state = v),
+                  _filter(
+                    context.l10n.libraryReadingState,
+                    _state,
+                    readingLabels(context),
+                    (v) => _state = v,
+                  ),
                   SizedBox(
                     width: 140,
                     child: TextField(
                       controller: _tag,
                       onChanged: (_) => _search(),
-                      decoration: const InputDecoration(labelText: '标签'),
+                      decoration: InputDecoration(labelText: context.l10n.tags),
                     ),
                   ),
                 ],
@@ -177,7 +196,8 @@ class _LibraryState extends ConsumerState<KnowledgeLibrary> {
           ),
         ),
         if (_busy) const LinearProgressIndicator(),
-        if (_error != null) Text(_error!),
+        if (_error != null)
+          AppErrorMessage(action: context.l10n.load, error: _error!),
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
@@ -188,14 +208,16 @@ class _LibraryState extends ConsumerState<KnowledgeLibrary> {
                     ? Center(
                         child: TextButton(
                           onPressed: _busy ? null : () => _load(more: true),
-                          child: const Text('加载更多'),
+                          child: Text(context.l10n.loadMore),
                         ),
                       )
                     : Padding(
                         padding: const EdgeInsets.all(16),
                         child: Center(
                           child: Text(
-                            _items.isEmpty ? '没有匹配的知识页' : '已显示全部结果',
+                            _items.isEmpty
+                                ? context.l10n.libraryNoMatch
+                                : context.l10n.libraryAllShown,
                             style: TextStyle(color: AppTheme.textTertiary),
                           ),
                         ),
@@ -232,9 +254,18 @@ class KnowledgeBatchReview extends ConsumerStatefulWidget {
 class _BatchState extends ConsumerState<KnowledgeBatchReview> {
   final Set<String> _selected = {};
   bool _busy = false;
-  String? _result;
+  List<api.BatchReviewResult> _results = [];
+  Map<String, String> _resultTitles = {};
+  Object? _failure;
+  bool _lastAccept = true;
   Future<void> _resolve(bool accept) async {
-    setState(() => _busy = true);
+    final titles = {for (final p in widget.proposals) p.id: p.title};
+    setState(() {
+      _busy = true;
+      _failure = null;
+      _lastAccept = accept;
+      _results = [];
+    });
     try {
       final results = await ref
           .read(knowledgeRepositoryProvider)
@@ -242,12 +273,13 @@ class _BatchState extends ConsumerState<KnowledgeBatchReview> {
       if (mounted) {
         setState(() {
           _selected.removeAll(results.where((r) => r.success).map((r) => r.id));
-          _result = results.map((r) => r.detail).join('\n');
+          _results = results;
+          _resultTitles = titles;
         });
         notifyKnowledgeChanged(ref);
       }
     } catch (e) {
-      if (mounted) setState(() => _result = '批量处理失败：$e');
+      if (mounted) setState(() => _failure = e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -255,8 +287,8 @@ class _BatchState extends ConsumerState<KnowledgeBatchReview> {
 
   @override
   Widget build(BuildContext context) => ExpansionTile(
-    title: const Text('批量审阅修订'),
-    subtitle: const Text('先查看正文与适用条件，每批最多确认 20 项'),
+    title: Text(context.l10n.knowledgeBatchTitle),
+    subtitle: Text(context.l10n.knowledgeBatchHelp),
     children: [
       for (final p in widget.proposals.where(
         (p) => p.pageId != null && p.baseHash != null && p.status == 'pending',
@@ -277,7 +309,7 @@ class _BatchState extends ConsumerState<KnowledgeBatchReview> {
                     }),
             ),
             ExpansionTile(
-              title: const Text('查看本项修订'),
+              title: Text(context.l10n.knowledgeViewRevision),
               children: [widget.preview(p)],
             ),
           ],
@@ -287,18 +319,33 @@ class _BatchState extends ConsumerState<KnowledgeBatchReview> {
         children: [
           FilledButton(
             onPressed: _busy || _selected.isEmpty ? null : () => _resolve(true),
-            child: Text('确认采纳 ${_selected.length} 项'),
+            child: Text(context.l10n.knowledgeAcceptCount(_selected.length)),
           ),
           TextButton(
             onPressed: _busy || _selected.isEmpty
                 ? null
                 : () => _resolve(false),
-            child: const Text('拒绝所选'),
+            child: Text(context.l10n.knowledgeRejectSelected),
           ),
         ],
       ),
       if (_busy) const LinearProgressIndicator(),
-      if (_result != null) Text(_result!),
+      if (_failure != null)
+        AppErrorMessage(action: context.l10n.save, error: _failure!),
+      for (final result in _results)
+        ListTile(
+          title: Text(_resultTitles[result.id] ?? result.id),
+          subtitle: result.success
+              ? Text(
+                  _lastAccept
+                      ? context.l10n.knowledgeAccepted
+                      : context.l10n.knowledgeRejected,
+                )
+              : AppErrorMessage(
+                  action: context.l10n.save,
+                  error: result.detail,
+                ),
+        ),
     ],
   );
 }
@@ -314,19 +361,6 @@ class _LibraryCard extends StatelessWidget {
   const _LibraryCard({required this.entry, required this.onTap});
 
   /// 类型中文名（与其它界面 kindLabel 对齐，仅本列表用到的子集）。
-  static const Map<String, String> _kindLabels = {
-    'source': '原料',
-    'note': '笔记',
-    'method': '方法',
-    'case': '案例',
-    'principle': '规律',
-    'topic': '主题',
-    'person': '联系人',
-    'project': '项目',
-    'insight': '洞察',
-    'asset': '资产',
-  };
-
   /// 阅读状态对应颜色：待读=强调、已读=中性、值得使用/已采用=成功、归档=灰。
   Color _readingColor() {
     switch (entry.readingState) {
@@ -345,9 +379,9 @@ class _LibraryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kindLabel = _kindLabels[entry.kind] ?? entry.kind;
+    final kindLabel = libraryKindLabel(context, entry.kind);
     final readingLabel =
-        readingLabels[entry.readingState] ?? entry.readingState;
+        readingLabels(context)[entry.readingState] ?? entry.readingState;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(

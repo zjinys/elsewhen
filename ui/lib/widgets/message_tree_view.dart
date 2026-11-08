@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 
 import '../models/conversation.dart';
@@ -189,7 +191,9 @@ class _MessageTreeNodeWidget extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  '${node.children.length} 个分支',
+                                  context.l10n.l6BranchesArg079379(
+                                    (node.children.length).toString(),
+                                  ),
                                   style: const TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w500,
@@ -204,7 +208,7 @@ class _MessageTreeNodeWidget extends StatelessWidget {
                       const Spacer(),
                       // Timestamp
                       Text(
-                        _formatTime(node.message.createdAt),
+                        _formatTime(context, node.message.createdAt),
                         style: TextStyle(
                           fontSize: 11,
                           color: const Color(0xFFADB5BD).withValues(alpha: 0.6),
@@ -240,18 +244,18 @@ class _MessageTreeNodeWidget extends StatelessWidget {
     );
   }
 
-  String _formatTime(DateTime time) {
+  String _formatTime(BuildContext context, DateTime time) {
     final now = DateTime.now();
     final diff = now.difference(time);
 
     if (diff.inMinutes < 1) {
-      return '刚刚';
+      return context.l10n.justNow;
     } else if (diff.inMinutes < 60) {
-      return '${diff.inMinutes} 分钟前';
+      return context.l10n.l6Arg0MinutesAgo6b0c6((diff.inMinutes).toString());
     } else if (diff.inHours < 24) {
-      return '${diff.inHours} 小时前';
+      return context.l10n.l6Arg0HoursAgoaf702((diff.inHours).toString());
     } else if (diff.inDays < 7) {
-      return '${diff.inDays} 天前';
+      return context.l10n.l6Arg0DaysAgo70636((diff.inDays).toString());
     } else {
       return '${time.month}/${time.day}';
     }

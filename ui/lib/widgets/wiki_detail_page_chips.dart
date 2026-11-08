@@ -17,8 +17,8 @@ class _LocalPathChip extends ConsumerWidget {
           onTap: () {
             Clipboard.setData(ClipboardData(text: path));
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('项目路径已复制'),
+              SnackBar(
+                content: Text(context.l10n.wikiProjectPathCopied),
                 behavior: SnackBarBehavior.floating,
               ),
             );
@@ -59,7 +59,7 @@ class _LocalPathChip extends ConsumerWidget {
           ),
         ),
         IconButton(
-          tooltip: '修改项目路径',
+          tooltip: context.l10n.wikiEditProjectPath,
           visualDensity: VisualDensity.compact,
           iconSize: 14,
           onPressed: () => _showEditPathDialog(context, ref),
@@ -74,7 +74,7 @@ class _LocalPathChip extends ConsumerWidget {
   /// dispose controller 导致的已释放访问 crash。
   Future<void> _showEditPathDialog(BuildContext context, WidgetRef ref) async {
     final picked = await FilePicker.getDirectoryPath(
-      dialogTitle: '选择项目目录',
+      dialogTitle: context.l10n.wikiChooseProjectDirectory,
       initialDirectory: page.localPath,
     );
     if (picked == null || picked.trim().isEmpty) return;
@@ -84,13 +84,13 @@ class _LocalPathChip extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('修改项目路径'),
+        title: Text(context.l10n.wikiEditProjectPath),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '旧路径',
+              context.l10n.wikiOldPath,
               style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
             ),
             SelectableText(
@@ -99,7 +99,7 @@ class _LocalPathChip extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '新路径',
+              context.l10n.wikiNewPath,
               style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
             ),
             SelectableText(
@@ -115,11 +115,11 @@ class _LocalPathChip extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('保存'),
+            child: Text(context.l10n.save),
           ),
         ],
       ),
@@ -131,17 +131,12 @@ class _LocalPathChip extends ConsumerWidget {
       ref.invalidate(wikiPageProvider(page.slug));
       ref.invalidate(wikiPagesProvider);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('项目路径已更新')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.wikiProjectPathUpdated)),
+      );
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '路径更新失败：${e.toString().replaceFirst('Exception: ', '')}',
-          ),
-        ),
-      );
+      showAppError(context, context.l10n.save, e);
     }
   }
 }
@@ -159,8 +154,8 @@ class _SourceChip extends StatelessWidget {
       onTap: () {
         Clipboard.setData(ClipboardData(text: url));
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('来源链接已复制'),
+          SnackBar(
+            content: Text(context.l10n.wikiSourceLinkCopied),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -287,22 +282,16 @@ class RelatedPageChip extends StatelessWidget {
     required this.onRemove,
   });
 
-  static const _labels = {
-    'related': '相关',
-    'mentions': '提及',
-    '被mentions': '被提及',
-    'part_of': '从属',
-    '被part_of': '包含本页',
-    'same_topic': '同主题',
-    'supports': '佐证',
-    '被supports': '被佐证',
-    'contradicts': '相悖',
-    '被contradicts': '被相悖',
-  };
-
   @override
   Widget build(BuildContext context) {
-    final label = _labels[relation.relation] ?? relation.relation;
+    final relationKey = switch (relation.relation) {
+      '被mentions' => 'mentionedBy',
+      '被part_of' => 'contains',
+      '被supports' => 'supportedBy',
+      '被contradicts' => 'contradictedBy',
+      _ => relation.relation,
+    };
+    final label = context.l10n.wikiRelationLabel(relationKey);
     final chip = InkWell(
       onTap: () => onOpen(relation.otherSlug, relation.otherTitle),
       borderRadius: BorderRadius.circular(AppTheme.radiusFull),

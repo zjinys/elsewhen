@@ -2,6 +2,10 @@ fn main() {
     // Flutter Rust Bridge v2 doesn't need build.rs for generation
     // Code generation is done via CLI: flutter_rust_bridge_codegen generate
     println!("cargo:rerun-if-changed=src/api.rs");
+    // include_dir! embeds these trees. Rebuild when a migration/resource is
+    // added or edited, even if no Rust source or git index has changed.
+    println!("cargo:rerun-if-changed=migrations");
+    println!("cargo:rerun-if-changed=resources");
 
     // 版本可溯源：设置页要展示的不是恒定不变的 pubspec 版本，而是「这次
     // 构建对应哪个 git 提交」。编译期抓短 hash；不再依赖（或补充）版本号。

@@ -36,20 +36,24 @@ pub(crate) fn process_chat_rule_check_queue(
 
 /// 组装判定上下文（极简：系统纪律 + 规则 + 消息原文，封顶 4K tokens）。
 pub(crate) fn build_judge_context(
-    _store: &Store,
+    store: &Store,
     hit: &PendingChatHit,
 ) -> Result<Vec<ContextMessage>> {
+    let _scope = store.prompt_scope("background_task", &format!("rule_judgement:{}", hit.id))?;
     let mut context = vec![
         ContextMessage::new(
             "system",
-            "你只输出严格 JSON 对象（含 applicable 布尔与 confidence 数字 0..1），不要 Markdown 围栏。判定不确定时宁可 applicable=false（宁缺毋滥）。",
+            store.render_processing_instruction("judge_system", &[])?,
         ),
         ContextMessage::new(
             "user",
-            format!(
-                "判定下面的对话消息是否需要遵守这条个人经验规则。需要遵守/适用为 true；无关、纯属闲聊或规则不适用为 false。\n\n规则：{}\n\n消息：{}",
-                hit.rule_content, hit.message_text
-            ),
+            store.render_processing_instruction(
+                "judge_input",
+                &[
+                    ("rule", hit.rule_content.clone()),
+                    ("message", hit.message_text.clone()),
+                ],
+            )?,
         ),
     ];
     crate::knowledge::bound_model_context(&mut context, 4000)?;
@@ -88,6 +92,8 @@ pub(crate) fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -
         else {
             break;
         };
+        let bundle = store.analysis_prompt_bundle(&job.id)?;
+        let _prompt_scope = store.use_prompt_bundle(&bundle);
         // 上下文构建属于分析任务的一部分：失败不能把已 claim 的 job
         // 孤悬为 running（否则要等下次启动才 recover），记入 last_error 放回重试。
         let (context, candidates) = match decision_support_material(store, &job.raw_text) {
@@ -107,16 +113,26 @@ pub(crate) fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -
                 .map(|hit| format!("- rule_id={}：{}", hit.rule_id, hit.rule_content))
                 .collect::<Vec<_>>()
                 .join("\n");
-            format!(
-                "\n\n以下规则在入库预筛时命中本记录，请逐条判定其是否真正适用本记录，并在输出的 rule_confirmations 数组中逐条回填（rule_id 原样返回；confidence 0..1 表示适用置信度）：\n{listed}\n"
-            )
+            store.render_processing_instruction("analysis_rules", &[("rules", listed)])?
         };
-        let prompt = format!(
-            "分析以下个人记录，只返回 JSON 对象，不要 Markdown，也不要增加字段。schema_version 固定为 event-analysis-v3。字段必须包含 schema_version、recordable(boolean)、kind(event/discussion/chitchat/meta)、event_type(string)、confidence(number 0..1)、summary(string)、clarifications(array of strings)、people(array of strings)、projects(array of strings)、activities(array of strings)、follow_ups(array of strings)；仅当下方附有规则命中时才包含 rule_confirmations(array of {{rule_id: string, applicable: boolean, confidence: number 0..1}})。情绪走红线：仅当记录客观存在对具体人或事的情绪反应时才可选包含 emotion 数组：[{{\"target\": string, \"feeling\": string}}]——feeling 用简短文本描述感受（如「被理解」「焦虑」「挫败」），绝对禁止打分或生成情绪分析报告；target 填相关的人或事（与 people/projects 一致，对事件本身的感受填空字符串）；没有则整个省略 emotion 字段。只有当决策辅助上下文与你确有关联时才可选包含 guidance 对象：{{\"related\":[{{\"slug\":string,\"note\":string}}],\"lessons\":[string],\"follow_ups_refined\":[string]}}：related[].slug 只能取自决策辅助上下文中出现的知识库页 slug，note 写为什么相关/可复用什么（一句话）；lessons 写可复用经验（不是重复记录内容）；follow_ups_refined 是对 follow_ups 的精炼合并；无关联时整个省略 guidance 字段，不得杜撰 slug。projects 只填写明确的长期项目/产品/组织；网站改版、联调、任务、沟通、会议等动作或事项必须放入 activities，不要放入 projects。activities 提取简短常见的动词短语（如 散步、跑步、阅读、写代码），不要用描述性长句——统计按词匹配，词汇不一致就数不到。只有客观经历、决定、行动或进展 recordable=true/kind=event；对 AI 回复评价、闲聊、纯提问或元对话 recordable=false，并保留简短 summary。\n\n决策辅助上下文（只作参考，不能据此臆测新事实）：\n{}\n\n记录：{}{}",
-            context, job.raw_text, rules_section
-        );
+        let prompt = store.render_processing_instruction(
+            "analysis_input",
+            &[
+                ("context", context),
+                ("record", job.raw_text.clone()),
+                ("rules", rules_section),
+            ],
+        )?;
         let mut analysis_context = vec![
-            ContextMessage::new("system", crate::knowledge::CITATION_INSTRUCTIONS),
+            ContextMessage::new(
+                "system",
+                format!(
+                    "{}\n{}\n{}",
+                    store.prompt_for_run("analysis.policy")?,
+                    store.render_context_instruction("citation", &[])?,
+                    store.output_language_directive(false)?
+                ),
+            ),
             ContextMessage::new("user", prompt),
         ];
         if let Err(error) = crate::knowledge::bound_model_context(&mut analysis_context, 24000) {
@@ -303,22 +319,34 @@ pub(crate) fn decision_support_material(
 ) -> Result<(String, Vec<crate::knowledge::KnowledgeCitation>)> {
     let mut lines = Vec::new();
     for rule in store.list_active_rules()?.into_iter().take(8) {
-        lines.push(format!(
-            "- 已确认规则：{}",
-            rule.content.chars().take(500).collect::<String>()
-        ));
+        lines.push(store.render_processing_instruction(
+            "analysis_rule",
+            &[("body", rule.content.chars().take(500).collect())],
+        )?);
     }
     let candidates = crate::knowledge::select_knowledge(store, query, "analysis", 2500)?;
-    lines.push(crate::knowledge::context_text(&candidates)?);
+    lines.push(crate::knowledge::context_text_for_run(store, &candidates)?);
     // 用户模型关系边（D2 累积）：最多 10 条，条目本身短语级不截断。
     if let Ok(relations) = store.list_relations() {
         let edges = relations
             .iter()
             .take(10)
-            .map(|r| format!("- 关系：{} ——{}—— {}", r.from_slug, r.relation, r.to_slug))
-            .collect::<Vec<_>>();
+            .map(|r| {
+                store.render_processing_instruction(
+                    "analysis_relation",
+                    &[
+                        ("from", r.from_slug.clone()),
+                        ("relation", r.relation.clone()),
+                        ("to", r.to_slug.clone()),
+                    ],
+                )
+            })
+            .collect::<Result<Vec<_>>>()?;
         if !edges.is_empty() {
-            lines.push(format!("你的既有关系账本：\n{}", edges.join("\n")));
+            lines.push(store.render_processing_instruction(
+                "analysis_relations",
+                &[("body", edges.join("\n"))],
+            )?);
         }
     }
     // 近期记录条目：最多 5 条、每条 120 字，供「这和最近的事有什么关系」参照。
@@ -326,15 +354,20 @@ pub(crate) fn decision_support_material(
         let entries = recent
             .iter()
             .map(|e| {
-                format!(
-                    "- 近期记录（{}）：{}",
-                    e.recorded_at.chars().take(16).collect::<String>(),
-                    e.raw_text.chars().take(120).collect::<String>()
+                store.render_processing_instruction(
+                    "analysis_record",
+                    &[
+                        ("time", e.recorded_at.chars().take(16).collect()),
+                        ("body", e.raw_text.chars().take(120).collect()),
+                    ],
                 )
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>>>()?;
         if !entries.is_empty() {
-            lines.push(format!("近期记录：\n{}", entries.join("\n")));
+            lines.push(store.render_processing_instruction(
+                "analysis_recent",
+                &[("body", entries.join("\n"))],
+            )?);
         }
     }
     Ok((lines.join("\n\n"), candidates))

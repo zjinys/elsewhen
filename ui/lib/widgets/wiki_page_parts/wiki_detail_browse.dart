@@ -56,8 +56,6 @@ class _ImmersiveContent extends ConsumerWidget {
   }
 }
 
-
-
 /// 相关页面行（知识关系网 P3，提案 2026-10-19）。
 ///
 /// 数据来自知识详情的派生读（details.relations）；人工边可删，「+」从页列表
@@ -84,7 +82,7 @@ class _RelatedPagesRowState extends ConsumerState<RelatedPagesRow> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '相关页面',
+              context.l10n.wikiRelatedPages,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -98,11 +96,7 @@ class _RelatedPagesRowState extends ConsumerState<RelatedPagesRow> {
               borderRadius: BorderRadius.circular(AppTheme.radiusFull),
               child: Padding(
                 padding: const EdgeInsets.all(2),
-                child: Icon(
-                  Icons.add,
-                  size: 14,
-                  color: AppTheme.textTertiary,
-                ),
+                child: Icon(Icons.add, size: 14, color: AppTheme.textTertiary),
               ),
             ),
           ],
@@ -130,19 +124,17 @@ class _RelatedPagesRowState extends ConsumerState<RelatedPagesRow> {
     );
   }
 
-  Future<void> _removeRelatedPage(BuildContext context, String relationId) async {
+  Future<void> _removeRelatedPage(
+    BuildContext context,
+    String relationId,
+  ) async {
     try {
       final repo = ref.read(knowledgeRepositoryProvider);
       await repo.removeRelatedPage(widget.slug, relationId);
       ref.invalidate(knowledgeDetailsProvider(widget.slug));
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('移除失败：${e.toString().replaceFirst('Exception: ', '')}'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      showAppError(context, context.l10n.delete, e);
     }
   }
 
@@ -152,21 +144,23 @@ class _RelatedPagesRowState extends ConsumerState<RelatedPagesRow> {
     final pages = await ref.read(wikiPagesProvider.future);
     if (!context.mounted) return;
     final candidates = pages
-        .where((p) =>
-            p.slug != widget.slug &&
-            p.status != 'archived' &&
-            !existing.contains(p.slug))
+        .where(
+          (p) =>
+              p.slug != widget.slug &&
+              p.status != 'archived' &&
+              !existing.contains(p.slug),
+        )
         .toList();
     final picked = await showDialog<WikiPageMeta>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('添加相关页面'),
+        title: Text(context.l10n.wikiAddRelatedPage),
         content: SizedBox(
           width: 360,
           child: candidates.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Text('暂时没有可选的页面'),
+              ? Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Text(context.l10n.wikiNoRelatedCandidates),
                 )
               : ListView.builder(
                   shrinkWrap: true,
@@ -190,7 +184,7 @@ class _RelatedPagesRowState extends ConsumerState<RelatedPagesRow> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
+            child: Text(context.l10n.cancel),
           ),
         ],
       ),
@@ -202,14 +196,7 @@ class _RelatedPagesRowState extends ConsumerState<RelatedPagesRow> {
       ref.invalidate(knowledgeDetailsProvider(widget.slug));
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '关联失败：${e.toString().replaceFirst('Exception: ', '')}',
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      showAppError(context, context.l10n.save, e);
     }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../l10n/localization.dart';
 
 /// API Key 未配置时卡片上的警告徽标（roadmap C12 后续：密文被清/密钥丢失
 /// 后配置还在，但 AI 调用必失败 —— 卡片必须先于失败把这件事亮出来）。
@@ -27,11 +28,11 @@ class ProviderKeyWarningFieldLabel extends StatelessWidget {
   const ProviderKeyWarningFieldLabel({
     super.key,
     required this.label,
-    this.warningHint = '未配置',
+    this.warningHint,
   });
 
   final String label;
-  final String warningHint;
+  final String? warningHint;
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +50,7 @@ class ProviderKeyWarningFieldLabel extends StatelessWidget {
         Icon(Icons.key_off_rounded, size: 14, color: AppTheme.warning),
         const SizedBox(width: 2),
         Text(
-          warningHint,
+          warningHint ?? context.l10n.notConfigured,
           style: TextStyle(fontSize: 11, color: AppTheme.warning),
         ),
       ],
@@ -86,8 +87,11 @@ class ProviderCardActions extends StatelessWidget {
               ? Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    '对话使用此配置',
-                    style: TextStyle(color: AppTheme.textTertiary, fontSize: 11),
+                    context.l10n.providerInUse,
+                    style: TextStyle(
+                      color: AppTheme.textTertiary,
+                      fontSize: 11,
+                    ),
                   ),
                 )
               : Align(
@@ -99,26 +103,26 @@ class ProviderCardActions extends StatelessWidget {
                       minimumSize: const Size(0, 28),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: const Text('设为激活'),
+                    child: Text(context.l10n.activateProvider),
                   ),
                 ),
         ),
         IconButton(
-          tooltip: '编辑',
+          tooltip: context.l10n.edit,
           icon: const Icon(Icons.edit_outlined, size: 18),
           color: AppTheme.textSecondary,
           visualDensity: VisualDensity.compact,
           onPressed: onEdit,
         ),
         IconButton(
-          tooltip: '复制配置（API Key 需重新输入）',
+          tooltip: context.l10n.duplicateProviderTooltip,
           icon: const Icon(Icons.copy_rounded, size: 18),
           color: AppTheme.textSecondary,
           visualDensity: VisualDensity.compact,
           onPressed: onDuplicate,
         ),
         IconButton(
-          tooltip: '删除',
+          tooltip: context.l10n.delete,
           icon: const Icon(Icons.delete_outline, size: 18),
           color: AppTheme.error,
           visualDensity: VisualDensity.compact,
@@ -128,6 +132,7 @@ class ProviderCardActions extends StatelessWidget {
     );
   }
 }
+
 class ProviderKeyWarningBadge extends StatelessWidget {
   const ProviderKeyWarningBadge({super.key});
 
@@ -148,7 +153,7 @@ class ProviderKeyWarningBadge extends StatelessWidget {
           Icon(Icons.key_off_rounded, size: 11, color: AppTheme.warning),
           const SizedBox(width: 3),
           Text(
-            '未配置 Key',
+            context.l10n.keyNotConfigured,
             style: TextStyle(
               color: AppTheme.warning,
               fontSize: 11,

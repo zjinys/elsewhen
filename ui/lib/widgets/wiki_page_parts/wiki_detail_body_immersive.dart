@@ -68,8 +68,8 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
                           // tag，路由切换时 Hero 扫描抛
                           // 「multiple heroes share the same tag」。
                           heroTag: _chatFabHeroTag,
-                          tooltip: '和 AI 讨论此页',
-                          onPressed: () => setState(() {
+                          tooltip: context.l10n.wikiDiscussPage,
+                          onPressed: () => _updateBody(() {
                             _chatOpen = true;
                             _chatInitialized = true;
                           }),
@@ -95,8 +95,8 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
                             child: WikiAiChatPanel(
                               slug: widget.page.slug,
                               onMinimize: () =>
-                                  setState(() => _chatOpen = false),
-                              onDragUpdate: (delta) => setState(() {
+                                  _updateBody(() => _chatOpen = false),
+                              onDragUpdate: (delta) => _updateBody(() {
                                 _chatPosition = Offset(
                                   (x + delta.dx).clamp(0.0, maxX),
                                   (y + delta.dy).clamp(0.0, maxY),
@@ -221,7 +221,7 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
                           ],
                         ),
                         child: IconButton(
-                          tooltip: '退出沉浸阅读（Esc）',
+                          tooltip: context.l10n.wikiExitImmersive,
                           onPressed: _hideImmersive,
                           icon: Icon(
                             Icons.close,
@@ -273,7 +273,7 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
-                                      '问 AI',
+                                      context.l10n.wikiAskAi,
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w500,
@@ -329,9 +329,18 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
   /// 小节标签文案：素材页的「内容」显示为「原文」（只读）；窄屏时
   /// 「来源与修订」缩写为「来源」，为右侧操作组让出宽度。
   String _sectionTabLabel(_WikiPageSection section, bool compact) {
-    if (section == _WikiPageSection.content && !_canEdit) return '原文';
-    if (compact && section == _WikiPageSection.sources) return '来源';
-    return section.label;
+    if (section == _WikiPageSection.content && !_canEdit) {
+      return context.l10n.wikiOriginal;
+    }
+    if (compact && section == _WikiPageSection.sources) {
+      return context.l10n.wikiSources;
+    }
+    return switch (section) {
+      _WikiPageSection.content => context.l10n.wikiContent,
+      _WikiPageSection.outputs => context.l10n.wikiOutputs,
+      _WikiPageSection.relations => context.l10n.wikiRelations,
+      _WikiPageSection.sources => context.l10n.wikiSourcesRevisions,
+    };
   }
 
   Widget _buildSectionBar() {
@@ -373,7 +382,7 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
                     horizontal: compact ? 6 : 12,
                   ),
                   dividerColor: Colors.transparent,
-                  onTap: (index) => setState(() {
+                  onTap: (index) => _updateBody(() {
                     _section = _WikiPageSection.values[index];
                   }),
                   tabs: [
@@ -398,16 +407,16 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
                     _barAction(
                       compact: compact,
                       icon: Icons.menu_book_outlined,
-                      label: '沉浸阅读',
-                      tooltip: '沉浸阅读（Esc 退出）',
+                      label: context.l10n.wikiImmersive,
+                      tooltip: context.l10n.wikiImmersiveHelp,
                       onPressed: _showImmersive,
                     ),
                     // 正文阅读参数（AA 浮层：字体/字号/行距，两层覆盖模型）。
                     _barAction(
                       compact: compact,
                       icon: Icons.format_size,
-                      label: '阅读设置',
-                      tooltip: '正文阅读设置（字体 / 字号 / 行距）',
+                      label: context.l10n.wikiReadingSettings,
+                      tooltip: context.l10n.wikiReadingSettingsHelp,
                       onPressed: () => showWikiReadingSettings(context),
                     ),
                   ],
@@ -442,7 +451,7 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
               onSave: _persistEdit,
               onSaveError: (e) {
                 if (!mounted || e is _SaveCancelled) return;
-                setState(() => _editError = _errText(e));
+                _updateBody(() => _editError = e);
               },
               onDirtyChanged: _setDirty,
               // 两层覆盖模型：编辑器覆盖 ?? 全局内容字体（system = 跟随系统字体）
@@ -489,7 +498,7 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
         children: [
           if (compact)
             IconButton(
-              tooltip: '取消',
+              tooltip: context.l10n.cancel,
               visualDensity: VisualDensity.compact,
               onPressed: _saving ? null : _cancelEditing,
               icon: const Icon(Icons.close, size: 18),
@@ -497,7 +506,7 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
           else ...[
             TextButton(
               onPressed: _saving ? null : _cancelEditing,
-              child: const Text('取消'),
+              child: Text(context.l10n.cancel),
             ),
             const SizedBox(width: 2),
           ],
@@ -513,7 +522,7 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
                     height: 13,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('完成'),
+                : Text(context.l10n.done),
           ),
         ],
       );
@@ -524,8 +533,8 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
         _barAction(
           compact: compact,
           icon: Icons.edit_outlined,
-          label: '编辑正文',
-          tooltip: '编辑正文',
+          label: context.l10n.wikiEditContent,
+          tooltip: context.l10n.wikiEditContent,
           onPressed: _enterEditing,
         ),
         // 删除：仅人工主题/档案页可删（素材页由导入维护管辖）。
@@ -533,8 +542,8 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
           _barAction(
             compact: compact,
             icon: Icons.delete_outline,
-            label: '删除页面',
-            tooltip: '删除页面',
+            label: context.l10n.wikiDeletePage,
+            tooltip: context.l10n.wikiDeletePage,
             onPressed: _confirmDeletePage,
           ),
       ],
@@ -549,22 +558,27 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppTheme.surface1,
         title: Text(
-          '删除页面？',
+          context.l10n.wikiDeleteQuestion,
           style: TextStyle(color: AppTheme.textPrimary, fontSize: 16),
         ),
         content: Text(
-          '「${widget.page.title}」将被删除，修订历史随之清除，且不可恢复。'
-          '其他设备同步后同样删除；它们与此页冲突的离线编辑会保留为冲突候选。',
+          dialogContext.l10n.wikiDeleteHelp(widget.page.title),
           style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text('取消', style: TextStyle(color: AppTheme.textSecondary)),
+            child: Text(
+              dialogContext.l10n.cancel,
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text('删除', style: TextStyle(color: AppTheme.error)),
+            child: Text(
+              dialogContext.l10n.delete,
+              style: TextStyle(color: AppTheme.error),
+            ),
           ),
         ],
       ),

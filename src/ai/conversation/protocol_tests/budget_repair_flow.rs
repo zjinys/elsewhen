@@ -5,6 +5,141 @@ use super::protocol_http_fixture;
 use super::*;
 
 #[test]
+fn large_wiki_directory_allows_second_model_request_near_context_limit() {
+    let (store, path) = temporary_database();
+    for index in 0..204 {
+        store
+            .upsert_wiki_page(
+                &crate::storage::WikiPageDraft {
+                    slug: format!("source/{index:03}"),
+                    kind: "source".into(),
+                    title: format!("导入的小红书闲鱼资料 {index}"),
+                    summary: "小红书闲鱼收入资料摘要".repeat(30),
+                    content_md: format!("{index}{}", "原文保留在知识页".repeat(100)),
+                    tags: vec![],
+                    source_event_ids: vec![],
+                    status: "active".into(),
+                    reason: "fixture".into(),
+                    source_url: None,
+                },
+                crate::storage::ContentPolicy::Always,
+            )
+            .unwrap();
+    }
+    let (url, server) = protocol_http_fixture(vec![
+        (
+            200,
+            json!({"choices":[{"message":{"content":"","tool_calls":[{"id":"directory-call","type":"function","function":{"name":"list_wiki_pages","arguments":"{}"}}]},"finish_reason":"tool_calls"}]}),
+        ),
+        (
+            200,
+            json!({"choices":[{"message":{"content":"目录中已看到新导入的资料，可以继续按主题阅读。"},"finish_reason":"stop"}]}),
+        ),
+    ]);
+    let provider = OpenAiCompatibleProvider::new(crate::ai::provider::OpenAiCompatibleConfig {
+        base_url: url,
+        api_key: "fixture-key".into(),
+        model: "deepseek-flash".into(),
+        temperature: 0.7,
+        max_tokens: Some(4096),
+        context_window: Some(65536),
+    })
+    .unwrap();
+    let conversation = store.create_conversation(None, None).unwrap();
+    let mut context = vec![
+        ContextMessage::new("system", "必要上下文".repeat(4200)),
+        ContextMessage::new("user", "保留上一轮约束"),
+        ContextMessage::new("assistant", "上一轮结果仍待确认"),
+        ContextMessage::new(
+            "user",
+            "我今天导入了几篇关于小红书、闲鱼收入的知识页，你可以去看看",
+        ),
+    ];
+    let result = run_agent_loop(
+        &provider,
+        "fixture",
+        &mut context,
+        &ToolRegistry::deferred_runtime(),
+        &store,
+        &conversation,
+        chrono::Utc::now(),
+    )
+    .unwrap();
+    let requests = server.join().unwrap();
+    assert_eq!(requests.len(), 2);
+    assert!(result.content.contains("新导入的资料"));
+    let first_tokens = crate::ai::budget::input_tokens("deepseek-flash", &requests[0]);
+    assert!(
+        first_tokens > 45000,
+        "fixture 应接近实际失败的初始预算：{first_tokens}"
+    );
+    assert!(crate::ai::budget::input_tokens("deepseek-flash", &requests[1]) <= 58164);
+    let messages = requests[1]["messages"].as_array().unwrap();
+    let directory = messages
+        .iter()
+        .find(|message| message["tool_call_id"] == "directory-call")
+        .unwrap();
+    assert!(
+        directory["content"]
+            .as_str()
+            .unwrap()
+            .contains("共 204 页匹配，本批 10 页")
+    );
+    assert!(
+        messages
+            .iter()
+            .any(|message| message["content"] == "保留上一轮约束")
+    );
+    let mut unbounded = requests[1].clone();
+    let old_directory: String = store
+        .list_wiki_pages(None, None)
+        .unwrap()
+        .iter()
+        .map(|page| {
+            format!(
+                "- {}（{}，slug: {}）：{}\n",
+                page.title, page.kind, page.slug, page.summary
+            )
+        })
+        .collect();
+    let tool_message = unbounded["messages"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|message| message["tool_call_id"] == "directory-call")
+        .unwrap();
+    tool_message["content"] = Value::String(old_directory.clone());
+    // R2.5 通用恢复（2026-11-05）：旧式全量目录不再触发整轮拒绝——预算层
+    // 把最大的近期工具结果带披露地截断到预算内（永不拒绝）。目录分页仍是
+    // 首选：上面的完整 10 页列表语义完整，而这里模型只拿到被截断的目录
+    // 头部与「重新分页」提示，需要再次读取。
+    let fitted = crate::ai::budget::fit_request("deepseek-flash", &mut unbounded, 65536, 4096)
+        .expect("带披露截断后应回到预算内");
+    assert!(fitted <= 58164);
+    let fitted_directory = unbounded["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|message| message["tool_call_id"] == "directory-call")
+        .unwrap()["content"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert!(
+        fitted_directory.contains("工具结果因超过请求预算被截断"),
+        "应带自明截断声明"
+    );
+    let old_head: String = old_directory.chars().take(60).collect();
+    assert!(
+        fitted_directory.starts_with(&old_head),
+        "头部保留旧目录开头（截断只砍尾部）"
+    );
+    assert!(fitted_directory.len() < old_directory.len());
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
 fn short_new_conversation_fits_conservative_32k_budget() {
     let question = "明天就放国庆的假了，我其实挺讨厌放这种假的";
     let (url, server) = protocol_http_fixture(vec![(

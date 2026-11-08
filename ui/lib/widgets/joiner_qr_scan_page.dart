@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
@@ -29,7 +31,7 @@ class JoinerQrScanPage extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('扫描邀请二维码')),
+      appBar: AppBar(title: Text(context.l10n.l6ScanInvitationQrCode4882e)),
       body:
           scannerBuilder?.call(context, deliver) ??
           MobileScanner(
@@ -51,7 +53,7 @@ class JoinerQrScanPage extends StatelessWidget {
                   children: [
                     const Icon(Icons.no_photography_outlined),
                     const SizedBox(height: 12),
-                    const Text('无法访问相机，可用复制/粘贴邀请码代替。'),
+                    Text(context.l10n.l6CameraAccessIsUnavailableCopyAnd95be5),
                     const SizedBox(height: 8),
                     Text(
                       '$error',

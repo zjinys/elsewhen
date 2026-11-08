@@ -159,10 +159,14 @@ pub(crate) fn context(store: &Store, page: &WikiPage) -> Result<(Vec<Basis>, Str
     for (id, _) in edges(store, &page.id)? {
         let p = page_by_id(store, &id)?;
         let m = store.knowledge_metadata(&p.slug)?;
-        text.push_str(&format!(
-            "\n上游知识《{}》（含人工纠正）：\n{}\n适用条件：{}\n",
-            p.title, p.content_md, m.applicable_when
-        ));
+        text.push_str(&store.render_supplement_instruction(
+            "upstream",
+            &[
+                ("title", p.title.clone()),
+                ("body", p.content_md.clone()),
+                ("conditions", m.applicable_when),
+            ],
+        )?);
         slugs.push(p.slug);
     }
     ensure!(

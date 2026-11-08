@@ -135,8 +135,8 @@ impl Tool for CreatePlanTool {
                             "content": { "type": "string", "description": "这一步要达成什么（可验证的一句话），必填" },
                             "phase": { "type": "string", "enum": ["near", "mid", "long"], "description": "周期定位，缺省 near" },
                             "why": { "type": "string", "description": "为什么是这一步（可选）" },
-                            "current_focus": { "type": "string", "description": "这一步的前 1~2 周抓手（可选）" },
-                            "blocker": { "type": "string", "description": "预判的卡点（可选）" },
+                            "current_focus": { "type": "string", "description": "这一步的前 1~2 周行动（可选）" },
+                            "blocker": { "type": "string", "description": "预判的困难（可选）" },
                             "done_criteria": { "type": "string", "description": "完成判据 / 验收标准（可选但建议给出）" }
                         },
                         "required": ["content"],
@@ -241,7 +241,12 @@ impl Tool for AddPlanStepsTool {
             "plan_intent": plan.intent_text,
             "steps": steps,
         });
-        store_create_pending(ctx.store, ctx.conversation_id, "add_plan_steps", &action_args)?;
+        store_create_pending(
+            ctx.store,
+            ctx.conversation_id,
+            "add_plan_steps",
+            &action_args,
+        )?;
         Ok(format!(
             "已为你草拟为计划「{}」追加 {} 个步骤的提议（待确认）：\n—— 确认后新步骤进入等待队列，活跃名额空出时激活。",
             plan.intent_text,
@@ -312,7 +317,12 @@ impl Tool for AdvancePlanStepTool {
             "activate_goal_id": activate,
             "new_step": new_step,
         });
-        store_create_pending(ctx.store, ctx.conversation_id, "advance_plan_step", &action_args)?;
+        store_create_pending(
+            ctx.store,
+            ctx.conversation_id,
+            "advance_plan_step",
+            &action_args,
+        )?;
         Ok(format!(
             "已为你草拟计划「{}」的推进提案（待确认）：{}。\n—— 请在审阅卡核对复盘结论与下一步；确认后执行（活跃名额满时新步骤保持排队）。",
             plan.intent_text,

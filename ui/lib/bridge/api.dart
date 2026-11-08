@@ -13,15 +13,20 @@
 library;
 
 export 'generated.dart/api/analysis_schema.dart';
+export 'generated.dart/api/named_secrets.dart';
+export 'generated.dart/api/prompts.dart';
+export 'generated.dart/api/language.dart';
 export 'generated.dart/api/chat_proposals.dart';
 export 'generated.dart/api/chat_runs.dart';
 export 'generated.dart/api/companion_flow.dart';
 export 'generated.dart/api/conversations.dart';
 export 'generated.dart/api/db_maintenance.dart';
+export 'generated.dart/api/digest_insights.dart';
 export 'generated.dart/api/entities.dart';
 export 'generated.dart/api/event_stats.dart';
 export 'generated.dart/api/fonts.dart';
 export 'generated.dart/api/goals.dart';
+export 'generated.dart/api/goal_grounding.dart';
 export 'generated.dart/api/habit_nudges.dart';
 export 'generated.dart/api/import.dart';
 export 'generated.dart/api/knowledge.dart';

@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,10 +11,80 @@ import 'package:elsewhen_ui/providers/wiki_provider.dart';
 import 'package:elsewhen_ui/widgets/wiki_page_detail_view.dart';
 import 'package:elsewhen_ui/providers/knowledge_provider.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
+import 'package:elsewhen_ui/l10n/localization.dart';
+import 'package:elsewhen_ui/widgets/markdown_view.dart';
 
 /// 推文预览 tab 的本地渲染验证（不触达 FFI/网络）：
 /// 打开抓取结果的 tab 后应展示内容原文、保存按钮与对话输入区。
 void main() {
+  testWidgets(
+    'narrow preview preserves input and pending formatting across locale switches; only Save writes',
+    (tester) async {
+      final repo = _FakeBeautifyRepo()..formatReply = Completer<String>();
+      final sources = _FakeSourceRepo();
+      final locale = await _pumpLocalizedPreview(tester, repo, sources);
+      const question = '用户未发送的问题';
+      await tester.enterText(find.byType(TextField), question);
+      locale.value = const Locale('zh');
+      await tester.pumpAndSettle();
+      expect(find.text(question), findsOneWidget);
+      await tester.ensureVisible(find.text('AI 整理为 Markdown'));
+      await tester.tap(find.text('AI 整理为 Markdown'));
+      await tester.pump();
+      expect(repo.formatCalls, 1);
+      expect(repo.chatCalls, 0);
+      expect(sources.savedRaw, isNull);
+      locale.value = const Locale('en');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text(question), findsOneWidget);
+      repo.formatReply!.complete(
+        '```markdown\n${_FakeBeautifyRepo.beautified}\n```',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('AI formatting (Markdown preview)'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is MarkdownView && w.markdown == _FakeBeautifyRepo.beautified,
+        ),
+        findsOneWidget,
+      );
+      expect(sources.savedRaw, isNull);
+      expect(repo.savedText, isNull);
+      await tester.tap(find.text('Save to knowledge base'));
+      await tester.pumpAndSettle();
+      expect(sources.savedRaw, _localeFetch.text);
+      expect(repo.chatContent, _localeFetch.fullContent);
+      expect(repo.savedText, _FakeBeautifyRepo.beautified);
+      expect(repo.basedOnSlug, 'source/jack-20');
+      expect(repo.savedTitle, '${_localeFetch.title} · Markdown');
+      expect(repo.formatCalls, 1);
+    },
+  );
+
+  testWidgets(
+    'formatting failure is localized, keeps diagnostics in details and saves nothing',
+    (tester) async {
+      final repo = _FakeBeautifyRepo()..formatFails = true;
+      final sources = _FakeSourceRepo();
+      final locale = await _pumpLocalizedPreview(tester, repo, sources);
+      await tester.ensureVisible(find.text('Format as Markdown with AI'));
+      await tester.tap(find.text('Format as Markdown with AI'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('SELECT private'), findsNothing);
+      expect(sources.savedRaw, isNull);
+      locale.value = const Locale('zh');
+      await tester.pumpAndSettle();
+      expect(find.text('AI 整理为 Markdown失败，请重试一次'), findsOneWidget);
+      await tester.ensureVisible(find.text('查看详情'));
+      await tester.tap(find.text('查看详情'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('SELECT private'), findsOneWidget);
+      expect(repo.savedText, isNull);
+    },
+  );
+
   testWidgets('fetch 成功后新开的推文预览 tab 渲染内容 + 保存 + 对话', (tester) async {
     const fetch = TweetFetch(
       tweetId: '20',
@@ -160,14 +233,27 @@ class _FakeBeautifyRepo extends RustBridgeRepository {
   String? chatContent;
   String? savedText;
   String? basedOnSlug;
+  String? savedTitle;
+  int formatCalls = 0, chatCalls = 0;
+  bool formatFails = false;
+  Completer<String>? formatReply;
+
+  @override
+  Future<String> formatImportContent(String content) async {
+    formatCalls++;
+    chatContent = content;
+    if (formatFails) throw Exception('SELECT private FROM /database');
+    if (formatReply != null) return formatReply!.future;
+    return beautified;
+  }
 
   @override
   Future<String> generateContentChat({
     required String content,
     required List<ContentChatMessage> messages,
   }) async {
-    chatContent = content;
-    return beautified;
+    chatCalls++;
+    return '用户原文的回答';
   }
 
   @override
@@ -182,6 +268,7 @@ class _FakeBeautifyRepo extends RustBridgeRepository {
     required String contentMd,
   }) async {
     this.basedOnSlug = basedOnSlug;
+    savedTitle = title;
     savedText = contentMd;
     return WikiPage(
       id: 'p1',
@@ -201,6 +288,56 @@ class _FakeBeautifyRepo extends RustBridgeRepository {
       area: 'imported',
     );
   }
+}
+
+const _localeFetch = TweetFetch(
+  tweetId: '20',
+  url: 'https://example.com/post/20',
+  title: '用户原始标题',
+  text: '用户原文\nOriginal text 😀 <<body>>',
+  authorName: '原始作者',
+);
+
+Future<ValueNotifier<Locale>> _pumpLocalizedPreview(
+  WidgetTester tester,
+  _FakeBeautifyRepo repo,
+  _FakeSourceRepo sources,
+) async {
+  await tester.binding.setSurfaceSize(const Size(380, 1000));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+  final container = ProviderContainer(
+    overrides: [
+      storageRepositoryProvider.overrideWithValue(repo),
+      knowledgeRepositoryProvider.overrideWithValue(sources),
+    ],
+  );
+  addTearDown(container.dispose);
+  container.read(wikiOpenTabsProvider.notifier).set([
+    const ImportTabEntry(),
+    const TweetTabEntry(fetch: _localeFetch),
+  ]);
+  container.read(wikiActiveTabIdProvider.notifier).set('tweet-20');
+  final locale = ValueNotifier(const Locale('en'));
+  addTearDown(locale.dispose);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: ValueListenableBuilder<Locale>(
+        valueListenable: locale,
+        builder: (_, value, _) => MaterialApp(
+          locale: value,
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: const [
+            ...AppLocalizations.localizationsDelegates,
+            AppFlowyEditorLocalizations.delegate,
+          ],
+          home: const Scaffold(body: WikiPageDetailView()),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return locale;
 }
 
 class _FakeSourceRepo extends KnowledgeRepository {

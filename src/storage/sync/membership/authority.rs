@@ -115,6 +115,16 @@ impl Store {
             ],
         )?;
         self.apply_signed_roster(&signed.encode()?)?;
+        // A standalone non-default policy becomes owner-authenticated before
+        // any paired device can receive its first snapshot.
+        let policy = self.knowledge_language_policy()?;
+        if policy.generation > 0 {
+            self.set_knowledge_language_with_signer(
+                &policy.output_locale,
+                policy.generation,
+                Some(signer),
+            )?;
+        }
         if let Some(tx) = tx {
             tx.commit()?;
         }
@@ -182,6 +192,12 @@ impl Store {
         );
 
         self.require_background_quiescent_for_sync()?;
+        let language = self.knowledge_language_policy()?;
+        self.require_language_processor_capability(
+            to_device_id,
+            &language.output_locale,
+            language.policy_version,
+        )?;
 
         let next_sequence = self.replica_next_sequence()?;
         let final_sequence = next_sequence - 1;
@@ -236,6 +252,20 @@ impl Store {
             identity.device_id == target.as_deref().unwrap_or(""),
             "sync_processor_takeover_target_mismatch"
         );
+        let language = self.knowledge_language_policy()?;
+        ensure!(
+            crate::storage::knowledge_language::supported(
+                &language.output_locale,
+                language.policy_version
+            ),
+            "knowledge_language_processor_incompatible"
+        );
+        self.announce_language_capability()?;
+        self.require_language_processor_capability(
+            &identity.device_id,
+            &language.output_locale,
+            language.policy_version,
+        )?;
         let from_device = from_device.context("sync_processor_takeover_source_missing")?;
 
         // Frontier gate: the takeover source's stream must be fully applied up

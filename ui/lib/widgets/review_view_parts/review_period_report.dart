@@ -55,16 +55,17 @@ class _PeriodReportSectionState extends ConsumerState<_PeriodReportSection> {
             _PeriodReportCard(report: latest, latest: true),
             if (older.isNotEmpty)
               Theme(
-                data: Theme.of(
-                  context,
-                ).copyWith(dividerColor: Colors.transparent),
+                data: Theme.of(context)
+                    .copyWith(dividerColor: Colors.transparent),
                 child: ExpansionTile(
                   tilePadding: EdgeInsets.zero,
                   childrenPadding: EdgeInsets.zero,
                   iconColor: AppTheme.textTertiary,
                   collapsedIconColor: AppTheme.textTertiary,
                   title: Text(
-                    '更早的盘点（${older.length}）',
+                    context.l10n.l6EarlierReviewsArg0f4cc0(
+                      (older.length).toString(),
+                    ),
                     style: TextStyle(
                       fontSize: 12,
                       color: AppTheme.textTertiary,
@@ -95,23 +96,26 @@ class _PeriodReportCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final unDismissed = report.deviations
-        .where((d) => !d.dismissed)
-        .length;
+    final unDismissed = report.deviations.where((d) => !d.dismissed).length;
     return _ReviewCard(
-      title:
-          '周期盘点 · ${report.startDate} ~ ${report.endDate}'
-          '${latest ? '（最近一份）' : ''}',
+      title: context.l10n.l6PeriodReviewArg0ToArg1Arg269c4d(
+        (report.startDate).toString(),
+        (report.endDate).toString(),
+        (latest ? context.l10n.l6Latest9d501 : '').toString(),
+      ),
       children: [
         Row(
           children: [
-            _CountPill(label: '事件', count: report.total),
+            _CountPill(label: context.l10n.l6Events550e3, count: report.total),
             const SizedBox(width: AppTheme.space3),
-            _CountPill(label: '待办完成', count: report.todoDoneCount),
+            _CountPill(
+              label: context.l10n.l6ToDosCompletede1bfa,
+              count: report.todoDoneCount,
+            ),
             const Spacer(),
             if (report.detectedAt == null)
               Text(
-                '偏差检测待进行',
+                context.l10n.l6DeviationChecksPending648aa,
                 style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
               ),
           ],
@@ -119,7 +123,7 @@ class _PeriodReportCard extends ConsumerWidget {
         if (report.detectedAt != null && report.deviations.isEmpty) ...[
           const SizedBox(height: AppTheme.space2),
           Text(
-            '未发现待说出的偏差',
+            context.l10n.l6NoDeviationsToReport28ee2,
             style: TextStyle(
               fontSize: 12,
               color: AppTheme.textTertiary,
@@ -131,7 +135,7 @@ class _PeriodReportCard extends ConsumerWidget {
           const SizedBox(height: AppTheme.space2),
           if (unDismissed > 0)
             Text(
-              '偏离目标的时刻——只陈述，不评判：',
+              context.l10n.l6MomentsThatDivergedFromYourGoals39f82,
               style: TextStyle(
                 fontSize: 11,
                 color: AppTheme.textTertiary,
@@ -166,10 +170,10 @@ class _DeviationRow extends ConsumerWidget {
   final api.DeviationItemDto deviation;
 
   Color _severityColor() => switch (deviation.severity) {
-        'high' => AppTheme.error,
-        'medium' => AppTheme.warning,
-        _ => AppTheme.accentMuted,
-      };
+    'high' => AppTheme.error,
+    'medium' => AppTheme.warning,
+    _ => AppTheme.accentMuted,
+  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -211,8 +215,16 @@ class _DeviationRow extends ConsumerWidget {
                 children: [
                   Text(
                     deviation.dismissed
-                        ? '${deviationTypeLabel(deviation.deviationType)} · 已忽略'
-                        : deviationTypeLabel(deviation.deviationType),
+                        ? context.l10n.l6Arg0Dismissede66fc(
+                            (deviationTypeLabel(
+                              deviation.deviationType,
+                              strings: context.l10n,
+                            )).toString(),
+                          )
+                        : deviationTypeLabel(
+                            deviation.deviationType,
+                            strings: context.l10n,
+                          ),
                     style: baseStyle.copyWith(
                       fontWeight: FontWeight.w600,
                       color: deviation.dismissed
@@ -222,7 +234,9 @@ class _DeviationRow extends ConsumerWidget {
                   ),
                   Text(deviation.evidence, style: baseStyle),
                   Text(
-                    '目标：${deviation.goalContent}',
+                    context.l10n.l6GoalArg06fb2b(
+                      (deviation.goalContent).toString(),
+                    ),
                     style: baseStyle.copyWith(fontSize: 11),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -234,12 +248,11 @@ class _DeviationRow extends ConsumerWidget {
               TextButton(
                 onPressed: () async {
                   try {
-                    final bridge = ref.read(storageRepositoryProvider)
-                        as RustBridgeRepository;
+                    final bridge = ref.read(
+                      storageRepositoryProvider,
+                    ) as RustBridgeRepository;
                     await bridge.dismissDeviation(reportId, index);
-                    ref.invalidate(
-                      deviationReportsProvider(periodType),
-                    );
+                    ref.invalidate(deviationReportsProvider(periodType));
                   } catch (_) {
                     // 忽略失败静默，条目保持可再次操作。
                   }
@@ -248,7 +261,7 @@ class _DeviationRow extends ConsumerWidget {
                   visualDensity: VisualDensity.compact,
                 ),
                 child: Text(
-                  '忽略',
+                  context.l10n.feedbackIgnore,
                   style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
                 ),
               ),

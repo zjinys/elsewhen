@@ -1,8 +1,9 @@
 part of '../message_area.dart';
 
+// ignore_for_file: invalid_use_of_protected_member
+
 //! _MessageAreaState 的滚动锚定/搜索/载入更多/空态。
 extension _MessageAreaScrollSearch on _MessageAreaState {
-
   /// 消息列表滚到底部（新消息 / 临时提示 / 会话切换时）。
   /// 懒加载 ListView 滚动中会 build 出新条目、extent 变大，单次滚动目标
   /// 会落后；因此跳到当前底部后在下一帧复查，extent 还有增长就继续跳，
@@ -30,7 +31,7 @@ extension _MessageAreaScrollSearch on _MessageAreaState {
         children: [
           const Spacer(),
           IconButton(
-            tooltip: '按日期定位',
+            tooltip: context.l10n.locateByDate,
             icon: Icon(
               Icons.calendar_today_outlined,
               size: 18,
@@ -46,7 +47,7 @@ extension _MessageAreaScrollSearch on _MessageAreaState {
               controller: _searchController,
               decoration: InputDecoration(
                 isDense: true,
-                hintText: '搜索你说过的话',
+                hintText: context.l10n.searchMessages,
                 hintStyle: TextStyle(color: AppTheme.textTertiary),
                 prefixIcon: Icon(
                   Icons.search,
@@ -55,7 +56,7 @@ extension _MessageAreaScrollSearch on _MessageAreaState {
                 ),
                 suffixIcon: (_searchQuery.isNotEmpty || _selectedDate != null)
                     ? IconButton(
-                        tooltip: '清除定位',
+                        tooltip: context.l10n.clearLocation,
                         icon: const Icon(Icons.clear, size: 17),
                         onPressed: _clearLocation,
                       )
@@ -84,7 +85,7 @@ extension _MessageAreaScrollSearch on _MessageAreaState {
           ),
           const SizedBox(width: 8),
           IconButton(
-            tooltip: '回到现在',
+            tooltip: context.l10n.backToNow,
             icon: Icon(
               Icons.vertical_align_bottom,
               size: 18,
@@ -106,9 +107,9 @@ extension _MessageAreaScrollSearch on _MessageAreaState {
       initialDate: _selectedDate ?? now,
       firstDate: DateTime(first.year, first.month, first.day),
       lastDate: DateTime(now.year, now.month, now.day),
-      helpText: '跳到日期',
-      cancelText: '取消',
-      confirmText: '跳转',
+      helpText: context.l10n.jumpToDate,
+      cancelText: context.l10n.cancel,
+      confirmText: context.l10n.jump,
     );
     if (picked != null && mounted) setState(() => _selectedDate = picked);
   }
@@ -138,6 +139,7 @@ extension _MessageAreaScrollSearch on _MessageAreaState {
       ref,
       conversationId,
       inputMessageId: inputMessageId,
+      strings: () => context.l10n,
       isMounted: () => mounted,
     );
   }
@@ -147,7 +149,7 @@ extension _MessageAreaScrollSearch on _MessageAreaState {
     // 当前有效窗口：未展开时为「只看最近 N 条」的起点
     final currentShown = _expanded
         ? _shownSince
-        : (total > _windowSize  ? total - _windowSize : 0);
+        : (total > _windowSize ? total - _windowSize : 0);
     setState(() {
       _expanded = true;
       _shownSince = (currentShown - _pageSize).clamp(0, total);
@@ -170,7 +172,7 @@ extension _MessageAreaScrollSearch on _MessageAreaState {
         child: TextButton.icon(
           onPressed: () => _loadMore(total),
           icon: const Icon(Icons.keyboard_arrow_up, size: 18),
-          label: const Text('显示更早的消息'),
+          label: Text(context.l10n.showEarlierMessages),
           style: TextButton.styleFrom(
             foregroundColor: AppTheme.textSecondary,
             visualDensity: VisualDensity.compact,
@@ -188,7 +190,7 @@ extension _MessageAreaScrollSearch on _MessageAreaState {
           Icon(Icons.forum_outlined, size: 64, color: AppTheme.textTertiary),
           const SizedBox(height: AppTheme.space4),
           Text(
-            '选择一个对话开始聊天',
+            context.l10n.startConversation,
             style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
           ),
         ],
@@ -208,12 +210,12 @@ extension _MessageAreaScrollSearch on _MessageAreaState {
           ),
           const SizedBox(height: AppTheme.space3),
           Text(
-            '还没有消息',
+            context.l10n.noMessages,
             style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
           ),
           const SizedBox(height: AppTheme.space2),
           Text(
-            '在下方输入框开始对话',
+            context.l10n.startTyping,
             style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
           ),
         ],

@@ -28,7 +28,7 @@ class _EventDetail extends ConsumerWidget {
                 onPressed: () =>
                     ref.read(selectedEventIdProvider.notifier).set(null),
                 icon: const Icon(Icons.arrow_back, size: 16),
-                label: const Text('返回列表'),
+                label: Text(context.l10n.backToList),
               ),
             ),
           ),
@@ -39,8 +39,9 @@ class _EventDetail extends ConsumerWidget {
             error: (e, _) => Center(
               child: Padding(
                 padding: EdgeInsets.all(AppTheme.space4),
-                child: Text(
-                  '详情加载失败：$e',
+                child: AppErrorMessage(
+                  action: context.l10n.load,
+                  error: e,
                   style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
                 ),
               ),
@@ -49,7 +50,7 @@ class _EventDetail extends ConsumerWidget {
               if (value == null) {
                 return Center(
                   child: Text(
-                    '事件不存在',
+                    context.l10n.l6EventDoesNotExistf5542,
                     style: TextStyle(color: AppTheme.textTertiary),
                   ),
                 );
@@ -86,7 +87,7 @@ class _EventDetailBody extends ConsumerWidget {
       children: [
         // —— 原文（真源只读）——
         _Section(
-          title: '事件记录',
+          title: context.l10n.l6EventRecordsbabe0,
           child: SelectableText(
             detail.rawText,
             style: TextStyle(
@@ -96,21 +97,21 @@ class _EventDetailBody extends ConsumerWidget {
             ),
           ),
         ),
-        _kv('记录时间', _date(detail.recordedAt)),
-        _kv('来源', detail.source),
-        _kv('状态', detail.jobStatus),
+        _kv(context.l10n.l6RecordedAt650b3, _date(detail.recordedAt)),
+        _kv(context.l10n.wikiSources, detail.source),
+        _kv(context.l10n.l6Status62e95, detail.jobStatus),
         if (!analysis && detail.jobStatus != 'done')
           Padding(
             padding: const EdgeInsets.only(top: AppTheme.space4),
             child: Text(
-              '尚无可用分析（等待处理或未配置分析器）。',
+              context.l10n.l6NoAnalysisYetPendingOrNo90172,
               style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
             ),
           ),
         if (detail.summary != null && detail.summary!.isNotEmpty) ...[
           SizedBox(height: AppTheme.space3),
           _Section(
-            title: '分析摘要',
+            title: context.l10n.l6AnalysisSummary83a0f,
             child: SelectableText(
               detail.summary!,
               style: TextStyle(
@@ -121,12 +122,15 @@ class _EventDetailBody extends ConsumerWidget {
             ),
           ),
         ],
-        if (detail.eventType != null) _kv('类型', detail.eventType!),
-        if (detail.people.isNotEmpty) _kv('人物', detail.people.join('、')),
-        if (detail.projects.isNotEmpty) _kv('项目', detail.projects.join('、')),
+        if (detail.eventType != null)
+          _kv(context.l10n.libraryKind, detail.eventType!),
+        if (detail.people.isNotEmpty)
+          _kv(context.l10n.l6Peopleb755b, detail.people.join('、')),
+        if (detail.projects.isNotEmpty)
+          _kv(context.l10n.pageKindProject, detail.projects.join('、')),
         if (detail.followUps.isNotEmpty)
           _Section(
-            title: '跟进建议',
+            title: context.l10n.l6FollowUpSuggestions99ccc,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -148,7 +152,7 @@ class _EventDetailBody extends ConsumerWidget {
             (detail.guidance!.related.isNotEmpty ||
                 detail.guidance!.lessons.isNotEmpty))
           _Section(
-            title: '指导',
+            title: context.l10n.l6Guidance79851,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -255,8 +259,11 @@ class _EventRuleHitsState extends ConsumerState<_EventRuleHits> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _optimistic = undo);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('反馈失败: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: AppErrorMessage(error: e, action: context.l10n.save),
+        ),
+      );
     }
   }
 
@@ -272,7 +279,7 @@ class _EventRuleHitsState extends ConsumerState<_EventRuleHits> {
           return Padding(
             padding: EdgeInsets.only(bottom: AppTheme.space2),
             child: Text(
-              '无相关规则提醒',
+              context.l10n.l6NoRelatedRuleReminders24596,
               style: TextStyle(
                 fontSize: 12,
                 color: AppTheme.textTertiary.withValues(alpha: 0.8),
@@ -281,7 +288,9 @@ class _EventRuleHitsState extends ConsumerState<_EventRuleHits> {
           );
         }
         return _Section(
-          title: '相关规则提醒（${list.length}）',
+          title: context.l10n.l6RelatedRuleRemindersArg05615f(
+            (list.length).toString(),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -303,14 +312,14 @@ class _EventRuleHitsState extends ConsumerState<_EventRuleHits> {
                       _feedbackButton(
                         icon: Icons.thumb_up,
                         filled: hit.feedback == 'helpful',
-                        tooltip: '有用（再点一次清除）',
+                        tooltip: context.l10n.entityGuidanceHelpful,
                         onTap: () => _setFeedback(hit, 'helpful'),
                       ),
                       const SizedBox(width: 4),
                       _feedbackButton(
                         icon: Icons.thumb_down,
                         filled: hit.feedback == 'not_relevant',
-                        tooltip: '不相关（再点一次清除）',
+                        tooltip: context.l10n.entityGuidanceNotRelevant,
                         onTap: () => _setFeedback(hit, 'not_relevant'),
                       ),
                     ],

@@ -12,17 +12,6 @@ use anyhow::{Context, Result};
 use crate::wiki::digest::parse_proposals;
 // ── 页级再汇总（提案 C 的 P1 手动入口，2026-10-20）──────────────────
 
-const RECONSOLIDATION_SYSTEM_PROMPT: &str = r#"你是 elsewhen 个人知识库的 wiki 页面维护者。任务：把一页的全部来源事件从头重看一遍，对页面正文做【增量修补】。
-
-铁律：
-- 保留旧正文的全部既有事实，只补充/修正/细化，不丢失任何旧条目；
-- 与事件冲突的旧说法，保守修正并在该要点后标注（待确认）；
-- 不编造：只写事件里有依据的内容，不确定就标（待确认）或干脆不写；
-- 不改 slug / kind / title，只修正文、摘要与标签；
-- 输出只含一个对象的 JSON 数组，不要任何其他文字、不要代码块围栏：
-  [{"op":"update","kind":"<页面 kind，原样返回>","slug":"<给定 slug>","title":"<页面标题，原样返回>","summary":"一行摘要","content":"markdown 全文，用 - 要点","tags":["..."]}]
-"#;
-
 /// 手动「重新整理此页」（提案 P1，2026-10-20）。单页再汇总：旧正文 + 全部
 /// 来源事件原文 → 模型增量修补 → PreserveHumanEdits 落库（写 wiki_revisions，
 /// 页面观测的「最近整理」随之推进）。人工编辑过的页不动正文、不生成建议——
@@ -58,16 +47,29 @@ pub fn reconsolidate_page(store: &Store, provider: &dyn AiProvider, slug: &str) 
         // 账本 status 枚举只有 running/succeeded/failed（复用表），跳过按
         // succeeded+result_count=0 登记，说明走返回文案（UI 原地展示）。
         ledger("succeeded", None)?;
-        return Ok(
-            "页面有人工编辑保护，正文不动；如需机器改写请走「提炼/建议」审阅通道".to_string(),
-        );
+        return Ok(processing_receipt(
+            "page_human_protected",
+            None,
+            "页面有人工编辑保护，正文不动；如需机器改写请走「提炼/建议」审阅通道",
+        ));
     }
     let events = store.page_source_events(slug)?;
-    let user = build_reconsolidation_user_prompt(&page, &events);
+    let _scope = store.prompt_scope(
+        "background_task",
+        &format!("reconsolidation:{}", uuid::Uuid::new_v4()),
+    )?;
+    let user = build_reconsolidation_user_prompt(store, &page, &events)?;
     let result = (|| -> Result<String> {
         let reply = provider
             .generate_reply(vec![
-                ContextMessage::new("system", RECONSOLIDATION_SYSTEM_PROMPT.to_string()),
+                ContextMessage::new(
+                    "system",
+                    format!(
+                        "{}\n{}",
+                        store.render_knowledge_instruction("reconsolidation_system", &[])?,
+                        store.output_language_directive(false)?
+                    ),
+                ),
                 ContextMessage::new("user", user),
             ])
             .context("调用模型失败")?
@@ -107,9 +109,10 @@ pub fn reconsolidate_page(store: &Store, provider: &dyn AiProvider, slug: &str) 
             source_url: page.source_url.clone(),
         };
         store.upsert_wiki_page(&draft, ContentPolicy::PreserveHumanEdits)?;
-        Ok(format!(
-            "已重整：正文按全部 {} 条来源事件增量修补",
-            events.len()
+        Ok(processing_receipt(
+            "page_reprocessed",
+            Some(events.len()),
+            &format!("已重整：正文按全部 {} 条来源事件增量修补", events.len()),
         ))
     })();
     match &result {
@@ -119,23 +122,29 @@ pub fn reconsolidate_page(store: &Store, provider: &dyn AiProvider, slug: &str) 
     result
 }
 
-fn build_reconsolidation_user_prompt(page: &WikiPage, events: &[EventRecord]) -> String {
-    let mut out = format!(
-        "这是要重整的页面：\nslug：{}\n标题：{}\n标签：{}\n当前正文：\n{}\n\n它的全部来源事件（[编号] 时间 | 内容，按时间升序）：\n",
-        page.slug,
-        page.title,
-        page.tags.join("、"),
-        page.content_md.chars().take(4000).collect::<String>(),
-    );
+fn build_reconsolidation_user_prompt(
+    store: &Store,
+    page: &WikiPage,
+    events: &[EventRecord],
+) -> Result<String> {
+    let mut out = store.render_knowledge_instruction(
+        "reconsolidation_input",
+        &[
+            ("slug", page.slug.clone()),
+            ("title", page.title.clone()),
+            ("tags", page.tags.join("、")),
+            ("body", page.content_md.chars().take(4000).collect()),
+        ],
+    )?;
     for (i, e) in events.iter().enumerate() {
         let text: String = e.raw_text.chars().take(1500).collect();
         out.push_str(&format!("[{}] {} | {}\n", i + 1, e.recorded_at, text));
     }
-    out.push_str(&format!(
-        "\n（共 {} 条来源事件。正文已提到的旧事实必须保留。）",
-        events.len()
-    ));
-    out
+    out.push_str(&store.render_knowledge_instruction(
+        "reconsolidation_footer",
+        &[("count", events.len().to_string())],
+    )?);
+    Ok(out)
 }
 
 /// 知识消化用的 provider：沿用当前启用配置，温度与输出上限固定为 digest 调参。
@@ -191,4 +200,15 @@ pub fn digest_provider(store: &Store) -> Result<Option<(Box<dyn AiProvider>, Str
         })
         .collect::<Result<Vec<_>>>()?;
     Ok(Some((Box::new(FailoverProvider::new(entries)), model)))
+}
+
+/// Presentation receipt comes from the branch that actually ran. The original
+/// detail remains available, while status and counts do not depend on prose.
+fn processing_receipt(code: &str, count: Option<usize>, detail: &str) -> String {
+    format!(
+        "elsewhen-result-v1:{}",
+        serde_json::json!({
+            "version": 1, "code": code, "count": count, "detail": detail,
+        })
+    )
 }

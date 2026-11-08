@@ -18,6 +18,7 @@ pub(crate) fn hex_to_vec(hex: &str) -> Result<Vec<u8>> {
 /// head/known_revision 记录的种类必须落在随快照携带的领域表上。
 pub(crate) fn domain_table(kind: &str) -> Result<&'static str> {
     Ok(match kind {
+        "knowledge_language" => "dataset_content_language",
         "conversation" => "conversations",
         "wiki_page" => "wiki_pages",
         "todo" => "todos",

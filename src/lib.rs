@@ -7,14 +7,16 @@ pub mod ai;
 pub mod config;
 pub mod event;
 pub mod fonts;
-pub mod logging;
 pub(crate) mod http_proxy;
 pub mod knowledge;
 mod knowledge_background;
+pub(crate) mod language;
 pub mod local_sources;
+pub mod logging;
 pub mod net_doh;
 pub mod storage;
 pub mod sync;
+pub(crate) mod user_error;
 pub mod web_search;
 pub mod wiki;
 

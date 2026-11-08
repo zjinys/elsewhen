@@ -1,3 +1,5 @@
+import 'package:elsewhen_ui/l10n/notice_messages.dart';
+import 'package:elsewhen_ui/l10n/app_localizations_zh.dart';
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -151,7 +153,7 @@ void main() {
       final controller = SyncSetupController(keyStore: keys, bridge: bridge);
       await controller.restoreIfConfigured();
       expect(bridge.installations, 0);
-      expect(controller.error, contains('受保护的修订记录'));
+      expect(resolveNotice(controller.error, AppLocalizationsZh()), contains('受保护的修订记录'));
       expect(
         storage.values.containsKey('elsewhen.sync.revision.v1.test-install'),
         isFalse,

@@ -1,5 +1,8 @@
 import 'knowledge_workflows.dart';
 import 'adaptive_panel.dart';
+import '../l10n/localization.dart';
+import 'app_error_notice.dart';
+import '../utils/app_error.dart';
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -12,8 +15,11 @@ import 'package:file_picker/file_picker.dart';
 
 import '../bridge/rust_bridge_repository.dart';
 import '../bridge/api.dart'
-    show EntityFactDto, KnowledgeRelationDto, PageGuidanceDto;
-import '../utils/error_report.dart';
+    show
+        EntityFactDto,
+        EventAnalysisDetailDto,
+        KnowledgeRelationDto,
+        PageGuidanceDto;
 import '../models/relation.dart';
 import '../models/tweet_fetch.dart';
 import '../models/import_fetch.dart';
@@ -95,7 +101,7 @@ class _EditTagsDialogState extends State<_EditTagsDialog> {
     return AlertDialog(
       backgroundColor: AppTheme.surface1,
       title: Text(
-        '编辑标签',
+        context.l10n.wikiEditTags,
         style: TextStyle(color: AppTheme.textPrimary, fontSize: 16),
       ),
       content: Column(
@@ -103,7 +109,7 @@ class _EditTagsDialogState extends State<_EditTagsDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '用空格或逗号分隔多个标签，留空即清空',
+            context.l10n.wikiTagsHelp,
             style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
           ),
           const SizedBox(height: AppTheme.space3),
@@ -113,7 +119,7 @@ class _EditTagsDialogState extends State<_EditTagsDialog> {
             style: TextStyle(color: AppTheme.textPrimary),
             cursorColor: AppTheme.accentPrimary,
             decoration: InputDecoration(
-              hintText: '例如：工作 Rust 投资',
+              hintText: context.l10n.wikiTagsExample,
               hintStyle: TextStyle(color: AppTheme.textTertiary),
               enabledBorder: OutlineInputBorder(
                 borderSide: BorderSide(color: AppTheme.surface3),
@@ -129,14 +135,17 @@ class _EditTagsDialogState extends State<_EditTagsDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text('取消', style: TextStyle(color: AppTheme.textSecondary)),
+          child: Text(
+            context.l10n.cancel,
+            style: TextStyle(color: AppTheme.textSecondary),
+          ),
         ),
         FilledButton(
           style: FilledButton.styleFrom(
             backgroundColor: AppTheme.accentPrimary,
           ),
           onPressed: () => Navigator.of(context).pop(_controller.text),
-          child: const Text('保存'),
+          child: Text(context.l10n.save),
         ),
       ],
     );
@@ -194,8 +203,10 @@ Future<void> openWikiImportDialog(
   // 网址导入只有一行输入，用紧凑高度避免大片空白。
   await showPanelSheet<void>(
     context,
-    sheet: (_) => AdaptivePanelSheet(
-      title: urlMode ? '网址导入' : '创建主题',
+    sheet: (sheetContext) => AdaptivePanelSheet(
+      title: urlMode
+          ? sheetContext.l10n.wikiImportUrl
+          : sheetContext.l10n.wikiCreateTopic,
       maxHeightFactor: urlMode ? 0.45 : 0.85,
       builder: (sheetContext) => KeyedSubtree(
         key: const ValueKey('wiki-import-sheet-content'),
@@ -226,7 +237,7 @@ class _PageTabBody extends ConsumerWidget {
         if (page == null) {
           return Center(
             child: Text(
-              '页面不存在或已被删除',
+              context.l10n.wikiPageUnavailable,
               style: TextStyle(color: AppTheme.textSecondary),
             ),
           );
@@ -235,10 +246,7 @@ class _PageTabBody extends ConsumerWidget {
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, stack) => Center(
-        child: Text(
-          '加载失败: $error',
-          style: TextStyle(color: AppTheme.textSecondary),
-        ),
+        child: AppErrorMessage(action: context.l10n.load, error: error),
       ),
     );
   }
@@ -257,15 +265,7 @@ class _SaveCancelled implements Exception {
   const _SaveCancelled();
 }
 
-enum _WikiPageSection {
-  content('内容'),
-  outputs('产出'),
-  relations('关联'),
-  sources('来源与修订');
-
-  const _WikiPageSection(this.label);
-  final String label;
-}
+enum _WikiPageSection { content, outputs, relations, sources }
 
 class _WikiPageBody extends ConsumerStatefulWidget {
   final WikiPage page;
@@ -278,6 +278,8 @@ class _WikiPageBody extends ConsumerStatefulWidget {
 
 class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
     with SingleTickerProviderStateMixin {
+  void _updateBody(VoidCallback update) => setState(update);
+
   late final TabController _sectionController;
   void _showSection(_WikiPageSection section) {
     _sectionController.index = section.index;
@@ -297,7 +299,7 @@ class _WikiPageBodyState extends ConsumerState<_WikiPageBody>
 
   bool _editing = false;
   bool _saving = false;
-  String? _editError;
+  Object? _editError;
   bool _chatOpen = false;
   bool _chatInitialized = false;
   Offset? _chatPosition;

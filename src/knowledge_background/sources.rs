@@ -20,7 +20,6 @@ pub(super) fn run_source_task(
     process: fn(&Store, &dyn AiProvider, &str, &str, &str) -> Result<i64>,
 ) -> Result<i64> {
     let now = chrono::Utc::now();
-    let strategy = "fulltext-maintenance-v2";
     let tx = Transaction::new_unchecked(&store.connection, TransactionBehavior::Immediate)?;
     if !store.background_processing_allowed()? {
         tx.commit()?;
@@ -47,21 +46,21 @@ pub(super) fn run_source_task(
         .query_row(
             "WITH failures AS (
             SELECT input_key,COUNT(*) AS count,MAX(finished_at) AS last
-            FROM knowledge_background_runs WHERE task=?1 AND strategy_version=?4 AND status='failed' GROUP BY input_key
+            FROM knowledge_background_runs WHERE task=?1 AND status='failed' GROUP BY input_key
          ) SELECT p.slug,s.id,p.title,s.version FROM knowledge_source_pages m
          JOIN wiki_pages p ON p.id=m.page_id JOIN knowledge_sources origin ON origin.id=m.source_id
          JOIN knowledge_snapshots s ON s.source_id=m.source_id
          LEFT JOIN failures f ON f.input_key=s.id
          WHERE p.kind IN ('source','note') AND p.status<>'archived' AND origin.opinion='endorse'
          AND s.version=(SELECT MAX(version) FROM knowledge_snapshots WHERE source_id=m.source_id)
-         AND (length(s.content_md)<=1400 OR EXISTS(SELECT 1 FROM knowledge_source_readings reading WHERE reading.snapshot_id=s.id AND reading.strategy_version=?5 AND reading.is_root=1))
+         AND (length(s.content_md)<=1400 OR EXISTS(SELECT 1 FROM knowledge_source_readings reading WHERE reading.snapshot_id=s.id AND reading.strategy_version=COALESCE((SELECT t.strategy FROM prompt_reading_tasks t WHERE t.snapshot_id=s.id AND t.contract_version=?4 ORDER BY t.policy_generation DESC LIMIT 1),?4) AND reading.is_root=1))
          AND NOT EXISTS(SELECT 1 FROM knowledge_background_runs r
-             WHERE r.task=?1 AND r.input_key=s.id AND r.status='succeeded' AND r.strategy_version=?4
+             WHERE r.task=?1 AND r.input_key=s.id AND r.status='succeeded' AND r.strategy_version GLOB 'fulltext-maintenance-v2*'
              AND (?3=0 OR julianday(r.finished_at)>julianday(?2)-?3))
          AND (f.last IS NULL OR julianday(?2)>=julianday(f.last)+
              (CASE WHEN f.count>=5 THEN 21600 ELSE 60*(1 << MIN(f.count,4)) END)/86400.0)
          ORDER BY s.captured_at,p.slug LIMIT 1",
-            params![task, now.to_rfc3339(),refresh_days,strategy,crate::knowledge::reading::VERSION],
+            params![task, now.to_rfc3339(),refresh_days,crate::knowledge::reading::VERSION],
             |r| Ok((r.get(0)?, r.get(1)?,r.get(2)?,r.get(3)?)),
         )
         .optional()?;
@@ -70,14 +69,45 @@ pub(super) fn run_source_task(
         return Ok(0);
     };
     let run = uuid::Uuid::new_v4().to_string();
+    let previous: Option<String> = store.connection.query_row(
+        "SELECT CASE WHEN status='failed' THEN prompt_bundle_id END FROM knowledge_background_runs WHERE task=?1 AND input_key=?2 ORDER BY started_at DESC,id DESC LIMIT 1",
+        params![task,snapshot_id], |r| r.get::<_,Option<String>>(0),
+    ).optional()?.flatten();
+    let bundle = match previous {
+        Some(bundle) => bundle,
+        None => store.capture_prompt_bundle(
+            "background_task",
+            &format!("source-task:{task}:{snapshot_id}:{run}"),
+        )?,
+    };
+    let _prompt_scope = store.use_prompt_bundle(&bundle);
+    let strategy = format!(
+        "fulltext-maintenance-v2:{}",
+        store.prompt_dependency(&[
+            "knowledge.processing.fixed_contract",
+            "task.processing.fixed_contract",
+            "chat.context.fixed_contract"
+        ])?
+    );
     store.connection.execute(
         "INSERT INTO knowledge_background_runs(id,task,input_key,status,started_at,source_slug,source_title,source_version,strategy_version) VALUES(?1,?2,?3,'running',?4,?5,?6,?7,?8)",
         params![run,task,snapshot_id,now.to_rfc3339(),slug,title,version,strategy],
     )?;
+    store.bind_background_prompt_bundle(&run)?;
     tx.commit()?;
     let result = process(store, provider, &slug, &snapshot_id, &run);
     match result {
         Ok(count) => {
+            store.record_language_artifact(
+                "source_task",
+                &run,
+                &bundle,
+                &[
+                    "knowledge.processing.fixed_contract",
+                    "task.processing.fixed_contract",
+                    "chat.context.fixed_contract",
+                ],
+            )?;
             store.connection.execute(
                 "UPDATE knowledge_background_runs SET status='succeeded',finished_at=?2,result_count=?3,detail=COALESCE(detail,?4) WHERE id=?1 AND status='running'",
                 params![run,chrono::Utc::now().to_rfc3339(),count,if count==0 {"已检查，没有新增产出"}else{"整理结果已保存"}],

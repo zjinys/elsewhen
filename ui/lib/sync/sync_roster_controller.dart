@@ -1,3 +1,5 @@
+import '../l10n/notice_messages.dart';
+
 import 'package:flutter/foundation.dart';
 
 import '../bridge/api.dart' as api;
@@ -117,15 +119,25 @@ String rosterErrorText(String raw) {
   return matched ?? raw;
 }
 
-const Map<String, String> _rosterErrors = {
-  'sync_membership_handoff_required': '该设备当前负责 AI 分析，必须先移交职责才能撤销。',
-  'sync_membership_revision_changed': '名册刚被其他设备更新，请刷新后重新审阅撤销。',
-  'sync_membership_owner_required': '只有 owner 设备才能撤销成员。',
-  'sync_membership_already_revoked': '该设备已被撤销。',
-  'sync_membership_member_missing': '该设备不在名册中。',
-  'sync_membership_revision_invalid': '名册修订号无效。',
-  'sync_membership_limit': '名册成员数已达上限。',
-  'sync_membership_identity_conflict': '名册设备身份冲突（重复密钥或流）。',
-  'sync_runtime_locked': '本机同步密钥已锁定，请先解锁后再操作。',
-  'sync_not_initialized': '本机尚未准备同步身份。',
+final Map<String, String> _rosterErrors = {
+  'sync_membership_handoff_required': appNotice(
+    'l6TransferThisDeviceSAiAnalysis9e01d',
+  ),
+  'sync_membership_revision_changed': appNotice(
+    'l6AnotherDeviceUpdatedTheRosterRefreshb7381',
+  ),
+  'sync_membership_owner_required': appNotice(
+    'l6OnlyTheDatasetOwnerCanRevoke2ce42',
+  ),
+  'sync_membership_already_revoked': appNotice(
+    'l6ThisDeviceSAccessHasAlreadyb76c9',
+  ),
+  'sync_membership_member_missing': appNotice('l6ThisDeviceIsNotInThe3f9c7'),
+  'sync_membership_revision_invalid': appNotice('l6InvalidRosterRevisione21c2'),
+  'sync_membership_limit': appNotice('l6TheRosterHasReachedItsMemberee48e'),
+  'sync_membership_identity_conflict': appNotice(
+    'l6DeviceIdentitiesConflictInTheRosterea7bc',
+  ),
+  'sync_runtime_locked': appNotice('l6UnlockThisDeviceSSyncKeyse19a6'),
+  'sync_not_initialized': appNotice('l6ThisDeviceSSyncIdentityIs5c640'),
 };

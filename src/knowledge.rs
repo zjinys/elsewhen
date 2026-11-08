@@ -68,6 +68,7 @@ pub use health::{KnowledgeHealthReport, health_report};
 pub(crate) use propose::compile_requested_knowledge;
 pub use propose::propose_knowledge;
 pub(crate) use propose::{build_refresh_proposal, build_source_proposal, prepare_source_repair};
+pub(crate) use select::context_text_for_run;
 pub use select::{
     KnowledgeCitation, SourceReference, citation_for_page, citation_for_page_explicit,
     context_text, current_candidates, participating, select_knowledge, summary_mount,

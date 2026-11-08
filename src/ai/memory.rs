@@ -22,7 +22,10 @@ pub use providers::{
 };
 pub(crate) use providers::{compress_context_for_model, prepare_uncompressed_context};
 pub use system_context::build_content_system_prompt;
-pub(crate) use system_context::{build_system_context, recent_background, today_memory_background};
+pub(crate) use system_context::{
+    build_system_context, recent_background, today_memory_background,
+    user_cognition_profile_background,
+};
 
 #[path = "memory_tests/mod.rs"]
 mod tests;

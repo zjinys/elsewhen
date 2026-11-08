@@ -16,7 +16,11 @@ import 'chat_input_queue.dart';
 import 'goal_compass_banner.dart';
 import '../providers/chat_run_provider.dart';
 import '../bridge/api.dart'
-    show ChatInputMode, HabitNudgeInputDto, HabitNudgeStateDto;
+    show
+        ChatInputMode,
+        DigestInsightSurfacingDto,
+        HabitNudgeInputDto,
+        HabitNudgeStateDto;
 
 import 'dart:convert';
 import 'dart:math';
@@ -35,21 +39,26 @@ import '../providers/wiki_provider.dart';
 import 'wiki_page_detail_view.dart';
 import '../providers/todo_provider.dart';
 import '../providers/goal_provider.dart';
-import '../utils/error_report.dart';
+import '../l10n/notice_messages.dart';
+import '../utils/app_error.dart';
+import 'app_error_notice.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
 import '../theme/content_font.dart';
 import 'markdown_view.dart';
 import 'knowledge_panel.dart';
+import 'knowledge_page_dialog.dart';
 import 'todo_view.dart';
 import 'goal_view.dart';
 import 'reminder_banner.dart';
+import '../l10n/localization.dart';
 
 // ── 消息区拆分为 part（行为零变化，见 message_area_parts/）──
 part 'message_area_parts/pending_banner.dart';
 part 'message_area_parts/now_status.dart';
 part 'message_area_parts/message_bubble.dart';
 part 'message_area_parts/habit_nudge_bubble.dart';
+part 'message_area_parts/digest_insight_bubble.dart';
 part 'message_area_parts/input.dart';
 part 'message_area_parts/input_panels.dart';
 part 'message_area_parts/scroll_search.dart';
@@ -96,6 +105,7 @@ Future<void> runAiGeneration(
   required String inputMessageId,
   bool Function()? isMounted,
   VoidCallback? onError,
+  AppLocalizations Function()? strings,
 }) async {
   final repository = ref.read(conversationRepositoryProvider);
   if (repository.supportsChatRuns) {
@@ -126,7 +136,16 @@ Future<void> runAiGeneration(
     // 失败补充界面（错误气泡 + 上滑）同样依赖 ref，卸载后调用会抛异常，
     // 与成功路径一致用 isMounted 守住。
     if (isMounted == null || isMounted()) {
-      addConversationNotice(ref, conversationId, aiFailureNotice(e));
+      addConversationNotice(
+        ref,
+        conversationId,
+        appFailure(
+          e,
+          key: e.toString().contains('No active AI provider')
+              ? 'aiProviderMissing'
+              : 'aiReplyFailedGeneric',
+        ),
+      );
       ref.read(scrollRequestProvider.notifier).update((v) => v + 1);
       // 记下失败的是**哪一条**消息：重新生成的入口跟着消息 id 走，不再依赖
       // 列表位置——后续追加消息或搜索/日期筛选都会让位置条件失效（P9）。
@@ -141,17 +160,14 @@ Future<void> runAiGeneration(
   }
 }
 
-/// 把 AI 生成失败整理成**一行可读文案**，不展示 Anyhow 的 Caused by 调用链。
-/// - 未配置 provider：直接给引导文案
-/// - 其余：取调用链上的根因（最后一级 cause）；没有链则取首行
-String aiFailureNotice(Object e) {
-  final raw = e.toString();
-  if (raw.contains('No active AI provider')) {
-    return '尚未配置 AI Provider，请到设置页填写后重试';
+/// A readable failure summary. Callers retain the original error separately so
+/// diagnostic details remain available without becoming localized prose.
+String aiFailureNotice(Object e, {AppLocalizations? strings}) {
+  strings ??= lookupAppLocalizations(const Locale('zh'));
+  if (e.toString().contains('No active AI provider')) {
+    return strings.aiProviderMissing;
   }
-
-  final detail = stripErrorShell(e, stripExceptionPrefix: false);
-  return 'AI 回复失败：$detail';
+  return AppError.decode(e)?.message(strings) ?? strings.aiReplyFailedGeneric;
 }
 
 /// 习惯问候 ref 的前两段：`<nudge_id>:<date>`；补问会多一段 `:2`。
@@ -175,7 +191,7 @@ void openTodoDialog(BuildContext context) {
   showPanelSheet(
     context,
     sheet: (_) => AdaptivePanelSheet(
-      title: '待办',
+      title: context.l10n.todos,
       builder: (context) => const TodoListView(),
     ),
   );
@@ -185,7 +201,7 @@ void openGoalDialog(BuildContext context) {
   showPanelSheet(
     context,
     sheet: (_) => AdaptivePanelSheet(
-      title: '目标',
+      title: context.l10n.goals,
       builder: (context) => GoalListView(quickGlance: true),
     ),
   );
@@ -311,8 +327,8 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
           onCopyAll: (messagesAsync.value?.isNotEmpty ?? false)
               ? () => _copyToClipboard(
                   context,
-                  _formatConversationForCopy(messagesAsync.value!),
-                  '对话',
+                  _formatConversationForCopy(context, messagesAsync.value!),
+                  context.l10n.conversation,
                 )
               : null,
         ),
@@ -430,7 +446,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                     message.isHabitCheckin &&
                     windowNudgeRefs.contains(message.messageRef);
                 if (!hideAsCheckin) {
-                  final day = DateFormat('yyyy年MM月dd日')
+                  final day = DateFormat.yMMMMd(context.l10n.localeName)
                       .format(message.createdAt);
                   if (day != previousDay) {
                     rows.add(day);
@@ -497,6 +513,9 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                             latestAsk > _habitNudgeAsk(message.messageRef!),
                       );
                     }
+                    if (message.isDigestInsight) {
+                      return DigestInsightBubble(message: message);
+                    }
                     return _MessageBubble(
                       message: message,
                       showRetry: needsReply,
@@ -517,7 +536,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  '加载消息失败\n$error',
+                  context.l10n.messageLoadFailed(error.toString()),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                 ),

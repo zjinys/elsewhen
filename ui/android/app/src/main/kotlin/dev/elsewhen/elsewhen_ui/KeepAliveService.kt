@@ -31,18 +31,24 @@ class KeepAliveService : Service() {
         const val ACTION_START = "dev.elsewhen.keepalive.START"
         const val ACTION_STOP = "dev.elsewhen.keepalive.STOP"
         const val EXTRA_TEXT = "text"
+        private const val EXTRA_TITLE = "title"
+        private const val EXTRA_CHANNEL_NAME = "channelName"
+        private const val EXTRA_CHANNEL_DESCRIPTION = "channelDescription"
         private const val CHANNEL_ID = "keepalive"
         private const val NOTIFICATION_ID = 1061
-        private const val DEFAULT_TEXT = "正在与另一台设备同步"
+        private const val DEFAULT_TEXT = "Syncing with another device"
 
         /**
          * 拉起前台服务。Android 12+ 禁止后台启动 FGS，被拒绝时直接吞掉：
          * 用户此刻多半不在前台，本来也不该弹通知，下一次进入前台会再拉起。
          */
-        fun start(context: Context, text: String?) {
+        fun start(context: Context, text: String?, title: String?, channelName: String?, channelDescription: String?) {
             val intent = Intent(context, KeepAliveService::class.java).apply {
                 action = ACTION_START
                 putExtra(EXTRA_TEXT, text)
+                putExtra(EXTRA_TITLE, title)
+                putExtra(EXTRA_CHANNEL_NAME, channelName)
+                putExtra(EXTRA_CHANNEL_DESCRIPTION, channelDescription)
             }
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -57,6 +63,19 @@ class KeepAliveService : Service() {
             }
         }
 
+        // A label change reaches only an existing service. It never starts a
+        // new foreground service or reacquires the transfer's wake lock.
+        fun update(text: String?, title: String?, channelName: String?, channelDescription: String?) {
+            val service = running ?: return
+            try {
+                service.updateNotification(text, title, channelName, channelDescription)
+            } catch (e: Exception) {
+                android.util.Log.w("KeepAlive", "notification update failed: ${e.message}")
+            }
+        }
+
+        private var running: KeepAliveService? = null
+
         fun stop(context: Context) {
             try {
                 context.stopService(Intent(context, KeepAliveService::class.java))
@@ -70,13 +89,20 @@ class KeepAliveService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onCreate() {
+        super.onCreate()
+        running = this
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             stopSelf()
             return START_NOT_STICKY
         }
         try {
-            startInForeground(intent?.getStringExtra(EXTRA_TEXT))
+            startInForeground(intent?.getStringExtra(EXTRA_TEXT),
+                intent?.getStringExtra(EXTRA_TITLE), intent?.getStringExtra(EXTRA_CHANNEL_NAME),
+                intent?.getStringExtra(EXTRA_CHANNEL_DESCRIPTION))
         } catch (e: Exception) {
             // Android 12+ 后台启动限制 / 12+ 的类型校验都可能在这里抛错。
             // 服务自己挂掉会把整个进程拖死，所以只能放弃保活、干净退出。
@@ -95,20 +121,21 @@ class KeepAliveService : Service() {
     }
 
     override fun onDestroy() {
+        if (running === this) running = null
         releaseWakeLock()
         super.onDestroy()
     }
 
-    private fun startInForeground(text: String?) {
+    private fun notification(text: String?, title: String?, channelName: String?, channelDescription: String?): Notification {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "设备同步",
+                channelName?.takeIf { it.isNotBlank() } ?: "Device synchronization",
                 // LOW：不发声、不弹横幅，只在通知栏留一条常驻条目。
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
-                description = "配对与初始快照传输期间保持应用运行"
+                description = channelDescription ?: "Keeps the app running during pairing and initial sync"
                 setShowBadge(false)
             }
             manager.createNotificationChannel(channel)
@@ -121,9 +148,9 @@ class KeepAliveService : Service() {
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
+        return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_sync)
-            .setContentTitle("Elsewhen 正在同步")
+            .setContentTitle(title?.takeIf { it.isNotBlank() } ?: "Elsewhen is syncing")
             .setContentText(text?.takeIf { it.isNotBlank() } ?: DEFAULT_TEXT)
             .setContentIntent(open)
             .setOngoing(true)
@@ -131,6 +158,15 @@ class KeepAliveService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
             .build()
+    }
+
+    private fun updateNotification(text: String?, title: String?, channelName: String?, channelDescription: String?) {
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(NOTIFICATION_ID, notification(text, title, channelName, channelDescription))
+    }
+
+    private fun startInForeground(text: String?, title: String?, channelName: String?, channelDescription: String?) {
+        val notification = notification(text, title, channelName, channelDescription)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
                 NOTIFICATION_ID,

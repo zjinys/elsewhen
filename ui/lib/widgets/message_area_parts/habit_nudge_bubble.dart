@@ -29,7 +29,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
 
   /// 建议卡被处理后的提示（「改时间」已保存 / 「暂停问候」已落库）。
   /// 本地状态即可：建议卡每天只出一张，处理后当天不会再触发。
-  String? _acted;
+  bool? _acted;
 
   @override
   Widget build(BuildContext context) {
@@ -86,10 +86,10 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
         !snoozed &&
         !superseded;
 
-    final doneLabel = plan?.doneLabel ?? '完成了';
-    final missedLabel = plan?.missedLabel ?? '还没';
-    final doneText = plan?.doneText ?? '今天完成了';
-    final missedText = plan?.missedText ?? '今天还没完成';
+    final doneLabel = plan?.doneLabel ?? context.l10n.habitDoneFallback;
+    final missedLabel = plan?.missedLabel ?? context.l10n.habitMissedFallback;
+    final doneText = plan?.doneText ?? context.l10n.habitDoneTextFallback;
+    final missedText = plan?.missedText ?? context.l10n.habitMissedTextFallback;
     // 连续忽略后的确定性建议卡（kind 由后端写入，文案不含回答按钮）。
     final isSuggestion = message.kind == 'habit_nudge_suggest';
 
@@ -135,7 +135,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                     Row(
                       children: [
                         Text(
-                          '习惯问候',
+                          context.l10n.habitCheckin,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -143,7 +143,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                           ),
                         ),
                         Text(
-                          ' • ${DateFormat('HH:mm').format(message.createdAt)}',
+                          ' • ${DateFormat.Hm(context.l10n.localeName).format(message.createdAt)}',
                           style: TextStyle(
                             fontSize: 11,
                             color: AppTheme.textTertiary,
@@ -179,7 +179,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                                 foregroundColor: AppTheme.surface0,
                                 visualDensity: VisualDensity.compact,
                               ),
-                              child: const Text('改时间'),
+                              child: Text(context.l10n.changeTime),
                             ),
                             OutlinedButton(
                               onPressed: _busy ? null : _pause,
@@ -188,13 +188,15 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                                 side: BorderSide(color: AppTheme.surface3),
                                 visualDensity: VisualDensity.compact,
                               ),
-                              child: const Text('暂停问候'),
+                              child: Text(context.l10n.pauseCheckins),
                             ),
                           ],
                         )
                       else
                         Text(
-                          _acted ?? '已暂停，可在设置页恢复',
+                          _acted == true
+                              ? context.l10n.checkinTimeUpdated
+                              : context.l10n.checkinsPaused,
                           style: TextStyle(
                             fontSize: 12,
                             color: AppTheme.textTertiary,
@@ -237,18 +239,20 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                                 foregroundColor: AppTheme.textTertiary,
                                 visualDensity: VisualDensity.compact,
                               ),
-                              child: const Text('晚点再问'),
+                              child: Text(context.l10n.askLater),
                             ),
                           // 聊聊：预填主对话输入框，不自动发送。
                           TextButton(
                             onPressed: _busy
                                 ? null
-                                : () => _chatAbout('$missedText，因为'),
+                                : () => _chatAbout(
+                                    context.l10n.checkinDiscussSeed(missedText),
+                                  ),
                             style: TextButton.styleFrom(
                               foregroundColor: AppTheme.textTertiary,
                               visualDensity: VisualDensity.compact,
                             ),
-                            child: const Text('聊聊'),
+                            child: Text(context.l10n.discuss),
                           ),
                           TextButton(
                             onPressed: _busy ? null : _dismiss,
@@ -256,7 +260,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                               foregroundColor: AppTheme.textTertiary,
                               visualDensity: VisualDensity.compact,
                             ),
-                            child: const Text('今天不问'),
+                            child: Text(context.l10n.skipToday),
                           ),
                         ],
                       ),
@@ -275,27 +279,31 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '已记录：${checkinText ?? missedText}',
+                            context.l10n.recordedText(
+                              checkinText ?? missedText,
+                            ),
                             style: TextStyle(
                               fontSize: 12,
                               color: AppTheme.textTertiary,
                             ),
                           ),
                           TextButton(
-                            onPressed: () => _chatAbout('$missedText，因为'),
+                            onPressed: () => _chatAbout(
+                              context.l10n.checkinDiscussSeed(missedText),
+                            ),
                             style: TextButton.styleFrom(
                               foregroundColor: AppTheme.accentPrimary,
                               visualDensity: VisualDensity.compact,
                               padding: EdgeInsets.zero,
                             ),
-                            child: const Text('聊聊原因'),
+                            child: Text(context.l10n.discussReason),
                           ),
                         ],
                       )
                     else
                       Text(
                         checkinText != null
-                            ? '已记录：$checkinText'
+                            ? context.l10n.recordedText(checkinText)
                             : _statusText(
                                 response: response,
                                 snoozed: snoozed,
@@ -346,10 +354,10 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
       final changed = await showHabitNudgeDialog(context, page: page);
       if (!mounted) return;
       if (changed == true) {
-        setState(() => _acted = '已按新的时间继续提醒');
+        setState(() => _acted = true);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('定期问候已更新'),
+          SnackBar(
+            content: Text(context.l10n.checkinsUpdated),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -384,12 +392,12 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
         ),
       );
       if (!mounted) return;
-      setState(() => _acted = '已暂停，可在设置页恢复');
+      setState(() => _acted = false);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('操作失败：${e.toString().replaceFirst('Exception: ', '')}'),
+          content: Text(context.errorMessage(context.l10n.edit, e)),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -407,13 +415,13 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
     required String doneText,
     required String missedText,
   }) {
-    if (response == 'done') return '已记录：$doneText';
-    if (response == 'missed') return '已记录：$missedText';
-    if (response == 'dismissed') return '今天先不问了';
-    if (snoozed) return '已推迟，稍后再问一次';
-    if (superseded) return '已再次提醒';
-    if (stale) return '这条问候已过期';
-    if (planMissing) return '这条问候的计划已关闭';
+    if (response == 'done') return context.l10n.recordedText(doneText);
+    if (response == 'missed') return context.l10n.recordedText(missedText);
+    if (response == 'dismissed') return context.l10n.checkinDismissed;
+    if (snoozed) return context.l10n.checkinSnoozed;
+    if (superseded) return context.l10n.checkinSuperseded;
+    if (stale) return context.l10n.checkinExpired;
+    if (planMissing) return context.l10n.checkinPlanClosed;
     return '';
   }
 
@@ -427,7 +435,9 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            done && result.eventCreated ? '已记录，并生成一条事件' : '已记录：$text',
+            done && result.eventCreated
+                ? context.l10n.checkinRecordedEvent
+                : context.l10n.recordedText(text),
           ),
           behavior: SnackBarBehavior.floating,
         ),
@@ -436,7 +446,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('记录失败：${e.toString().replaceFirst('Exception: ', '')}'),
+          content: Text(context.errorMessage(context.l10n.record, e)),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -453,8 +463,8 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
       await repo.snoozeHabitNudge(widget.message.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('好，1 小时后再问一次'),
+        SnackBar(
+          content: Text(context.l10n.askAfterHour),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -462,7 +472,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('推迟失败：${e.toString().replaceFirst('Exception: ', '')}'),
+          content: Text(context.errorMessage(context.l10n.askLater, e)),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -481,7 +491,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('操作失败：${e.toString().replaceFirst('Exception: ', '')}'),
+          content: Text(context.errorMessage(context.l10n.edit, e)),
           behavior: SnackBarBehavior.floating,
         ),
       );

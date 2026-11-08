@@ -1,5 +1,7 @@
 part of '../wiki_ai_chat_panel.dart';
 
+// ignore_for_file: invalid_use_of_protected_member
+
 //! 任务与恢复域（task 恢复/重导/重扫/回复保存）
 extension _PanelTask on _WikiAiChatPanelState {
   Future<void> _resetTask() async {
@@ -14,7 +16,7 @@ extension _PanelTask on _WikiAiChatPanelState {
       });
     } catch (e) {
       if (mounted && widget.slug == slug) {
-        setState(() => _taskRestoreError = '重新读取材料失败：$e');
+        setState(() => _taskRestoreError = appFailure(e));
       }
     }
   }
@@ -30,9 +32,7 @@ extension _PanelTask on _WikiAiChatPanelState {
       _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
-      setState(
-        () => _error = '消息加载失败：${e.toString().replaceFirst('Exception: ', '')}',
-      );
+      setState(() => _error = appFailure(e));
     }
   }
 
@@ -48,7 +48,7 @@ extension _PanelTask on _WikiAiChatPanelState {
         ? ref.read(chatRunControllerProvider(id)).state.run
         : null;
     if (supplement && (target == null || !chatRunIsActive(target.status))) {
-      setState(() => _error = '当前没有可补充的任务，请选择保存或排队。');
+      setState(() => _error = appNotice('noSupplementTask'));
       return;
     }
     setState(() {
@@ -88,14 +88,16 @@ extension _PanelTask on _WikiAiChatPanelState {
             await repository.enqueueChatSupplement(id, saved.id, target!.id);
           } else if (repository.supportsChatQueue) {
             await repository.scheduleChatInput(id, saved.id);
-            if (mounted)
+            if (mounted) {
               await ref.read(chatRunControllerProvider(id)).restore();
+            }
           } else {
             await ref.read(chatRunControllerProvider(id)).start(saved.id);
           }
         } catch (_) {
-          if (mounted)
-            setState(() => _error = '输入已保存，但生成资格未确认；请从该消息继续生成，不要重新发送。');
+          if (mounted) {
+            setState(() => _error = appNotice('savedButNotEligible'));
+          }
         }
       } else {
         setAiGenerating(ref, id, true);
@@ -119,7 +121,7 @@ extension _PanelTask on _WikiAiChatPanelState {
       }
     } catch (e) {
       if (!mounted || _conversationId != id) return;
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      setState(() => _error = appFailure(e));
     } finally {
       if (!durable) {
         generatingNotifier.update((current) => {...current}..remove(id));
@@ -150,13 +152,13 @@ extension _PanelTask on _WikiAiChatPanelState {
     }
     switch (action) {
       case 'summary':
-        _fillPrompt('请总结这一页，提炼最重要的信息。');
+        _fillPrompt(context.l10n.summarizePagePrompt);
       case 'extract':
-        _fillPrompt('请提取这一页的关键事实、判断和可复用信息。');
+        _fillPrompt(context.l10n.keyPointsPrompt);
       case 'decisions':
-        _fillPrompt('请整理这一页中已经明确的决定及其依据。');
+        _fillPrompt(context.l10n.decisionsPrompt);
       case 'next':
-        _fillPrompt('请整理这一页的下一步行动和仍未解决的问题。');
+        _fillPrompt(context.l10n.nextStepsPrompt);
       case 'translate':
         if (_pageTask != null && _pageTask!.materials.isNotEmpty) {
           setState(
@@ -168,9 +170,9 @@ extension _PanelTask on _WikiAiChatPanelState {
             ),
           );
         }
-        _fillPrompt('请把选定的原文片段翻译成 XX 语言，保留结构和专业含义；只处理已提供的片段，先说明范围，不声称翻译整页。');
+        _fillPrompt(context.l10n.translateSelectionPrompt);
       case 'copy':
-        _fillPrompt('请根据这一页内容，写一版适合发布到 XX 渠道的文案，目标受众是 XX，语气是 XX。');
+        _fillPrompt(context.l10n.writeCopyPrompt);
       case 'rescan':
         await _rescanProject();
       case 'reimport':
@@ -213,13 +215,12 @@ extension _PanelTask on _WikiAiChatPanelState {
       if (!mounted) return;
       ref.invalidate(wikiPageProvider(widget.slug));
       ref.invalidate(wikiPagesProvider);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('项目目录已重新扫描，资产知识页已更新')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.projectRescannedAssets)),
+      );
     } catch (e) {
       if (!mounted) return;
-      setState(
-        () => _error = '重新扫描失败：${e.toString().replaceFirst('Exception: ', '')}',
-      );
+      setState(() => _error = appFailure(e));
     } finally {
       if (mounted) setState(() => _rescanning = false);
     }
@@ -240,16 +241,16 @@ extension _PanelTask on _WikiAiChatPanelState {
         final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('替换项目知识页正文？'),
-            content: const Text('当前 AI 回复将替换整篇正文。原内容会保留在页面修订记录中。'),
+            title: Text(context.l10n.replaceProjectPage),
+            content: Text(context.l10n.replaceProjectDescription),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('取消'),
+                child: Text(context.l10n.cancel),
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('替换'),
+                child: Text(context.l10n.replace),
               ),
             ],
           ),
@@ -267,8 +268,9 @@ extension _PanelTask on _WikiAiChatPanelState {
         if (!mounted) return;
         ref.invalidate(wikiPageProvider(widget.slug));
         ref.invalidate(wikiPagesProvider);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('已替换当前项目知识页正文')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.projectPageReplaced)),
+        );
         return;
       }
       final page = await api.createArtifactFromMessage(
@@ -279,15 +281,13 @@ extension _PanelTask on _WikiAiChatPanelState {
       );
       if (!mounted) return;
       ref.invalidate(wikiDerivativesProvider(widget.slug));
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('已保存为派生产物：${page.title}')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.savedAsDerivative(page.title))),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('保存失败：${e.toString().replaceFirst('Exception: ', '')}'),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(appFailure(e))));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -300,15 +300,13 @@ extension _PanelTask on _WikiAiChatPanelState {
       final loaded = await ref.read(wikiPageProvider(widget.slug).future);
       if (!mounted) return;
       if (loaded == null) {
-        setState(() => _error = '页面不存在，可能已被删除');
+        setState(() => _error = appNotice('pageMissing'));
         return;
       }
       page = loaded;
     } catch (e) {
       if (!mounted) return;
-      setState(
-        () => _error = '读取页面失败：${e.toString().replaceFirst('Exception: ', '')}',
-      );
+      setState(() => _error = appFailure(e));
       return;
     }
     final url = page.sourceUrl;
@@ -326,14 +324,12 @@ extension _PanelTask on _WikiAiChatPanelState {
         if (!mounted) return;
         ref.invalidate(wikiPageProvider(widget.slug));
         ref.invalidate(wikiPagesProvider);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('项目目录已重新扫描，知识页已更新')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.projectRescanned)));
       } catch (e) {
         if (!mounted) return;
-        setState(
-          () =>
-              _error = '重新扫描失败：${e.toString().replaceFirst('Exception: ', '')}',
-        );
+        setState(() => _error = appFailure(e));
       } finally {
         if (mounted) setState(() => _reimporting = false);
       }
@@ -353,12 +349,10 @@ extension _PanelTask on _WikiAiChatPanelState {
       ref.invalidate(wikiPageProvider(widget.slug));
       ref.invalidate(wikiPagesProvider);
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('已重新导入，知识页内容已更新')));
+          .showSnackBar(SnackBar(content: Text(context.l10n.sourceReimported)));
     } catch (e) {
       if (!mounted) return;
-      setState(
-        () => _error = '重新导入失败：${e.toString().replaceFirst('Exception: ', '')}',
-      );
+      setState(() => _error = appFailure(e));
     } finally {
       if (mounted) setState(() => _reimporting = false);
     }
@@ -371,7 +365,7 @@ extension _PanelTask on _WikiAiChatPanelState {
         return t.length > 40 ? '${t.substring(0, 40)}…' : t;
       }
     }
-    return 'AI 总结';
+    return context.l10n.aiSummary;
   }
 
   void _scrollToBottom() {

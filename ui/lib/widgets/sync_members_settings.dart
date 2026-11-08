@@ -1,3 +1,6 @@
+import 'app_error_notice.dart';
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 
 import '../bridge/api.dart' as api;
@@ -42,13 +45,17 @@ class _SyncMembersSettingsState extends State<SyncMembersSettings> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-            Text('已授权设备', style: theme.textTheme.titleSmall),
+            Text(
+              context.l10n.l6AuthorizedDevicesb4736,
+              style: theme.textTheme.titleSmall,
+            ),
             if (controller.error != null) ...[
               const SizedBox(height: 8),
               Semantics(
                 liveRegion: true,
-                child: Text(
-                  controller.error!,
+                child: AppErrorMessage(
+                  error: controller.error!,
+                  action: context.l10n.load,
                   style: TextStyle(color: theme.colorScheme.error),
                 ),
               ),
@@ -57,10 +64,10 @@ class _SyncMembersSettingsState extends State<SyncMembersSettings> {
             if (roster == null && !controller.busy)
               TextButton(
                 onPressed: controller.refresh,
-                child: const Text('刷新设备列表'),
+                child: Text(context.l10n.l6RefreshDevices7b112),
               )
             else if (roster == null)
-              const Text('正在读取设备列表…')
+              Text(context.l10n.l6LoadingDevices5c6b5)
             else ...[
               // 已撤销设备保留在后端有防重入语义（旧密饼拒接），但
               // 视觉上折叠，避免历史条目把活跃设备 hammam掉。
@@ -136,13 +143,13 @@ class _MemberRow extends StatelessWidget {
     final theme = Theme.of(context);
     // 用户语言，与状态头卡一致；内部行话（owner/加工）不出现在成员行。
     final roles = <String>[
-      if (member.isOwner) '主设备',
-      if (member.isProcessor) '负责 AI 分析',
-      if (member.isLocal) '本机',
+      if (member.isOwner) context.l10n.l6OwnerDevicede929,
+      if (member.isProcessor) context.l10n.l6RunsAiAnalysis6697e,
+      if (member.isLocal) context.l10n.l6ThisDevice8b4c1,
     ];
     final title = member.active
         ? (roles.isEmpty ? member.name : '${member.name}（${roles.join(' · ')}）')
-        : '${member.name}（已撤销）';
+        : context.l10n.l6Arg0Revoked9671e((member.name).toString());
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -176,13 +183,18 @@ class _MemberRow extends StatelessWidget {
             const SizedBox(width: 8),
             OutlinedButton.icon(
               icon: const Icon(Icons.person_remove_outlined, size: 16),
-              label: const Text('撤销'),
+              label: Text(context.l10n.l6Revoke9fcef),
               onPressed: busy ? null : onRevoke,
             ),
           ] else if (needsHandoffOffFirst)
             Padding(
               padding: const EdgeInsets.only(left: 8),
-              child: Text('需先移交 AI 分析职责后再撤销', style: theme.textTheme.bodySmall),
+              child: Text(
+                context
+                    .l10n
+                    .l6TransferAiAnalysisResponsibilityBeforeRevoking455d7,
+                style: theme.textTheme.bodySmall,
+              ),
             ),
         ],
       ),
@@ -198,16 +210,16 @@ Future<bool> showRevokeConfirmDialog(
   final result = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('撤销设备同步权限？'),
+      title: Text(context.l10n.l6RevokeThisDeviceSSyncAccess2a8d0),
       content: Text(
-        '设备 "${member.name}" 将立即失去再同步资格。\n\n'
-        '丢失设备须知：撤销同步权限不会回收该设备已持有的 Provider API Key。'
-        '请到对应 Provider 控制台吊销或轮换密钥，剩余设备会接收新版本。',
+        context.l10n.l6DeviceArg0WillImmediatelyLoseSyncadbd3(
+          (member.name).toString(),
+        ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: const Text('取消'),
+          child: Text(context.l10n.cancel),
         ),
         FilledButton(
           style: FilledButton.styleFrom(
@@ -215,7 +227,7 @@ Future<bool> showRevokeConfirmDialog(
             backgroundColor: Theme.of(dialogContext).colorScheme.error,
           ),
           onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: const Text('撤销'),
+          child: Text(context.l10n.l6Revoke9fcef),
         ),
       ],
     ),

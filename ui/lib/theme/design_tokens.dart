@@ -18,8 +18,10 @@ class DesignTokens {
   // ── 背景模糊（BackdropFilter sigma） ──
   /// 桌面端最大模糊：标题栏 / 悬浮面板。
   static const double blurDesktop = 20;
+
   /// 移动端略低：GPU 弱 + 省电，视觉差异几乎不可感。
   static const double blurMobile = 12;
+
   /// 低功耗 / 减少动效模式下直接归零（关闭模糊，保留半透明底）。
   static const double blurReduced = 0;
 
@@ -45,9 +47,7 @@ class MotionTokens {
 
   /// 尊重「减少动效」系统设置：返回缩短为 0 的时长。
   static Duration effective(BuildContext context, Duration d) =>
-      MediaQuery.maybeDisableAnimationsOf(context) ?? false
-          ? Duration.zero
-          : d;
+      MediaQuery.maybeDisableAnimationsOf(context) ?? false ? Duration.zero : d;
 }
 
 /// 阴影：多层低透明度叠加，深色模式用纯黑环境光、浅色模式带一点蓝灰。
@@ -55,59 +55,59 @@ class ShadowTokens {
   ShadowTokens._();
 
   static List<BoxShadow> level1(bool dark) => [
-        BoxShadow(
-          color: dark
-              ? Colors.black.withValues(alpha: 0.28)
-              : const Color(0xFF33415C).withValues(alpha: 0.06),
-          blurRadius: 6,
-          offset: const Offset(0, 2),
-        ),
-      ];
+    BoxShadow(
+      color: dark
+          ? Colors.black.withValues(alpha: 0.28)
+          : const Color(0xFF33415C).withValues(alpha: 0.06),
+      blurRadius: 6,
+      offset: const Offset(0, 2),
+    ),
+  ];
 
   static List<BoxShadow> level2(bool dark) => [
-        BoxShadow(
-          color: dark
-              ? Colors.black.withValues(alpha: 0.35)
-              : const Color(0xFF33415C).withValues(alpha: 0.08),
-          blurRadius: 12,
-          offset: const Offset(0, 4),
-        ),
-        BoxShadow(
-          color: dark
-              ? Colors.black.withValues(alpha: 0.18)
-              : const Color(0xFF33415C).withValues(alpha: 0.04),
-          blurRadius: 3,
-          offset: const Offset(0, 1),
-        ),
-      ];
+    BoxShadow(
+      color: dark
+          ? Colors.black.withValues(alpha: 0.35)
+          : const Color(0xFF33415C).withValues(alpha: 0.08),
+      blurRadius: 12,
+      offset: const Offset(0, 4),
+    ),
+    BoxShadow(
+      color: dark
+          ? Colors.black.withValues(alpha: 0.18)
+          : const Color(0xFF33415C).withValues(alpha: 0.04),
+      blurRadius: 3,
+      offset: const Offset(0, 1),
+    ),
+  ];
 
   /// 悬浮层（弹窗 / 下拉 / 补全面板）：明显脱离背景。
   static List<BoxShadow> overlay(bool dark) => [
-        BoxShadow(
-          color: dark
-              ? Colors.black.withValues(alpha: 0.5)
-              : const Color(0xFF33415C).withValues(alpha: 0.14),
-          blurRadius: 28,
-          offset: const Offset(0, 10),
-        ),
-        BoxShadow(
-          color: dark
-              ? Colors.black.withValues(alpha: 0.25)
-              : const Color(0xFF33415C).withValues(alpha: 0.06),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
-        ),
-      ];
+    BoxShadow(
+      color: dark
+          ? Colors.black.withValues(alpha: 0.5)
+          : const Color(0xFF33415C).withValues(alpha: 0.14),
+      blurRadius: 28,
+      offset: const Offset(0, 10),
+    ),
+    BoxShadow(
+      color: dark
+          ? Colors.black.withValues(alpha: 0.25)
+          : const Color(0xFF33415C).withValues(alpha: 0.06),
+      blurRadius: 8,
+      offset: const Offset(0, 2),
+    ),
+  ];
 
   /// 主色光晕（强调按钮 / 激活态）：克制使用。
   static List<BoxShadow> accentGlow(Color accent) => [
-        BoxShadow(
-          color: accent.withValues(alpha: 0.30),
-          blurRadius: 16,
-          spreadRadius: -2,
-          offset: const Offset(0, 4),
-        ),
-      ];
+    BoxShadow(
+      color: accent.withValues(alpha: 0.30),
+      blurRadius: 16,
+      spreadRadius: -2,
+      offset: const Offset(0, 4),
+    ),
+  ];
 }
 
 /// 响应式断点。<600 手机；600–1024 平板/小窗；>1024 桌面。
@@ -134,14 +134,19 @@ class Breakpoints {
 class AppDesignTheme extends ThemeExtension<AppDesignTheme> {
   /// 玻璃模糊 sigma（BackdropFilter 用；0 = 关闭模糊）。
   final double glassBlur;
+
   /// 玻璃面板填充透明度（叠在 surface1 之上）。
   final double glassFillOpacity;
+
   /// 玻璃边框透明度。
   final double glassBorderOpacity;
+
   /// 玻璃顶部 1px 高光线透明度。
   final double glassHighlightOpacity;
+
   /// 是否为深色模式（组件挑阴影/高光时用）。
   final bool isDark;
+
   /// 是否移动端平台（调模糊与触控目标时用）。
   final bool isMobile;
 
@@ -184,8 +189,7 @@ class AppDesignTheme extends ThemeExtension<AppDesignTheme> {
     return AppDesignTheme.resolve(
       brightness: AppTheme.brightness,
       isMobile: isMobile,
-      reduceMotion:
-          MediaQuery.maybeDisableAnimationsOf(context) ?? false,
+      reduceMotion: MediaQuery.maybeDisableAnimationsOf(context) ?? false,
     );
   }
 
@@ -214,12 +218,17 @@ class AppDesignTheme extends ThemeExtension<AppDesignTheme> {
     if (other is! AppDesignTheme) return this;
     return AppDesignTheme(
       glassBlur: lerpDouble(glassBlur, other.glassBlur, t),
-      glassFillOpacity:
-          lerpDouble(glassFillOpacity, other.glassFillOpacity, t),
-      glassBorderOpacity:
-          lerpDouble(glassBorderOpacity, other.glassBorderOpacity, t),
-      glassHighlightOpacity:
-          lerpDouble(glassHighlightOpacity, other.glassHighlightOpacity, t),
+      glassFillOpacity: lerpDouble(glassFillOpacity, other.glassFillOpacity, t),
+      glassBorderOpacity: lerpDouble(
+        glassBorderOpacity,
+        other.glassBorderOpacity,
+        t,
+      ),
+      glassHighlightOpacity: lerpDouble(
+        glassHighlightOpacity,
+        other.glassHighlightOpacity,
+        t,
+      ),
       isDark: t < 0.5 ? isDark : other.isDark,
       isMobile: t < 0.5 ? isMobile : other.isMobile,
     );

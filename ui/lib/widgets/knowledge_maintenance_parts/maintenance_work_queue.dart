@@ -45,25 +45,33 @@ class _WorkQueueState extends ConsumerState<KnowledgeWorkQueueSection> {
         _page = page;
       });
     } catch (e) {
-      if (mounted) setState(() => _error = _failure(e, '读取整理队列'));
+      if (mounted) {
+        setState(
+          () => _error = _failure(
+            context,
+            e,
+            context.l10n.l6LoadProcessingQueue079ca,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   String _label(String? status) => switch (status) {
-    null => '全部',
-    'pending' => '待处理',
-    'running' => '处理中',
-    'waiting' => '等待',
-    'retry' => '稍后重试',
-    'skipped' => '已跳过',
-    _ => '已完成',
+    null => context.l10n.l6All778fc,
+    'pending' => context.l10n.pending,
+    'running' => context.l10n.processing,
+    'waiting' => context.l10n.l6Waiting25d23,
+    'retry' => context.l10n.l6TryAgainLaterb8e0d,
+    'skipped' => context.l10n.l6Skipped9f38a,
+    _ => context.l10n.completed,
   };
   @override
   Widget build(BuildContext context) => ExpansionTile(
-    title: const Text('整理队列'),
-    subtitle: const Text('查看积压、阅读进度和等待原因'),
+    title: Text(context.l10n.l6ProcessingQueueb0388),
+    subtitle: Text(context.l10n.l6ViewPendingWorkReadingProgressAnd0ed68),
     onExpansionChanged: (open) {
       _open = open;
       if (open && !_busy) _load(reset: true);
@@ -71,12 +79,20 @@ class _WorkQueueState extends ConsumerState<KnowledgeWorkQueueSection> {
     children: [
       if (_page != null)
         Text(
-          '共 ${_page!.total} 项任务 · 待处理 ${_page!.pending} · 处理中 ${_page!.running} · 等待 ${_page!.waiting} · 重试 ${_page!.retry} · 跳过 ${_page!.skipped} · 完成 ${_page!.completed}',
+          context.l10n.l6TotalArg0PendingArg1RunningArg2a5909(
+            (_page!.total).toString(),
+            (_page!.pending).toString(),
+            (_page!.running).toString(),
+            (_page!.waiting).toString(),
+            (_page!.retry).toString(),
+            (_page!.skipped).toString(),
+            (_page!.completed).toString(),
+          ),
         ),
       TextButton.icon(
         onPressed: _busy ? null : () => _load(reset: true),
         icon: const Icon(Icons.refresh),
-        label: const Text('刷新列表'),
+        label: Text(context.l10n.l6RefreshListbd82e),
       ),
       Wrap(
         spacing: 6,
@@ -103,19 +119,40 @@ class _WorkQueueState extends ConsumerState<KnowledgeWorkQueueSection> {
         ],
       ),
       if (_busy) const LinearProgressIndicator(),
-      if (_error != null) Text(_error!),
-      if (_page != null && _items.isEmpty) const Text('此状态下暂无任务。'),
+      if (_error != null)
+        AppErrorMessage(action: context.l10n.load, error: _error!),
+      if (_page != null && _items.isEmpty)
+        Text(context.l10n.l6NoTasksInThisState7922e),
       for (final item in _items)
         ListTile(
           title: Text(item.title),
-          subtitle: Text(
-            '${switch (item.task) {
-              'source-reading' => '全文阅读',
-              'source-compilation' => '原料整理',
-              'wiki-integration' => '跨资料整理',
-              'knowledge-review' => '知识复核',
-              _ => '来源更新',
-            }} · ${_label(item.status)}\n${item.detail}${item.availableAt == null ? '' : '\n计划时间：${item.availableAt}'}',
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${switch (item.task) {
+                  'source-reading' => context.l10n.l6FullDocumentReadingc1da8,
+                  'source-compilation' => context.l10n.l6SourceProcessingfbebb,
+                  'wiki-integration' => context.l10n.l6CrossSourceProcessing5240c,
+                  'knowledge-review' => context.l10n.l6KnowledgeReview4f5bb,
+                  _ => context.l10n.l6SourceRefresh65f83,
+                }} · ${_label(item.status)}',
+              ),
+              if (item.availableAt != null)
+                Text(context.l10n.l6ScheduledArg020b73(item.availableAt!)),
+              if (item.detail.isNotEmpty)
+                ProcessingNotes(
+                  note: item.detail,
+                  status: switch (item.status) {
+                    'running' => context.l10n.queueDetailRunning,
+                    'waiting' => context.l10n.queueDetailWaiting,
+                    'retry' => context.l10n.queueDetailRetry,
+                    'skipped' => context.l10n.queueDetailSkipped,
+                    'succeeded' => context.l10n.queueDetailCompleted,
+                    _ => context.l10n.queueDetailPending,
+                  },
+                ),
+            ],
           ),
           onTap: item.pageSlug.isEmpty
               ? null
@@ -124,7 +161,11 @@ class _WorkQueueState extends ConsumerState<KnowledgeWorkQueueSection> {
       if ((_page?.hasMore ?? false) || _error != null)
         TextButton(
           onPressed: _busy ? null : () => _load(),
-          child: Text(_error != null ? '重新读取队列' : '加载更多任务'),
+          child: Text(
+            _error != null
+                ? context.l10n.l6ReloadQueueb9f40
+                : context.l10n.l6LoadMoreTasks1db39,
+          ),
         ),
     ],
   );

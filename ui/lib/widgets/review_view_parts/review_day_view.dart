@@ -13,7 +13,7 @@ class _AnchorDateStepper extends ConsumerWidget {
       children: [
         IconButton(
           visualDensity: VisualDensity.compact,
-          tooltip: '前一天',
+          tooltip: context.l10n.l6PreviousDaydede7,
           onPressed: () => _shift(ref, anchor, -1),
           icon: const Icon(Icons.chevron_left, size: 20),
         ),
@@ -27,7 +27,7 @@ class _AnchorDateStepper extends ConsumerWidget {
         ),
         IconButton(
           visualDensity: VisualDensity.compact,
-          tooltip: '后一天',
+          tooltip: context.l10n.l6NextDaya4161,
           onPressed: () => _shift(ref, anchor, 1),
           icon: const Icon(Icons.chevron_right, size: 20),
         ),
@@ -71,11 +71,14 @@ class _ReviewDayView extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('回顾加载失败', style: TextStyle(color: AppTheme.textTertiary)),
+            Text(
+              context.l10n.l6CouldNotLoadReview55475,
+              style: TextStyle(color: AppTheme.textTertiary),
+            ),
             const SizedBox(height: AppTheme.space2),
             TextButton(
               onPressed: () => ref.invalidate(dailyOverviewProvider(date)),
-              child: const Text('重试'),
+              child: Text(context.l10n.retry),
             ),
           ],
         ),
@@ -151,12 +154,13 @@ class _AiReviewCard extends StatelessWidget {
   final api.DailyReviewDto? review;
 
   // static final：闭包不能进 const 容器（AppTheme getter 也非 const）。
-  static final _groups =
+  Map<String, List<api.DailyReviewItemDto> Function(api.DailyReviewDto)>
+  _groups(BuildContext context) =>
       <String, List<api.DailyReviewItemDto> Function(api.DailyReviewDto)>{
-        '完成': (r) => r.accomplishments,
-        '想法与决定': (r) => r.ideasDecisions,
-        '人与事': (r) => r.peopleProjects,
-        '后续': (r) => r.followUps,
+        context.l10n.done: (r) => r.accomplishments,
+        context.l10n.l6IdeasAndDecisionsa2d17: (r) => r.ideasDecisions,
+        context.l10n.l6PeopleAndProjectse73dc: (r) => r.peopleProjects,
+        context.l10n.l6FollowUps068c6: (r) => r.followUps,
       };
 
   @override
@@ -164,24 +168,24 @@ class _AiReviewCard extends StatelessWidget {
     final review = this.review;
     if (review == null) {
       return _ReviewCard(
-        title: 'AI 回顾',
+        title: context.l10n.l6AiReviewbb899,
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppTheme.space1),
             child: Text(
-              '当天还没有 AI 回顾',
+              context.l10n.l6NoAiReviewForThisDay286ea,
               style: TextStyle(fontSize: 12.5, color: AppTheme.textTertiary),
             ),
           ),
         ],
       );
     }
-    final sections = _groups.entries
+    final sections = _groups(context).entries
         .map((entry) => (label: entry.key, items: entry.value(review)))
         .where((section) => section.items.isNotEmpty)
         .toList();
     return _ReviewCard(
-      title: 'AI 回顾',
+      title: context.l10n.l6AiReviewbb899,
       children: [
         for (final section in sections) ...[
           Padding(
@@ -237,12 +241,12 @@ class _DayEventsCard extends StatelessWidget {
     if (entries.isEmpty) {
       // AppTheme 色是 getter 非 const——卡片树不可 const。
       return _ReviewCard(
-        title: '当日事件',
+        title: context.l10n.l6EventsForThisDayfbec1,
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppTheme.space1),
             child: Text(
-              '当天没有记录事件',
+              context.l10n.l6NoEventsRecordedOnThisDay6a37a,
               style: TextStyle(fontSize: 12.5, color: AppTheme.textTertiary),
             ),
           ),
@@ -250,7 +254,7 @@ class _DayEventsCard extends StatelessWidget {
       );
     }
     return _ReviewCard(
-      title: '当日事件',
+      title: context.l10n.l6EventsForThisDayfbec1,
       children: [
         for (final entry in entries)
           // 卡片 Container 有背景色，会隔断 ListTile 的墨水涟漪——
@@ -308,7 +312,7 @@ class _TodoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _ReviewCard(
-      title: '待办',
+      title: context.l10n.syncKindTodo,
       children: [
         for (final todo in todos)
           Padding(
@@ -355,12 +359,15 @@ class _ReminderCard extends StatelessWidget {
 
   final List<api.RuleHitDto> hits;
 
-  static const _feedbackLabels = {'helpful': '有用', 'not_relevant': '不相关'};
+  Map<String, String> _feedbackLabels(BuildContext context) => {
+    'helpful': context.l10n.l6Helpful2f55f,
+    'not_relevant': context.l10n.l6NotRelevanta8361,
+  };
 
   @override
   Widget build(BuildContext context) {
     return _ReviewCard(
-      title: '规则提醒',
+      title: context.l10n.l6RuleReminders79233,
       children: [
         for (final hit in hits)
           Padding(
@@ -387,7 +394,7 @@ class _ReminderCard extends StatelessWidget {
                 if (hit.feedback != null) ...[
                   const SizedBox(width: AppTheme.space2),
                   Text(
-                    _feedbackLabels[hit.feedback] ?? hit.feedback!,
+                    _feedbackLabels(context)[hit.feedback] ?? hit.feedback!,
                     style: TextStyle(
                       fontSize: 11,
                       color: AppTheme.textTertiary,
@@ -411,7 +418,7 @@ class _MemoryEchoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _ReviewCard(
-      title: '上周的今天',
+      title: context.l10n.l6ThisDayLastWeekfc29d,
       children: [
         for (final echo in echoes)
           Padding(

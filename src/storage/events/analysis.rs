@@ -17,7 +17,9 @@ impl Store {
         |row| Ok(AnalysisJob { id: row.get(0)?, event_id: row.get(1)?, raw_text: row.get(2)?, attempts: row.get(3)? }),
     ).optional()?;
         if let Some(ref job) = job {
+            let bundle = self.analysis_prompt_bundle(&job.id)?;
             transaction.execute("UPDATE analysis_jobs SET status='running', attempts=attempts+1, updated_at=?2 WHERE id=?1", params![job.id, chrono::Utc::now().to_rfc3339()])?;
+            transaction.execute("UPDATE analysis_jobs SET prompt_bundle_id=COALESCE(prompt_bundle_id,?2) WHERE id=?1", params![job.id,bundle])?;
         }
         transaction.commit()?;
         Ok(job)
@@ -51,6 +53,17 @@ impl Store {
         let now = chrono::Utc::now().to_rfc3339();
         let result_id = Uuid::new_v4().to_string();
         transaction.execute("INSERT INTO event_analyses (id,event_id,prompt_version,result_json,created_at) VALUES (?1,?2,?3,?4,?5)", params![result_id, job.event_id, prompt_version, result_json, now])?;
+        let bundle = self.analysis_prompt_bundle(&job.id)?;
+        self.record_language_artifact(
+            "analysis",
+            &result_id,
+            &bundle,
+            &[
+                "analysis.policy",
+                "task.processing.fixed_contract",
+                "chat.context.fixed_contract",
+            ],
+        )?;
         transaction.execute(
             "UPDATE analysis_jobs SET status='succeeded', updated_at=?2 WHERE id=?1",
             params![job.id, now],
@@ -218,7 +231,7 @@ impl Store {
     pub fn requeue_event_analysis(&self, event_id: &str) -> Result<bool> {
         let now = chrono::Utc::now().to_rfc3339();
         let affected = self.connection.execute(
-        "UPDATE analysis_jobs SET status='pending',attempts=0,last_error=NULL,available_at=?2,updated_at=?2
+        "UPDATE analysis_jobs SET status='pending',attempts=0,last_error=NULL,available_at=?2,updated_at=?2,prompt_bundle_id=NULL,prompt_generation=prompt_generation+1
          WHERE event_id=?1 AND status<>'running'",
         params![event_id, now],
     )?;

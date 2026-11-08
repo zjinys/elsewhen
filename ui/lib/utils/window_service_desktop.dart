@@ -12,6 +12,7 @@ import 'single_instance.dart';
 import 'window_geometry_store.dart';
 import 'window_service.dart';
 import '../bridge/generated.dart/api/chat_runs.dart' as chat_runs;
+import '../l10n/app_localizations.dart';
 
 /// 桌面实现：window_manager（仅 Linux/macOS/Windows 参与编译；
 /// Android/iOS 走 window_service_stub.dart，本文件只在 main_desktop.dart
@@ -25,6 +26,27 @@ import '../bridge/generated.dart/api/chat_runs.dart' as chat_runs;
 ///   **Linux 在 `my_application.cc` 建窗期 `gtk_window_set_decorated(FALSE)`**
 ///   （window_manager/nativeapi 在 GL 上下文建好后再改会崩 GTK，踩过）。
 class DesktopWindowService implements WindowService {
+  AppLocalizations _strings = lookupAppLocalizations(const ui.Locale('zh'));
+  Future<void> _menuUpdates = Future.value();
+
+  @override
+  Future<void> updateLocale(ui.Locale locale) {
+    _strings = lookupAppLocalizations(locale);
+    return _queueTrayMenu(_strings).catchError((Object error) {
+      ui.debugPrint('Tray language update failed: $error');
+    });
+  }
+
+  Future<void> _queueTrayMenu(AppLocalizations strings) {
+    final next = _menuUpdates.then((_) async {
+      if (_trayReady) await _updateTrayMenu(strings);
+    });
+    _menuUpdates = next.catchError((Object error) {
+      ui.debugPrint('Tray language update failed: $error');
+    });
+    return next;
+  }
+
   @override
   WindowMode currentMode = WindowMode.main;
 
@@ -153,23 +175,8 @@ class DesktopWindowService implements WindowService {
       if (Platform.isWindows || Platform.isMacOS) {
         await tray.trayManager.setToolTip('Elsewhen');
       }
-      await tray.trayManager.setContextMenu(
-        tray.Menu(
-          items: [
-            tray.MenuItem(
-              key: 'show',
-              label: '显示主窗口',
-              onClick: (_) => unawaited(showWindow()),
-            ),
-            tray.MenuItem.separator(),
-            tray.MenuItem(
-              key: 'quit',
-              label: '退出 Elsewhen',
-              onClick: (_) => unawaited(quitApp()),
-            ),
-          ],
-        ),
-      );
+      _trayReady = true;
+      await _queueTrayMenu(_strings);
       _trayRelay ??= _TrayEventRelay(this);
       tray.trayManager.addListener(_trayRelay!);
       _trayReady = true;
@@ -179,6 +186,26 @@ class DesktopWindowService implements WindowService {
       _closeAction = CloseAction.quit;
       ui.debugPrint('Tray init failed; close now quits: $e');
     }
+  }
+
+  Future<void> _updateTrayMenu(AppLocalizations strings) async {
+    await tray.trayManager.setContextMenu(
+      tray.Menu(
+        items: [
+          tray.MenuItem(
+            key: 'show',
+            label: strings.trayShowWindow,
+            onClick: (_) => unawaited(showWindow()),
+          ),
+          tray.MenuItem.separator(),
+          tray.MenuItem(
+            key: 'quit',
+            label: strings.trayQuit,
+            onClick: (_) => unawaited(quitApp()),
+          ),
+        ],
+      ),
+    );
   }
 
   /// 隐藏原生标题栏（无边框）——**macOS/Windows 走 window_manager，Linux 跳过**。
@@ -207,7 +234,8 @@ class DesktopWindowService implements WindowService {
     await windowManager.hide();
 
     final saved = _geometryStore.load();
-    final target = (saved != null &&
+    final target =
+        (saved != null &&
             saved.width >= mainWindowMinSize.width &&
             saved.height >= mainWindowMinSize.height)
         ? ui.Size(saved.width, saved.height)

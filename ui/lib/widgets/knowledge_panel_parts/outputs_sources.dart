@@ -52,7 +52,9 @@ class _KnowledgeOutputsSectionState
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    '后台会整理参考知识，并结合相关资料维护共同主题。按需提炼的新增产出直接保存；涉及人工修改或已确认内容时才需审阅。原文保留，个人规则由你确认。',
+                    context
+                        .l10n
+                        .l6BackgroundProcessingOrganizesReferenceKnowledgeAnd36787,
                     style: TextStyle(
                       fontSize: 12,
                       color: AppTheme.textTertiary,
@@ -69,7 +71,14 @@ class _KnowledgeOutputsSectionState
               // 知识号 bump 的 reload 不重回 loading（同 wiki_page_detail_view）。
               skipLoadingOnReload: true,
               loading: () => const LinearProgressIndicator(),
-              error: (error, _) => Text(_error(error, context: '读取知识产出')),
+              error: (error, _) => AppErrorMessage(
+                action: context.l10n.load,
+                error: _error(
+                  context,
+                  error,
+                  context: context.l10n.l6LoadKnowledgeOutputs54f00,
+                ),
+              ),
               data: (data) {
                 final pending = data.proposals
                     .where((p) => p.status == 'pending')
@@ -83,7 +92,7 @@ class _KnowledgeOutputsSectionState
                     if (pending.isNotEmpty)
                       _outputsSectionTitle(
                         context,
-                        '待审建议',
+                        context.l10n.l6SuggestionsToReview822f0,
                         count: pending.length,
                       ),
                     for (final proposal in pending)
@@ -95,7 +104,7 @@ class _KnowledgeOutputsSectionState
                     if (outputs.isNotEmpty)
                       _outputsSectionTitle(
                         context,
-                        '已整理的参考知识',
+                        context.l10n.l6CompiledReferenceKnowledge9efb1,
                         count: outputs.length,
                       ),
                     for (final output in outputs)
@@ -141,8 +150,15 @@ class _KnowledgeOutputsSectionState
                                 padding: const EdgeInsets.only(top: 2),
                                 child: Text(
                                   output.slug.startsWith('knowledge-topic/')
-                                      ? '跨资料主题 · 包含本页及相关原料'
-                                      : '${WikiPage.fromDto(output).kindLabel} · 来自本页原料',
+                                      ? context
+                                            .l10n
+                                            .l6CrossSourceTopicIncludesThisPageae2b4
+                                      : context.l10n
+                                            .l6Arg0FromThisPageSSource92ed3(
+                                              (context.pageKindLabel(
+                                                output.kind,
+                                              )).toString(),
+                                            ),
                                   style: TextStyle(
                                     fontSize: 11.5,
                                     color: AppTheme.textTertiary,
@@ -194,7 +210,7 @@ class _KnowledgeOutputsSectionState
                                         ),
                                         child: _KnowledgePageLink(
                                           page: WikiPage.fromDto(output),
-                                          prefix: '打开知识页',
+                                          prefix: context.l10n.artifactOpenPage,
                                         ),
                                       ),
                                     ],
@@ -224,7 +240,7 @@ class _KnowledgeOutputsSectionState
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                '暂无知识产出。原文仍可直接使用；后台整理会按内容决定是否形成知识。',
+                                context.l10n.l6NoKnowledgeOutputsYetYouCan01967,
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: AppTheme.textSecondary,

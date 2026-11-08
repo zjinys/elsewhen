@@ -4,17 +4,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/models/import_fetch.dart';
 import 'package:elsewhen_ui/providers/knowledge_provider.dart';
 import 'package:elsewhen_ui/widgets/knowledge_import.dart';
+import 'package:elsewhen_ui/l10n/localization.dart';
 
 import 'knowledge_flow_test.dart' show FakeKnowledge;
 
 /// 孵化 UI 段（提案 2026-10-19）：导入命中负知识的知情确认——
 /// 重新导入是重新纳入的唯一路径（reject → endorse 不可达），提示不拦截，
 /// 但否定不得被静默绕过。
-Future<void> pumpImport(WidgetTester tester, FakeKnowledge repo) async {
+Future<void> pumpImport(
+  WidgetTester tester,
+  FakeKnowledge repo, {
+  Locale locale = const Locale('zh'),
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [knowledgeRepositoryProvider.overrideWithValue(repo)],
       child: MaterialApp(
+        locale: locale,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: Consumer(
             builder: (context, ref, _) => Center(
@@ -41,6 +49,39 @@ Future<void> pumpImport(WidgetTester tester, FakeKnowledge repo) async {
 }
 
 void main() {
+  testWidgets(
+    'English reimport keeps rejection reason and source text, and still needs both confirmations',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(380, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final repo = FakeKnowledge()
+        ..priorRejection = '来源不可信，曾编造数据'
+        ..previewChanged = true;
+      await pumpImport(tester, repo, locale: const Locale('en'));
+      await tester.tap(find.text('导入'));
+      await tester.pumpAndSettle();
+      expect(find.text('来源不可信，曾编造数据'), findsOneWidget);
+      expect(repo.saves, 0);
+      await tester.tap(find.text('Save anyway'));
+      await tester.pumpAndSettle();
+      expect(find.text('旧版本'), findsOneWidget);
+      expect(find.text('正文'), findsOneWidget);
+      expect(repo.saves, 0);
+      await tester.tap(find.text('Keep the old version'));
+      await tester.pumpAndSettle();
+      expect(repo.saves, 0);
+      await tester.tap(find.text('导入'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save anyway'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save the new version'));
+      await tester.pumpAndSettle();
+      expect(repo.saves, 1);
+      expect(repo.expected, 'version-one');
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('导入命中负知识：先亮否定原因，取消不保存、确认才保存', (tester) async {
     final repo = FakeKnowledge();
     repo.priorRejection = '来源不可信，曾编造数据';

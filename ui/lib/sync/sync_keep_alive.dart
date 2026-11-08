@@ -3,6 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' show Locale;
+
+import '../l10n/app_localizations.dart';
 
 /// 配对与初始快照传输期间的「别把我冻死」闸门（仅 Android 有实际动作）。
 ///
@@ -24,7 +27,36 @@ class SyncKeepAlive {
     'dev.elsewhen/sync_keepalive',
   );
 
-  static final Map<String, String> _reasonTexts = <String, String>{};
+  static final Map<String, String?> _reasonTexts = <String, String?>{};
+  static Locale _locale = const Locale('zh');
+
+  /// Updating labels never acquires/releases a hold or restarts the service.
+  static void setLocale(Locale locale) {
+    if (_locale == locale) return;
+    _locale = locale;
+    if (supported && active) unawaited(_invoke('update', _notification()));
+  }
+
+  static Map<String, Object?> _notification() {
+    final strings = lookupAppLocalizations(_locale);
+    final reason = _reasonTexts.keys.first;
+    final text =
+        _reasonTexts[reason] ??
+        switch (reason) {
+          'sync-setup' => strings.syncKeepAliveSetup,
+          'sync-pairing-owner' => strings.syncKeepAlivePairOwner,
+          'sync-join' => strings.syncKeepAlivePairJoin,
+          _ when reason.startsWith('sync-enrollment') =>
+            strings.syncKeepAliveEnrollment,
+          _ => strings.syncKeepAliveDefault,
+        };
+    return {
+      'text': text,
+      'title': strings.syncNotificationTitle,
+      'channelName': strings.syncNotificationChannel,
+      'channelDescription': strings.syncNotificationDescription,
+    };
+  }
 
   /// 测试钩子：绕开平台判断（单测跑在 Linux 上，默认为空操作）。
   @visibleForTesting
@@ -49,9 +81,9 @@ class SyncKeepAlive {
   static void hold(String reason, {String? text}) {
     if (!supported) return;
     final alreadyHeld = _reasonTexts.isNotEmpty;
-    _reasonTexts[reason] = text ?? '正在与另一台设备同步；请保持应用运行。';
+    _reasonTexts[reason] = text;
     if (alreadyHeld) return;
-    unawaited(_invoke('start', <String, Object?>{'text': _reasonTexts[reason]}));
+    unawaited(_invoke('start', _notification()));
   }
 
   /// 释放 [reason] 的保活；最后一个持有者离开时才真正停掉服务。

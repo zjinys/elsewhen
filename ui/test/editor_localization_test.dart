@@ -1,6 +1,7 @@
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:elsewhen_ui/theme/app_theme.dart';
 import 'package:elsewhen_ui/utils/editor_localization.dart';
+import 'package:elsewhen_ui/l10n/app_localizations.dart';
 import 'package:elsewhen_ui/wiki/wiki_content_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -28,34 +29,52 @@ void main() {
     );
   });
 
-  testWidgets('MaterialApp 的默认 en locale 不会把编辑器文案改回英文', (tester) async {
-    await configureEditorLocalization();
+  testWidgets('编辑器随 MaterialApp 切英文再切中文，日期符号同步', (tester) async {
+    await tester.runAsync(() => configureEditorLocalization(const Locale('en')));
 
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('en'),
+        supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: const [
-          DefaultMaterialLocalizations.delegate,
-          DefaultWidgetsLocalizations.delegate,
-          ChineseAppFlowyEditorLocalizationsDelegate(),
+          ...AppLocalizations.localizationsDelegates,
+          AppEditorLocalizationsDelegate(),
         ],
         home: const SizedBox.shrink(),
       ),
     );
     await tester.pumpAndSettle();
 
+    expect(AppFlowyEditorL10n.current.slashPlaceHolder, contains('Enter'));
+    expect(DateFormat.MMMM().format(DateTime(2026, 11)), 'November');
+    await tester.runAsync(() => configureEditorLocalization(const Locale('zh')));
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: const [
+          ...AppLocalizations.localizationsDelegates,
+          AppEditorLocalizationsDelegate(),
+        ],
+        home: const SizedBox.shrink(),
+      ),
+    );
+    await tester.pumpAndSettle();
     expect(AppFlowyEditorL10n.current.slashPlaceHolder, contains('插入'));
+    expect(DateFormat.MMMM().format(DateTime(2026, 11)), '十一月');
   });
 
   testWidgets('空正文编辑器实际渲染中文段落占位符', (tester) async {
-    await configureEditorLocalization();
+    await tester.runAsync(() => configureEditorLocalization());
 
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('zh'),
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: AppTheme.darkTheme,
         localizationsDelegates: const [
-          DefaultMaterialLocalizations.delegate,
-          DefaultWidgetsLocalizations.delegate,
-          ChineseAppFlowyEditorLocalizationsDelegate(),
+          ...AppLocalizations.localizationsDelegates,
+          AppEditorLocalizationsDelegate(),
         ],
         home: Scaffold(
           body: SizedBox(

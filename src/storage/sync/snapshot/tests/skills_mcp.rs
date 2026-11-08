@@ -79,11 +79,12 @@ fn mcp_server_snapshot_strips_credentials_and_trust_and_local_rows_win() {
             .save_mcp_server(
                 None,
                 name,
+                "小红书,种草,RED",
                 platform,
                 transport,
                 command,
                 "[]",
-                "{}",
+                r#"{"TOKEN":"STDIO_SECRET","PORT":"8080"}"#,
                 url,
                 r#"{"Authorization":"Bearer SECRET"}"#,
                 true,
@@ -115,11 +116,12 @@ fn mcp_server_snapshot_strips_credentials_and_trust_and_local_rows_win() {
         .save_mcp_server(
             None,
             "remote-mcp",
+            "本机意图",
             "all",
             "streamable-http",
             "",
             "[]",
-            "{}",
+            r#"{"TOKEN":"MY_LOCAL_SECRET"}"#,
             "https://my-own.example.com/mcp",
             "{}",
             true,
@@ -139,20 +141,96 @@ fn mcp_server_snapshot_strips_credentials_and_trust_and_local_rows_win() {
     let servers = b.store.list_mcp_servers().unwrap();
     let restored = servers.iter().find(|s| s.id == fresh).unwrap();
     assert_eq!(restored.platform, "all");
+    assert_eq!(restored.keywords, "小红书,种草,RED");
     assert_eq!(restored.headers_json, "{}");
+    assert_eq!(restored.env_json, "{}");
     assert!(!restored.trusted, "trusted 不得搭车");
     // remote-mcp 被本机获胜占用：远端行不落表。
     assert!(servers.iter().all(|s| s.id != remote));
     let local_row = servers.iter().find(|s| s.name == "fs-variant").unwrap();
     assert_eq!(local_row.platform, "linux");
     assert_eq!(local_row.headers_json, "{}");
+    assert_eq!(local_row.env_json, "{}");
     assert!(!local_row.trusted);
     // 本机获胜：同名同平台只有一条，且是接收端自己那行。
     let mine: Vec<_> = servers.iter().filter(|s| s.name == "remote-mcp").collect();
     assert_eq!(mine.len(), 1);
     assert_eq!(mine[0].url, "https://my-own.example.com/mcp");
+    assert_eq!(mine[0].keywords, "本机意图");
     assert!(mine[0].trusted, "接收端本机行不受快照影响");
+    assert_eq!(mine[0].env_json, r#"{"TOKEN":"MY_LOCAL_SECRET"}"#);
+    assert_eq!(
+        a.store.get_mcp_server(&fresh).unwrap().unwrap().env_json,
+        r#"{"TOKEN":"STDIO_SECRET","PORT":"8080"}"#
+    );
     // 同步到达的行不含 headers（fresh 行的对照面已验证 trusted=0）。
     let all_synced = servers.iter().find(|s| s.id == fresh).unwrap();
     assert_eq!(all_synced.url, "https://fresh.example.com/mcp");
+}
+
+#[test]
+fn mcp_snapshot_source_records_never_include_environment_secrets() {
+    let a = Database::new();
+    let b = Database::new();
+    a.enable("a");
+    b.enable("b");
+    pair(&a, &b);
+    a.store
+        .save_mcp_server(
+            None,
+            "private-env",
+            "私有配置",
+            "linux",
+            "stdio",
+            "fixture",
+            "[]",
+            r#"{"TOKEN":"SOURCE_ENV_SECRET","PORT":"8080"}"#,
+            "",
+            r#"{"Authorization":"HEADER_SECRET"}"#,
+            true,
+            true,
+        )
+        .unwrap();
+    let mut exporter =
+        SnapshotExporter::new(&a.store, "b", &Uuid::new_v4().to_string(), 1).unwrap();
+    let mut seen = false;
+    while let Some(bytes) = exporter.next_record().unwrap() {
+        let encoded = std::str::from_utf8(&bytes).unwrap();
+        assert!(!encoded.contains("SOURCE_ENV_SECRET"));
+        assert!(!encoded.contains("HEADER_SECRET"));
+        if let Record::McpServer { env_json, .. } = serde_json::from_slice(&bytes).unwrap() {
+            seen = true;
+            assert_eq!(env_json, "{}");
+        }
+    }
+    assert!(seen);
+}
+
+#[test]
+fn legacy_mcp_snapshot_environment_is_not_installed_on_a_new_device() {
+    let a = Database::new();
+    let b = Database::new();
+    a.enable("a");
+    b.enable("b");
+    pair(&a, &b);
+    let snapshot = Uuid::new_v4().to_string();
+    let manifest = SnapshotExporter::new(&a.store, "b", &snapshot, 1)
+        .unwrap()
+        .manifest
+        .clone();
+    let id = Uuid::new_v4().to_string();
+    let record: Record = serde_json::from_value(serde_json::json!({
+        "kind":"mcp_server", "id":id, "name":"legacy-private-env", "platform":"linux",
+        "transport":"stdio", "command":"fixture", "args_json":"[]",
+        "env_json":"{\"TOKEN\":\"LEGACY_ENV_SECRET\"}", "url":"", "enabled":true,
+        "created_at":"2026-11-05T00:00:00Z", "updated_at":"2026-11-05T00:00:00Z"
+    }))
+    .unwrap();
+    b.store
+        .apply_snapshot_record(&snapshot, &manifest, &record, &mut false)
+        .unwrap();
+    let received = b.store.get_mcp_server(&id).unwrap().unwrap();
+    assert_eq!(received.env_json, "{}");
+    assert_eq!(received.keywords, "", "旧快照无关键词时保留为空");
+    assert!(!received.trusted);
 }

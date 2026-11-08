@@ -10,7 +10,7 @@ extension _HabitsTab on _SettingsScreenState {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSection(
-            title: '习惯提醒',
+            title: context.l10n.habitReminderSettings,
             icon: Icons.notifications_active_outlined,
             child: const HabitNudgeSettingsContent(),
           ),

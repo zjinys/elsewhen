@@ -1,13 +1,14 @@
 # 命名密钥库与占位符引用（一等凭据管理）
 
 - 日期：2026-11-05
-- 状态：`proposed`（架构与设计收敛，待排期实施）
+- 状态：`implemented`（2026-11-05 P0–P3 工程实现；真人 GUI 待验收。存量提取采用显式精确值匹配，带 Bearer 前缀需手动改引用；env/headers 继续全量留本机，未实现引用模板跨设备分发）
+- 实现记录：[密钥存储与运行时引用](../../implemented/architecture/2026-11-05-named-secrets-runtime.md)
 - 范围：全局凭据管理机制；消费方包括 MCP servers（环境变量与 HTTP 请求头）、外网搜索（`web_search_configs`）、未来第三方工具/Skill 扩展；运行时占位符解析；安全存储与快照同步边界
 - 性质：架构 + 安全重构提案（新表 + AEAD 密封扩展 + 运行时占位符替换 + 集中设置 UI）
 - 关联：
   - `src/storage/provider_keys.rs`（现有 ring AEAD 密封基建，master key 体系）
   - `src/storage/sync/snapshot/records.rs:568`（MCP 定义与「凭据不离本机」不变式）
-  - `docs/notes/proposed/architecture/2026-11-04-mcp-intent-keywords.md`（MCP 意图与配置）
+  - [MCP 意图与配置](../../implemented/architecture/2026-11-04-mcp-intent-keywords.md)
   - `src/storage/web_search.rs`（`web_search_configs.api_key` 明文现状）
 
 ---
@@ -137,6 +138,10 @@ pub fn resolve_secret_placeholders(store: &Store, raw: &str) -> Result<String> {
 
 ## 4. 演进与落地路线
 
+### P0：先停止环境凭据随快照分发（2026-11-05 完成）
+
+新导出 env_json 固定为空对象，接收旧快照也不安装远端环境变量；发送端和接收端已有本机配置保持不变，headers/trusted 原边界保留。21 项快照回归通过，导出和接收各还原旧逻辑做变异均准确变红。见[实现记录](../../implemented/bug-fix/2026-11-05-mcp-environment-snapshot-boundary.md)。此阶段所有环境变量均保留在本机，后续 P1–P3 才区分可分发引用模板；不以敏感名称启发式猜测凭据。
+
 ### 第一阶段（P1）：核心存储与 MCP 占位符解析
 - 新增 `named_secrets` 表及迁移。
 - 实现 `Store::create_named_secret` / `read_named_secret` / `update_named_secret` / `list_named_secrets`（集成 AEAD 密封）。
@@ -166,3 +171,9 @@ pub fn resolve_secret_placeholders(store: &Store, raw: &str) -> Result<String> {
 |---|---|
 | 占位符拼写错误 | 运行时严格校验并阻断，UI 编辑器提供选择器而非纯手打 |
 | 密钥误删导致服务中断 | 删除前扫描 MCP 与配置中的引用，存在引用时强警示确认 |
+
+## 2026-11-05 工程交付与验证
+
+P1–P3 实现见[记录](../../implemented/architecture/2026-11-05-named-secrets-runtime.md)。最终密钥专项 5 项、MCP 传输 8 项、Flutter 全量 534 项通过；界面与桥接入口 analyze 无问题，release 编译通过。全量 Rust 旧批次 1054 passed / 4 failed / 20 ignored；密封测试初始化已修正，其他 3 项单独复跑通过，未宣称全量同批次全绿。真人 GUI 待验收。
+
+当前边界：不提供读取旧明文的显示/复制入口；名称不可改（AAD 绑定），通过新增代号迁移；提取按完整值精确匹配，Bearer 前缀手动改引用；env/headers 继续保持 P0 本机边界，不分发引用模板。

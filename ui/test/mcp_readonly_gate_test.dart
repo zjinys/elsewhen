@@ -15,6 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 final serverDto = api.McpServerDto(
   id: 'srv-1',
   name: 'gitea',
+  keywords: '代码托管,仓库',
   platform: 'all',
   transport: 'stdio',
   command: '/usr/bin/gitea-mcp',

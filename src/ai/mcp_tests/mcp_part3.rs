@@ -35,6 +35,7 @@ for line in sys.stdin:
     let server = crate::storage::McpServerConfig {
         id: "test-server".into(),
         name: "testsrv".to_string(),
+        keywords: "回声,echo".to_string(),
         platform: "all".to_string(),
         transport: "stdio".into(),
         command: python,
@@ -52,6 +53,7 @@ for line in sys.stdin:
     let tools = list_tools_for_server(&server).unwrap();
     assert_eq!(tools.len(), 1);
     assert_eq!(tools[0].name, format!("{MCP_PREFIX}testsrv__echo"));
+    assert_eq!(tools[0].keywords, "回声,echo");
 
     // connect 复用缓存会话：第二次调用不再 spawn 新进程
     let result = {
@@ -65,6 +67,83 @@ for line in sys.stdin:
         .unwrap()
     };
     assert_eq!(extract_text(&result).as_deref(), Some("echo: 你好"));
+
+    // 从存储经 tools/list、缓存到 catalog：编辑关键词下一轮生效，
+    // 停用一个服务后，其工具/意图不得从另一服务的缓存中复活。
+    let db = dir.join("keywords.db");
+    let store = Store::open(&db).unwrap();
+    Store::mark_initialized(&db).unwrap();
+    let mut ids = Vec::new();
+    for name in ["keyword-first", "keyword-second"] {
+        ids.push(
+            store
+                .save_mcp_server(
+                    None,
+                    name,
+                    "初始意图",
+                    "all",
+                    "stdio",
+                    &server.command,
+                    &server.args_json,
+                    "{}",
+                    "",
+                    "{}",
+                    true,
+                    false,
+                )
+                .unwrap(),
+        );
+    }
+    let (first_fetch, errors) = available_tools(&store);
+    assert!(errors.is_empty(), "{errors:?}");
+    assert_eq!(first_fetch.len(), 2);
+    let (cached, errors) = available_tools(&store);
+    assert!(errors.is_empty(), "{errors:?}");
+    assert_eq!(cached.len(), 2, "缓存必须只保存各自服务的工具");
+    store
+        .save_mcp_server(
+            Some(&ids[0]),
+            "keyword-first",
+            "小红书,种草",
+            "all",
+            "stdio",
+            &server.command,
+            &server.args_json,
+            "{}",
+            "",
+            "{}",
+            true,
+            false,
+        )
+        .unwrap();
+    let (updated, errors) = available_tools(&store);
+    assert!(errors.is_empty(), "{errors:?}");
+    assert_eq!(
+        updated
+            .iter()
+            .find(|tool| tool.server == "keyword-first")
+            .unwrap()
+            .keywords,
+        "小红书,种草"
+    );
+    let mut registry = crate::ai::tool::ToolRegistry::deferred_runtime();
+    registry.set_mcp_tools(updated);
+    assert!(
+        registry
+            .meta_spec()
+            .unwrap()
+            .description
+            .contains("小红书/种草")
+    );
+    store.set_mcp_server_enabled(&ids[0], false).unwrap();
+    let (remaining, errors) = available_tools(&store);
+    assert!(errors.is_empty(), "{errors:?}");
+    assert_eq!(remaining.len(), 1);
+    assert_eq!(remaining[0].server, "keyword-second");
+    for id in ids {
+        invalidate_server(&id);
+    }
+    drop(store);
     invalidate_server("test-server");
     std::fs::remove_dir_all(&dir).ok();
 }

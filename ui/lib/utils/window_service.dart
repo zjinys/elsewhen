@@ -1,6 +1,8 @@
 import 'window_service_stub.dart';
 import 'desktop_prefs.dart';
 
+import 'package:flutter/widgets.dart' show Locale;
+
 export 'desktop_prefs.dart' show CloseAction;
 
 enum WindowMode { main, capture, hidden }
@@ -25,6 +27,7 @@ abstract class WindowService {
 
   Future<void> applyMainChrome();
   Future<void> initialize();
+  Future<void> updateLocale(Locale locale);
   Future<void> switchToMainMode();
 
   Future<void> hideWindow();

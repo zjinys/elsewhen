@@ -1,3 +1,5 @@
+import '../l10n/notice_messages.dart';
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -64,7 +66,7 @@ class SyncEnrollmentController extends ChangeNotifier {
   /// （见 sync_keep_alive.dart 的说明）。
   void _syncKeepAlive() {
     if (_armed && states.any(_needsWork)) {
-      SyncKeepAlive.hold(_keepAliveReason, text: '正在完成设备交接与初始同步');
+      SyncKeepAlive.hold(_keepAliveReason);
     } else {
       SyncKeepAlive.release(_keepAliveReason);
     }
@@ -193,7 +195,7 @@ class SyncEnrollmentController extends ChangeNotifier {
         return;
       }
       // 本轮 advance 可能就是搬快照分片的那一次，所以先挂保活再做网络。
-      SyncKeepAlive.hold(_keepAliveReason, text: '正在完成设备交接与初始同步');
+      SyncKeepAlive.hold(_keepAliveReason);
       // 备选原始规则总是先取第一条 awaiting_proof；留有多条交接时
       //（例如换邀请重试后旧的还挂着）旧记录永远占住队首，新的会被
       // 饿死。改为：提交确认最优先，其余按游标轮转，卡住的记录只
@@ -256,23 +258,25 @@ class SyncEnrollmentController extends ChangeNotifier {
       )) {
         paused = true;
         _armed = false;
-        error = '正式通道的授权或修订已改变，已停止自动交接。请检查原设备与中继授权；不会读取新修订后覆盖权限。';
+        error = appNotice(
+          'l6ChannelAuthorizationOrRevisionChangedAutomatic779c0',
+        );
       } else if (nativeFailure) {
         paused = true;
         _armed = false;
-        error = '交接的系统修订或身份未能确认，已暂停。请解锁本机或恢复原暂存项；不会重置密钥。';
+        error = appNotice('l6TheHandoffRevisionOrIdentityCould284a1');
         if (target != null && !_closed && epoch == _epoch) {
           try {
             final released = await _bridge.release(target);
             if (released) onSessionReleased?.call(target);
             onStateChanged?.call();
           } catch (_) {
-            error = '系统修订未确认，且无法确认本机会话已释放。请保留数据并关闭、重开应用后恢复。';
+            error = appNotice('l6TheRevisionAndReleaseOfThebd873');
           }
         }
       } else {
         _failures = (_failures + 1).clamp(0, 5);
-        error = '交接步骤暂未完成，稍后按原请求重试；不会重新审批或更换密钥。';
+        error = appNotice('l6TheHandoffStepIsIncompleteThe70ae7');
       }
     } finally {
       watchdog.cancel();
@@ -288,8 +292,10 @@ class SyncEnrollmentController extends ChangeNotifier {
 
   /// 看门狗时长的中文描述（单测用毫秒级阈值，别写成「0 秒」）。
   String get _stalledLabel => stalledTick.inSeconds >= 1
-      ? '${stalledTick.inSeconds} 秒'
-      : '${stalledTick.inMilliseconds} 毫秒';
+      ? appNotice('l6Arg0Secondse612a', [(stalledTick.inSeconds).toString()])
+      : appNotice('l6Arg0Milliseconds5f522', [
+          (stalledTick.inMilliseconds).toString(),
+        ]);
 
   /// 一次 tick 被判定失联后的自救：只丢弃结果并重排下一轮，不试图取消
   /// 那个卡住的原生调用（做不到）。原因写进 [error]，界面就能从「一直在转圈」
@@ -299,7 +305,9 @@ class SyncEnrollmentController extends ChangeNotifier {
     _epoch++;
     _flight = null;
     _failures = (_failures + 1).clamp(0, 5);
-    error = '同步步骤超过 $_stalledLabel没有响应，已重新排队重试；数据没有丢失。';
+    error = appNotice('l6TheSyncStepDidNotRespond28e88', [
+      (_stalledLabel).toString(),
+    ]);
     debugPrint(
       '[sync-pairing] enrollment: tick stalled > $stalledTick, '
       'requeued (phase=${states.isEmpty ? 'none' : states.first.phase})',

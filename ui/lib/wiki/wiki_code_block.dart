@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -102,7 +104,7 @@ class _WikiCodeBlockComponentState extends State<WikiCodeBlockComponent>
               children: [
                 Expanded(
                   child: Text(
-                    language.isEmpty ? '代码' : language,
+                    language.isEmpty ? context.l10n.l6Code33246 : language,
                     style: TextStyle(
                       fontSize: 11,
                       color: AppTheme.textTertiary,
@@ -159,8 +161,8 @@ class _WikiCodeBlockComponentState extends State<WikiCodeBlockComponent>
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
-            const SnackBar(
-              content: Text('代码已复制'),
+            SnackBar(
+              content: Text(context.l10n.l6CodeCopied8df90),
               duration: Duration(seconds: 1),
             ),
           );
@@ -177,7 +179,7 @@ class _WikiCodeBlockComponentState extends State<WikiCodeBlockComponent>
             Icon(Icons.copy_rounded, size: 14, color: AppTheme.textSecondary),
             const SizedBox(width: AppTheme.space1),
             Text(
-              '复制',
+              context.l10n.copy,
               style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
             ),
           ],

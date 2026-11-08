@@ -176,7 +176,10 @@ fn parse_plan_steps(args: &Value) -> Result<Vec<crate::storage::PlanStepDraft>> 
         .get("steps")
         .and_then(Value::as_array)
         .ok_or_else(|| anyhow::anyhow!("步骤清单缺失"))?;
-    anyhow::ensure!(!steps.is_empty() && steps.len() <= 12, "步骤数需在 1~12 之间");
+    anyhow::ensure!(
+        !steps.is_empty() && steps.len() <= 12,
+        "步骤数需在 1~12 之间"
+    );
     steps
         .iter()
         .enumerate()
@@ -344,12 +347,8 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                 .unwrap_or_else(|| json!([]));
             let assumptions_json = serde_json::to_string(&assumptions)?;
             let steps = parse_plan_steps(&args)?;
-            let plan = store.create_plan_with_steps(
-                &intent_text,
-                &vision,
-                &assumptions_json,
-                &steps,
-            )?;
+            let plan =
+                store.create_plan_with_steps(&intent_text, &vision, &assumptions_json, &steps)?;
             let created = store.list_plan_steps(&plan.id)?;
             let active = created
                 .iter()
@@ -438,6 +437,17 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
             }
             anyhow::ensure!(!notes.is_empty(), "推进提案没有任何可执行项");
             Ok(notes.join("；") + "。")
+        }
+        "propose_planning_profile" => {
+            let p = crate::storage::goal_grounding::PlanningProfile {
+                skills: arg_str(&args, "skills")?,
+                resources: arg_str(&args, "resources")?,
+                limits: arg_str(&args, "limits")?,
+                preferences: arg_str(&args, "preferences")?,
+            };
+            let expected = args.get("expected_updated_at").and_then(|v| v.as_str());
+            store.save_planning_profile(&p, expected)?;
+            Ok("已保存用户确认的关于我档案。".into())
         }
         "update_goal_facets" => {
             let goal_id = arg_str(&args, "goal_id")?;

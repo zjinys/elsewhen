@@ -12,7 +12,7 @@ pub(crate) enum ToolProtocol {
 /// A text fallback must also remove native history fields. Merely omitting the
 /// tools definition can still trigger the same gateway conversion/validation.
 /// Preserve completed calls/results as text; never dispatch historical calls.
-pub(crate) fn text_protocol_history(context: &mut [ContextMessage]) {
+pub(crate) fn text_protocol_history(store: &Store, context: &mut [ContextMessage]) -> Result<()> {
     for message in context {
         if let Some(calls) = message.tool_calls.take() {
             for call in calls {
@@ -25,10 +25,14 @@ pub(crate) fn text_protocol_history(context: &mut [ContextMessage]) {
         }
         if message.role == "tool" {
             message.role = "system".into();
-            message.content = format!("（已执行工具的历史结果）\n{}", message.content);
+            message.content = store.render_execution_instruction(
+                "tool_history",
+                &[("result", message.content.clone())],
+            )?;
         }
         message.tool_call_id = None;
     }
+    Ok(())
 }
 /// 本机数据直查：对高频统计/清单类问题直接在本地查库并注入上下文，
 /// 不依赖模型的 tool-calling 能力（数据本就存在本地数据库）。
@@ -38,22 +42,31 @@ pub(crate) fn direct_query(store: &Store, user_message: &str) -> Result<Option<(
 
     // token 用量
     let wants_token = msg.contains("token")
+        || msg.contains("ai usage")
+        || msg.contains("model usage")
         || msg.contains("用量")
         || (msg.contains("统计") && (msg.contains("token") || msg.contains("用量")));
     if wants_token {
         let daily = store.daily_token_usage(7)?;
-        let mut out = String::from("每日 token 用量：\n");
+        let mut out = store.render_lookup_instruction("token_heading", &[])?;
         if daily.is_empty() {
-            out.push_str("（最近 7 天没有 AI 调用记录）");
+            out.push_str(&store.render_lookup_instruction("token_empty", &[])?);
         } else {
             for d in daily {
-                out.push_str(&format!(
-                    "- {}：{} tokens（{} 次调用）\n",
-                    d.date, d.total_tokens, d.call_count
-                ));
+                out.push_str(&store.render_lookup_instruction(
+                    "token_line",
+                    &[
+                        ("date", d.date),
+                        ("tokens", d.total_tokens.to_string()),
+                        ("calls", d.call_count.to_string()),
+                    ],
+                )?);
             }
         }
-        return Ok(Some(("token 用量".to_string(), out)));
+        return Ok(Some((
+            store.render_lookup_instruction("token_label", &[])?,
+            out,
+        )));
     }
 
     // 规则清单
@@ -62,18 +75,30 @@ pub(crate) fn direct_query(store: &Store, user_message: &str) -> Result<Option<(
         || msg.contains("什么规则")
         || msg.contains("我的规则")
         || msg.contains("规则清单")
-        || msg.contains("看看规则");
+        || msg.contains("看看规则")
+        || [
+            "my rules",
+            "list rules",
+            "active rules",
+            "rules library",
+            "rule list",
+        ]
+        .iter()
+        .any(|phrase| msg.contains(phrase));
     if wants_rules {
         let rules = store.list_active_rules()?;
-        let mut out = String::from("已生效的个人规则：\n");
+        let mut out = store.render_lookup_instruction("rules_heading", &[])?;
         if rules.is_empty() {
-            out.push_str("（规则库为空，还没有沉淀过规则）");
+            out.push_str(&store.render_lookup_instruction("rules_empty", &[])?);
         } else {
             for r in rules {
                 out.push_str(&format!("- {}\n", r.content));
             }
         }
-        return Ok(Some(("个人规则库".to_string(), out)));
+        return Ok(Some((
+            store.render_lookup_instruction("rules_label", &[])?,
+            out,
+        )));
     }
 
     // 人生目标/主要任务是本地知识库中的稳定事实，不能依赖模型自行决定
@@ -88,18 +113,42 @@ pub(crate) fn direct_query(store: &Store, user_message: &str) -> Result<Option<(
         "搞钱",
     ]
     .iter()
-    .any(|keyword| msg.contains(keyword));
+    .any(|keyword| msg.contains(keyword))
+        || [
+            "my goals",
+            "current goals",
+            "long-term goals",
+            "main goals",
+            "life goals",
+            "main tasks",
+        ]
+        .iter()
+        .any(|phrase| msg.contains(phrase));
     if wants_goals {
-        let hits = store.search_knowledge_base("目标", 8)?;
-        let mut out = String::from("知识库中的目标相关页面：\n");
-        if hits.is_empty() {
-            out.push_str("（暂未找到目标页面）");
-        } else {
-            for hit in hits {
-                out.push_str(&format!("- 《{}》：{}\n", hit.title, hit.snippet));
+        let mut hits = store.search_knowledge_base("目标", 8)?;
+        for hit in store.search_knowledge_base("goal", 8)? {
+            if !hits.iter().any(|old| {
+                old.kind == hit.kind && old.title == hit.title && old.snippet == hit.snippet
+            }) && hits.len() < 8
+            {
+                hits.push(hit);
             }
         }
-        return Ok(Some(("当前目标".to_string(), out)));
+        let mut out = store.render_lookup_instruction("goals_heading", &[])?;
+        if hits.is_empty() {
+            out.push_str(&store.render_lookup_instruction("goals_empty", &[])?);
+        } else {
+            for hit in hits {
+                out.push_str(&store.render_lookup_instruction(
+                    "goals_line",
+                    &[("title", hit.title), ("excerpt", hit.snippet)],
+                )?);
+            }
+        }
+        return Ok(Some((
+            store.render_lookup_instruction("goals_label", &[])?,
+            out,
+        )));
     }
 
     Ok(None)

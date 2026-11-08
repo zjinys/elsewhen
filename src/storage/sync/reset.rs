@@ -21,7 +21,7 @@ use super::*;
 /// 代价是这张表需要跟着迁移走 —— 由
 /// `storage::sync::tests::local_identity::every_replication_table_is_covered_by_the_reset_list`
 /// 兜底：漏列会让用例变红，逼着做决定而不是靠记性。
-pub(crate) const REPLICATION_TABLES: [&str; 38] = [
+pub(crate) const REPLICATION_TABLES: [&str; 39] = [
     "sync_authority",
     "sync_authority_versions",
     "sync_checkpoint_operations",
@@ -34,6 +34,7 @@ pub(crate) const REPLICATION_TABLES: [&str; 38] = [
     "sync_member_keys",
     "sync_member_state",
     "sync_members",
+    "sync_language_capabilities",
     "sync_message_order",
     "sync_object_heads",
     "sync_operation_fragment_outbox",
@@ -107,6 +108,10 @@ impl Store {
         // provider。删掉密文后读路径返回「未填写」，用户重填即可。
         self.connection
             .execute("DELETE FROM provider_key_secrets", [])?;
+        // 命名密钥同理（迁移 70）：密文 AAD 绑死旧身份，清身份后永久打不开。
+        // 明文列保留（未密封安装的值仍有效），密封行删密文回退明文读路径。
+        self.connection
+            .execute("DELETE FROM named_secrets WHERE ciphertext IS NOT NULL", [])?;
         Ok(())
     }
 

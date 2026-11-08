@@ -1,3 +1,7 @@
+import 'app_error_notice.dart';
+import '../l10n/notice_messages.dart';
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 
 import '../bridge/api.dart' as api;
@@ -56,7 +60,7 @@ class _ProxySettingsState extends State<ProxySettings> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _loadError = '$e';
+        _loadError = appFailure(e);
       });
     }
   }
@@ -68,9 +72,13 @@ class _ProxySettingsState extends State<ProxySettings> {
         proxyMode: _mode,
         proxyUrl: _urlController.text.trim(),
       );
-      _toast('代理设置已保存，出站请求即时生效', ok: true);
+      if (!mounted) return;
+      _toast(
+        context.l10n.l6ProxySettingsSavedOutboundRequestsUseac39b,
+        ok: true,
+      );
     } catch (e) {
-      _toast('保存失败：${_firstLine(e)}', ok: false);
+      if (mounted) showAppError(context, context.l10n.save, e);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -81,7 +89,7 @@ class _ProxySettingsState extends State<ProxySettings> {
     if (_mode == 'custom' && url.isEmpty) {
       setState(() {
         _testOk = false;
-        _testResult = '请先填写代理地址再测试';
+        _testResult = context.l10n.l6EnterAProxyUrlBeforeTesting89cfb;
       });
       return;
     }
@@ -90,28 +98,21 @@ class _ProxySettingsState extends State<ProxySettings> {
       _testResult = null;
     });
     try {
-      final result = await api.testProxyConnection(proxyUrl: url);
+      await api.testProxyConnection(proxyUrl: url);
       if (!mounted) return;
       setState(() {
         _testOk = true;
-        _testResult = result;
+        _testResult = appNotice('connectionSucceeded');
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _testOk = false;
-        _testResult = _firstLine(e);
+        _testResult = appFailure(e);
       });
     } finally {
       if (mounted) setState(() => _testing = false);
     }
-  }
-
-  String _firstLine(Object e) {
-    final s = '$e';
-    return s
-        .split('\n')
-        .firstWhere((l) => l.trim().isNotEmpty, orElse: () => s.trim());
   }
 
   void _toast(String message, {required bool ok}) {
@@ -137,18 +138,31 @@ class _ProxySettingsState extends State<ProxySettings> {
       );
     }
     if (_loadError != null) {
-      return Text(
-        '代理设置读取失败：${_firstLine(_loadError!)}',
+      return AppErrorMessage(
+        action: context.l10n.load,
+        error: _loadError!,
         style: TextStyle(color: AppTheme.error, fontSize: 12),
       );
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildModeRadio('auto', '自动', '跟随时下环境：HTTPS_PROXY / ALL_PROXY，未设置则直连'),
-        _buildModeRadio('custom', '手动配置代理', '以下方地址为准，覆盖环境变量；挂代理期间 DoH 隧道自动让位'),
+        _buildModeRadio(
+          'auto',
+          context.l10n.languageAutomatic,
+          context.l10n.l6UseHttpsProxyOrAllProxy33ed0,
+        ),
+        _buildModeRadio(
+          'custom',
+          context.l10n.l6ConfigureAProxyea2d0,
+          context.l10n.l6UseTheUrlBelowInsteadOf96914,
+        ),
         if (_mode == 'custom') _buildAddressField(),
-        _buildModeRadio('off', '不使用代理', '强制直连，环境变量中的代理也被忽略'),
+        _buildModeRadio(
+          'off',
+          context.l10n.l6NoProxy4f187,
+          context.l10n.l6ConnectDirectlyIgnoringProxyEnvironmentVariablesa4dbf,
+        ),
         if (_testResult != null) ...[
           const SizedBox(height: 8),
           _buildTestResult(),
@@ -178,12 +192,12 @@ class _ProxySettingsState extends State<ProxySettings> {
             SizedBox(
               width: 36,
               height: 40,
-              child: Radio<String>(
-                value: value,
+              child: RadioGroup<String>(
                 groupValue: _mode,
                 onChanged: (v) {
                   if (v != null) setState(() => _mode = v);
                 },
+                child: Radio<String>(value: value),
               ),
             ),
             Expanded(
@@ -229,7 +243,7 @@ class _ProxySettingsState extends State<ProxySettings> {
         controller: _urlController,
         style: TextStyle(color: AppTheme.textPrimary, fontSize: 13),
         decoration: InputDecoration(
-          hintText: 'http://127.0.0.1:7890 或 socks5://…',
+          hintText: context.l10n.l6Http1270017890a9d59,
           hintStyle: TextStyle(color: AppTheme.textTertiary, fontSize: 12.5),
           filled: true,
           fillColor: AppTheme.surface2.withValues(alpha: 0.5),
@@ -258,7 +272,7 @@ class _ProxySettingsState extends State<ProxySettings> {
     return Padding(
       padding: const EdgeInsets.only(left: 4),
       child: Text(
-        _testResult!,
+        resolveNotice(_testResult!, context.l10n) ?? _testResult!,
         style: TextStyle(
           fontSize: 12,
           color: _testOk ? AppTheme.success : AppTheme.error,
@@ -285,7 +299,7 @@ class _ProxySettingsState extends State<ProxySettings> {
                 color: Colors.white,
               ),
             )
-          : const Text('保存', style: TextStyle(fontSize: 13)),
+          : Text(context.l10n.save, style: TextStyle(fontSize: 13)),
     );
   }
 
@@ -304,7 +318,10 @@ class _ProxySettingsState extends State<ProxySettings> {
               height: 16,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
-          : const Text('测试连接', style: TextStyle(fontSize: 13)),
+          : Text(
+              context.l10n.l6TestConnection10b7d,
+              style: TextStyle(fontSize: 13),
+            ),
     );
   }
 }

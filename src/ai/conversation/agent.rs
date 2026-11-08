@@ -1,5 +1,5 @@
 //! 工具调用 agent 循环：多轮调用/协议修补（实体平移）。
-use super::continuity::{FINAL_ANSWER_NUDGE, FollowUp, progress_fallback, unhelpful_failure_reply};
+use super::continuity::{FollowUp, progress_fallback, unhelpful_failure_reply};
 use super::*;
 use crate::ai::provider::{AiProvider, AiReply};
 use crate::ai::tool::{ToolPolicy, ToolRegistry, ToolResultMsg};
@@ -67,36 +67,34 @@ pub(crate) fn note_web_search_intent(
     context: &mut Vec<ContextMessage>,
     registry: &ToolRegistry,
     store: &Store,
-) {
+) -> Result<()> {
     let Some(last_user) = context.iter().rev().find(|m| m.role == "user") else {
-        return;
+        return Ok(());
     };
     let Some(signal) = crate::web_search::search_signal(&last_user.content) else {
-        return;
+        return Ok(());
     };
     use crate::web_search::SearchSignal;
-    let note = match signal {
+    let key = match signal {
         SearchSignal::Direct => match store.web_search_config() {
-            Ok(cfg) if !cfg.enabled => Some(
-                "用户本轮输入显式要求外网搜索，但外网搜索尚未启用。请如实告知：需在「设置 → 外网搜索」开启并配置引擎（SearxNG 免 API key）后才能联网搜；不要装作已搜索，更不要编造搜索结果。"
-                    .to_string(),
-            ),
-            Ok(cfg) if cfg.enabled && registry.is_deferred("web_search") && registry.defer_tools() => Some(
-                "用户本轮输入显式要求外网搜索。外网搜索已启用但 web_search 工具尚未登记：请先调用 enable_tools（skills 传入 [\"web_search\"]），下一轮即可调用 web_search 获取结果，并按来源如实引用。"
-                    .to_string(),
-            ),
-            // 已启用且非延迟协议：模型本可直接调用，无需额外提示。
+            Ok(cfg) if !cfg.enabled => Some("search_disabled"),
+            Ok(cfg)
+                if cfg.enabled && registry.is_deferred("web_search") && registry.defer_tools() =>
+            {
+                Some("search_deferred")
+            }
             _ => None,
         },
-        SearchSignal::Timely => Some(
-            "用户文本含时效词（如最新/今天），先判断这是查本地记录任务还是需要外网最新信息：本地内容（事件/待办/对话/知识页）优先用本地工具；仅当确需外网信息时才使用 web_search（未启用会得到如实说明，届时向用户传达设置路径），不要为本地任务联网，也不要编造检索结果。"
-                .to_string(),
-        ),
+        SearchSignal::Timely => Some("search_timely"),
     };
+    let note = key
+        .map(|key| store.render_execution_instruction(key, &[]))
+        .transpose()?;
     if let Some(note) = note {
         debug_eprintln!("[agent] web_search 意图命中（{signal:?}）→ 注入前置提示");
         context.push(ContextMessage::new("system", note));
     }
+    Ok(())
 }
 pub(crate) fn run_agent_loop_inner(
     provider: &dyn AiProvider,
@@ -148,7 +146,7 @@ pub(crate) fn run_agent_loop_inner(
     let mut empty_retries_used = 0usize;
     let mut rounds_used = 0usize;
     let tool_names = registry.all_names();
-    note_web_search_intent(context, registry, store);
+    note_web_search_intent(context, registry, store)?;
 
     for _round in 0..MAX_TOOL_ROUNDS {
         super::generation::check(store)?;
@@ -158,7 +156,10 @@ pub(crate) fn run_agent_loop_inner(
         rounds_used = _round + 1;
         let finalizing = must_finalize || _round == MAX_TOOL_ROUNDS - 1;
         if finalizing {
-            context.push(ContextMessage::new("system", FINAL_ANSWER_NUDGE));
+            context.push(ContextMessage::new(
+                "system",
+                store.render_execution_instruction("final_answer", &[])?,
+            ));
             // 接地注入（治本）：把本轮行为事实（工具成败 + 库内新增）摆进上下文，
             // 模型看着清单复述，无需靠词表猜它是否撒谎。
             context.push(ContextMessage::new(
@@ -173,7 +174,7 @@ pub(crate) fn run_agent_loop_inner(
             ));
         }
         if protocol == Some(ToolProtocol::Text) {
-            text_protocol_history(context);
+            text_protocol_history(store, context)?;
         }
         // The provider checks the full serialized request, including tools, below.
         let wants_native = match &protocol {
@@ -216,7 +217,7 @@ pub(crate) fn run_agent_loop_inner(
                 .collect();
             request_context.push(ContextMessage::new(
                 "system",
-                ToolRegistry::prompt_for_specs(&specs),
+                registry.localized_prompt_for_specs(&specs),
             ));
         }
         // Only a completed tool exchange creates a steering boundary. Inputs
@@ -270,7 +271,10 @@ pub(crate) fn run_agent_loop_inner(
                 // 回传校验失败（如 arguments 字节不一致）。历史里已有上下文，文本模式仍能组织最终回答。
                 if !matches!(protocol, Some(ToolProtocol::Text)) {
                     protocol = Some(ToolProtocol::Text);
-                    context.push(ContextMessage::new("system", TEXT_PROTOCOL_NUDGE));
+                    context.push(ContextMessage::new(
+                        "system",
+                        store.render_execution_instruction("text_protocol", &[])?,
+                    ));
                     debug_eprintln!(
                         "[agent] provider「{provider_name}」round={_round} 请求失败({e:#})，下一轮使用文本工具协议"
                     );
@@ -321,7 +325,10 @@ pub(crate) fn run_agent_loop_inner(
             }
             if protocol != Some(ToolProtocol::Text) {
                 protocol = Some(ToolProtocol::Text);
-                context.push(ContextMessage::new("system", TEXT_PROTOCOL_NUDGE));
+                context.push(ContextMessage::new(
+                    "system",
+                    store.render_execution_instruction("text_protocol", &[])?,
+                ));
                 debug_eprintln!("[agent] 下一轮切换文本工具协议，本次循环不再启用原生 tools");
             } else {
                 must_finalize = true;
@@ -375,10 +382,10 @@ pub(crate) fn run_agent_loop_inner(
                 if call.name.starts_with(super::mcp::MCP_PREFIX)
                     && !enabled_tools.contains(&call.name)
                 {
-                    let text = format!(
-                        "MCP 工具 {} 未启用（第三方工具默认延迟加载）。请先调用 enable_tools，参数 skills 传入 [\"{}\"] 登记后再调用。",
-                        call.name, call.name
-                    );
+                    let text = store.render_execution_instruction(
+                        "mcp_disabled",
+                        &[("name", call.name.clone())],
+                    )?;
                     context.push(ContextMessage::tool_result(call.id.clone(), text.clone()));
                     results.push(ToolResultMsg::err(call, text));
                     continue;
@@ -439,7 +446,10 @@ pub(crate) fn run_agent_loop_inner(
                     let text = registry.enable_result(&names, &mut enabled_tools);
                     context.push(ContextMessage::new(
                         "system",
-                        format!("工具「enable_tools」执行结果：{}", text),
+                        store.render_execution_instruction(
+                            "tool_result",
+                            &[("name", "enable_tools".into()), ("result", text.clone())],
+                        )?,
                     ));
                     results.push(ToolResultMsg::ok(&call, text));
                     continue;
@@ -448,13 +458,16 @@ pub(crate) fn run_agent_loop_inner(
                 if call.name.starts_with(super::mcp::MCP_PREFIX)
                     && !enabled_tools.contains(&call.name)
                 {
-                    let text = format!(
-                        "MCP 工具 {} 未启用（第三方工具默认延迟加载）。请先调用 enable_tools，参数 skills 传入 [\"{}\"] 登记后再调用。",
-                        call.name, call.name
-                    );
+                    let text = store.render_execution_instruction(
+                        "mcp_disabled",
+                        &[("name", call.name.clone())],
+                    )?;
                     context.push(ContextMessage::new(
                         "system",
-                        format!("工具「{}」执行结果：{}", call.name, text),
+                        store.render_execution_instruction(
+                            "tool_result",
+                            &[("name", call.name.clone()), ("result", text.clone())],
+                        )?,
                     ));
                     results.push(ToolResultMsg::err(&call, text));
                     continue;
@@ -476,7 +489,13 @@ pub(crate) fn run_agent_loop_inner(
                 );
                 context.push(ContextMessage::new(
                     "system",
-                    format!("工具「{}」执行结果：{}", call.name, result.content),
+                    store.render_execution_instruction(
+                        "tool_result",
+                        &[
+                            ("name", call.name.clone()),
+                            ("result", result.content.clone()),
+                        ],
+                    )?,
                 ));
                 results.push(result);
             }
@@ -492,7 +511,10 @@ pub(crate) fn run_agent_loop_inner(
             repairs_used += 1;
             debug_eprintln!("[agent] 疑似工具调用但无法解析，回炉重发 (repair {repairs_used})");
             context.push(assistant_continuation(reply));
-            context.push(ContextMessage::new("system", PROTOCOL_REPAIR_NUDGE));
+            context.push(ContextMessage::new(
+                "system",
+                store.render_execution_instruction("protocol_repair", &[])?,
+            ));
             continue;
         }
 
@@ -530,7 +552,10 @@ pub(crate) fn run_agent_loop_inner(
             promise_repaired = true;
             debug_eprintln!("[agent] 只预告未动手，回炉逼它执行 (repair)");
             context.push(assistant_continuation(reply));
-            context.push(ContextMessage::new("system", PROMISE_REPAIR_NUDGE));
+            context.push(ContextMessage::new(
+                "system",
+                store.render_execution_instruction("promise_repair", &[])?,
+            ));
             continue;
         }
 
@@ -547,7 +572,10 @@ pub(crate) fn run_agent_loop_inner(
             debug_eprintln!(
                 "[agent] empty reply; retry={empty_retries_used} finalize_next={must_finalize}"
             );
-            context.push(ContextMessage::new("system", EMPTY_REPLY_NUDGE));
+            context.push(ContextMessage::new(
+                "system",
+                store.render_execution_instruction("empty_repair", &[])?,
+            ));
             continue;
         }
 
@@ -569,18 +597,19 @@ pub(crate) fn run_agent_loop_inner(
             context.push(assistant_continuation(reply));
             context.push(ContextMessage::new(
                 "system",
-                format!(
-                    "{}\n用户明确要求你执行写操作（保存/提交/整理），但你本轮没有调用任何工具。\
-                     把内容贴给用户看不等于执行——必须调用对应工具（如 save_knowledge_draft），\
-                     或明确告诉用户你无法执行及原因。",
-                    turn_grounding(
-                        store,
-                        registry,
-                        conversation_id,
-                        &results,
-                        verification_start
-                    )?
-                ),
+                store.render_execution_instruction(
+                    "write_required",
+                    &[(
+                        "facts",
+                        turn_grounding(
+                            store,
+                            registry,
+                            conversation_id,
+                            &results,
+                            verification_start,
+                        )?,
+                    )],
+                )?,
             ));
             must_finalize = true;
             continue;
@@ -597,9 +626,7 @@ pub(crate) fn run_agent_loop_inner(
             conversation_id,
             context,
             &results,
-            Some(
-                "连续几轮都没有产出可用内容，本轮到此为止；你的问题还挂着，说「继续」或换个问法即可，不需要重新输入原话。",
-            ),
+            Some(&store.render_reply_instruction("retry_exhausted", &[])?),
         )?;
     }
 

@@ -1,0 +1,228 @@
+{
+  "skill_web-search_title": {
+    "text": "Web search",
+    "variables": []
+  },
+  "skill_web-search_tags": {
+    "text": "web/search/page/fetch/link",
+    "variables": []
+  },
+  "skill_web-search_brief": {
+    "text": "Search the web and fetch URLs or posts for current information",
+    "variables": []
+  },
+  "skill_web-search_instructions": {
+    "text": "Use web_search for leads and fetch_page for original text; fetch a supplied URL or post directly. Cite actual sources by link/title instead of recalling search results. Report failures or empty pages honestly. Search uncertain external facts before answering; ordinary chat needs no search.",
+    "variables": []
+  },
+  "skill_wiki-maintenance_title": {
+    "text": "Knowledge maintenance",
+    "variables": []
+  },
+  "skill_wiki-maintenance_tags": {
+    "text": "rename/archive/organize/import/wiki",
+    "variables": []
+  },
+  "skill_wiki-maintenance_brief": {
+    "text": "Rename pages, archive conversations by title, and import webpages",
+    "variables": []
+  },
+  "skill_wiki-maintenance_instructions": {
+    "text": "rename_wiki_page syncs to other devices: explain the impact before review. For archive_conversations_by_title, show matching conversations before execution. Use import_url_to_wiki only for an explicitly supplied link and request to save. Suggest checking imported content. All writes retain the existing review process.",
+    "variables": []
+  },
+  "skill_todo-actions_title": {
+    "text": "Todos and reminders",
+    "variables": []
+  },
+  "skill_todo-actions_tags": {
+    "text": "todo/task/checklist/reminder",
+    "variables": []
+  },
+  "skill_todo-actions_brief": {
+    "text": "Create todos and scheduled reminders",
+    "variables": []
+  },
+  "skill_todo-actions_instructions": {
+    "text": "Create todos only for explicit requests or concrete commitments with actions/deadlines. Give an actionable title. Do not create todos from general questions, thoughts or temporary topics. Use resident list_todos for existing items. Use create_reminder for a specific future reminder time; due time is mandatory and appears in the review card before creation.",
+    "variables": []
+  },
+  "skill_people-graph_title": {
+    "text": "Contacts and relations",
+    "variables": []
+  },
+  "skill_people-graph_tags": {
+    "text": "people/relations/contacts",
+    "variables": []
+  },
+  "skill_people-graph_brief": {
+    "text": "Extract evidence-backed contacts and project/item relations as proposals",
+    "variables": []
+  },
+  "skill_people-graph_instructions": {
+    "text": "Use propose_people_relations for one proposal and batch_extract_people_relations for bulk extraction. Use explicit conversation evidence or citable pages; do not invent relations. Explain proposal counts and evidence. Results require user confirmation before taking effect.",
+    "variables": []
+  },
+  "skill_directory-import_title": {
+    "text": "Directory import",
+    "variables": []
+  },
+  "skill_directory-import_tags": {
+    "text": "directory/project/code/import/desktop",
+    "variables": []
+  },
+  "skill_directory-import_brief": {
+    "text": "Import local directories as projects or source files on desktop",
+    "variables": []
+  },
+  "skill_directory-import_instructions": {
+    "text": "Desktop only. import_directory_as_project prepares analysis from bounded evidence and saves the project after review. Directory excerpts may be sent to the current AI provider; explain this when the project is sensitive. Ask for an explicit directory path before scanning.",
+    "variables": []
+  },
+  "skill_event-record_title": {
+    "text": "Manual event recording",
+    "variables": []
+  },
+  "skill_event-record_tags": {
+    "text": "record/remember/event",
+    "variables": []
+  },
+  "skill_event-record_brief": {
+    "text": "Save first-person facts, decisions, actions and progress to the timeline",
+    "variables": []
+  },
+  "skill_event-record_instructions": {
+    "text": "Record only user facts, decisions, actions or progress; exclude AI opinions and casual chat. Use on explicit requests to record or remember an event. occurred_at defaults to now; resolve a stated past time to ISO8601.",
+    "variables": []
+  },
+  "skill_goal-management_title": {
+    "text": "Goals and direction",
+    "variables": []
+  },
+  "skill_goal-management_tags": {
+    "text": "goal/plan/vision/action/obstacle/alignment",
+    "variables": []
+  },
+  "skill_goal-management_brief": {
+    "text": "Read goals/plans; prepare reviewed plans and changes to actions, obstacles, status and milestones",
+    "variables": []
+  },
+  "skill_goal-management_instructions": {
+    "text": "At most three goals are active. Active goals are in context; list_goals also reads paused/completed history. create_goal and update_goal_facets prepare reviewed proposals. Clarify vision, why, first action for the next 1–2 weeks, obstacle and completion criteria. Update an existing goal as it progresses rather than repeatedly recreating it. Consider current actions in tradeoffs/planning without nagging or forcing goals into casual chat. Propose pause_goal / complete_goal / reactivate_goal only for explicit user intent, never to pressure abandonment. For a long-term intent, use create_plan with realistic assessment, correctable assumptions about timeframe/starting point/path/risks, and milestones near to far. Verify key facts with knowledge search or web_search. Quote intent_text verbatim and respect a requested step count. Each step starts within 1–2 weeks and has verifiable criteria. After review, the first step starts and others queue; slot limits are not a reason to refuse planning. Use add_plan_steps for extensions and list_plans for progress, avoiding duplicate plans. Review facts versus assumptions before advance_plan_step proposes completing the current step and activating an existing/new step; full slots leave additions queued. A directly created goal is wrapped as a one-step plan; prefer create_plan for long-term intentions.",
+    "variables": []
+  },
+  "meta_description": {
+    "text": "Load one or more skill packages on demand. Returns usage instructions and complete schemas; their tools become available later in this turn. Available packages:\n<<builtin>><<user>><<mcp>>",
+    "variables": [
+      "builtin",
+      "user",
+      "mcp"
+    ]
+  },
+  "meta_skills": {
+    "text": "At least one skill/package ID from the roster above",
+    "variables": []
+  },
+  "skill_roster": {
+    "text": "- <<id>> (<<title>>): <<brief>>. tags: <<tags>>",
+    "variables": [
+      "id",
+      "title",
+      "brief",
+      "tags"
+    ]
+  },
+  "user_skill_roster": {
+    "text": "- <<id>> (user skill): <<brief>>\n",
+    "variables": [
+      "id",
+      "brief"
+    ]
+  },
+  "user_skill_more": {
+    "text": "(<<total>> user skills; showing the first <<limit>>. Others can still be enabled by name; suggest removing unused skills in settings.)\n",
+    "variables": [
+      "total",
+      "limit"
+    ]
+  },
+  "mcp_catalog_header": {
+    "text": "\nThird-party MCP tools (register the full name with enable_tools before calling):\n",
+    "variables": []
+  },
+  "mcp_catalog_footer": {
+    "text": "  … (<<count>> more tools omitted; enable_tools with the full name returns their complete definitions)\n",
+    "variables": [
+      "count"
+    ]
+  },
+  "mcp_intent": {
+    "text": " [Associated intents: <<keywords>>]",
+    "variables": [
+      "keywords"
+    ]
+  },
+  "mcp_group": {
+    "text": "- <<server>> (<<count>> tools)<<intent>>:\n",
+    "variables": [
+      "server",
+      "count",
+      "intent"
+    ]
+  },
+  "user_skill_body": {
+    "text": "[User skill <<id>>]\n<<body>>",
+    "variables": [
+      "id",
+      "body"
+    ]
+  },
+  "mcp_enabled": {
+    "text": "== MCP tool <<name>> enabled ==\n<<description>>\nParameter JSON Schema: <<schema>>\n\n",
+    "variables": [
+      "name",
+      "description",
+      "schema"
+    ]
+  },
+  "skills_enabled": {
+    "text": "Enabled skill packages: <<skills>>.\n\n",
+    "variables": [
+      "skills"
+    ]
+  },
+  "skill_instructions": {
+    "text": "== <<id>> (<<title>>) instructions ==\n<<instructions>>\n",
+    "variables": [
+      "id",
+      "title",
+      "instructions"
+    ]
+  },
+  "tool_schema": {
+    "text": "Tool <<name>>: <<description>>\nParameter JSON Schema: <<schema>>\n\n",
+    "variables": [
+      "name",
+      "description",
+      "schema"
+    ]
+  },
+  "unknown_skills": {
+    "text": "Unknown packages: <<skills>>. See enable_tools for available packages. Enable an MCP server group by server name, or one tool by its full name mcp__<server>__<tool>.",
+    "variables": [
+      "skills"
+    ]
+  },
+  "tools_header": {
+    "text": "Available tools (name: purpose):\n",
+    "variables": []
+  },
+  "tool_prompt": {
+    "text": "- <<name>>: <<description>>\nParameter JSON Schema: <<schema>>\n",
+    "variables": [
+      "name",
+      "description",
+      "schema"
+    ]
+  }
+}

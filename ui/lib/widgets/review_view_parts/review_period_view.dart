@@ -19,12 +19,15 @@ class _ReviewPeriodView extends ConsumerWidget {
       error: (e, _) => Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('统计加载失败', style: TextStyle(color: AppTheme.textTertiary)),
+          Text(
+            context.l10n.l6CouldNotLoadStatistics88ae7,
+            style: TextStyle(color: AppTheme.textTertiary),
+          ),
           const SizedBox(height: AppTheme.space2),
           TextButton(
             onPressed: () =>
                 ref.invalidate(periodStatsProvider((periodType, anchor))),
-            child: const Text('重试'),
+            child: Text(context.l10n.retry),
           ),
         ],
       ),
@@ -48,7 +51,9 @@ class _ReviewPeriodView extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 48),
                 child: Text(
-                  periodType == 'week' ? '本周没有记录' : '本月没有记录',
+                  periodType == 'week'
+                      ? context.l10n.l6NoRecordsThisWeeka75a5
+                      : context.l10n.l6NoRecordsThisMonthd57d9,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 12.5,
@@ -60,18 +65,24 @@ class _ReviewPeriodView extends ConsumerWidget {
             else ...[
               Row(
                 children: [
-                  _CountPill(label: '事件', count: data.eventCount),
+                  _CountPill(
+                    label: context.l10n.l6Events550e3,
+                    count: data.eventCount,
+                  ),
                   const SizedBox(width: AppTheme.space3),
-                  _CountPill(label: '待办完成', count: data.todoDoneCount),
+                  _CountPill(
+                    label: context.l10n.l6ToDosCompletede1bfa,
+                    count: data.todoDoneCount,
+                  ),
                 ],
               ),
               const SizedBox(height: AppTheme.space3),
               _DailyBars(counts: data.dailyCounts),
               for (final (title, rows) in <(String, List<api.NamedCountDto>)>[
-                ('事类', data.byEventType),
-                ('人物', data.byPerson),
-                ('项目', data.byProject),
-                ('活动', data.byActivity),
+                (context.l10n.l6EventTypes40b68, data.byEventType),
+                (context.l10n.l6Peopleb755b, data.byPerson),
+                (context.l10n.pageKindProject, data.byProject),
+                (context.l10n.l6Activitiesb2548, data.byActivity),
               ])
                 if (rows.isNotEmpty) ...[
                   const SizedBox(height: AppTheme.space3),
@@ -239,9 +250,7 @@ class _KnowledgeHealthBarState extends ConsumerState<KnowledgeHealthBar> {
   void initState() {
     super.initState();
     try {
-      _future = ref
-          .read(knowledgeRepositoryProvider)
-          .health(daysLookback: 30);
+      _future = ref.read(knowledgeRepositoryProvider).health(daysLookback: 30);
     } catch (_) {
       // 桥未就绪（如 widget 测试环境）或调用失败时静默降级，避免阻塞主视图
       _future = null;
@@ -259,7 +268,12 @@ class _KnowledgeHealthBarState extends ConsumerState<KnowledgeHealthBar> {
         if (h == null) return const SizedBox.shrink();
         final summaryBroken = h.summaryUnavailableRecent > 0;
         return Padding(
-          padding: EdgeInsets.fromLTRB(widget.horizontalPadding, 4, widget.horizontalPadding, 4),
+          padding: EdgeInsets.fromLTRB(
+            widget.horizontalPadding,
+            4,
+            widget.horizontalPadding,
+            4,
+          ),
           child: InkWell(
             borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
             onTap: () => _showDetails(h),
@@ -272,25 +286,49 @@ class _KnowledgeHealthBarState extends ConsumerState<KnowledgeHealthBar> {
                 color: AppTheme.surface1,
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                 border: Border.all(
-                  color: summaryBroken ? const Color(0xFFF7768E) : AppTheme.surface3,
+                  color: summaryBroken
+                      ? const Color(0xFFF7768E)
+                      : AppTheme.surface3,
                   width: 1,
                 ),
               ),
               child: Row(
                 children: [
                   Icon(
-                    summaryBroken ? Icons.warning_amber_outlined : Icons.monitor_heart_outlined,
+                    summaryBroken
+                        ? Icons.warning_amber_outlined
+                        : Icons.monitor_heart_outlined,
                     size: 14,
-                    color: summaryBroken ? const Color(0xFFF7768E) : const Color(0xFF9ECE6A),
+                    color: summaryBroken
+                        ? const Color(0xFFF7768E)
+                        : const Color(0xFF9ECE6A),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '知识管道 · ${h.pagesActive} 页活跃'
-                      '${h.pagesIncubating > 0 ? ' · ${h.pagesIncubating} 孵化中' : ''}'
-                      '${h.negativeSources > 0 ? ' · ${h.negativeSources} 已否定' : ''}'
-                      ' · 摘要 30d 内 ${h.summaryReadyRecent} 成'
-                      '${summaryBroken ? ' ${h.summaryUnavailableRecent} 不可用' : ''}',
+                      context.l10n
+                          .l6KnowledgeProcessingArg0ActivePagesArg179c73(
+                            (h.pagesActive).toString(),
+                            (h.pagesIncubating > 0
+                                    ? context.l10n.l6IncubatingArg07051b(
+                                        (h.pagesIncubating).toString(),
+                                      )
+                                    : '')
+                                .toString(),
+                            (h.negativeSources > 0
+                                    ? context.l10n.l6RejectedArg02115d(
+                                        (h.negativeSources).toString(),
+                                      )
+                                    : '')
+                                .toString(),
+                            (h.summaryReadyRecent).toString(),
+                            (summaryBroken
+                                    ? context.l10n.l6Arg0Unavailable85bdd(
+                                        (h.summaryUnavailableRecent).toString(),
+                                      )
+                                    : '')
+                                .toString(),
+                          ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -301,7 +339,11 @@ class _KnowledgeHealthBarState extends ConsumerState<KnowledgeHealthBar> {
                       ),
                     ),
                   ),
-                  Icon(Icons.expand_less, size: 16, color: AppTheme.textTertiary),
+                  Icon(
+                    Icons.expand_less,
+                    size: 16,
+                    color: AppTheme.textTertiary,
+                  ),
                 ],
               ),
             ),
@@ -327,7 +369,7 @@ class _KnowledgeHealthBarState extends ConsumerState<KnowledgeHealthBar> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '知识管道健康（近 30 天）',
+                context.l10n.l6KnowledgeProcessingHealthLast30Days3bf5c,
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -335,19 +377,68 @@ class _KnowledgeHealthBarState extends ConsumerState<KnowledgeHealthBar> {
                 ),
               ),
               const SizedBox(height: AppTheme.space3),
-              _healthRow('编译', '待审建议 ${h.proposalsPending}（30d 采纳 ${h.proposalsAccepted} / 拒绝 ${h.proposalsRejected}）· 后台任务失败 ${h.backgroundRunsFailedRecent}/${h.backgroundRunsRecent}'),
-              _healthRow('库存', '活跃 ${h.pagesActive} · 归档 ${h.pagesArchived} · 无摘要 ${h.pagesWithoutSummary} · 长期未更新 ${h.pagesStale} · 从未投递 ${h.pagesNeverSurfaced}'),
-              _healthRow('投递', '挂载 ${h.mountEventsRecent} 次（${h.mountPagesRecent} 页）· 使用记录 ${h.usageRecordsRecent} · 被引用 ${h.citedPagesRecent} 页'),
-              _healthRow('检索', 'AI 检索 ${h.searchCallsRecent} 次 · 取页 ${h.pageFetchCallsRecent} 次'),
               _healthRow(
-                '摘要管线',
-                '完成 ${h.summaryReadyRecent} · 不可用 ${h.summaryUnavailableRecent}'
-                '${h.lastSummaryError == null ? '' : '\n最近错误：${h.lastSummaryError}'}',
+                context.l10n.l6Compilation8669e,
+                context.l10n.l6PendingProposalsArg030DaysAcceptedf2e76(
+                  (h.proposalsPending).toString(),
+                  (h.proposalsAccepted).toString(),
+                  (h.proposalsRejected).toString(),
+                  (h.backgroundRunsFailedRecent).toString(),
+                  (h.backgroundRunsRecent).toString(),
+                ),
               ),
-              _healthRow('孵化闸门', '待定论 ${h.pagesIncubating} 页 · 负知识 ${h.negativeSources} 条'),
+              _healthRow(
+                context.l10n.l6Librarydfd6b,
+                context.l10n.l6ActiveArg0ArchivedArg1NoSummaryb4539(
+                  (h.pagesActive).toString(),
+                  (h.pagesArchived).toString(),
+                  (h.pagesWithoutSummary).toString(),
+                  (h.pagesStale).toString(),
+                  (h.pagesNeverSurfaced).toString(),
+                ),
+              ),
+              _healthRow(
+                context.l10n.l6Delivery412a9,
+                context.l10n.l6AttachedArg0TimesArg1PagesUsageabc07(
+                  (h.mountEventsRecent).toString(),
+                  (h.mountPagesRecent).toString(),
+                  (h.usageRecordsRecent).toString(),
+                  (h.citedPagesRecent).toString(),
+                ),
+              ),
+              _healthRow(
+                context.l10n.l6Retrieval1c037,
+                context.l10n.l6AiSearchesArg0PageReadsArg15216f(
+                  (h.searchCallsRecent).toString(),
+                  (h.pageFetchCallsRecent).toString(),
+                ),
+              ),
+              _healthRow(
+                context.l10n.l6SummaryPipeline00b38,
+                context.l10n.l6CompletedArg0UnavailableArg1Arg2ee56d(
+                  (h.summaryReadyRecent).toString(),
+                  (h.summaryUnavailableRecent).toString(),
+                  (h.lastSummaryError == null
+                          ? ''
+                          : context.errorMessage(
+                              context.l10n.load,
+                              h.lastSummaryError!,
+                            ))
+                      .toString(),
+                ),
+              ),
+              _healthRow(
+                context.l10n.l6SourceReviewGate877bd,
+                context.l10n.l6SourcesAwaitingADecisionArg0Rejected9c019(
+                  (h.pagesIncubating).toString(),
+                  (h.negativeSources).toString(),
+                ),
+              ),
               const SizedBox(height: AppTheme.space3),
               Text(
-                '摘要预热账本（背景 tick 多批推进，事故 2026-10-19 P1(c)）',
+                context
+                    .l10n
+                    .l6SummaryPreparationHistoryProcessedInBackground2648e,
                 style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
@@ -363,8 +454,13 @@ class _KnowledgeHealthBarState extends ConsumerState<KnowledgeHealthBar> {
                       .toList();
                   if (runs.isEmpty) {
                     return Text(
-                      '暂无预热记录（大树冷启动时由背景分批追平）。',
-                      style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+                      context
+                          .l10n
+                          .l6NoPreparationHistoryYetBackgroundBatchescc092,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.textTertiary,
+                      ),
                     );
                   }
                   return Column(
@@ -375,7 +471,7 @@ class _KnowledgeHealthBarState extends ConsumerState<KnowledgeHealthBar> {
                           padding: const EdgeInsets.only(bottom: 4),
                           child: Text(
                             '${run.startedAt.substring(0, 16).replaceFirst("T", " ")} '
-                            '${run.status == "succeeded" ? "推进 ${run.resultCount} 节点" : "失败：${run.error ?? "未知"}"}',
+                            '${run.status == "succeeded" ? context.l10n.nodesAdvanced(run.resultCount) : context.errorMessage(context.l10n.load, run.error ?? "unknown")}',
                             style: TextStyle(
                               fontSize: 11,
                               color: run.status == 'succeeded'

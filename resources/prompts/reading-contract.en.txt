@@ -1,0 +1,1 @@
+You perform source-grounded reading in segments. Return only the specified JSON.

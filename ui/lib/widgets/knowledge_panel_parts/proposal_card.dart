@@ -49,7 +49,12 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
     } catch (error) {
       if (mounted) {
         setState(
-          () => _failure = _error(error, context: '读取差异', showDetail: true),
+          () => _failure = _error(
+            context,
+            error,
+            context: context.l10n.l6LoadChanges6cd73,
+            showDetail: true,
+          ),
         );
       }
     } finally {
@@ -82,7 +87,12 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
       // 用户必须看到具体是哪一条，否则只能反复点确认。
       if (mounted) {
         setState(
-          () => _failure = _error(error, context: '处理提案', showDetail: true),
+          () => _failure = _error(
+            context,
+            error,
+            context: context.l10n.l6ReviewProposal8e384,
+            showDetail: true,
+          ),
         );
       }
     } finally {
@@ -139,8 +149,10 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                     ),
                     child: Text(
                       _resolved
-                          ? '已处理'
-                          : (p.status == 'pending' ? '待审阅' : p.status),
+                          ? context.l10n.l6Handled219bd
+                          : (p.status == 'pending'
+                                ? context.l10n.l6AwaitingReview28cc1
+                                : p.status),
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -166,7 +178,9 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
               if (p.applicableWhen.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(
-                  '适用条件：${p.applicableWhen}',
+                  context.l10n.l6ConditionsArg006edc(
+                    (p.applicableWhen).toString(),
+                  ),
                   style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
                 ),
               ],
@@ -175,7 +189,10 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                   padding: const EdgeInsets.only(top: 4),
                   child: TextButton.icon(
                     icon: const Icon(Icons.compare_outlined, size: 15),
-                    label: const Text('对照当前正文', style: TextStyle(fontSize: 12)),
+                    label: Text(
+                      context.l10n.l6CompareWithCurrentContenta3c20,
+                      style: TextStyle(fontSize: 12),
+                    ),
                     onPressed: () async {
                       try {
                         final page = await ref.read(
@@ -183,16 +200,23 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                         );
                         if (context.mounted) {
                           setState(() {
-                            _comparisonTitle = '当前正文';
-                            _comparison = page?.contentMd ?? '页面不存在';
+                            _comparisonTitle =
+                                context.l10n.l6CurrentContent47be3;
+                            _comparison =
+                                page?.contentMd ??
+                                context.l10n.l6PageDoesNotExist55c9e;
                           });
                         }
                       } catch (error) {
                         if (context.mounted) {
                           await showKnowledgeText(
                             context,
-                            '读取失败',
-                            _error(error, context: '读取页面正文'),
+                            context.l10n.l6CouldNotLoadd9f60,
+                            _error(
+                              context,
+                              error,
+                              context: context.l10n.l6LoadPageContent3f16e,
+                            ),
                           );
                         }
                       }
@@ -205,7 +229,10 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                   child: TextButton.icon(
                     onPressed: _busy ? null : _loadDiff,
                     icon: const Icon(Icons.difference_outlined, size: 15),
-                    label: const Text('逐段审阅', style: TextStyle(fontSize: 12)),
+                    label: Text(
+                      context.l10n.l6ReviewParagraphByParagraph072ad,
+                      style: TextStyle(fontSize: 12),
+                    ),
                   ),
                 ),
               if (_parts == null)
@@ -239,7 +266,9 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                               CheckboxListTile(
                                 contentPadding: EdgeInsets.zero,
                                 title: Text(
-                                  '采纳修改 ${i + 1}',
+                                  context.l10n.l6AcceptChangesArg0a09f4(
+                                    (i + 1).toString(),
+                                  ),
                                   style: const TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
@@ -258,7 +287,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                               ),
                               if (_parts![i].before.isNotEmpty) ...[
                                 Text(
-                                  '原段落',
+                                  context.l10n.l6OriginalParagraphe62c3,
                                   style: TextStyle(
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.w600,
@@ -284,7 +313,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                               ],
                               if (_parts![i].after.isNotEmpty) ...[
                                 Text(
-                                  '建议段落',
+                                  context.l10n.l6SuggestedParagraphcd73c,
                                   style: TextStyle(
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.w600,
@@ -313,7 +342,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                                     vertical: 4,
                                   ),
                                   child: Text(
-                                    '删除这一段',
+                                    context.l10n.l6RemoveThisParagraphe26cb,
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: AppTheme.textTertiary,
@@ -334,8 +363,8 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                     ),
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text(
-                    '同时采纳建议的适用条件',
+                  title: Text(
+                    context.l10n.l6AlsoAcceptTheSuggestedConditionsbd478,
                     style: TextStyle(fontSize: 13),
                   ),
                   subtitle: Text(
@@ -352,10 +381,10 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                             setState(() => _acceptApplicability = v ?? false),
                 ),
                 if (_reviewIssues.isNotEmpty)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: 4, bottom: 2),
                     child: Text(
-                      '本次修订解决了哪些提示（由你确认）：',
+                      context.l10n.l6WhichIssuesThisRevisionResolvesYou7c3a0,
                       style: TextStyle(fontSize: 12.5),
                     ),
                   ),
@@ -380,7 +409,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                 Padding(
                   padding: const EdgeInsets.only(top: 4, bottom: 8),
                   child: Text(
-                    '如果来源依据同时变化，需要完整确认；局部采纳只用于来源不变的修订。',
+                    context.l10n.l6ChangesToSourceEvidenceRequireFull6139c,
                     style: TextStyle(
                       fontSize: 11.5,
                       color: AppTheme.textTertiary,
@@ -394,7 +423,10 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                   for (final id in p.snapshotIds)
                     TextButton.icon(
                       icon: const Icon(Icons.visibility_outlined, size: 14),
-                      label: const Text('查看原料', style: TextStyle(fontSize: 12)),
+                      label: Text(
+                        context.l10n.l6ViewSourceMaterialdf8d0,
+                        style: TextStyle(fontSize: 12),
+                      ),
                       onPressed: () async {
                         try {
                           final snapshot = await ref
@@ -411,8 +443,12 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                           if (context.mounted) {
                             await showKnowledgeText(
                               context,
-                              '读取失败',
-                              _error(error, context: '读取素材快照'),
+                              context.l10n.l6CouldNotLoadd9f60,
+                              _error(
+                                context,
+                                error,
+                                context: context.l10n.l6LoadSourceSnapshot1cba8,
+                              ),
                             );
                           }
                         }
@@ -421,7 +457,10 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                   for (final id in p.eventIds)
                     TextButton.icon(
                       icon: const Icon(Icons.event_note_outlined, size: 14),
-                      label: const Text('查看事件', style: TextStyle(fontSize: 12)),
+                      label: Text(
+                        context.l10n.l6ViewEventfdcb3,
+                        style: TextStyle(fontSize: 12),
+                      ),
                       onPressed: () => _showEvent(context, ref, id),
                     ),
                 ],
@@ -451,7 +490,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                               ),
                             ),
                             IconButton(
-                              tooltip: '收起对照',
+                              tooltip: context.l10n.l6HideComparisond3329,
                               icon: const Icon(Icons.close, size: 16),
                               onPressed: () =>
                                   setState(() => _comparison = null),
@@ -469,8 +508,9 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
               if (_failure != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
-                  child: Text(
-                    _failure!,
+                  child: AppErrorMessage(
+                    action: context.l10n.load,
+                    error: _failure!,
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.error,
                       fontSize: 12.5,
@@ -482,7 +522,9 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Text(
-                      '请对照当前正文。确认会应用以上修改；若本页是个人规则，也表示你确认修订后的规则及适用条件。',
+                      context
+                          .l10n
+                          .l6CompareWithTheCurrentContentConfirming9fbf7,
                       style: TextStyle(
                         fontSize: 12,
                         color: AppTheme.textTertiary,
@@ -501,15 +543,15 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                         onPressed: _busy ? null : () => _resolve(true),
                         child: Text(
                           _busy
-                              ? '处理中…'
+                              ? context.l10n.processingEllipsis
                               : p.pageId == null
-                              ? '确认保存'
-                              : '确认修订',
+                              ? context.l10n.l6ConfirmAndSave706df
+                              : context.l10n.l6ConfirmRevision97031,
                         ),
                       ),
                       TextButton(
                         onPressed: _busy ? null : () => _resolve(false),
-                        child: const Text('拒绝建议'),
+                        child: Text(context.l10n.l6RejectSuggestionb7fe0),
                       ),
                     ],
                   ),
@@ -519,10 +561,10 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
                     _resolved
-                        ? '已处理，原文保持不变'
+                        ? context.l10n.l6HandledOriginalTextPreserved3bc8e
                         : p.status == 'accepted'
-                        ? '已保存参考知识'
-                        : '已拒绝；保留决定记录',
+                        ? context.l10n.l6ReferenceKnowledgeSaved962eb
+                        : context.l10n.l6RejectedDecisionPreserved97f65,
                     style: TextStyle(
                       fontSize: 12.5,
                       color: AppTheme.textSecondary,
@@ -548,7 +590,7 @@ class _IssueTile extends ConsumerWidget {
         title: Text(issue.description),
         subtitle: Text(issue.pageSlug),
         trailing: TextButton(
-          child: const Text('忽略提示'),
+          child: Text(context.l10n.l6DismissHint0e8a6),
           onPressed: () async {
             try {
               await ref
@@ -559,8 +601,12 @@ class _IssueTile extends ConsumerWidget {
               if (context.mounted) {
                 await showKnowledgeText(
                   context,
-                  '操作失败',
-                  _error(error, context: '忽略检查项'),
+                  context.l10n.l6OperationFailed09e42,
+                  _error(
+                    context,
+                    error,
+                    context: context.l10n.l6DismissCheck617f7,
+                  ),
                 );
               }
             }

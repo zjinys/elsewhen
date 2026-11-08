@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 
 import '../bridge/api.dart' as api;
@@ -17,7 +19,7 @@ class SyncWorkspace extends StatelessWidget {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space6),
       child: _buildSection(
-        title: '设备同步',
+        title: context.l10n.syncNotificationChannel,
         icon: Icons.devices_outlined,
         child: LocalSyncSettings(
           controller: repository.localSync,
@@ -94,7 +96,7 @@ class SyncNavSummary extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.all(AppTheme.space4),
         child: Text(
-          '同步在此平台暂不可用',
+          context.l10n.syncPlatformUnavailable,
           style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
         ),
       );
@@ -110,7 +112,7 @@ class SyncNavSummary extends StatelessWidget {
           return Padding(
             padding: const EdgeInsets.all(AppTheme.space4),
             child: Text(
-              '同步状态读取失败\n（同步可能尚未启用）',
+              context.l10n.l6CouldNotLoadSyncStatusSyncb8a20,
               textAlign: TextAlign.center,
               style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
             ),
@@ -120,7 +122,9 @@ class SyncNavSummary extends StatelessWidget {
         final members = roster.members;
         final online = members.where((m) => m.active).length;
         final local = members.where((m) => m.isLocal).toList();
-        final localName = local.isEmpty ? '本机' : local.first.name;
+        final localName = local.isEmpty
+            ? context.l10n.l6ThisDevice8b4c1
+            : local.first.name;
 
         return Padding(
           padding: const EdgeInsets.all(AppTheme.space4),
@@ -128,7 +132,7 @@ class SyncNavSummary extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '同步',
+                context.l10n.sync,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -140,12 +144,15 @@ class SyncNavSummary extends StatelessWidget {
                 icon: Icons.computer_outlined,
                 text: localName,
                 badge: local.isNotEmpty && local.first.isProcessor
-                    ? '处理器'
+                    ? context.l10n.l6Processorb4366
                     : null,
               ),
               _row(
                 icon: Icons.devices_outlined,
-                text: '设备 $online/${members.length} 在线',
+                text: context.l10n.l6DevicesOnlineArg0Arg1c5eda(
+                  (online).toString(),
+                  (members.length).toString(),
+                ),
               ),
               ValueListenableBuilder<api.SyncTickResultDto?>(
                 valueListenable: bridge.lastSyncTick,
@@ -153,7 +160,7 @@ class SyncNavSummary extends StatelessWidget {
                   if (tick == null) {
                     return _row(
                       icon: Icons.access_time_outlined,
-                      text: '尚未同步过',
+                      text: context.l10n.l6NoSyncYet8ce44,
                       muted: true,
                     );
                   }
@@ -162,8 +169,10 @@ class SyncNavSummary extends StatelessWidget {
                         ? Icons.check_circle_outline
                         : Icons.pause_circle_outline,
                     text: tick.ran
-                        ? '最近心跳正常 · 待发 ${tick.stagedOperations}'
-                        : '心跳待命（空闲）',
+                        ? context.l10n.l6HeartbeatHealthyPendingArg05c133(
+                            (tick.stagedOperations).toString(),
+                          )
+                        : context.l10n.l6HeartbeatOnStandbyIdleda794,
                     muted: !tick.ran,
                   );
                 },
