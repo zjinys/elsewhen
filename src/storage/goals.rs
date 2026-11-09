@@ -133,8 +133,7 @@ fn map_write_error(error: SqliteError) -> anyhow::Error {
     }
 }
 
-pub(crate) const SELECT_COLUMNS: &str =
-    "id, content, phase, status, why, current_focus, blocker, done_criteria, created_at, updated_at, superseded_at, plan_id, step_index";
+pub(crate) const SELECT_COLUMNS: &str = "id, content, phase, status, why, current_focus, blocker, done_criteria, created_at, updated_at, superseded_at, plan_id, step_index";
 
 pub(crate) fn row_to_goal(row: &rusqlite::Row<'_>) -> rusqlite::Result<Goal> {
     let phase: String = row.get(2)?;
@@ -587,6 +586,7 @@ impl Store {
              JOIN goals g ON n.goal_id = g.id
              WHERE n.status = 'pending'
                AND g.status = 'active'
+               AND (n.assessment_id IS NULL OR julianday(n.created_at) > julianday(?1,'-7 days'))
                AND (n.dismissed_until IS NULL OR n.dismissed_until <= ?1)
              ORDER BY n.created_at DESC
              LIMIT 1",
@@ -746,7 +746,10 @@ mod tests {
         let loaded = store.store.get_goal(&g.id).unwrap().unwrap();
         assert_eq!(loaded.content, "全量升级认知目标");
         assert_eq!(loaded.why.as_deref(), Some("核心系统演进"));
-        assert_eq!(loaded.current_focus.as_deref(), Some("落地 Phase G1 存储层"));
+        assert_eq!(
+            loaded.current_focus.as_deref(),
+            Some("落地 Phase G1 存储层")
+        );
         assert_eq!(loaded.blocker.as_deref(), Some("无已知卡点"));
         assert_eq!(
             loaded.done_criteria.as_deref(),

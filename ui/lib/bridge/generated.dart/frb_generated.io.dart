@@ -137,6 +137,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_box_autoadd_f_64(dynamic raw);
 
   @protected
+  GoalCompassAssessmentDto dco_decode_box_autoadd_goal_compass_assessment_dto(
+    dynamic raw,
+  );
+
+  @protected
   GoalCompassNudgeDto dco_decode_box_autoadd_goal_compass_nudge_dto(
     dynamic raw,
   );
@@ -308,6 +313,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double dco_decode_f_64(dynamic raw);
+
+  @protected
+  GoalCompassAssessmentDto dco_decode_goal_compass_assessment_dto(dynamic raw);
+
+  @protected
+  GoalCompassEvidenceDto dco_decode_goal_compass_evidence_dto(dynamic raw);
 
   @protected
   GoalCompassNudgeDto dco_decode_goal_compass_nudge_dto(dynamic raw);
@@ -510,6 +521,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<EventSummaryDto> dco_decode_list_event_summary_dto(dynamic raw);
+
+  @protected
+  List<GoalCompassEvidenceDto> dco_decode_list_goal_compass_evidence_dto(
+    dynamic raw,
+  );
 
   @protected
   List<GoalDto> dco_decode_list_goal_dto(dynamic raw);
@@ -779,6 +795,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
+
+  @protected
+  GoalCompassAssessmentDto?
+  dco_decode_opt_box_autoadd_goal_compass_assessment_dto(dynamic raw);
 
   @protected
   GoalCompassNudgeDto? dco_decode_opt_box_autoadd_goal_compass_nudge_dto(
@@ -1099,6 +1119,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  GoalCompassAssessmentDto sse_decode_box_autoadd_goal_compass_assessment_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   GoalCompassNudgeDto sse_decode_box_autoadd_goal_compass_nudge_dto(
     SseDeserializer deserializer,
   );
@@ -1312,6 +1337,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double sse_decode_f_64(SseDeserializer deserializer);
+
+  @protected
+  GoalCompassAssessmentDto sse_decode_goal_compass_assessment_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  GoalCompassEvidenceDto sse_decode_goal_compass_evidence_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   GoalCompassNudgeDto sse_decode_goal_compass_nudge_dto(
@@ -1590,6 +1625,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<EventSummaryDto> sse_decode_list_event_summary_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<GoalCompassEvidenceDto> sse_decode_list_goal_compass_evidence_dto(
     SseDeserializer deserializer,
   );
 
@@ -1937,6 +1977,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
+
+  @protected
+  GoalCompassAssessmentDto?
+  sse_decode_opt_box_autoadd_goal_compass_assessment_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   GoalCompassNudgeDto? sse_decode_opt_box_autoadd_goal_compass_nudge_dto(
@@ -2348,6 +2394,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ffi.Pointer<ffi.Double> cst_encode_box_autoadd_f_64(double raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return wire.cst_new_box_autoadd_f_64(cst_encode_f_64(raw));
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_goal_compass_assessment_dto>
+  cst_encode_box_autoadd_goal_compass_assessment_dto(
+    GoalCompassAssessmentDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_goal_compass_assessment_dto();
+    cst_api_fill_to_wire_goal_compass_assessment_dto(raw, ptr.ref);
+    return ptr;
   }
 
   @protected
@@ -2818,6 +2875,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_event_summary_dto(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_event_summary_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_goal_compass_evidence_dto>
+  cst_encode_list_goal_compass_evidence_dto(List<GoalCompassEvidenceDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_goal_compass_evidence_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_goal_compass_evidence_dto(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -3579,6 +3647,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_goal_compass_assessment_dto>
+  cst_encode_opt_box_autoadd_goal_compass_assessment_dto(
+    GoalCompassAssessmentDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? ffi.nullptr
+        : cst_encode_box_autoadd_goal_compass_assessment_dto(raw);
+  }
+
+  @protected
   ffi.Pointer<wire_cst_goal_compass_nudge_dto>
   cst_encode_opt_box_autoadd_goal_compass_nudge_dto(GoalCompassNudgeDto? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
@@ -3868,6 +3947,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_event_analysis_detail_dto> wireObj,
   ) {
     cst_api_fill_to_wire_event_analysis_detail_dto(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_goal_compass_assessment_dto(
+    GoalCompassAssessmentDto apiObj,
+    ffi.Pointer<wire_cst_goal_compass_assessment_dto> wireObj,
+  ) {
+    cst_api_fill_to_wire_goal_compass_assessment_dto(apiObj, wireObj.ref);
   }
 
   @protected
@@ -4488,6 +4575,34 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_goal_compass_assessment_dto(
+    GoalCompassAssessmentDto apiObj,
+    wire_cst_goal_compass_assessment_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.classification = cst_encode_String(apiObj.classification);
+    wireObj.reason = cst_encode_String(apiObj.reason);
+    wireObj.question = cst_encode_String(apiObj.question);
+    wireObj.recommendations = cst_encode_list_String(apiObj.recommendations);
+    wireObj.evidence = cst_encode_list_goal_compass_evidence_dto(
+      apiObj.evidence,
+    );
+  }
+
+  @protected
+  void cst_api_fill_to_wire_goal_compass_evidence_dto(
+    GoalCompassEvidenceDto apiObj,
+    wire_cst_goal_compass_evidence_dto wireObj,
+  ) {
+    wireObj.source_id = cst_encode_String(apiObj.sourceId);
+    wireObj.source_kind = cst_encode_String(apiObj.sourceKind);
+    wireObj.occurred_at = cst_encode_String(apiObj.occurredAt);
+    wireObj.quote = cst_encode_String(apiObj.quote);
+    wireObj.excerpt = cst_encode_String(apiObj.excerpt);
+    wireObj.total_chars = cst_encode_i_64(apiObj.totalChars);
+  }
+
+  @protected
   void cst_api_fill_to_wire_goal_compass_nudge_dto(
     GoalCompassNudgeDto apiObj,
     wire_cst_goal_compass_nudge_dto wireObj,
@@ -4503,6 +4618,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.status = cst_encode_String(apiObj.status);
     wireObj.created_at = cst_encode_String(apiObj.createdAt);
     wireObj.dismissed_until = cst_encode_opt_String(apiObj.dismissedUntil);
+    wireObj.assessment = cst_encode_opt_box_autoadd_goal_compass_assessment_dto(
+      apiObj.assessment,
+    );
   }
 
   @protected
@@ -6184,6 +6302,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_goal_compass_assessment_dto(
+    GoalCompassAssessmentDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_goal_compass_nudge_dto(
     GoalCompassNudgeDto self,
     SseSerializer serializer,
@@ -6470,6 +6594,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_goal_compass_assessment_dto(
+    GoalCompassAssessmentDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_goal_compass_evidence_dto(
+    GoalCompassEvidenceDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_goal_compass_nudge_dto(
@@ -6822,6 +6958,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_event_summary_dto(
     List<EventSummaryDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_goal_compass_evidence_dto(
+    List<GoalCompassEvidenceDto> self,
     SseSerializer serializer,
   );
 
@@ -7253,6 +7395,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_goal_compass_assessment_dto(
+    GoalCompassAssessmentDto? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_goal_compass_nudge_dto(
@@ -7844,6 +7992,23 @@ class RustLibWire implements BaseWire {
       );
   late final _cst_new_box_autoadd_f_64 = _cst_new_box_autoadd_f_64Ptr
       .asFunction<ffi.Pointer<ffi.Double> Function(double)>();
+
+  ffi.Pointer<wire_cst_goal_compass_assessment_dto>
+  cst_new_box_autoadd_goal_compass_assessment_dto() {
+    return _cst_new_box_autoadd_goal_compass_assessment_dto();
+  }
+
+  late final _cst_new_box_autoadd_goal_compass_assessment_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_goal_compass_assessment_dto> Function()
+        >
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_goal_compass_assessment_dto');
+  late final _cst_new_box_autoadd_goal_compass_assessment_dto =
+      _cst_new_box_autoadd_goal_compass_assessment_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_goal_compass_assessment_dto> Function()
+          >();
 
   ffi.Pointer<wire_cst_goal_compass_nudge_dto>
   cst_new_box_autoadd_goal_compass_nudge_dto() {
@@ -8515,6 +8680,25 @@ class RustLibWire implements BaseWire {
       _cst_new_list_event_summary_dtoPtr
           .asFunction<
             ffi.Pointer<wire_cst_list_event_summary_dto> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_goal_compass_evidence_dto>
+  cst_new_list_goal_compass_evidence_dto(int len) {
+    return _cst_new_list_goal_compass_evidence_dto(len);
+  }
+
+  late final _cst_new_list_goal_compass_evidence_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_goal_compass_evidence_dto> Function(
+            ffi.Int32,
+          )
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_goal_compass_evidence_dto');
+  late final _cst_new_list_goal_compass_evidence_dto =
+      _cst_new_list_goal_compass_evidence_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_goal_compass_evidence_dto> Function(int)
           >();
 
   ffi.Pointer<wire_cst_list_goal_dto> cst_new_list_goal_dto(int len) {
@@ -11564,6 +11748,42 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__goals__realign_compass_nudgePtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__goals__submit_compass_feedback(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> note,
+  ) {
+    return _wire__crate__api__goals__submit_compass_feedback(
+      port_,
+      id,
+      kind,
+      note,
+    );
+  }
+
+  late final _wire__crate__api__goals__submit_compass_feedbackPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__goals__submit_compass_feedback');
+  late final _wire__crate__api__goals__submit_compass_feedback =
+      _wire__crate__api__goals__submit_compass_feedbackPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
           >();
 
   void wire__crate__api__goals__tick_goal_compass(int port_) {
@@ -19924,6 +20144,67 @@ final class wire_cst_event_summary_dto extends ffi.Struct {
     ..ref.status = status;
 }
 
+final class wire_cst_goal_compass_assessment_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> classification;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> question;
+
+  external ffi.Pointer<wire_cst_list_String> recommendations;
+
+  external ffi.Pointer<wire_cst_list_goal_compass_evidence_dto> evidence;
+
+  static ffi.Pointer<wire_cst_goal_compass_assessment_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> classification,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> reason,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> question,
+    required ffi.Pointer<wire_cst_list_String> recommendations,
+    required ffi.Pointer<wire_cst_list_goal_compass_evidence_dto> evidence,
+  }) => $allocator<wire_cst_goal_compass_assessment_dto>()
+    ..ref.id = id
+    ..ref.classification = classification
+    ..ref.reason = reason
+    ..ref.question = question
+    ..ref.recommendations = recommendations
+    ..ref.evidence = evidence;
+}
+
+final class wire_cst_goal_compass_evidence_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> source_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> source_kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> occurred_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> quote;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> excerpt;
+
+  @ffi.Int64()
+  external int total_chars;
+
+  static ffi.Pointer<wire_cst_goal_compass_evidence_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> source_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> source_kind,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> occurred_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> quote,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> excerpt,
+    required int total_chars,
+  }) => $allocator<wire_cst_goal_compass_evidence_dto>()
+    ..ref.source_id = source_id
+    ..ref.source_kind = source_kind
+    ..ref.occurred_at = occurred_at
+    ..ref.quote = quote
+    ..ref.excerpt = excerpt
+    ..ref.total_chars = total_chars;
+}
+
 final class wire_cst_goal_compass_nudge_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
 
@@ -19948,6 +20229,8 @@ final class wire_cst_goal_compass_nudge_dto extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> dismissed_until;
 
+  external ffi.Pointer<wire_cst_goal_compass_assessment_dto> assessment;
+
   static ffi.Pointer<wire_cst_goal_compass_nudge_dto> $allocate(
     ffi.Allocator $allocator, {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
@@ -19961,6 +20244,7 @@ final class wire_cst_goal_compass_nudge_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> status,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> created_at,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> dismissed_until,
+    required ffi.Pointer<wire_cst_goal_compass_assessment_dto> assessment,
   }) => $allocator<wire_cst_goal_compass_nudge_dto>()
     ..ref.id = id
     ..ref.goal_id = goal_id
@@ -19972,7 +20256,8 @@ final class wire_cst_goal_compass_nudge_dto extends ffi.Struct {
     ..ref.recent_topics = recent_topics
     ..ref.status = status
     ..ref.created_at = created_at
-    ..ref.dismissed_until = dismissed_until;
+    ..ref.dismissed_until = dismissed_until
+    ..ref.assessment = assessment;
 }
 
 final class wire_cst_goal_dto extends ffi.Struct {
@@ -21659,6 +21944,21 @@ final class wire_cst_list_event_summary_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_event_summary_dto> ptr,
     required int len,
   }) => $allocator<wire_cst_list_event_summary_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_goal_compass_evidence_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_goal_compass_evidence_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_goal_compass_evidence_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_goal_compass_evidence_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_goal_compass_evidence_dto>()
     ..ref.ptr = ptr
     ..ref.len = len;
 }

@@ -1,18 +1,17 @@
 # Proposal Backlog（未完成提案总索引）
 
-更新：2026-11-09；最近实现提交：`83785f0`。本文件只记录当前缺口与归属；逐批进度、旧测试数字和历史方案见[历史快照](reference/proposal-backlog-history-2026-11-08.md)，实现依据见各条链接。
+更新：2026-11-09；最近实现提交：`00777f0`。本文件只记录当前缺口与归属；逐批进度、旧测试数字和历史方案见[历史快照](reference/proposal-backlog-history-2026-11-08.md)，实现依据见各条链接。
 
-当前共 **6 项工程待办、12 项验收事项、3 项后置增量、2 项方向讨论、1 项搁置**。工程完成不等于真实模型或真人设备验收通过。超长事件分块消化已交付，真实验收范围及限制见实现记录；多语言 Goal 按用户要求暂停，L7只保留验收。
+当前共 **5 项工程待办、12 项验收事项、3 项后置增量、2 项方向讨论、1 项搁置**。工程完成不等于真实模型或真人设备验收通过。超长事件分块消化已交付，真实验收范围及限制见实现记录；多语言 Goal 按用户要求暂停，L7只保留验收。
 
 维护规则：新增缺口先查已有归属，避免同一工作重复排期；推进时同步具体提案或路线，记录证据；已交付能力从工程待办移除，验收缺口单列。本文分类描述当前进度，历史提案的 `proposed` 状态不等于其全部内容尚未实现。
 
-## 工程待办（6 项）
+## 工程待办（5 项）
 
 按建议优先顺序排列，尚未开始的新项明确标注；不把人工验收算作工程开发。
 
 | 项目 | 当前缺口 | 优先级 |
 |---|---|---|
-| [目标系统演进](notes/proposed/product/2026-11-05-goal-system-evolution-profile-knowledge-alignment.md) | Phase 1–3 首版已接通：计划/步骤树、白话详情、AI 主动检索知识、对话归集到 `profile/me`。Phase 4 仍缺更准确的语义偏离判断与反馈更新；不新增“关于我”表单或手动参考资料入口 | 高 |
 | [对话伴随工作区](notes/proposed/product/2026-10-04-chat-dialog-to-drawer.md) | 已有统一 bottom sheet 和内嵌审阅详情；剩余为非模态工作区，使用户可边查看待办/审阅边继续输入。按当前入口重定范围，不恢复已删除的草稿/生成历史入口 | 高 |
 | [同步生命周期 D6/D7](roadmap/2026-10-27-sync-lifecycle-boundaries-roadmap.md) | D6：旧数据集清理出口，先明确显式确认和保留边界；D7：录入期名册尚未激活时推迟业务帧。C0–C12、D8/D9 已实现；快照字节采样另列验收 | 中 |
 | [单流主题后续演进](notes/proposed/product/2026-10-05-single-stream-topic-follow-ups.md) | 主题生命周期/状态排序、主对话分析队列摘要、同名候选确认、建议归拢。手工主题创建/正文编辑已修复，不作为本项未实现能力 | 中 |
@@ -30,7 +29,7 @@
 | [洞见浮现与行动闭环](notes/proposed/product/2026-11-05-surfacing-digest-insights.md) | P0–P2 已实现；待真实模型端到端质量及真机多设备验证 |
 | [命名密钥库](notes/implemented/architecture/2026-11-05-named-secrets-runtime.md) | 密钥存储、Provider 选择/手填、引用、轮换、审计与删除已实现；待真人 GUI 操作验收。旧未密封安装及带 Bearer 前缀的存量处理边界见实现记录；不再保留旧测试批次失败作为当前结论 |
 | [配对快照累计写入采样](roadmap/2026-10-26-enrollment-snapshot-convergence-roadmap.md) | blob 数据面与真机收敛已有证据；仍缺累计写入字节 ≤1.05× 的精确现场采样 |
-| [目标拆解与航向对齐](roadmap/2026-11-04-ai-centric-goal-decomposition-roadmap.md) | P0–P4 与目标工作室工程完成；待真实模型质量与真人 GUI 签收。后续语义守护增量只在工程待办“目标系统演进”维护 |
+| [目标系统演进](notes/proposed/product/2026-11-05-goal-system-evolution-profile-knowledge-alignment.md)／[拆解与航向对齐](roadmap/2026-11-04-ai-centric-goal-decomposition-roadmap.md) | Phase 1–4 已接通；[语义守护](roadmap/2026-11-09-semantic-compass-phase4-roadmap.md)真实模型9场景、Rust1202项单元及2项集成、Flutter605项及Release／FRB／本地化门禁通过。剩余为自动检索／建议原有真实模型质量、真人GUI／真机同步及长期真实记录观察；合成场景不替代这些验收，继续使用profile/me与自动知识检索 |
 | [草稿来源发现](notes/proposed/bug-fix/2026-10-08-save-draft-source-discovery-loop.md) | 错误指路和目录 slug 修复已实现；待真实模型原场景复验，确认没有继续陷入来源发现循环 |
 | [记事本页](notes/proposed/product/2026-10-19-notepad-memo-pages.md) | `memo`、AI 隔离、创建/追加与 Flutter 入口已实现；待真人 GUI 验收。旧 Capture 模式已删除，不恢复该验收项 |
 | [定时提醒](notes/proposed/architecture/2026-10-19-timed-reminders.md) | 持久提醒、5 秒 tick、稍后提醒、解析及确认制工具已实现；待真人 GUI 验收。系统通知为后置增量 |
@@ -81,7 +80,7 @@
 |---|---|
 | [个人认知主循环](notes/proposed/architecture/2026-09-17-personal-cognition-main-loop.md) | [主路线](roadmap/2026-09-17-personal-cognition-main-loop-roadmap.md)；Today 单列后置 |
 | [今日记忆检索](notes/proposed/2026-09-15-daily-memory-retrieval.md)、[决策辅助设计](notes/proposed/architecture/2026-09-19-decision-support-loop.md) | 决策辅助路线 |
-| [目标表与偏差检测](notes/proposed/architecture/2026-09-28-goal-schema-and-deviation.md)、[周期偏差报告](notes/proposed/architecture/2026-09-30-periodic-deviation-report.md)、[AI 目标拆解](notes/proposed/product/2026-11-04-ai-centric-goal-decomposition.md) | 目标已交付能力与工程待办“目标系统演进” |
+| [目标表与偏差检测](notes/proposed/architecture/2026-09-28-goal-schema-and-deviation.md)、[周期偏差报告](notes/proposed/architecture/2026-09-30-periodic-deviation-report.md)、[AI 目标拆解](notes/proposed/product/2026-11-04-ai-centric-goal-decomposition.md) | 目标已交付能力与“目标系统演进／拆解与航向对齐”验收项 |
 | [MCP 延迟工具注入](notes/proposed/architecture/2026-10-19-mcp-tools-deferred-injection.md)、[token 估算](notes/proposed/architecture/2026-10-19-token-estimation-calibration.md) | 预算与工具注入路线 |
 | [relay 存储放大](notes/proposed/architecture/2026-10-24-relay-storage-amplification-and-quota.md)、[R4](notes/proposed/architecture/2026-10-25-relay-v3-r4-windowed-snapshot-plan.md)、[R5](notes/proposed/architecture/2026-10-25-relay-v3-r5-drop-and-invariants-plan.md)、[R6](notes/proposed/architecture/2026-10-25-relay-v3-r6-deliver-state-plan.md) | relay v3 路线；采样单列验收 |
 | [密钥提案](notes/proposed/architecture/2026-11-05-named-secrets-and-references.md) | 命名密钥库实现记录及真人验收 |

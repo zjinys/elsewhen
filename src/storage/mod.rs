@@ -6,6 +6,7 @@ pub(crate) mod chat_runs;
 pub(crate) mod chat_summaries;
 pub(crate) mod chat_supplements;
 pub(crate) mod companion;
+pub(crate) mod compass;
 mod conversations;
 mod digest;
 mod digest_insights;

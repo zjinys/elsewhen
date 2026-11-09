@@ -56,6 +56,18 @@ class FakeGoalCompassRepo extends FakeGoalChatRepo {
     activeCompassNudge.value = initialNudge;
   }
 
+  final List<(String, String)> feedback = [];
+
+  @override
+  Future<void> submitCompassFeedback(
+    String id,
+    String kind, {
+    String note = '',
+  }) async {
+    feedback.add((kind, note));
+    if (kind != 'discuss') activeCompassNudge.value = null;
+  }
+
   final List<String> dismissedNudgeIds = [];
   final List<String> realignedNudgeIds = [];
   final List<(String id, String? focus, String? blocker)> updatedFocuses = [];
@@ -353,4 +365,112 @@ void main() {
       expect(find.byType(GoalCompassNudgeCard), findsNothing);
     });
   });
+  for (final locale in [const Locale('zh'), const Locale('en')]) {
+    testWidgets(
+      '${locale.languageCode}: semantic evidence, review draft and correction are separate',
+      (tester) async {
+        tester.view.physicalSize = const Size(360, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final strings = lookupAppLocalizations(locale);
+        final nudge = GoalCompassNudge(
+          id: 'semantic',
+          goalId: 'goal-1',
+          goalContent: '访谈潜在客户',
+          currentFocus: '本周访谈三人',
+          stalledDays: 0,
+          recentTopics: '',
+          status: 'pending',
+          createdAt: DateTime.utc(2026, 11, 9),
+          assessment: api.GoalCompassAssessmentDto(
+            id: 'assessment',
+            classification: 'drifting',
+            reason: '两天记录了配色和图标，访谈尚未开始。',
+            question: '现在的计划还适合吗？',
+            recommendations: ['先复盘优先级'],
+            evidence: [
+              api.GoalCompassEvidenceDto(
+                sourceId: 'event-1',
+                sourceKind: 'event',
+                occurredAt: '2026-11-07T10:00:00Z',
+                quote: '访谈尚未开始',
+                excerpt: '今天设计图标，访谈尚未开始。',
+                totalChars: 17,
+              ),
+            ],
+          ),
+        );
+        final repo = FakeGoalCompassRepo(initialNudge: nudge);
+        final container = ProviderContainer(
+          overrides: [
+            storageRepositoryProvider.overrideWithValue(repo),
+            activeGoalsProvider.overrideWith((ref) async => [_sampleGoal()]),
+          ],
+        );
+        addTearDown(container.dispose);
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              locale: locale,
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              home: const Scaffold(
+                body: SingleChildScrollView(child: GoalCompassNudgeBanner()),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        // Runtime locale changes translate controls while preserving model
+        // output and original source quotations.
+        final otherLocale = Locale(locale.languageCode == 'en' ? 'zh' : 'en');
+        Widget app(Locale language) => UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            locale: language,
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: const Scaffold(
+              body: SingleChildScrollView(child: GoalCompassNudgeBanner()),
+            ),
+          ),
+        );
+        await tester.pumpWidget(app(otherLocale));
+        await tester.pumpAndSettle();
+        expect(
+          find.text(lookupAppLocalizations(otherLocale).compassEvidence),
+          findsOneWidget,
+        );
+        expect(find.text(nudge.assessment!.question), findsOneWidget);
+        await tester.pumpWidget(app(locale));
+        await tester.pumpAndSettle();
+        expect(find.text(strings.compassStalled(0)), findsNothing);
+        await tester.tap(find.text(strings.compassEvidence));
+        await tester.pumpAndSettle();
+        expect(find.text('访谈尚未开始'), findsOneWidget);
+        expect(find.text('今天设计图标，访谈尚未开始。'), findsOneWidget);
+        await tester.tap(find.text(strings.close));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(strings.compassReview));
+        await tester.pumpAndSettle();
+        expect(repo.feedback, [('discuss', '')]);
+        expect(repo.realignedNudgeIds, isEmpty);
+        expect(repo.activeCompassNudge.value?.id, 'semantic');
+        expect(
+          container.read(goalPanelSeedProvider('goal-1')),
+          contains(nudge.assessment!.question),
+        );
+        await tester.tap(find.text(strings.compassStillProgressing));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField), '访谈已在线下完成');
+        await tester.tap(find.text(strings.save));
+        await tester.pumpAndSettle();
+        expect(repo.feedback.last, ('still_progressing', '访谈已在线下完成'));
+        expect(repo.updatedFocuses, isEmpty);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 }

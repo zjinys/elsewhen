@@ -17,6 +17,7 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final nudge = ref.watch(activeCompassNudgeProvider);
     if (nudge == null) return const SizedBox.shrink();
+    if (nudge.assessment != null) return _SemanticCompassCard(nudge: nudge);
 
     // 尝试从缓存的活跃目标中提取当前困难
     final activeGoals = ref.watch(activeGoalsProvider).value ?? const [];
@@ -279,6 +280,7 @@ class GoalCompassNudgeCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (nudge.assessment != null) return _SemanticCompassCard(nudge: nudge);
     final activeGoals = ref.watch(activeGoalsProvider).value ?? const [];
     final goal = activeGoals.cast<Goal?>().firstWhere(
       (g) => g?.id == nudge.goalId,
@@ -439,6 +441,200 @@ class GoalCompassNudgeCard extends ConsumerWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Semantic cards use the model's verified question and actual source records.
+/// Historical keyword cards retain their read-only presentation above.
+class _SemanticCompassCard extends ConsumerStatefulWidget {
+  const _SemanticCompassCard({required this.nudge});
+  final GoalCompassNudge nudge;
+  @override
+  ConsumerState<_SemanticCompassCard> createState() =>
+      _SemanticCompassCardState();
+}
+
+class _SemanticCompassCardState extends ConsumerState<_SemanticCompassCard> {
+  bool _saving = false;
+
+  Future<void> _feedback(String kind) async {
+    final strings = context.l10n;
+    String note = '';
+    if (kind == 'still_progressing' || kind == 'changed_direction') {
+      final value = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(
+            kind == 'still_progressing'
+                ? strings.compassStillProgressing
+                : strings.compassDirectionChanged,
+          ),
+          content: TextField(
+            onChanged: (value) => note = value,
+            maxLength: 1000,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: strings.compassCorrectionNote,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(strings.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, note),
+              child: Text(strings.save),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || value == null) return;
+      note = value;
+    }
+    if (!mounted || _saving) return;
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+      await repo.submitCompassFeedback(widget.nudge.id, kind, note: note);
+      if (!mounted) return;
+      if (kind == 'discuss') {
+        final assessment = widget.nudge.assessment!;
+        final seed =
+            '${strings.compassReviewSeed} ${assessment.reason}\n${assessment.question}\n${assessment.recommendations.join('\n')}';
+        startGoalCoAuthor(ref, seed, goalId: widget.nudge.goalId);
+        showGoalCoAuthorToast(context);
+      } else {
+        ref.invalidate(activeCompassNudgeProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              kind == 'snooze'
+                  ? strings.compassDismissed
+                  : strings.compassFeedbackSaved,
+            ),
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.errorMessage(strings.edit, error))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  void _evidence() {
+    final strings = context.l10n;
+    final assessment = widget.nudge.assessment!;
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(strings.compassEvidence),
+        content: SizedBox(
+          width: 560,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(strings.compassEvidenceNotice),
+                for (final evidence in assessment.evidence) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    MaterialLocalizations.of(context).formatFullDate(
+                      DateTime.parse(evidence.occurredAt).toLocal(),
+                    ),
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  SelectableText(
+                    evidence.quote,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 6),
+                  SelectableText(evidence.excerpt),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(strings.close),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final nudge = widget.nudge;
+    final assessment = nudge.assessment!;
+    final strings = context.l10n;
+    return Material(
+      color: AppTheme.accentPrimary.withValues(alpha: 0.06),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              strings.compassGoalTitle(nudge.goalContent),
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              assessment.question.isEmpty
+                  ? strings.compassGentleCheck
+                  : assessment.question,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              assessment.reason,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 2,
+              children: [
+                FilledButton.tonal(
+                  onPressed: _saving ? null : () => _feedback('discuss'),
+                  child: Text(strings.compassReview),
+                ),
+                TextButton(
+                  onPressed: _evidence,
+                  child: Text(strings.compassEvidence),
+                ),
+                TextButton(
+                  onPressed: _saving
+                      ? null
+                      : () => _feedback('still_progressing'),
+                  child: Text(strings.compassStillProgressing),
+                ),
+                TextButton(
+                  onPressed: _saving
+                      ? null
+                      : () => _feedback('changed_direction'),
+                  child: Text(strings.compassDirectionChanged),
+                ),
+                TextButton(
+                  onPressed: _saving ? null : () => _feedback('snooze'),
+                  child: Text(strings.compassSnooze),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -7379,4 +7379,38 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get digestReadingLimitHelp =>
       'The event or reading cache reached the processing limit. Saved text and reading progress are retained.';
+
+  @override
+  String get promptCompassContract => 'Goal compass assessment contract';
+
+  @override
+  String get compassEvidence => 'View evidence';
+
+  @override
+  String get compassStillProgressing => 'Still progressing';
+
+  @override
+  String get compassDirectionChanged => 'Direction changed';
+
+  @override
+  String get compassFeedbackSaved =>
+      'Feedback saved; future checks will respect your correction';
+
+  @override
+  String get compassReview => 'Quick review';
+
+  @override
+  String get compassReviewSeed =>
+      'Let’s briefly review whether this plan still fits. The check-in was based on: ';
+
+  @override
+  String get compassEvidenceNotice =>
+      'These are the user record excerpts used for this assessment. Original records remain unchanged.';
+
+  @override
+  String get compassCorrectionNote =>
+      'Add progress or a change of plans (optional)';
+
+  @override
+  String get compassGentleCheck => 'Does the current plan still fit?';
 }

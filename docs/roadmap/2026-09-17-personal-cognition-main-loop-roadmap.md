@@ -20,6 +20,10 @@
 
 [超长事件分块消化路线](2026-11-09-long-event-digestion-roadmap.md) E0–E6已交付：完整预算、持久阅读与覆盖证明、有界合并／调度、原子确认和只读进度。工程全量与真实模型证据分开，100,663字gpt-4o场景最终成功，失败成本、短事件空提议及设备范围见[验收记录](../testing/2026-11-09-long-event-real-model-acceptance.md)。多语言L7仍在验收并保持暂停。
 
+## 目标系统 Phase 4（2026-11-09）
+
+`feat/goal-semantic-compass` 已接通[有证据的日常航向守护](2026-11-09-semantic-compass-phase4-roadmap.md)：固定输入语义评估、跨日真实引用、租约／owner及证据代数、持久去重／频控、反馈闭环和中英文证据卡。Rust全量1202项单元及2项集成、Flutter全量605项、Release与本地化／格式／FRB门禁通过。真实模型最终9场景通过，首轮语气修正及两轮成本见[质量记录](../testing/2026-11-09-semantic-compass-real-model-acceptance.md)。沿用profile/me与AI自动知识检索，真人GUI／真机及长期观察继续单列验收。
+
 ## 目标
 
 把现有的事件、对话、Wiki、待办和内容导入能力连接成一个每天可使用、可验证的闭环：

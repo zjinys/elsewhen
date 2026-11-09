@@ -108,6 +108,7 @@ class RustBridgeRepository implements StorageRepository {
 
   /// 航向校准降频计数：3~5 天尺度检测器每 12 拍（≈60s）评一次。
   int _compassTickCounter = 0;
+  bool _compassRunning = false;
   static const int _compassTickEvery = 12;
 
   /// 后台 worker 的失败分类与退避（终态不重试，见 [BackgroundFailurePolicy]）。
@@ -232,7 +233,7 @@ class RustBridgeRepository implements StorageRepository {
           // （每 12 拍 ≈ 60s），失败隔离与响应路径不变。
           _compassTickCounter++;
           if (_compassTickCounter % _compassTickEvery == 0) {
-            await _tickGoalCompass();
+            unawaited(_tickGoalCompass());
           }
         } finally {
           _housekeepingRunning = false;
@@ -251,7 +252,7 @@ class RustBridgeRepository implements StorageRepository {
     await _tickDueReminders();
     await _tickHabitNudges();
     await _tickDigestInsights();
-    await _tickGoalCompass();
+    unawaited(_tickGoalCompass());
     _wakeAnalysisWorker();
   }
 
@@ -732,6 +733,17 @@ class RustBridgeRepository implements StorageRepository {
   Future<void> dismissCompassNudge(String id) async {
     await api.dismissCompassNudge(id: id);
     if (activeCompassNudge.value?.id == id) {
+      activeCompassNudge.value = null;
+    }
+  }
+
+  Future<void> submitCompassFeedback(
+    String id,
+    String kind, {
+    String note = '',
+  }) async {
+    await api.submitCompassFeedback(id: id, kind: kind, note: note);
+    if (kind != 'discuss' && activeCompassNudge.value?.id == id) {
       activeCompassNudge.value = null;
     }
   }

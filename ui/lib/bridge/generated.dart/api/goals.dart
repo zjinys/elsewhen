@@ -8,8 +8,19 @@ import 'conversations.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `evaluate_goal_compass`, `matches_text`, `parse_phase`, `summarize_recent_topics`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `from`, `from`
+// These functions are ignored because they are not marked as `pub`: `compass_dto`, `parse_phase`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
+
+/// Append a local correction or discussion receipt; never changes the goal.
+Future<void> submitCompassFeedback({
+  required String id,
+  required String kind,
+  required String note,
+}) => RustLib.instance.api.crateApiGoalsSubmitCompassFeedback(
+  id: id,
+  kind: kind,
+  note: note,
+);
 
 /// 列出全部活跃目标（最多 3 条，按近期→中期→长远排序）
 /// 获取（不存在则创建）某个目标的专属讨论会话，返回会话 DTO。
@@ -156,6 +167,85 @@ Future<void> dismissCompassNudge({required String id}) =>
 Future<void> realignCompassNudge({required String id}) =>
     RustLib.instance.api.crateApiGoalsRealignCompassNudge(id: id);
 
+class GoalCompassAssessmentDto {
+  final String id;
+  final String classification;
+  final String reason;
+  final String question;
+  final List<String> recommendations;
+  final List<GoalCompassEvidenceDto> evidence;
+
+  const GoalCompassAssessmentDto({
+    required this.id,
+    required this.classification,
+    required this.reason,
+    required this.question,
+    required this.recommendations,
+    required this.evidence,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      classification.hashCode ^
+      reason.hashCode ^
+      question.hashCode ^
+      recommendations.hashCode ^
+      evidence.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GoalCompassAssessmentDto &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          classification == other.classification &&
+          reason == other.reason &&
+          question == other.question &&
+          recommendations == other.recommendations &&
+          evidence == other.evidence;
+}
+
+/// A verified quotation and its bounded source record.
+class GoalCompassEvidenceDto {
+  final String sourceId;
+  final String sourceKind;
+  final String occurredAt;
+  final String quote;
+  final String excerpt;
+  final PlatformInt64 totalChars;
+
+  const GoalCompassEvidenceDto({
+    required this.sourceId,
+    required this.sourceKind,
+    required this.occurredAt,
+    required this.quote,
+    required this.excerpt,
+    required this.totalChars,
+  });
+
+  @override
+  int get hashCode =>
+      sourceId.hashCode ^
+      sourceKind.hashCode ^
+      occurredAt.hashCode ^
+      quote.hashCode ^
+      excerpt.hashCode ^
+      totalChars.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GoalCompassEvidenceDto &&
+          runtimeType == other.runtimeType &&
+          sourceId == other.sourceId &&
+          sourceKind == other.sourceKind &&
+          occurredAt == other.occurredAt &&
+          quote == other.quote &&
+          excerpt == other.excerpt &&
+          totalChars == other.totalChars;
+}
+
 /// 航向偏离校准提醒 DTO（Compass Nudge，FR-PES-005-04）
 class GoalCompassNudgeDto {
   final String id;
@@ -172,6 +262,9 @@ class GoalCompassNudgeDto {
   final String createdAt;
   final String? dismissedUntil;
 
+  /// Verified semantic assessment; absent for historical cards.
+  final GoalCompassAssessmentDto? assessment;
+
   const GoalCompassNudgeDto({
     required this.id,
     required this.goalId,
@@ -184,6 +277,7 @@ class GoalCompassNudgeDto {
     required this.status,
     required this.createdAt,
     this.dismissedUntil,
+    this.assessment,
   });
 
   @override
@@ -198,7 +292,8 @@ class GoalCompassNudgeDto {
       recentTopics.hashCode ^
       status.hashCode ^
       createdAt.hashCode ^
-      dismissedUntil.hashCode;
+      dismissedUntil.hashCode ^
+      assessment.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -215,7 +310,8 @@ class GoalCompassNudgeDto {
           recentTopics == other.recentTopics &&
           status == other.status &&
           createdAt == other.createdAt &&
-          dismissedUntil == other.dismissedUntil;
+          dismissedUntil == other.dismissedUntil &&
+          assessment == other.assessment;
 }
 
 /// 目标 DTO

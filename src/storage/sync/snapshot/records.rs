@@ -210,6 +210,9 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     ("deviation_reports", "local-knowledge-pipeline"),
     // 目标航向偏离检测提醒（Phase G4）：本地 worker 评估与退避交互产物，不跨设备同步。
     ("goal_compass_nudges", "local-goal-compass-nudges"),
+    ("goal_compass_authority", "local-goal-compass-nudges"),
+    ("goal_compass_assessments", "local-goal-compass-nudges"),
+    ("goal_compass_feedback", "local-goal-compass-nudges"),
     ("knowledge_artifact_versions", "local-knowledge-pipeline"),
     ("knowledge_background_runs", "local-knowledge-pipeline"),
     ("knowledge_dependencies", "local-knowledge-pipeline"),

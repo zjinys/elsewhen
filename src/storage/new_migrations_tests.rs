@@ -126,6 +126,7 @@ fn migrations_are_discovered_from_the_directory() {
             "77-manual-topic-editing",
             "78-event-digest-readings",
             "79-event-reading-scheduling",
+            "80-semantic-goal-compass",
         ],
         "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
     );
@@ -157,7 +158,7 @@ fn migration_applies_goals_table() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 79, "全部迁移跑完，user_version 应为 79");
+    assert_eq!(version, 80, "全部迁移跑完，user_version 应为 80");
     assert_eq!(
         latest_version().unwrap(),
         version,
@@ -1291,5 +1292,35 @@ fn manual_topic_upgrade_preserves_identity_and_imported_sources_stay_readonly() 
                 .get::<_, i64>(0))
             .unwrap(),
         3
+    );
+}
+
+#[test]
+fn semantic_compass_upgrades_v79_and_retires_unverified_keyword_cards() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    migrations()
+        .unwrap()
+        .to_version(&mut connection, 79)
+        .unwrap();
+    insert(&connection, "legacy-compass", "near", "active");
+    connection.execute("INSERT INTO goal_compass_nudges(id,goal_id,goal_content,current_focus,stalled_days,recent_topics,status,created_at) VALUES('old','legacy-compass','goal','focus',4,'topics','pending','2026-11-08T00:00:00Z')",[]).unwrap();
+    initialize(&mut connection).unwrap();
+    let (status, assessment): (String, Option<String>) = connection
+        .query_row(
+            "SELECT status,assessment_id FROM goal_compass_nudges WHERE id='old'",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(status, "realigned");
+    assert!(assessment.is_none());
+    assert_eq!(
+        connection
+            .query_row("SELECT count(*) FROM goal_compass_assessments", [], |r| r
+                .get::<_, i64>(
+                0
+            ))
+            .unwrap(),
+        0
     );
 }

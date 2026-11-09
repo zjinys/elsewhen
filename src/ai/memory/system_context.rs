@@ -234,6 +234,18 @@ pub(crate) fn build_system_context(
     // 要逐条对照检查；目标是用户一切活动的航向基准（主动对照，不是被动的背景板）。
     // 涉及取舍、规划、知识沉淀方向时默认对照当前行动；但日常闲聊与独立具体
     // 问题保持零打扰，不生硬把话题往目标上拽。
+    // A pending semantic card is optional background, not a new task. Legacy
+    // pinned bundles predate this resource and retain their original behavior.
+    if !is_knowledge_mentor {
+        if let Ok(intro) = strings.literal("compass_context") {
+            if let Some(nudge) = store.get_active_compass_nudge()? {
+                if let Some((_, output, _)) = store.compass_details(&nudge.id)? {
+                    prompt.push_str(intro);
+                    prompt.push_str(&serde_json::json!({"goal_id":nudge.goal_id,"assessment":serde_json::from_str::<serde_json::Value>(&output)?}).to_string());
+                }
+            }
+        }
+    }
     let active_goals = store.list_active_goals()?;
     if active_goals.is_empty() {
         prompt.push_str(strings.literal("no_goals")?);

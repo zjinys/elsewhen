@@ -4095,5 +4095,15 @@
         "type": "String"
       }
     }
-  }
+  },
+  "promptCompassContract": "航向评估协议",
+  "compassEvidence": "查看依据",
+  "compassStillProgressing": "仍在推进",
+  "compassDirectionChanged": "方向已变",
+  "compassFeedbackSaved": "已记下反馈，后续判断会参考你的纠正",
+  "compassReview": "简单复盘",
+  "compassReviewSeed": "我们简单复盘当前计划是否仍合适。提醒依据：",
+  "compassEvidenceNotice": "以下是当时用于判断的用户记录节选；完整原始记录保持不变。",
+  "compassCorrectionNote": "可以补充进展或变化（选填）",
+  "compassGentleCheck": "当前计划还合适吗？"
 }

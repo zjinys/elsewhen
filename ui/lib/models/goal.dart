@@ -142,6 +142,7 @@ class GoalCompassNudge {
   final String status;
   final DateTime createdAt;
   final DateTime? dismissedUntil;
+  final api.GoalCompassAssessmentDto? assessment;
 
   const GoalCompassNudge({
     required this.id,
@@ -154,6 +155,7 @@ class GoalCompassNudge {
     required this.status,
     required this.createdAt,
     this.dismissedUntil,
+    this.assessment,
   });
 
   factory GoalCompassNudge.fromDto(api.GoalCompassNudgeDto dto) {
@@ -162,6 +164,7 @@ class GoalCompassNudge {
       goalId: dto.goalId,
       goalContent: dto.goalContent,
       planIntent: dto.planIntent,
+      assessment: dto.assessment,
       currentFocus: dto.currentFocus,
       stalledDays: dto.stalledDays.toInt(),
       recentTopics: dto.recentTopics,

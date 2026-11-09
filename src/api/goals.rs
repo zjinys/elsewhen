@@ -64,6 +64,8 @@ pub struct GoalCompassNudgeDto {
     pub status: String,
     pub created_at: String,
     pub dismissed_until: Option<String>,
+    /// Verified semantic assessment; absent for historical cards.
+    pub assessment: Option<GoalCompassAssessmentDto>,
 }
 
 impl From<GoalCompassNudge> for GoalCompassNudgeDto {
@@ -80,8 +82,75 @@ impl From<GoalCompassNudge> for GoalCompassNudgeDto {
             status: n.status,
             created_at: n.created_at,
             dismissed_until: n.dismissed_until,
+            assessment: None,
         }
     }
+}
+
+/// A verified quotation and its bounded source record.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GoalCompassEvidenceDto {
+    pub source_id: String,
+    pub source_kind: String,
+    pub occurred_at: String,
+    pub quote: String,
+    pub excerpt: String,
+    pub total_chars: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GoalCompassAssessmentDto {
+    pub id: String,
+    pub classification: String,
+    pub reason: String,
+    pub question: String,
+    pub recommendations: Vec<String>,
+    pub evidence: Vec<GoalCompassEvidenceDto>,
+}
+
+pub(crate) fn compass_dto(store: &Store, nudge: GoalCompassNudge) -> Result<GoalCompassNudgeDto> {
+    use crate::storage::compass::{CompassInput, CompassVerdict};
+    let mut dto = GoalCompassNudgeDto::from(nudge);
+    if let Some((input, output, id)) = store.compass_details(&dto.id)? {
+        let input: CompassInput = serde_json::from_str(&input)?;
+        let output: CompassVerdict = serde_json::from_str(&output)?;
+        output.validate(&input)?;
+        let evidence = output
+            .citations
+            .iter()
+            .map(|c| {
+                let e = input
+                    .evidence
+                    .iter()
+                    .find(|e| e.source_id == c.source_id)
+                    .ok_or_else(|| anyhow::anyhow!("compass_unknown_citation"))?;
+                Ok(GoalCompassEvidenceDto {
+                    source_id: e.source_id.clone(),
+                    source_kind: e.source_kind.clone(),
+                    occurred_at: e.occurred_at.clone(),
+                    quote: c.quote.clone(),
+                    excerpt: e.excerpt.clone(),
+                    total_chars: e.total_chars as i64,
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        dto.assessment = Some(GoalCompassAssessmentDto {
+            id,
+            classification: output.classification,
+            reason: output.reason,
+            question: output.question,
+            recommendations: output.recommendations,
+            evidence,
+        });
+    }
+    Ok(dto)
+}
+
+/// Append a local correction or discussion receipt; never changes the goal.
+pub fn submit_compass_feedback(id: String, kind: String, note: String) -> Result<()> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store.compass_feedback(&id, &kind, &note)
 }
 
 fn parse_phase(phase: &str) -> Result<GoalPhase> {
@@ -103,7 +172,9 @@ pub fn ensure_goal_chat(goal_id: String) -> Result<ConversationDto> {
     };
     let conversation_id = match store.find_goal_chat_conversation(&goal_id)? {
         Some(id) => id,
-        None => store.create_goal_chat_conversation(&goal_id, &format!("[目标] {}", goal.content))?,
+        None => {
+            store.create_goal_chat_conversation(&goal_id, &format!("[目标] {}", goal.content))?
+        }
     };
     let conversation = store
         .get_conversation(&conversation_id)?
@@ -324,6 +395,7 @@ pub fn reactivate_goal(
 // ── Compass Nudge（长程偏离检测与航向校准引擎）────────────────────────
 
 /// 文本是否提及目标或抓手
+#[cfg(test)]
 fn matches_text(text: &str, focus: &str, content: &str) -> bool {
     let lower_text = text.to_lowercase();
     let lower_focus = focus.to_lowercase();
@@ -356,7 +428,8 @@ fn matches_text(text: &str, focus: &str, content: &str) -> bool {
             if chars.len() >= window_size {
                 for window in chars.windows(window_size) {
                     let sub: String = window.iter().collect();
-                    if ["攻克了", "推进了", "完成了", "进行中", "优化了"].contains(&sub.as_str()) {
+                    if ["攻克了", "推进了", "完成了", "进行中", "优化了"].contains(&sub.as_str())
+                    {
                         continue;
                     }
                     if lower_text.contains(&sub) {
@@ -371,6 +444,7 @@ fn matches_text(text: &str, focus: &str, content: &str) -> bool {
 }
 
 /// 从近期的记录与对话中提炼 2~3 个代表性话题/切片短语
+#[cfg(test)]
 fn summarize_recent_topics(events: &[String], messages: &[String]) -> String {
     let mut topics = Vec::new();
     let is_sep = |c: char| c == '\n' || c == '\r' || c == '。' || c == '；' || c == ';';
@@ -396,6 +470,7 @@ fn summarize_recent_topics(events: &[String], messages: &[String]) -> String {
 }
 
 /// 核心长程偏离判定引擎（3~5 天滑动窗口）
+#[cfg(test)]
 pub(crate) fn evaluate_goal_compass(store: &Store) -> Result<Option<GoalCompassNudge>> {
     // 1. 若已有生效中的 pending 卡片，直接返回现存卡片，不重复打扰或堆积
     if let Some(existing) = store.get_active_compass_nudge()? {
@@ -516,23 +591,32 @@ pub(crate) fn evaluate_goal_compass(store: &Store) -> Result<Option<GoalCompassN
 pub fn get_active_compass_nudge() -> Result<Option<GoalCompassNudgeDto>> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
-    Ok(store
+    store
         .get_active_compass_nudge()?
-        .map(GoalCompassNudgeDto::from))
+        .map(|n| compass_dto(&store, n))
+        .transpose()
 }
 
 /// 后台 worker 定时调用：执行长程偏离检测评估
 pub fn tick_goal_compass() -> Result<Option<GoalCompassNudgeDto>> {
     let config = crate::config::AppConfig::load()?;
-    let store = Store::open(&config.database_path)?;
-    Ok(evaluate_goal_compass(&store)?.map(GoalCompassNudgeDto::from))
+    let Some(store) = Store::open_background(&config.database_path)? else {
+        return Ok(None);
+    };
+    crate::ai::compass::tick(&store)?
+        .map(|n| compass_dto(&store, n))
+        .transpose()
 }
 
 /// 用户点击「处理急事，暂不打扰」：静默退避 7 天
 pub fn dismiss_compass_nudge(id: String) -> Result<()> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
-    store.dismiss_compass_nudge(&id, 7)
+    if store.compass_details(&id)?.is_some() {
+        store.compass_feedback(&id, "snooze", "")
+    } else {
+        store.dismiss_compass_nudge(&id, 7)
+    }
 }
 
 /// 航向已校准（例如用户点击了「聚焦攻克卡点」或「更新当前抓手」）
@@ -629,7 +713,11 @@ mod tests {
         assert_eq!(n.goal_content, "发布 Elsewhen 1.0");
         assert_eq!(n.current_focus, "攻克多端同步快照收敛");
         assert!(n.stalled_days >= 4);
-        assert!(n.recent_topics.contains("超市采购") || n.recent_topics.contains("科幻电影") || n.recent_topics.contains("打印机"));
+        assert!(
+            n.recent_topics.contains("超市采购")
+                || n.recent_topics.contains("科幻电影")
+                || n.recent_topics.contains("打印机")
+        );
 
         // 4. 重复评估，应直接返回现存卡片（不重复生成）
         let second = evaluate_goal_compass(&store.store).unwrap().unwrap();
@@ -701,7 +789,10 @@ mod tests {
                 )
                 .unwrap();
         }
-        assert!(evaluate_goal_compass(&store.store).unwrap().is_none(), "有对应抓手推进，不应报警");
+        assert!(
+            evaluate_goal_compass(&store.store).unwrap().is_none(),
+            "有对应抓手推进，不应报警"
+        );
     }
 
     #[test]

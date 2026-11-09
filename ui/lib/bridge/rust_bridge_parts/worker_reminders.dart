@@ -168,6 +168,8 @@ extension RepoWorkerReminders on RustBridgeRepository {
   // ── 航向偏离校准（Compass Nudge，FR-PES-005-04）────────────────
 
   Future<void> _tickGoalCompass() async {
+    if (_disposed || _compassRunning) return;
+    _compassRunning = true;
     try {
       final dto = await api.tickGoalCompass();
       if (_disposed) return;
@@ -181,6 +183,8 @@ extension RepoWorkerReminders on RustBridgeRepository {
     } catch (e) {
       // 故障隔离：校准评估失败只记日志，绝不带崩其他流程。
       debugPrint('goal compass tick failed: $e');
+    } finally {
+      _compassRunning = false;
     }
   }
 

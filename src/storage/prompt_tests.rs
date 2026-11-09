@@ -241,7 +241,19 @@ fn bilingual_catalog_registers_append_only_and_restores_matching_builtin() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(count, 36);
+    // Nineteen built-in definitions, each registered in both locales.
+    assert_eq!(count, 38);
+    let compass = catalog()
+        .into_iter()
+        .find(|d| d.key == "compass.fixed_contract")
+        .unwrap();
+    assert!(!compass.editable);
+    for locale in ["zh-Hans", "en"] {
+        assert!(
+            s.save_prompt_revision(compass.key, locale, "override", None, "")
+                .is_err()
+        );
+    }
     s.register_prompts().unwrap();
     assert_eq!(
         count,

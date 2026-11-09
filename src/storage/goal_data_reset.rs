@@ -28,6 +28,16 @@ impl Store {
         for id in &goals {
             self.sync_delete_goal(id)?;
         }
+        // Semantic compass records are local derived state. Remove their
+        // references before deleting the goal workspace, in this transaction.
+        for table in [
+            "goal_compass_feedback",
+            "goal_compass_nudges",
+            "goal_compass_assessments",
+        ] {
+            self.connection
+                .execute(&format!("DELETE FROM {table}"), [])?;
+        }
         self.connection.execute("DELETE FROM goals", [])?;
         let plans = self.list_plans()?;
         for plan in &plans {

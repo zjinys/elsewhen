@@ -333,7 +333,8 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
               : null,
         ),
         const ReminderBanner(),
-        const GoalCompassNudgeBanner(),
+        if (!durableBusy && !generatingIds.contains(selectedId))
+          const GoalCompassNudgeBanner(),
         if (showSearch) _buildSearchBar(messagesAsync.value ?? const []),
         _PendingRelationsBanner(),
         // Messages list

@@ -6912,4 +6912,34 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get digestReadingLimitHelp => '事件或阅读缓存达到处理上限。原文和已读进度均已保留。';
+
+  @override
+  String get promptCompassContract => '航向评估协议';
+
+  @override
+  String get compassEvidence => '查看依据';
+
+  @override
+  String get compassStillProgressing => '仍在推进';
+
+  @override
+  String get compassDirectionChanged => '方向已变';
+
+  @override
+  String get compassFeedbackSaved => '已记下反馈，后续判断会参考你的纠正';
+
+  @override
+  String get compassReview => '简单复盘';
+
+  @override
+  String get compassReviewSeed => '我们简单复盘当前计划是否仍合适。提醒依据：';
+
+  @override
+  String get compassEvidenceNotice => '以下是当时用于判断的用户记录节选；完整原始记录保持不变。';
+
+  @override
+  String get compassCorrectionNote => '可以补充进展或变化（选填）';
+
+  @override
+  String get compassGentleCheck => '当前计划还合适吗？';
 }

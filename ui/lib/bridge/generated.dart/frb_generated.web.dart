@@ -139,6 +139,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_box_autoadd_f_64(dynamic raw);
 
   @protected
+  GoalCompassAssessmentDto dco_decode_box_autoadd_goal_compass_assessment_dto(
+    dynamic raw,
+  );
+
+  @protected
   GoalCompassNudgeDto dco_decode_box_autoadd_goal_compass_nudge_dto(
     dynamic raw,
   );
@@ -310,6 +315,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double dco_decode_f_64(dynamic raw);
+
+  @protected
+  GoalCompassAssessmentDto dco_decode_goal_compass_assessment_dto(dynamic raw);
+
+  @protected
+  GoalCompassEvidenceDto dco_decode_goal_compass_evidence_dto(dynamic raw);
 
   @protected
   GoalCompassNudgeDto dco_decode_goal_compass_nudge_dto(dynamic raw);
@@ -512,6 +523,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<EventSummaryDto> dco_decode_list_event_summary_dto(dynamic raw);
+
+  @protected
+  List<GoalCompassEvidenceDto> dco_decode_list_goal_compass_evidence_dto(
+    dynamic raw,
+  );
 
   @protected
   List<GoalDto> dco_decode_list_goal_dto(dynamic raw);
@@ -781,6 +797,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
+
+  @protected
+  GoalCompassAssessmentDto?
+  dco_decode_opt_box_autoadd_goal_compass_assessment_dto(dynamic raw);
 
   @protected
   GoalCompassNudgeDto? dco_decode_opt_box_autoadd_goal_compass_nudge_dto(
@@ -1101,6 +1121,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  GoalCompassAssessmentDto sse_decode_box_autoadd_goal_compass_assessment_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   GoalCompassNudgeDto sse_decode_box_autoadd_goal_compass_nudge_dto(
     SseDeserializer deserializer,
   );
@@ -1314,6 +1339,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double sse_decode_f_64(SseDeserializer deserializer);
+
+  @protected
+  GoalCompassAssessmentDto sse_decode_goal_compass_assessment_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  GoalCompassEvidenceDto sse_decode_goal_compass_evidence_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   GoalCompassNudgeDto sse_decode_goal_compass_nudge_dto(
@@ -1592,6 +1627,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<EventSummaryDto> sse_decode_list_event_summary_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<GoalCompassEvidenceDto> sse_decode_list_goal_compass_evidence_dto(
     SseDeserializer deserializer,
   );
 
@@ -1939,6 +1979,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
+
+  @protected
+  GoalCompassAssessmentDto?
+  sse_decode_opt_box_autoadd_goal_compass_assessment_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   GoalCompassNudgeDto? sse_decode_opt_box_autoadd_goal_compass_nudge_dto(
@@ -2410,6 +2456,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double cst_encode_box_autoadd_f_64(double raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_f_64(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_goal_compass_assessment_dto(
+    GoalCompassAssessmentDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_goal_compass_assessment_dto(raw);
   }
 
   @protected
@@ -2996,6 +3050,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_goal_compass_assessment_dto(GoalCompassAssessmentDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.classification),
+      cst_encode_String(raw.reason),
+      cst_encode_String(raw.question),
+      cst_encode_list_String(raw.recommendations),
+      cst_encode_list_goal_compass_evidence_dto(raw.evidence),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_goal_compass_evidence_dto(GoalCompassEvidenceDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.sourceId),
+      cst_encode_String(raw.sourceKind),
+      cst_encode_String(raw.occurredAt),
+      cst_encode_String(raw.quote),
+      cst_encode_String(raw.excerpt),
+      cst_encode_i_64(raw.totalChars),
+    ].jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_goal_compass_nudge_dto(GoalCompassNudgeDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -3010,6 +3090,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.status),
       cst_encode_String(raw.createdAt),
       cst_encode_opt_String(raw.dismissedUntil),
+      cst_encode_opt_box_autoadd_goal_compass_assessment_dto(raw.assessment),
     ].jsify()!;
   }
 
@@ -3714,6 +3795,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_goal_compass_evidence_dto(
+    List<GoalCompassEvidenceDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_goal_compass_evidence_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_goal_dto(List<GoalDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_goal_dto).toList().jsify()!;
@@ -4300,6 +4389,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double? cst_encode_opt_box_autoadd_f_64(double? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_f_64(raw);
+  }
+
+  @protected
+  JSAny? cst_encode_opt_box_autoadd_goal_compass_assessment_dto(
+    GoalCompassAssessmentDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? null
+        : cst_encode_box_autoadd_goal_compass_assessment_dto(raw);
   }
 
   @protected
@@ -5340,6 +5439,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_goal_compass_assessment_dto(
+    GoalCompassAssessmentDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_goal_compass_nudge_dto(
     GoalCompassNudgeDto self,
     SseSerializer serializer,
@@ -5626,6 +5731,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_goal_compass_assessment_dto(
+    GoalCompassAssessmentDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_goal_compass_evidence_dto(
+    GoalCompassEvidenceDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_goal_compass_nudge_dto(
@@ -5978,6 +6095,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_event_summary_dto(
     List<EventSummaryDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_goal_compass_evidence_dto(
+    List<GoalCompassEvidenceDto> self,
     SseSerializer serializer,
   );
 
@@ -6409,6 +6532,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_goal_compass_assessment_dto(
+    GoalCompassAssessmentDto? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_goal_compass_nudge_dto(
@@ -9288,6 +9417,18 @@ class RustLibWire implements BaseWire {
     idempotency_key,
   );
 
+  void wire__crate__api__goals__submit_compass_feedback(
+    NativePortType port_,
+    String id,
+    String kind,
+    String note,
+  ) => wasmModule.wire__crate__api__goals__submit_compass_feedback(
+    port_,
+    id,
+    kind,
+    note,
+  );
+
   void wire__crate__api__records__submit_conversation_input(
     NativePortType port_,
     String conversation_id,
@@ -11327,6 +11468,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String conversation_id,
     String input_message_id,
     String idempotency_key,
+  );
+
+  external void wire__crate__api__goals__submit_compass_feedback(
+    NativePortType port_,
+    String id,
+    String kind,
+    String note,
   );
 
   external void wire__crate__api__records__submit_conversation_input(

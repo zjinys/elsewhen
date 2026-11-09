@@ -1,5 +1,6 @@
 pub mod approval;
 pub mod budget;
+pub(crate) mod compass;
 pub mod conversation;
 pub(crate) mod generation;
 pub mod insight;

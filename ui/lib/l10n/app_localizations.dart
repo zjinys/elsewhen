@@ -12339,6 +12339,66 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'事件或阅读缓存达到处理上限。原文和已读进度均已保留。'**
   String get digestReadingLimitHelp;
+
+  /// No description provided for @promptCompassContract.
+  ///
+  /// In zh, this message translates to:
+  /// **'航向评估协议'**
+  String get promptCompassContract;
+
+  /// No description provided for @compassEvidence.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看依据'**
+  String get compassEvidence;
+
+  /// No description provided for @compassStillProgressing.
+  ///
+  /// In zh, this message translates to:
+  /// **'仍在推进'**
+  String get compassStillProgressing;
+
+  /// No description provided for @compassDirectionChanged.
+  ///
+  /// In zh, this message translates to:
+  /// **'方向已变'**
+  String get compassDirectionChanged;
+
+  /// No description provided for @compassFeedbackSaved.
+  ///
+  /// In zh, this message translates to:
+  /// **'已记下反馈，后续判断会参考你的纠正'**
+  String get compassFeedbackSaved;
+
+  /// No description provided for @compassReview.
+  ///
+  /// In zh, this message translates to:
+  /// **'简单复盘'**
+  String get compassReview;
+
+  /// No description provided for @compassReviewSeed.
+  ///
+  /// In zh, this message translates to:
+  /// **'我们简单复盘当前计划是否仍合适。提醒依据：'**
+  String get compassReviewSeed;
+
+  /// No description provided for @compassEvidenceNotice.
+  ///
+  /// In zh, this message translates to:
+  /// **'以下是当时用于判断的用户记录节选；完整原始记录保持不变。'**
+  String get compassEvidenceNotice;
+
+  /// No description provided for @compassCorrectionNote.
+  ///
+  /// In zh, this message translates to:
+  /// **'可以补充进展或变化（选填）'**
+  String get compassCorrectionNote;
+
+  /// No description provided for @compassGentleCheck.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前计划还合适吗？'**
+  String get compassGentleCheck;
 }
 
 class _AppLocalizationsDelegate

@@ -74,6 +74,7 @@ class _PromptSettingsState extends State<PromptSettings> {
     'reading.policy' => context.l10n.promptReadingPolicy,
     'digest.policy' => context.l10n.promptDigestPolicy,
     'analysis.policy' => context.l10n.promptAnalysisPolicy,
+    'compass.fixed_contract' => context.l10n.promptCompassContract,
     _ => item.title,
   };
 
