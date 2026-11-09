@@ -83,7 +83,8 @@ impl Tool for SaveKnowledgeDraftTool {
                 "tags":{"type":"array","items":{"type":"string"},"description":"标签数组，可选"},
                 "source_slugs":{"type":"array","items":{"type":"string"},"description":"实际采用的已检索页面标识，最多 8 项；不填无关来源"},
                 "parent_slug":{"type":"string","description":"从某个已有知识页派生时填该页 slug（如页面聊天里草拟就填当前页），确认后作为派生产物挂在父页下；不能与 source_slugs 同时使用"},
-                "applicable_when":{"type":"string","description":"适用条件，保存有依据的方法/案例/规律时必填，最多 600 字"}
+                "applicable_when":{"type":"string","description":"适用条件，保存有依据的方法/案例/规律时必填，最多 600 字"},
+                "distinct_reason":{"type":"string","description":"发现相近页后，用户仍明确要求独立建页时说明不同对象／适用条件；不要为绕过复用检查而填写"}
             },
             "required":["title","content_md"],
             "additionalProperties":false
@@ -110,6 +111,25 @@ impl Tool for SaveKnowledgeDraftTool {
                 "《{}》已经有一份待确认草稿（尚未保存），本次不重复创建。在审阅卡点击接受即可保存这一份。",
                 title
             ));
+        }
+        let distinct_reason = arg_str_opt(args, "distinct_reason").unwrap_or_default();
+        anyhow::ensure!(
+            distinct_reason.chars().count() <= 600,
+            "独立建页理由最多600字"
+        );
+        if distinct_reason.trim().is_empty() && arg_str_opt(args, "parent_slug").is_none() {
+            let candidates = crate::knowledge::conversation_support::reuse_candidates(
+                ctx.store,
+                &title,
+                &content_md,
+            )?;
+            if !candidates.is_empty() {
+                let hints=candidates.iter().map(|p|json!({"slug":p.slug,"title":p.title,"excerpt":crate::knowledge::shorten(&p.content_md,300)})).collect::<Vec<_>>();
+                return Ok(format!(
+                    "发现可能可复用的知识，本次尚未新建或修改：{}。先用 get_wiki_page 阅读，比较适用条件及新增内容；无增量则复用，有增量用 save_wiki_revision。只有用户明确需要不同对象／条件的独立页时填写 distinct_reason 再建页，不得按相似度自动合并。",
+                    serde_json::to_string(&hints)?
+                ));
+            }
         }
         let kind = arg_str_opt(args, "kind").unwrap_or_else(|| "topic".to_string());
         let parent_slug = arg_str_opt(args, "parent_slug");
@@ -153,6 +173,7 @@ impl Tool for SaveKnowledgeDraftTool {
             "verified_evidence": evidence,
             "applicable_when": applicable,
             "parent_slug": parent_slug,
+            "distinct_reason":distinct_reason,
         });
         store_create_pending(
             ctx.store,

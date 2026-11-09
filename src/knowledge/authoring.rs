@@ -93,6 +93,20 @@ pub(crate) fn save_draft(store: &Store, draft: &WikiPageDraft, args: &Value) -> 
         }
         return Ok(existing);
     }
+    if args["distinct_reason"]
+        .as_str()
+        .unwrap_or("")
+        .trim()
+        .is_empty()
+        && args["parent_slug"].as_str().is_none()
+    {
+        let candidates =
+            super::conversation_support::reuse_candidates(store, &draft.title, &draft.content_md)?;
+        ensure!(
+            candidates.is_empty(),
+            "确认前出现相近知识，请重新读取已有页并选择复用、修订或独立建页；尚未保存"
+        );
+    }
     // This is an internal field created by draft_sources, never copied from tool arguments.
     let evidence: Vec<KnowledgeCitation> = args
         .get("verified_evidence")

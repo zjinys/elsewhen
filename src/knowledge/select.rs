@@ -108,6 +108,51 @@ pub(crate) fn query_terms(query: &str) -> Vec<String> {
     terms
 }
 
+/// Fuse a bounded set of model-authored paraphrases without another paid call.
+/// Every route uses the same eligibility checks; one hit never becomes evidence
+/// merely because several rewrites retrieved it.
+pub(crate) fn select_knowledge_variants(
+    store: &Store,
+    queries: &[String],
+    budget: usize,
+) -> Result<Vec<KnowledgeCitation>> {
+    anyhow::ensure!(
+        !queries.is_empty() && queries.len() <= 4,
+        "knowledge_query_limit"
+    );
+    let mut ranked = std::collections::HashMap::<String, (f64, KnowledgeCitation)>::new();
+    let mut seen = HashSet::new();
+    for query in queries {
+        let query = query.trim();
+        anyhow::ensure!(
+            !query.is_empty() && query.chars().count() <= 3000,
+            "knowledge_query_invalid"
+        );
+        if !seen.insert(query.to_lowercase()) {
+            continue;
+        }
+        for (index, citation) in select_knowledge(store, query, "search", 12000)?
+            .into_iter()
+            .enumerate()
+        {
+            let entry = ranked
+                .entry(citation.page_slug.clone())
+                .or_insert((0.0, citation));
+            entry.0 += 1.0 / (60.0 + index as f64);
+        }
+    }
+    let mut ranked: Vec<_> = ranked.into_values().collect();
+    ranked.sort_by(|a, b| b.0.total_cmp(&a.0).then(a.1.page_slug.cmp(&b.1.page_slug)));
+    let mut output = Vec::new();
+    for (_, citation) in ranked.into_iter().take(12) {
+        output.push(citation);
+        if serde_json::to_string(&output)?.chars().count() > budget.min(12000) {
+            output.pop();
+        }
+    }
+    Ok(output)
+}
+
 /// Select the most relevant full-text window instead of always citing the intro.
 fn matching_excerpt(text: &str, terms: &[String], limit: usize) -> String {
     let chars: Vec<char> = text.chars().collect();
@@ -197,14 +242,8 @@ pub fn select_knowledge(
         if prominent == 0 && body_hits == 0 {
             continue;
         }
-        if matches!(page.kind.as_str(), "method" | "case" | "principle")
-            && (metadata.applicable_when.is_empty()
-                || !terms
-                    .iter()
-                    .any(|t| metadata.applicable_when.to_lowercase().contains(t)))
-        {
-            continue;
-        }
+        // Applicability is returned with each citation for the answering model
+        // to assess. Lexical overlap with conditions is not proof of semantic fit.
         if let Some(mut citation) = citation_for_page(
             store,
             &page,

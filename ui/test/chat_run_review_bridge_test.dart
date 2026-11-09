@@ -64,10 +64,14 @@ void main() {
     for (final conversation in [main.id, wiki.id]) {
       for (final accept in [false, true]) {
         final title = '审阅样例-$conversation-$accept';
-        tool('search_knowledge_base', {'query': '测试资料'});
+        tool('search_knowledge_base', {
+          'query': '测试资料',
+          'alternate_queries': ['实践观察', '事实与假设'],
+        });
         tool('save_knowledge_draft', {
           'title': title,
           'content_md': '实践后记录观察，并区分事实与假设。',
+          'distinct_reason': '合成审批测试：用户明确要求按不同会话和验收用途独立保留样例',
         });
         replies.add({'content': '草稿已准备好，请在审阅卡选择具体内容。'});
         final text = '查询测试资料后，整理一页名为$title 的知识草稿';

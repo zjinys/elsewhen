@@ -29,7 +29,9 @@ impl Tool for SaveWikiRevisionTool {
                 "change_note":{"type":"string","description":"本次操作说明（如：生成总结 / 写抖音文案 / 补充要点），必填"},
                 "save_as":{"type":"string","enum":["derivative","revision"],"description":"derivative=保存为派生产物（默认，推荐：总结/提炼/写文案/翻译等生成类操作）；revision=直接修订当前页正文（仅当用户明确要改这页本身、且该页不是素材原文时）"},
                 "content_type":{"type":"string","description":"产物类型标签（save_as=derivative 时必填，如：总结/提炼观点/抖音文案/翻译/学习笔记）"},
-                "applicable_when":{"type":"string","description":"修订后的适用条件；省略则保留已有条件"}
+                "applicable_when":{"type":"string","description":"修订后的适用条件；省略则保留已有条件"},
+                "source_slugs":{"type":"array","maxItems":8,"items":{"type":"string"},"description":"本次新增依据的已检索知识页slug，确认时重新核验；旧依据保留，禁止引用目标页自身"},
+                "include_current_event":{"type":"boolean","description":"本次新增结论来自用户当前记录时设为true，只绑定系统已保存的当前输入事件，不得用于AI猜测"}
             },
             "required":["slug","title","content_md","change_note"],
             "additionalProperties":false
@@ -105,6 +107,61 @@ impl Tool for SaveWikiRevisionTool {
             basis["strength"] != "rule" || !applicable.trim().is_empty(),
             "规则必须保留适用条件"
         );
+        let evidence = crate::knowledge::authoring::draft_sources(
+            ctx.store,
+            ctx.conversation_id,
+            args,
+            ctx.knowledge_candidates,
+        )?;
+        anyhow::ensure!(
+            evidence.iter().all(|e| e.page_slug != slug),
+            "修订目标不能作为自己的新增来源"
+        );
+        let added_bases = crate::knowledge::dependencies::capture(
+            ctx.store,
+            &evidence
+                .iter()
+                .map(|e| e.page_slug.clone())
+                .collect::<Vec<_>>(),
+        )?;
+        let include_event = args
+            .get("include_current_event")
+            .map(|v| v.as_bool().context("include_current_event 必须为布尔值"))
+            .transpose()?
+            .unwrap_or(false);
+        let mut added_events = Vec::<String>::new();
+        let mut input_evidence = Value::Null;
+        if include_event {
+            let id = ctx
+                .source_event_id
+                .as_ref()
+                .context("当前输入尚无已保存的事件依据，不能绑定；请先记录事实")?;
+            anyhow::ensure!(
+                ctx.store.recordable_event(id)?,
+                "当前输入不是可记录的事实，不能作为依据"
+            );
+            let (excerpt, at): (String, String) = ctx.store.connection.query_row(
+                "SELECT substr(raw_text,1,600),occurred_at FROM events WHERE id=?1",
+                [id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )?;
+            added_events.push(id.clone());
+            input_evidence = json!({"event_id":id,"excerpt":excerpt,"occurred_at":at});
+        }
+        if save_as == "revision"
+            && current.title == title
+            && current.content_md == content_md
+            && basis["applicable_when"].as_str().unwrap_or("") == applicable
+            && !crate::knowledge::conversation_support::has_additions(
+                ctx.store,
+                &current,
+                &evidence,
+                &added_events,
+                &added_bases,
+            )?
+        {
+            return Ok("正文、标题、适用条件及依据均无新增，本次未生成重复修订".into());
+        }
         let action_args = json!({
             "slug": slug,
             "title": title.clone(),
@@ -116,7 +173,37 @@ impl Tool for SaveWikiRevisionTool {
             "revision_basis":basis,
             "page_task":task,
             "applicable_when":applicable,
+            "verified_evidence":evidence,
+            "added_dependency_bases":added_bases,
+            "added_event_ids":added_events,
+            "added_input_evidence":input_evidence,
         });
+        for pending in ctx
+            .store
+            .pending_actions_for_conversation(ctx.conversation_id)?
+        {
+            if pending.action != "save_wiki_revision" {
+                continue;
+            }
+            let old: Value = serde_json::from_str(&pending.args_json)?;
+            if [
+                "slug",
+                "title",
+                "content_md",
+                "save_as",
+                "applicable_when",
+                "revision_basis",
+                "verified_evidence",
+                "added_event_ids",
+                "added_dependency_bases",
+                "page_task",
+            ]
+            .iter()
+            .all(|key| old[*key] == action_args[*key])
+            {
+                return Ok("相同内容和依据的修订已在审阅中，尚未保存，本次未重复生成".into());
+            }
+        }
         store_create_pending(
             ctx.store,
             ctx.conversation_id,
@@ -718,6 +805,8 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                     Some(&pa.conversation_id),
                 )?;
                 crate::storage::chat_page_tasks::bind_proposal_materials(store, &page, &materials)?;
+                crate::knowledge::conversation_support::bind_additions(store, &page, &args)?;
+                store.sync_record_wiki_page(&page.id, false)?;
                 format!(
                     "已保存「{}」的派生产物（{ct}）：{change_note}。原文未改动。",
                     page.title
@@ -767,11 +856,17 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                 let applicable = args["applicable_when"]
                     .as_str()
                     .unwrap_or(&metadata.applicable_when);
+                crate::knowledge::conversation_support::bind_additions(
+                    store,
+                    &outcome.page,
+                    &args,
+                )?;
                 store.confirm_authored_metadata_in_tx(
                     &outcome.page.id,
                     applicable,
                     &metadata.strength,
                 )?;
+                store.sync_record_wiki_page(&outcome.page.id, false)?;
                 format!("知识页「{}」修订已保存：{change_note}", outcome.page.title)
             };
             if let Some(tx) = tx {

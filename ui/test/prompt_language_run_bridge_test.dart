@@ -155,10 +155,7 @@ void main() {
     final search = tools.singleWhere(
       (t) => t['name'] == 'search_knowledge_base',
     );
-    expect(
-      search['description'],
-      startsWith('Search knowledge pages and personal event records'),
-    );
+    expect(search['description'], startsWith('Search verified knowledge'));
     expect(
       search['parameters']['properties']['query']['description'],
       'Required search keywords',

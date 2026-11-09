@@ -17,7 +17,7 @@ pub(super) struct DescriptionCatalog(BTreeMap<String, Description>);
 impl ToolRegistry {
     pub(crate) fn configure_language(&mut self, store: &crate::storage::Store) -> Result<()> {
         let body = store.prompt_for_run("tool.descriptions.fixed_contract")?;
-        let catalog: DescriptionCatalog =
+        let mut catalog: DescriptionCatalog =
             serde_json::from_str(&body).context("tool_locale_resource_invalid")?;
         let metadata = crate::storage::prompts::render::TextResources::parse(
             &store.prompt_for_run("tool.metadata.fixed_contract")?,
@@ -37,7 +37,27 @@ impl ToolRegistry {
             let mut pointers = BTreeMap::new();
             collect_descriptions(&schema, "", &mut pointers);
             ensure!(
-                pointers.keys().eq(translated.parameters.keys()),
+                translated
+                    .parameters
+                    .keys()
+                    .all(|key| pointers.contains_key(key))
+                    && pointers
+                        .keys()
+                        .all(|key| translated.parameters.contains_key(key)
+                            || matches!(
+                                (tool.name(), key.as_str()),
+                                (
+                                    "search_knowledge_base",
+                                    "/properties/alternate_queries/description"
+                                ) | (
+                                    "save_wiki_revision",
+                                    "/properties/source_slugs/description"
+                                        | "/properties/include_current_event/description"
+                                ) | (
+                                    "save_knowledge_draft",
+                                    "/properties/distinct_reason/description"
+                                )
+                            )),
                 "tool_locale_parameters_mismatch:{}",
                 tool.name()
             );
@@ -45,6 +65,35 @@ impl ToolRegistry {
                 translated.parameters.values().all(|v| !v.trim().is_empty()),
                 "tool_parameter_description_empty"
             );
+        }
+        // Historical run bundles predate these optional schema additions. Keep
+        // their existing text frozen, filling only the newly introduced fields
+        // from the same language's built-in resource.
+        for (name, translated) in &mut catalog.0 {
+            let english = !translated
+                .description
+                .chars()
+                .any(|c| ('\u{3400}'..='\u{9fff}').contains(&c));
+            let current: DescriptionCatalog = serde_json::from_str(if english {
+                include_str!("../../../resources/prompts/tool-descriptions.en.json")
+            } else {
+                include_str!("../../../resources/prompts/tool-descriptions.zh-Hans.json")
+            })?;
+            let schema = self
+                .tools
+                .iter()
+                .find(|t| t.name() == name)
+                .context("tool_locale_missing")?
+                .parameters_schema();
+            let mut pointers = BTreeMap::new();
+            collect_descriptions(&schema, "", &mut pointers);
+            for key in pointers.keys() {
+                if !translated.parameters.contains_key(key) {
+                    translated
+                        .parameters
+                        .insert(key.clone(), current.0[name].parameters[key].clone());
+                }
+            }
         }
         self.description_catalog = Some(catalog);
         self.metadata = Some(metadata);

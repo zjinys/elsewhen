@@ -219,7 +219,7 @@
     }
   },
   "save_knowledge_draft": {
-    "description": "Prepare a knowledge page draft and save after review. For a sourced reply, source_slugs must contain only provided pages actually used, and applicable_when states applicability; source versions are fixed and checked again at confirmation. To derive from an existing page, use parent_slug instead, attaching the artifact to that parent after confirmation. parent_slug and source_slugs are mutually exclusive. Unsourced notes are allowed, invented sources are not. Do not overwrite a page with the same name; use save_wiki_revision.",
+    "description": "Prepare knowledge for user review. Search and read existing knowledge before creating a page; prefer reuse with no new information, or save_wiki_revision for additions to an existing page. Similar-content hints do not mean pages were merged or saved. Only when the user explicitly wants an independent page for a distinct subject or applicability, provide distinct_reason. source_slugs must name provided evidence actually used, applicable_when states limits. parent_slug derives an artifact and is mutually exclusive with source_slugs. Preserve source identities; never invent evidence.",
     "parameters": {
       "/properties/applicable_when/description": "Required applicability for sourced methods/cases/principles; maximum 600 characters",
       "/properties/content_md/description": "Required Markdown body",
@@ -227,11 +227,12 @@
       "/properties/parent_slug/description": "Parent page slug for a derivative, e.g. the current page in page chat; mutually exclusive with source_slugs",
       "/properties/source_slugs/description": "At most 8 provided/retrieved page slugs actually used; no unrelated sources",
       "/properties/tags/description": "Optional tag array",
-      "/properties/title/description": "Required page title"
+      "/properties/title/description": "Required page title",
+      "/properties/distinct_reason/description": "Explain the distinct subject or conditions only after the user explicitly chooses a separate page despite similar knowledge; never use just to bypass reuse checks."
     }
   },
   "save_wiki_revision": {
-    "description": "Prepare a reviewed version of work based on the current page. Generated processing defaults to a derivative and preserves the original; use save_as=revision only for an explicit request to edit the page itself. Confirming a personal-rule revision also confirms its new wording and applicability while retaining its strength. Wait for user confirmation.",
+    "description": "Prepare an update or derivative for review; no change occurs before confirmation. Preserve existing facts and applicability. Use source_slugs for newly used pages actually retrieved or read, and include_current_event only for a fact explicitly stated in the current saved user input. New evidence and dependency versions are fixed and rechecked at confirmation, existing evidence remains. Do not cite the target itself as new evidence. With no new content or evidence, reuse the page rather than making another proposal.",
     "parameters": {
       "/properties/applicable_when/description": "Revised applicability; omission preserves existing conditions",
       "/properties/change_note/description": "Required description of this operation, e.g. summary/translation/additional points",
@@ -239,14 +240,17 @@
       "/properties/content_type/description": "Required for derivatives, e.g. summary/insights/translation/study notes",
       "/properties/save_as/description": "derivative (default): processed artifact such as summary/translation; revision: explicit edit of the current unlocked page only",
       "/properties/slug/description": "Required current page slug, unchanged",
-      "/properties/title/description": "Required saved title; distinguish derivatives, e.g. original title · summary"
+      "/properties/title/description": "Required saved title; distinguish derivatives, e.g. original title · summary",
+      "/properties/source_slugs/description": "Up to 8 provided pages actually used as new evidence; existing evidence remains. Exclude the target page itself.",
+      "/properties/include_current_event/description": "True only when the new statement comes from the current saved user event; never use for assistant guesses."
     }
   },
   "search_knowledge_base": {
-    "description": "Search knowledge pages and personal event records by keywords, returning relevant excerpts with citation slugs. Search before answering about prior user details or agreements; ordinary chat does not need retrieval.",
+    "description": "Search verified knowledge using the question plus up to 3 alternate concept, synonym or translated queries in alternate_queries. Keep all queries about the same need. Retrieved pages are candidates: inspect applicability, negation and limits before answering. When initial wording misses, try meaningful alternate concepts; do not claim that a lexical match proves relevance.",
     "parameters": {
       "/properties/limit/description": "Maximum returned results; default 5",
-      "/properties/query/description": "Required search keywords"
+      "/properties/query/description": "Required search keywords",
+      "/properties/alternate_queries/description": "Up to 3 paraphrases, concept terms or translated keywords for the same question; verify applicability after retrieval."
     }
   },
   "update_goal_facets": {

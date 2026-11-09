@@ -6942,4 +6942,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get compassGentleCheck => '当前计划还合适吗？';
+
+  @override
+  String get wikiAddedEvidence => '本次新增依据';
+
+  @override
+  String get wikiRetainedEvidence => '原有依据会保留；确认时会重新核验新增依据。';
+
+  @override
+  String get wikiApplicabilityCheck => '请核对适用条件与限制是否仍然合适。';
 }

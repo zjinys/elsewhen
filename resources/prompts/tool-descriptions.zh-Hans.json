@@ -219,7 +219,7 @@
     }
   },
   "save_knowledge_draft": {
-    "description": "把对话中的知识草拟成页面，用户确认后保存。保存有引用的回答时，source_slugs 填实际采用且已提供的知识页面，applicable_when 写适用条件；系统固定来源版本，确认时再校验。从某个已有知识页（如页面聊天里的当前页）派生新页时，改用 parent_slug 填该页 slug，确认后作为派生产物挂在父页下。无依据笔记可以保存但不能伪造来源。同名页不覆盖，改用 save_wiki_revision。",
+    "description": "草拟知识页，用户确认后保存。先检索读取已有知识，无增量则复用，有增量优先save_wiki_revision补充旧页。相近候选只是建议，不代表合并或已保存；只有用户明确要按不同对象／适用条件独立建页时填写distinct_reason。source_slugs仅填实际采用的已提供来源，applicable_when说明条件；派生用parent_slug，与source_slugs互斥。不伪造依据。",
     "parameters": {
       "/properties/applicable_when/description": "适用条件，保存有依据的方法/案例/规律时必填，最多 600 字",
       "/properties/content_md/description": "正文（Markdown），必填",
@@ -227,11 +227,12 @@
       "/properties/parent_slug/description": "从某个已有知识页派生时填该页 slug（如页面聊天里草拟就填当前页），确认后作为派生产物挂在父页下；不能与 source_slugs 同时使用",
       "/properties/source_slugs/description": "实际采用的已检索页面标识，最多 8 项；不填无关来源",
       "/properties/tags/description": "标签数组，可选",
-      "/properties/title/description": "页面标题，必填"
+      "/properties/title/description": "页面标题，必填",
+      "/properties/distinct_reason/description": "用户明确选择独立建页时说明不同对象／适用条件；不得为绕过相近页检查而填写"
     }
   },
   "save_wiki_revision": {
-    "description": "把处理当前知识页得出的新版本草拟保存。生成类加工默认保存为派生产物，不改原文；明确修改本页才用 save_as=revision。确认修订个人规则也表示确认修订后的规则及适用条件，保留原强度；调用后等待用户确认。",
+    "description": "草拟知识修订或派生产物，等待用户确认后保存。保留已有有效内容和适用条件；source_slugs填写本次实际检索／读到且采用的新增依据，include_current_event仅用于当前已保存的用户事实。确认时重验新增来源和依赖版本，旧依据保留。禁止把目标自身作为新增来源。没有内容或依据增量时直接复用，不生成重复提案。",
     "parameters": {
       "/properties/applicable_when/description": "修订后的适用条件；省略则保留已有条件",
       "/properties/change_note/description": "本次操作说明（如：生成总结 / 写抖音文案 / 补充要点），必填",
@@ -239,14 +240,17 @@
       "/properties/content_type/description": "产物类型标签（save_as=derivative 时必填，如：总结/提炼观点/抖音文案/翻译/学习笔记）",
       "/properties/save_as/description": "derivative=保存为派生产物（默认，推荐：总结/提炼/写文案/翻译等生成类操作）；revision=直接修订当前页正文（仅当用户明确要改这页本身、且该页不是素材原文时）",
       "/properties/slug/description": "页面 slug（保持当前页面不变），必填",
-      "/properties/title/description": "保存后的标题；派生产物建议用便于区分的标题（如「{原标题}·总结」），必填"
+      "/properties/title/description": "保存后的标题；派生产物建议用便于区分的标题（如「{原标题}·总结」），必填",
+      "/properties/source_slugs/description": "最多8个本次实际采用的已提供页面slug；保留旧依据，禁止填写修订目标自身",
+      "/properties/include_current_event/description": "新增内容来自用户当前已保存的明确事实时设true，不得用于助手猜测"
     }
   },
   "search_knowledge_base": {
-    "description": "在知识库页面与个人事件记录中按关键词搜索，返回相关片段（带引用 slug）。涉及用户过往细节或约定时先检索，闲聊不必检索。",
+    "description": "检索已核验知识：query为原问题关键词，alternate_queries可提供最多3种同义、概念或跨语言改写，保持同一需求，一次融合返回。初次未命中时换有意义的概念检索。结果只是候选，回答前核对适用条件、否定和局限，不把词面命中当成语义相关。",
     "parameters": {
       "/properties/limit/description": "最多返回条数，默认 5",
-      "/properties/query/description": "搜索关键词，必填"
+      "/properties/query/description": "搜索关键词，必填",
+      "/properties/alternate_queries/description": "最多3种同义／概念改写或跨语言关键词，保持同一问题，扩大召回后核对适用条件"
     }
   },
   "update_goal_facets": {

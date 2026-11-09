@@ -4105,5 +4105,8 @@
   "compassReviewSeed": "我们简单复盘当前计划是否仍合适。提醒依据：",
   "compassEvidenceNotice": "以下是当时用于判断的用户记录节选；完整原始记录保持不变。",
   "compassCorrectionNote": "可以补充进展或变化（选填）",
-  "compassGentleCheck": "当前计划还合适吗？"
+  "compassGentleCheck": "当前计划还合适吗？",
+  "wikiAddedEvidence": "本次新增依据",
+  "wikiRetainedEvidence": "原有依据会保留；确认时会重新核验新增依据。",
+  "wikiApplicabilityCheck": "请核对适用条件与限制是否仍然合适。"
 }

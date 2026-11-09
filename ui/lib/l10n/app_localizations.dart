@@ -12399,6 +12399,24 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'当前计划还合适吗？'**
   String get compassGentleCheck;
+
+  /// No description provided for @wikiAddedEvidence.
+  ///
+  /// In zh, this message translates to:
+  /// **'本次新增依据'**
+  String get wikiAddedEvidence;
+
+  /// No description provided for @wikiRetainedEvidence.
+  ///
+  /// In zh, this message translates to:
+  /// **'原有依据会保留；确认时会重新核验新增依据。'**
+  String get wikiRetainedEvidence;
+
+  /// No description provided for @wikiApplicabilityCheck.
+  ///
+  /// In zh, this message translates to:
+  /// **'请核对适用条件与限制是否仍然合适。'**
+  String get wikiApplicabilityCheck;
 }
 
 class _AppLocalizationsDelegate

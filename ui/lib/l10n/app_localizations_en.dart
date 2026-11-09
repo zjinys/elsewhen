@@ -7413,4 +7413,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get compassGentleCheck => 'Does the current plan still fit?';
+
+  @override
+  String get wikiAddedEvidence => 'New evidence in this update';
+
+  @override
+  String get wikiRetainedEvidence =>
+      'Existing evidence will be kept. The new evidence is checked again when you confirm.';
+
+  @override
+  String get wikiApplicabilityCheck =>
+      'Check whether the conditions and limits still fit.';
 }

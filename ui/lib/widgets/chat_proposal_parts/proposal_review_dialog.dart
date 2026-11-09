@@ -556,6 +556,32 @@ class _ProposalContent extends StatelessWidget {
             ),
           ),
         if (body != null && !hasGoalFacets) MarkdownView(markdown: '$body'),
+        if ((args['verified_evidence'] is List &&
+                (args['verified_evidence'] as List).isNotEmpty) ||
+            args['added_input_evidence'] is Map) ...[
+          const SizedBox(height: 12),
+          Text(
+            context.l10n.wikiAddedEvidence,
+            style: theme.textTheme.titleSmall,
+          ),
+          Text(context.l10n.wikiRetainedEvidence),
+          for (final evidence
+              in (args['verified_evidence'] as List? ?? const [])
+                  .whereType<Map>()) ...[
+            const SizedBox(height: 8),
+            SelectableText('${evidence['title']} · ${evidence['page_slug']}'),
+            SelectableText('${evidence['excerpt'] ?? ''}'),
+            if ('${evidence['applicable_when'] ?? ''}'.isNotEmpty)
+              Text(
+                '${context.l10n.wikiApplicabilityCheck} ${evidence['applicable_when']}',
+              ),
+          ],
+          if (args['added_input_evidence'] case final Map evidence) ...[
+            const SizedBox(height: 8),
+            SelectableText('${evidence['occurred_at']}'),
+            SelectableText('${evidence['excerpt']}'),
+          ],
+        ],
         if (hasGoalFacets) ...[
           const SizedBox(height: 8),
           _GoalFacetsCard(args: args),

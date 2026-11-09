@@ -3302,5 +3302,8 @@
   "compassReviewSeed": "Let’s briefly review whether this plan still fits. The check-in was based on: ",
   "compassEvidenceNotice": "These are the user record excerpts used for this assessment. Original records remain unchanged.",
   "compassCorrectionNote": "Add progress or a change of plans (optional)",
-  "compassGentleCheck": "Does the current plan still fit?"
+  "compassGentleCheck": "Does the current plan still fit?",
+  "wikiAddedEvidence": "New evidence in this update",
+  "wikiRetainedEvidence": "Existing evidence will be kept. The new evidence is checked again when you confirm.",
+  "wikiApplicabilityCheck": "Check whether the conditions and limits still fit."
 }

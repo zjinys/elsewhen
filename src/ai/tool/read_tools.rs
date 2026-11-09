@@ -197,6 +197,7 @@ impl Tool for SearchKnowledgeBaseTool {
             "type":"object",
             "properties":{
                 "query":{"type":"string","description":"搜索关键词，必填"},
+                "alternate_queries":{"type":"array","maxItems":3,"items":{"type":"string"},"description":"可选的最多3种同义／概念改写或跨语言关键词，保持同一问题，扩大召回后核对适用条件"},
                 "limit":{"type":"integer","description":"最多返回条数，默认 5"}
             },
             "required":["query"],
@@ -206,7 +207,14 @@ impl Tool for SearchKnowledgeBaseTool {
     fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
         let query = arg_str(args, "query")?;
         let limit = arg_i64(args, "limit", 5).clamp(1, 20) as usize;
-        let mut candidates = crate::knowledge::select_knowledge(ctx.store, &query, "search", 4000)?;
+        let mut queries = vec![query.clone()];
+        if let Some(alternates) = args.get("alternate_queries") {
+            let alternates: Vec<String> = serde_json::from_value(alternates.clone())?;
+            anyhow::ensure!(alternates.len() <= 3, "knowledge_query_limit");
+            queries.extend(alternates);
+        }
+        let mut candidates =
+            crate::knowledge::select::select_knowledge_variants(ctx.store, &queries, 4000)?;
         candidates.truncate(limit);
         let mut events = Vec::new();
         let mut stmt = ctx.store.connection.prepare(

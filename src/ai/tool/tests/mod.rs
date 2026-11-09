@@ -54,3 +54,5 @@ mod wiki_tools;
 mod mcp_tools;
 
 mod plan_tools;
+
+mod wiki_support;

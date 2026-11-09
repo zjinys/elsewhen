@@ -6,7 +6,7 @@ use anyhow::{Context, Result, ensure};
 use rusqlite::{OptionalExtension, params};
 
 pub(crate) const LOCALE: &str = "zh-Hans";
-const CATALOG: &str = "prompts-v11";
+const CATALOG: &str = "prompts-v12";
 const MAX_BODY: usize = 8192;
 
 #[derive(Clone, Debug, PartialEq, Eq)]

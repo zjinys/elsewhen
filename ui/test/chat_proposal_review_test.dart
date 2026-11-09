@@ -117,6 +117,56 @@ Future<void> mount(
 }
 
 void main() {
+  for (final locale in [const Locale('zh'), const Locale('en')]) {
+    testWidgets(
+      '${locale.languageCode}: revision previews new evidence before approval',
+      (tester) async {
+        final repo = ReviewRepo();
+        final item = api.ChatProposalDto(
+          kind: 'action',
+          id: 'evidence-update',
+          conversationId: 'conversation',
+          action: 'save_wiki_revision',
+          version: 1,
+          createdAt: '2026-11-09T10:00:00Z',
+          approvalToken: 'evidence-token',
+          targetBasisJson: '[]',
+          argsJson: jsonEncode({
+            'title': '客户访谈方法',
+            'content_md': '补入最近一次实际行为的提问方法',
+            'save_as': 'revision',
+            'verified_evidence': [
+              {
+                'title': '访谈观察',
+                'page_slug': 'method/observation',
+                'excerpt': '先问最近一次实际行为',
+                'applicable_when': '小店初期访谈',
+              },
+            ],
+            'added_input_evidence': {
+              'event_id': 'event-1',
+              'occurred_at': '2026-11-09T10:00:00Z',
+              'excerpt': '今天访谈了三位店主',
+            },
+          }),
+        );
+        await mount(
+          tester,
+          repo,
+          ChatProposalDetailDialog(proposal: item),
+          locale: locale,
+          size: const Size(390, 850),
+        );
+        final strings = lookupAppLocalizations(locale);
+        expect(find.text(strings.wikiAddedEvidence), findsOneWidget);
+        expect(find.text('访谈观察 · method/observation'), findsOneWidget);
+        expect(find.text('先问最近一次实际行为'), findsOneWidget);
+        expect(find.text('今天访谈了三位店主'), findsOneWidget);
+        expect(repo.requests, isEmpty);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
   testWidgets(
     'English review keeps the displayed version and original JSON keys',
     (tester) async {
