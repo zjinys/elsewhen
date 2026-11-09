@@ -3,11 +3,16 @@ part of '../chat_proposal_review.dart';
 //! 方案评审对话框（逐项批注/提交）
 
 class ChatProposalReviewDialog extends ConsumerStatefulWidget {
-  const ChatProposalReviewDialog({super.key, required this.conversationId});
+  const ChatProposalReviewDialog({
+    super.key,
+    required this.conversationId,
+    this.embedded = false,
+  });
   final String? conversationId;
+  final bool embedded;
 
-  /// 本对话框一律由外部包在 [AdaptivePanelSheet] 里以 bottom sheet
-  /// 呈现（今天行/桌面同名按钮同一形态）；自身只负责主从内容窗格。
+  /// The shell chooses a desktop companion panel or a modal sheet. Embedded
+  /// content shares the chat route and must never pop that route.
   @override
   ConsumerState<ChatProposalReviewDialog> createState() =>
       _ChatProposalReviewDialogState();
@@ -106,11 +111,30 @@ class _ChatProposalReviewDialogState
     await _load();
   }
 
-  /// 主从内容窗格：桌面 AlertDialog 与移动 sheet 两态共用。
+  /// Shared list/detail content for companion panels and mobile sheets.
   Widget _buildPanes(int count) {
     final detailOpen = _history
         ? _viewingReceipt != null
         : _viewing != null || _viewingBatch;
+    final panes = LayoutBuilder(
+      builder: (context, constraints) {
+        final listPane = _buildListPane(count);
+        final detailPane = _buildDetailPane();
+        if (constraints.maxWidth >= 720) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(width: 400, child: listPane),
+              const VerticalDivider(width: 1),
+              Expanded(child: detailPane),
+            ],
+          );
+        }
+        return detailOpen ? detailPane : listPane;
+      },
+    );
+    // A companion panel shares the main route. It must never pop that route.
+    if (widget.embedded) return panes;
     return PopScope(
       // 详情/回执打开时，系统返回（Android 手势/返回键）＝回列表，
       // 不冒泡关掉整个审阅面板；列表态才允许 pop 关 sheet。
@@ -127,25 +151,7 @@ class _ChatProposalReviewDialogState
           Navigator.of(context).pop();
         }
       },
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 720;
-          final listPane = _buildListPane(count);
-          final detailPane = _buildDetailPane();
-          if (wide) {
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(width: 400, child: listPane),
-                const VerticalDivider(width: 1),
-                Expanded(child: detailPane),
-              ],
-            );
-          }
-          // 窄屏：详情/回执打开时页内切换，不叠对话框。
-          return detailOpen ? detailPane : listPane;
-        },
-      ),
+      child: panes,
     );
   }
 

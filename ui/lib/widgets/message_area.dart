@@ -7,7 +7,8 @@ import 'glass.dart';
 import 'suggestion_feedback.dart';
 import 'save_topic_dialog.dart';
 import 'habit_nudge_dialog.dart';
-import 'adaptive_panel.dart';
+import 'chat_companion_workspace.dart';
+import 'adaptive_panel.dart' show isMobilePanel;
 // ignore: unused_import — 翻篇入口暂隐藏，放量时恢复
 import 'page_mark_review.dart';
 import 'chat_proposal_review.dart';
@@ -188,22 +189,20 @@ int _habitNudgeAsk(String ref) {
 bool get _isMobilePlatform => isMobilePanel;
 
 void openTodoDialog(BuildContext context) {
-  showPanelSheet(
+  showChatCompanion(
     context,
-    sheet: (_) => AdaptivePanelSheet(
-      title: context.l10n.todos,
-      builder: (context) => const TodoListView(),
-    ),
+    id: 'todos',
+    title: (context) => context.l10n.todos,
+    builder: (_, _) => const TodoListView(),
   );
 }
 
 void openGoalDialog(BuildContext context) {
-  showPanelSheet(
+  showChatCompanion(
     context,
-    sheet: (_) => AdaptivePanelSheet(
-      title: context.l10n.goals,
-      builder: (context) => GoalListView(quickGlance: true),
-    ),
+    id: 'goals',
+    title: (context) => context.l10n.goals,
+    builder: (_, _) => const GoalListView(quickGlance: true),
   );
 }
 
@@ -309,7 +308,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
       return _buildEmptyState();
     }
 
-    return Column(
+    final content = Column(
       children: [
         _NowStatus(
           conversationId: selectedId,
@@ -562,5 +561,6 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
         _MessageInput(),
       ],
     );
+    return ChatCompanionWorkspace(child: content);
   }
 }

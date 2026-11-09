@@ -11,7 +11,7 @@ import '../providers/conversation_provider.dart';
 import '../providers/goal_provider.dart';
 import '../providers/todo_provider.dart';
 import '../providers/wiki_provider.dart';
-import 'adaptive_panel.dart';
+import 'chat_companion_workspace.dart';
 import 'markdown_view.dart';
 import '../utils/pretty_time.dart';
 import '../l10n/localization.dart';
@@ -85,17 +85,15 @@ class ChatProposalReviewButton extends ConsumerWidget {
   final bool compact;
 
   Future<void> _open(BuildContext context) async {
-    // 与「今天」行其他入口（目标/待办/创建主题）同一形态：一律 bottom
-    // sheet（全平台），不再分桌面 dialog / 移动 sheet。
-    await showPanelSheet<bool>(
+    await showChatCompanion(
       context,
-      sheet: (_) => AdaptivePanelSheet(
-        title: conversationId == null
-            ? context.l10n.globalRuleReview
-            : context.l10n.conversationProposalReview,
-        maxHeightFactor: 0.85,
-        builder: (_) =>
-            ChatProposalReviewDialog(conversationId: conversationId),
+      id: 'review:${conversationId ?? "global"}',
+      title: (context) => conversationId == null
+          ? context.l10n.globalRuleReview
+          : context.l10n.conversationProposalReview,
+      builder: (_, embedded) => ChatProposalReviewDialog(
+        conversationId: conversationId,
+        embedded: embedded,
       ),
     );
     if (context.mounted) onChanged?.call();
