@@ -1,0 +1,645 @@
+{
+  "date": "2026-11-09",
+  "provider_host": "hub.oaifree.com",
+  "requested_model": "gpt-4o",
+  "configured_context_window": 4096,
+  "output_reserve": 1536,
+  "input_safety_margin": 512,
+  "real_model_acceptance_complete": true,
+  "synthetic_only": true,
+  "process_restart": "each tick invoked in a fresh child process; stable copied executable used after concurrent cargo rebuild replaced original executable",
+  "settings_change": "instruction preferences changed to zh-Hans after first completed node; task retained original English bundle",
+  "real_provider_failover": "not verified; single configured real provider; loopback failover covered separately",
+  "trials": [
+    {
+      "trial": "eb4b643924ac",
+      "event_id": "9227cdc0-c0bc-4cf6-9fa7-9c0b3d9b0634",
+      "original_chars": 100663,
+      "original_sha256": "c5ad75a8b405d90e8ee10962a237b86a4d80525d06060f75728a58dd98b182d9",
+      "status": "active",
+      "leaf_nodes": 0,
+      "merge_nodes": 0,
+      "max_level": 0,
+      "usage": {
+        "calls": 1,
+        "successful_http_responses": 1,
+        "transport_errors": 0,
+        "prompt_tokens": 1497,
+        "completion_tokens": 162,
+        "reported_total_tokens": 1659
+      },
+      "per_call": [
+        {
+          "call": 1,
+          "elapsed_ms": 7562,
+          "usage": {
+            "completion": 162,
+            "prompt": 1497,
+            "total": 1659
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        }
+      ],
+      "root": null,
+      "root_quotes_validation": [],
+      "final_model_outputs_rejected": [],
+      "published_pages": 0
+    },
+    {
+      "trial": "8f34c43732df",
+      "event_id": "9a9d0a4e-de14-4c23-83ea-de1cab62a74d",
+      "original_chars": 100663,
+      "original_sha256": "c5ad75a8b405d90e8ee10962a237b86a4d80525d06060f75728a58dd98b182d9",
+      "status": "active",
+      "leaf_nodes": 1,
+      "merge_nodes": 0,
+      "max_level": 0,
+      "usage": {
+        "calls": 2,
+        "successful_http_responses": 2,
+        "transport_errors": 0,
+        "prompt_tokens": 2981,
+        "completion_tokens": 559,
+        "reported_total_tokens": 3540
+      },
+      "per_call": [
+        {
+          "call": 1,
+          "elapsed_ms": 14625,
+          "usage": {
+            "completion": 113,
+            "prompt": 1495,
+            "total": 1608
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 2,
+          "elapsed_ms": 22572,
+          "usage": {
+            "completion": 446,
+            "prompt": 1486,
+            "total": 1932
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        }
+      ],
+      "root": null,
+      "root_quotes_validation": [],
+      "final_model_outputs_rejected": [],
+      "published_pages": 0
+    },
+    {
+      "trial": "9a5d75d53f9f",
+      "event_id": "8890679a-de5c-41d7-a14d-2d884fc86c52",
+      "original_chars": 100663,
+      "original_sha256": "c5ad75a8b405d90e8ee10962a237b86a4d80525d06060f75728a58dd98b182d9",
+      "status": "ready",
+      "leaf_nodes": 17,
+      "merge_nodes": 3,
+      "max_level": 2,
+      "usage": {
+        "calls": 32,
+        "successful_http_responses": 25,
+        "transport_errors": 7,
+        "prompt_tokens": 37514,
+        "completion_tokens": 3652,
+        "reported_total_tokens": 41166
+      },
+      "per_call": [
+        {
+          "call": 1,
+          "elapsed_ms": 4268,
+          "usage": {
+            "completion": 104,
+            "prompt": 1554,
+            "total": 1658
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 2,
+          "elapsed_ms": 4307,
+          "usage": {
+            "completion": 69,
+            "prompt": 1545,
+            "total": 1614
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 3,
+          "elapsed_ms": 19789,
+          "usage": {
+            "completion": 50,
+            "prompt": 1544,
+            "total": 1594
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 4,
+          "elapsed_ms": 3749,
+          "usage": {
+            "completion": 91,
+            "prompt": 1544,
+            "total": 1635
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 5,
+          "elapsed_ms": 32861,
+          "usage": null,
+          "transport_error": true,
+          "finish_reason": null
+        },
+        {
+          "call": 6,
+          "elapsed_ms": 11708,
+          "usage": {
+            "completion": 104,
+            "prompt": 1544,
+            "total": 1648
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 7,
+          "elapsed_ms": 4309,
+          "usage": {
+            "completion": 108,
+            "prompt": 1544,
+            "total": 1652
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 8,
+          "elapsed_ms": 5763,
+          "usage": {
+            "completion": 252,
+            "prompt": 1545,
+            "total": 1797
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 9,
+          "elapsed_ms": 5871,
+          "usage": {
+            "completion": 56,
+            "prompt": 1541,
+            "total": 1597
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 10,
+          "elapsed_ms": 10015,
+          "usage": null,
+          "transport_error": true,
+          "finish_reason": null
+        },
+        {
+          "call": 11,
+          "elapsed_ms": 10017,
+          "usage": null,
+          "transport_error": true,
+          "finish_reason": null
+        },
+        {
+          "call": 12,
+          "elapsed_ms": 10016,
+          "usage": null,
+          "transport_error": true,
+          "finish_reason": null
+        },
+        {
+          "call": 13,
+          "elapsed_ms": 10718,
+          "usage": {
+            "completion": 66,
+            "prompt": 1546,
+            "total": 1612
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 14,
+          "elapsed_ms": 5145,
+          "usage": {
+            "completion": 51,
+            "prompt": 1548,
+            "total": 1599
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 15,
+          "elapsed_ms": 8602,
+          "usage": {
+            "completion": 120,
+            "prompt": 1554,
+            "total": 1674
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 16,
+          "elapsed_ms": 10016,
+          "usage": null,
+          "transport_error": true,
+          "finish_reason": null
+        },
+        {
+          "call": 17,
+          "elapsed_ms": 16090,
+          "usage": {
+            "completion": 91,
+            "prompt": 1545,
+            "total": 1636
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 18,
+          "elapsed_ms": 3448,
+          "usage": {
+            "completion": 49,
+            "prompt": 1542,
+            "total": 1591
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 19,
+          "elapsed_ms": 5127,
+          "usage": {
+            "completion": 101,
+            "prompt": 1546,
+            "total": 1647
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 20,
+          "elapsed_ms": 6259,
+          "usage": {
+            "completion": 45,
+            "prompt": 1547,
+            "total": 1592
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 21,
+          "elapsed_ms": 4452,
+          "usage": {
+            "completion": 86,
+            "prompt": 1542,
+            "total": 1628
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 22,
+          "elapsed_ms": 9701,
+          "usage": {
+            "completion": 51,
+            "prompt": 1543,
+            "total": 1594
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 23,
+          "elapsed_ms": 5538,
+          "usage": {
+            "completion": 247,
+            "prompt": 1546,
+            "total": 1793
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 24,
+          "elapsed_ms": 3895,
+          "usage": {
+            "completion": 179,
+            "prompt": 1322,
+            "total": 1501
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 25,
+          "elapsed_ms": 21535,
+          "usage": {
+            "completion": 203,
+            "prompt": 1580,
+            "total": 1783
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 26,
+          "elapsed_ms": 7226,
+          "usage": {
+            "completion": 419,
+            "prompt": 1616,
+            "total": 2035
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 27,
+          "elapsed_ms": 6276,
+          "usage": {
+            "completion": 379,
+            "prompt": 1432,
+            "total": 1811
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 28,
+          "elapsed_ms": 18415,
+          "usage": {
+            "completion": 293,
+            "prompt": 1432,
+            "total": 1725
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 29,
+          "elapsed_ms": 46554,
+          "usage": null,
+          "transport_error": true,
+          "finish_reason": null
+        },
+        {
+          "call": 30,
+          "elapsed_ms": 4319,
+          "usage": {
+            "completion": 236,
+            "prompt": 1156,
+            "total": 1392
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 31,
+          "elapsed_ms": 11003,
+          "usage": {
+            "completion": 202,
+            "prompt": 1156,
+            "total": 1358
+          },
+          "transport_error": false,
+          "finish_reason": "stop"
+        },
+        {
+          "call": 32,
+          "elapsed_ms": 10011,
+          "usage": null,
+          "transport_error": true,
+          "finish_reason": null
+        }
+      ],
+      "root": {
+        "summary": "The event is dominated by repetitive descriptions of routine activities, such as reviewing public documentation, organizing notes, and checking mechanical details, with a notable emphasis on the lack of decisions, expenses, purchases, deadlines, or authorizations. However, a few significant details are interspersed throughout. On November 9, 2026, it is noted that Project Aster has exactly 17 prototype units and is synthetic. On November 15, 2026, the Aster team did not authorize the purchase of 42 sensors due to pending budget approval. The segments also mention that the Aster review deadline is set for December 1, 2026, with only three validation trials scheduled and no shipments authorized. Despite these events, the larger narrative remains heavily centered on non-actionable procedural details across multiple archive lines, without introducing new developments.",
+        "quotes": [
+          {
+            "start": 12,
+            "end": 100,
+            "text": "Project Aster has exactly 17 prototype units as of 2026-11-09. The project is synthetic."
+          },
+          {
+            "start": 50274,
+            "end": 50378,
+            "text": "On 2026-11-15, the Aster team did NOT authorize purchase of 42 sensors. Budget approval remains pending."
+          },
+          {
+            "start": 100550,
+            "end": 100663,
+            "text": "The Aster review deadline is 2026-12-01. Only 3 validation trials are scheduled; no shipment has been authorized."
+          }
+        ]
+      },
+      "root_quotes_validation": [
+        {
+          "start": 12,
+          "end": 100,
+          "text": "Project Aster has exactly 17 prototype units as of 2026-11-09. The project is synthetic.",
+          "matches_original": true
+        },
+        {
+          "start": 50274,
+          "end": 50378,
+          "text": "On 2026-11-15, the Aster team did NOT authorize purchase of 42 sensors. Budget approval remains pending.",
+          "matches_original": true
+        },
+        {
+          "start": 100550,
+          "end": 100663,
+          "text": "The Aster review deadline is 2026-12-01. Only 3 validation trials are scheduled; no shipment has been authorized.",
+          "matches_original": true
+        }
+      ],
+      "final_model_outputs_rejected": [
+        "[\n    {\n        \"op\": \"update\",\n        \"kind\": \"project\",\n        \"slug\": \"project/aster\",\n        \"title\": \"Project Aster\",\n        \"summary\": \"Details of Project Aster including prototypes, authorization, and deadlines as of November 2026.\",\n        \"content\": \"- Project Aster has 17 prototype units as of November 9, 2026.\\n- The project is synthetic.\\n- The Aster team did not authorize the purchase of 42 sensors as of November 15, 2026, due to pending budget approval.\\n- Aster review deadline is set for December 1, 2026.\\n- Only three validation trials are scheduled.\\n- No shipment has been authorized.\",\n        \"tags\": [\"project\", \"Aster\", \"prototype\", \"budget\", \"deadline\"],\n        \"source_event_ids\": [\"8890679a-de5c-41d7-a14d-2d884fc86c52\"],\n        \"reason\": \"Incorporate updates from event including prototype count, sensor purchase authorization, review deadline, validation trials and shipment status.\"\n    }\n]",
+        "[\n    {\n        \"op\": \"create\",\n        \"kind\": \"project\",\n        \"slug\": \"project/aster\",\n        \"title\": \"Project Aster\",\n        \"summary\": \"Details of Project Aster on November 2026\",\n        \"content\": \"- Project Aster has 17 prototype units as of November 9, 2026\\n- The project is synthetic\\n- As of November 15, 2026, purchase of 42 sensors is not authorized due to pending budget approval\\n- The review deadline is December 1, 2026\\n- Only 3 validation trials are scheduled\\n- No shipment has been authorized\",\n        \"tags\": [\"technology\", \"prototype\", \"budget\"],\n        \"source_event_ids\": [\"8890679a-de5c-41d7-a14d-2d884fc86c52\"],\n        \"reason\": \"New information about Project Aster, including prototype details and scheduling, requires documentation.\"\n    }\n]"
+      ],
+      "published_pages": 0
+    }
+  ],
+  "followup": {
+    "dataset_output_policy": "en",
+    "final_complete": true,
+    "original_chars": 100663,
+    "original_event_id": "8890679a-de5c-41d7-a14d-2d884fc86c52",
+    "pages": [
+      {
+        "content": "- As of November 9, 2026, Project Aster has exactly 17 prototype units and is synthetic.\n- On November 15, 2026, the Aster team did not authorize the purchase of 42 sensors due to pending budget approval.\n- The Aster review deadline is set for December 1, 2026, with only three validation trials scheduled.\n- No shipments have been authorized.",
+        "evidence_count": 1,
+        "slug": "project/project-aster",
+        "sources": [
+          "8890679a-de5c-41d7-a14d-2d884fc86c52"
+        ]
+      }
+    ],
+    "parent_trial": "elsewhen-real-long-event-52468613-7291-44a1-8691-9a5d75d53f9f",
+    "real_call_limit": 4,
+    "real_calls": 4,
+    "root_id": "7b67a141-1357-457b-ae02-5ab4d57a6707",
+    "short_complete": true,
+    "ticks": [
+      {
+        "elapsed_ms": 16438,
+        "phase": "final",
+        "pid": 312,
+        "tick": "Reading { event_id: \"8890679a-de5c-41d7-a14d-2d884fc86c52\", state: \"failed\", error: Some(\"expected value at line 1 column 1\") }"
+      },
+      {
+        "elapsed_ms": 13038,
+        "phase": "final",
+        "pid": 317,
+        "tick": "Reading { event_id: \"8890679a-de5c-41d7-a14d-2d884fc86c52\", state: \"failed\", error: Some(\"expected value at line 1 column 1\") }"
+      },
+      {
+        "elapsed_ms": 10147,
+        "phase": "final",
+        "pid": 322,
+        "tick": "Processed { events: 1, outcome: DigestBatchOutcome { created: [\"project/project-aster\"], updated: [], protected: [] } }"
+      },
+      {
+        "elapsed_ms": 11556,
+        "phase": "short",
+        "pid": 327,
+        "tick": "Processed { events: 1, outcome: DigestBatchOutcome { created: [], updated: [], protected: [] } }"
+      }
+    ],
+    "unchanged_reading_nodes": true,
+    "per_call": [
+      {
+        "elapsed_ms": 15664,
+        "finish_reason": "stop",
+        "model": "gpt-4o",
+        "output": "```json\n[\n    {\n        \"op\": \"create\",\n        \"kind\": \"project\",\n        \"slug\": \"project/aster\",\n        \"title\": \"Project Aster\",\n        \"summary\": \"Project Aster details and status as of November 2026\",\n        \"content\": \"- As of November 9, 2026, Project Aster has 17 prototype units and is synthetic.\\n- On November 15, 2026, the team did not authorize the purchase of 42 sensors due to pending budget approval.\\n- The review deadline for Project Aster is December 1, 2026.\\n- Only three validation trials are scheduled, and no shipment has been authorized as of the reported period.\",\n        \"tags\": [\"prototype\", \"budget\", \"review\", \"validation\"],\n        \"source_event_ids\": [\"8890679a-de5c-41d7-a14d-2d884fc86c52\"],\n        \"reason\": \"Documenting the current status of Project Aster, including prototype count, budget status, review deadlines, and validation trials.\"\n    }\n]\n```",
+        "usage": {
+          "completion": 230,
+          "prompt": 1156,
+          "total": 1386
+        }
+      },
+      {
+        "elapsed_ms": 12291,
+        "finish_reason": "stop",
+        "model": "gpt-4o",
+        "output": "```json\n[\n    {\n        \"op\": \"create\",\n        \"kind\": \"project\",\n        \"slug\": \"project/aster\",\n        \"title\": \"Project Aster\",\n        \"summary\": \"Project Aster details including prototypes and pending actions\",\n        \"content\": \"- Project Aster has exactly 17 prototype units as of 2026-11-09.\\n- The project is synthetic.\\n- On 2026-11-15, the Aster team did not authorize the purchase of 42 sensors due to pending budget approval.\\n- The Aster review deadline is 2026-12-01.\\n- Only 3 validation trials are scheduled.\\n- No shipment has been authorized.\",\n        \"tags\": [\"project\", \"Aster\"],\n        \"source_event_ids\": [\"8890679a-de5c-41d7-a14d-2d884fc86c52\"],\n        \"reason\": \"New details about Project Aster, prototype count, pending purchases, trials, and deadline warrant individual documentation.\"\n    }\n]\n```",
+        "usage": {
+          "completion": 220,
+          "prompt": 1156,
+          "total": 1376
+        }
+      },
+      {
+        "elapsed_ms": 9271,
+        "finish_reason": "stop",
+        "model": "gpt-4o",
+        "output": "[\n    {\n        \"op\": \"create\",\n        \"kind\": \"project\",\n        \"slug\": \"project/project-aster\",\n        \"title\": \"Project Aster\",\n        \"summary\": \"Details about Project Aster\",\n        \"content\": \"- As of November 9, 2026, Project Aster has exactly 17 prototype units and is synthetic.\\n- On November 15, 2026, the Aster team did not authorize the purchase of 42 sensors due to pending budget approval.\\n- The Aster review deadline is set for December 1, 2026, with only three validation trials scheduled.\\n- No shipments have been authorized.\",\n        \"tags\": [],\n        \"source_event_ids\": [\"1\"],\n        \"reason\": \"Compile important project-specific updates and milestones from the event.\"\n    }\n]",
+        "usage": {
+          "completion": 172,
+          "prompt": 1156,
+          "total": 1328
+        }
+      },
+      {
+        "elapsed_ms": 10911,
+        "finish_reason": "stop",
+        "model": "gpt-4o",
+        "output": "[]",
+        "usage": {
+          "completion": 2,
+          "prompt": 1041,
+          "total": 1043
+        }
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 4509,
+      "completion_tokens": 624,
+      "reported_total_tokens": 5133
+    },
+    "root_quotes": [
+      {
+        "start": 12,
+        "end": 100,
+        "text": "Project Aster has exactly 17 prototype units as of 2026-11-09. The project is synthetic."
+      },
+      {
+        "start": 50274,
+        "end": 50378,
+        "text": "On 2026-11-15, the Aster team did NOT authorize purchase of 42 sensors. Budget approval remains pending."
+      },
+      {
+        "start": 100550,
+        "end": 100663,
+        "text": "The Aster review deadline is 2026-12-01. Only 3 validation trials are scheduled; no shipment has been authorized."
+      }
+    ],
+    "original_sha256": "c5ad75a8b405d90e8ee10962a237b86a4d80525d06060f75728a58dd98b182d9",
+    "completed_jobs": [
+      [
+        "succeeded",
+        2
+      ]
+    ],
+    "task_status": "succeeded",
+    "node_cache_bytes": 13338,
+    "original_bundle_id": "8095c9a6-9607-49ca-906f-52c54569e2cd",
+    "final_bundle_id": "8095c9a6-9607-49ca-906f-52c54569e2cd",
+    "known_semantic_limit": "Short Boreal event returned [] and produced no page; latency/path evidence only, short-event fact extraction not accepted.",
+    "reading_cost": {
+      "successful_reading_responses": 23,
+      "reported_tokens": 38416,
+      "response_seconds": 192.191,
+      "median_response_ms": 5871
+    },
+    "injected_503_failover": true,
+    "page_source_event_id": "8890679a-de5c-41d7-a14d-2d884fc86c52",
+    "short_event_semantic_quality": "returned empty proposal; path/latency isolation only"
+  },
+  "scope": "long-event pipeline accepted; short-event omission, single upstream account, injected 503 failover, no physical multi-device acceptance documented",
+  "total_real_calls": 39,
+  "total_reported_tokens": 51498,
+  "followup_artifacts": "/tmp/elsewhen-real-followup-8c210c85-7508-4cd9-9a8d-e159abd4e357",
+  "completion_audit": {
+    "date": "2026-11-09",
+    "rust_lib_passed": 1185,
+    "rust_integration_passed": 2,
+    "rust_ignored": 22,
+    "reading_targeted_passed": 42,
+    "release": "passed",
+    "frb_hash": -479447412,
+    "flutter_previous_final_passed": 602,
+    "limitations": [
+      "single real upstream account; failover uses injected local HTTP 503 then real model",
+      "no physical multi-device acceptance",
+      "short Boreal event returned empty proposal; delay/path only",
+      "usage absent on failed network requests; total is reported usage, not complete billing"
+    ],
+    "source_and_cache_offline_validation": "original SHA-256 unchanged, leaf ranges [0,100663) contiguous, 20 node identities/ranges/hashes/outputs identical to parent root, original bundle unchanged, published evidence_count=1",
+    "flutter_final_passed": 602,
+    "notes_scope_checked": 7
+  }
+}

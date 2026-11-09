@@ -3268,5 +3268,29 @@
       }
     }
   },
-  "errorKnowledgeReviewChanged": "The page, sources or rule settings changed. Review the proposal again."
+  "errorKnowledgeReviewChanged": "The page, sources or rule settings changed. Review the proposal again.",
+  "digestReadingPhase": "Reading long event",
+  "digestMergingPhase": "Merging completed segments",
+  "digestReadyPhase": "Full event read · awaiting final processing",
+  "digestCancelledPhase": "Reading paused after classification changed",
+  "digestReadingProgress": "{read} / {total} characters read · segments: {leaves} · merges: {merges}",
+  "digestReadingBudgetHelp": "Waiting for a provider with enough context capacity. Check the context window, output reserve and custom instructions. Saved reading progress is retained.",
+  "digestReadingRetryHelp": "This step did not finish. It will retry automatically; saved reading progress is retained.",
+  "digestReadingLimitHelp": "The event or reading cache reached the processing limit. Saved text and reading progress are retained.",
+  "@digestReadingProgress": {
+    "placeholders": {
+      "read": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "leaves": {
+        "type": "String"
+      },
+      "merges": {
+        "type": "String"
+      }
+    }
+  }
 }

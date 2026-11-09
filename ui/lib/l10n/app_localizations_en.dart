@@ -7344,4 +7344,39 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorKnowledgeReviewChanged =>
       'The page, sources or rule settings changed. Review the proposal again.';
+
+  @override
+  String get digestReadingPhase => 'Reading long event';
+
+  @override
+  String get digestMergingPhase => 'Merging completed segments';
+
+  @override
+  String get digestReadyPhase => 'Full event read · awaiting final processing';
+
+  @override
+  String get digestCancelledPhase =>
+      'Reading paused after classification changed';
+
+  @override
+  String digestReadingProgress(
+    String read,
+    String total,
+    String leaves,
+    String merges,
+  ) {
+    return '$read / $total characters read · segments: $leaves · merges: $merges';
+  }
+
+  @override
+  String get digestReadingBudgetHelp =>
+      'Waiting for a provider with enough context capacity. Check the context window, output reserve and custom instructions. Saved reading progress is retained.';
+
+  @override
+  String get digestReadingRetryHelp =>
+      'This step did not finish. It will retry automatically; saved reading progress is retained.';
+
+  @override
+  String get digestReadingLimitHelp =>
+      'The event or reading cache reached the processing limit. Saved text and reading progress are retained.';
 }

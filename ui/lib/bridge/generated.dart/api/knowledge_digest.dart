@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'knowledge_digest.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// 后台 worker 调用：处理一批到期的知识消化任务（最多一批，调用方循环排空）。
 Future<KnowledgeDigestTickResult> triggerKnowledgeDigest() =>
@@ -35,6 +35,7 @@ Future<List<KnowledgeDigestRunDto>> listKnowledgeDigestRuns({
 );
 
 class KnowledgeDigestJobDto {
+  final KnowledgeDigestReadingDto? reading;
   final String jobId;
   final String eventId;
   final String eventExcerpt;
@@ -49,6 +50,7 @@ class KnowledgeDigestJobDto {
   final String updatedAt;
 
   const KnowledgeDigestJobDto({
+    this.reading,
     required this.jobId,
     required this.eventId,
     required this.eventExcerpt,
@@ -65,6 +67,7 @@ class KnowledgeDigestJobDto {
 
   @override
   int get hashCode =>
+      reading.hashCode ^
       jobId.hashCode ^
       eventId.hashCode ^
       eventExcerpt.hashCode ^
@@ -83,6 +86,7 @@ class KnowledgeDigestJobDto {
       identical(this, other) ||
       other is KnowledgeDigestJobDto &&
           runtimeType == other.runtimeType &&
+          reading == other.reading &&
           jobId == other.jobId &&
           eventId == other.eventId &&
           eventExcerpt == other.eventExcerpt &&
@@ -95,6 +99,49 @@ class KnowledgeDigestJobDto {
           skipReason == other.skipReason &&
           batchId == other.batchId &&
           updatedAt == other.updatedAt;
+}
+
+class KnowledgeDigestReadingDto {
+  final String phase;
+  final PlatformInt64 readChars;
+  final PlatformInt64 totalChars;
+  final PlatformInt64 completedLeaves;
+  final PlatformInt64 completedMerges;
+  final String? error;
+  final String retryAt;
+
+  const KnowledgeDigestReadingDto({
+    required this.phase,
+    required this.readChars,
+    required this.totalChars,
+    required this.completedLeaves,
+    required this.completedMerges,
+    this.error,
+    required this.retryAt,
+  });
+
+  @override
+  int get hashCode =>
+      phase.hashCode ^
+      readChars.hashCode ^
+      totalChars.hashCode ^
+      completedLeaves.hashCode ^
+      completedMerges.hashCode ^
+      error.hashCode ^
+      retryAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is KnowledgeDigestReadingDto &&
+          runtimeType == other.runtimeType &&
+          phase == other.phase &&
+          readChars == other.readChars &&
+          totalChars == other.totalChars &&
+          completedLeaves == other.completedLeaves &&
+          completedMerges == other.completedMerges &&
+          error == other.error &&
+          retryAt == other.retryAt;
 }
 
 class KnowledgeDigestRunDto {
@@ -210,6 +257,12 @@ class KnowledgeDigestStatsDto {
 @freezed
 sealed class KnowledgeDigestTickResult with _$KnowledgeDigestTickResult {
   const KnowledgeDigestTickResult._();
+
+  const factory KnowledgeDigestTickResult.reading({
+    required String eventId,
+    required String state,
+    String? error,
+  }) = KnowledgeDigestTickResult_Reading;
 
   /// 尚未配置 AI provider：事件照常保存，任务等待
   const factory KnowledgeDigestTickResult.noProvider() =

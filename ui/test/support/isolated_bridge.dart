@@ -1,12 +1,15 @@
 import 'dart:io';
 
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
+import 'package:elsewhen_ui/bridge/api.dart' as api;
 
 // 仓储便捷方法声明于 bridge 库的 part extension 中；扩展方法不随类型传递，
 // 测试文件只 import 本 helper 即可使用，故在此转发导出。
 export 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/sync/sync_setup_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+final _isolatedDirectories = <String>{};
 
 /// Creates a real Rust bridge backed by a fresh per-suite temporary database.
 ///
@@ -25,6 +28,7 @@ Future<RustBridgeRepository> createIsolatedBridge({
   final dataDir = await Directory.systemTemp.createTemp(
     'elsewhen-flutter-test-',
   );
+  _isolatedDirectories.add(dataDir.path);
   final repo =
       repositoryFactory?.call(dataDir.path) ??
       RustBridgeRepository(
@@ -40,9 +44,20 @@ Future<RustBridgeRepository> createIsolatedBridge({
   addTearDown(() async {
     await repo.localSync.close();
     repo.dispose();
+    _isolatedDirectories.remove(dataDir.path);
     if (await dataDir.exists()) {
       await dataDir.delete(recursive: true);
     }
   });
   return repo;
+}
+
+/// Reinitialize only storage owned by this helper. FRB itself is process-wide
+/// and cannot be initialized twice in one Dart isolate.
+Future<void> reinitializeIsolatedBridge(RustBridgeRepository repo) async {
+  final path = repo.databasePath;
+  if (path == null || !_isolatedDirectories.contains(path)) {
+    throw StateError('Only helper-owned isolated directories may be reopened');
+  }
+  await api.initBridge(databasePath: path);
 }

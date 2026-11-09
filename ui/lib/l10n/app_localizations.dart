@@ -12286,6 +12286,59 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'页面、来源或规则设置已变化，请重新审阅。'**
   String get errorKnowledgeReviewChanged;
+
+  /// No description provided for @digestReadingPhase.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在分段阅读'**
+  String get digestReadingPhase;
+
+  /// No description provided for @digestMergingPhase.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在合并已读片段'**
+  String get digestMergingPhase;
+
+  /// No description provided for @digestReadyPhase.
+  ///
+  /// In zh, this message translates to:
+  /// **'全文已读完 · 等待最终整理'**
+  String get digestReadyPhase;
+
+  /// No description provided for @digestCancelledPhase.
+  ///
+  /// In zh, this message translates to:
+  /// **'事件分类变化，阅读已暂停'**
+  String get digestCancelledPhase;
+
+  /// No description provided for @digestReadingProgress.
+  ///
+  /// In zh, this message translates to:
+  /// **'已读 {read} / {total} 字 · {leaves} 个片段 · {merges} 次合并'**
+  String digestReadingProgress(
+    String read,
+    String total,
+    String leaves,
+    String merges,
+  );
+
+  /// No description provided for @digestReadingBudgetHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'等待具有足够上下文容量的渠道。请检查上下文窗口、输出预留和自定义指令。已读进度保留。'**
+  String get digestReadingBudgetHelp;
+
+  /// No description provided for @digestReadingRetryHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'本步骤未完成，稍后自动重试；已读进度保留。'**
+  String get digestReadingRetryHelp;
+
+  /// No description provided for @digestReadingLimitHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'事件或阅读缓存达到处理上限。原文和已读进度均已保留。'**
+  String get digestReadingLimitHelp;
 }
 
 class _AppLocalizationsDelegate

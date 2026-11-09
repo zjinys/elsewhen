@@ -32,7 +32,8 @@ impl Store {
                 UNION ALL SELECT 1 FROM knowledge_digest_jobs WHERE status='running'
                 UNION ALL SELECT 1 FROM knowledge_digest_runs WHERE status='running'
                 UNION ALL SELECT 1 FROM knowledge_background_runs WHERE status='running'
-                UNION ALL SELECT 1 FROM knowledge_refresh_jobs WHERE status='running')",
+                UNION ALL SELECT 1 FROM knowledge_refresh_jobs WHERE status='running'
+                UNION ALL SELECT 1 FROM event_reading_tasks WHERE lease_token IS NOT NULL)",
             [],
             |r| r.get(0),
         )?;

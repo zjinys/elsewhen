@@ -152,6 +152,13 @@ fn ollama_response_tool_calls(raw: Vec<OllamaResponseToolCall>) -> Vec<ToolCall>
 }
 
 impl AiProvider for OllamaProvider {
+    fn visit_request_budgets(
+        &self,
+        visitor: &mut dyn FnMut(&RequestFit<'_>) -> Result<()>,
+    ) -> Result<()> {
+        visitor(&|messages| self.fits_request(messages))
+    }
+
     fn fits_request(&self, messages: &[ContextMessage]) -> Result<bool> {
         crate::ai::budget::validate_context_exchanges(messages)?;
         let (payload, _) = self.request_parts(messages.to_vec(), None)?;

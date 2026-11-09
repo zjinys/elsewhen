@@ -82,6 +82,25 @@ pub trait AiProvider {
         self.generate_reply(messages)
     }
 
+    /// Visit verified concrete budgets without a network call. The strict
+    /// event reader must never inherit the permissive legacy default fit.
+    fn visit_request_budgets(
+        &self,
+        _visitor: &mut dyn FnMut(&RequestFit<'_>) -> Result<()>,
+    ) -> Result<()> {
+        Ok(())
+    }
+
+    fn generate_budgeted_prepared(&self, prepare: &PrepareRequest<'_>) -> Result<AiReply> {
+        let mut available = false;
+        self.visit_request_budgets(&mut |_| {
+            available = true;
+            Ok(())
+        })?;
+        anyhow::ensure!(available, "event_reading_provider_budget_unavailable");
+        self.generate_prepared(prepare)
+    }
+
     /// Observable generation. Providers without streaming still preserve request-boundary cancellation.
     fn generate_observed(
         &self,

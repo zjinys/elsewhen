@@ -227,6 +227,13 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     ("knowledge_snapshot_metrics", "local-knowledge-pipeline"),
     ("knowledge_snapshots", "local-knowledge-pipeline"),
     ("knowledge_source_pages", "local-knowledge-pipeline"),
+    // Event readings are local derived model work, never personal source
+    // events or transferable prompt/lease ownership.
+    ("event_reading_authority", "local-event-reading-permissions"),
+    ("event_reading_tasks", "local-event-reading-cache"),
+    ("event_reading_nodes", "local-event-reading-cache"),
+    ("event_reading_dependencies", "local-event-reading-cache"),
+    ("event_reading_schedule", "local-event-reading-scheduler"),
     ("knowledge_source_readings", "local-knowledge-pipeline"),
     ("knowledge_topic_plan_pages", "local-knowledge-pipeline"),
     ("knowledge_topic_plans", "local-knowledge-pipeline"),

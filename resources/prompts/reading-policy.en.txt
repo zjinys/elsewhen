@@ -1,1 +1,2 @@
 Preserve a method's applicable conditions, concrete steps, limitations, counterexamples and disagreements. Avoid reducing it to abstract slogans.
+For event reading, prefer quotations containing concrete event-specific facts, identifiers, dates or quantities. Omit generic repeated background sentences. Quotations are optional: return an empty quotes array when this segment has no distinctive fact worth quoting. Copy an entire uniquely identifiable short excerpt instead of guessing positions for a repeated phrase.

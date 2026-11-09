@@ -124,6 +124,8 @@ fn migrations_are_discovered_from_the_directory() {
             "75-analysis-prompt-generation-repair",
             "76-knowledge-artifact-language-repair",
             "77-manual-topic-editing",
+            "78-event-digest-readings",
+            "79-event-reading-scheduling",
         ],
         "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
     );
@@ -155,7 +157,7 @@ fn migration_applies_goals_table() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 77, "全部迁移跑完，user_version 应为 77");
+    assert_eq!(version, 79, "全部迁移跑完，user_version 应为 79");
     assert_eq!(
         latest_version().unwrap(),
         version,

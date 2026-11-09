@@ -10,6 +10,7 @@ mod conversations;
 mod digest;
 mod digest_insights;
 mod entities;
+pub(crate) mod event_readings;
 mod events;
 mod goal_data_reset;
 pub(crate) mod goal_grounding;

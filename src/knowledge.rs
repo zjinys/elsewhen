@@ -1,6 +1,7 @@
 //! One bounded retrieval contract shared by dialogue, analysis and review.
 pub(crate) mod authoring;
 pub(crate) mod dependencies;
+pub(crate) mod event_reading;
 pub mod maintenance;
 pub mod organization;
 pub mod queue;

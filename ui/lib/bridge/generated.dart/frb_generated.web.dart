@@ -159,6 +159,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
+  KnowledgeDigestReadingDto dco_decode_box_autoadd_knowledge_digest_reading_dto(
+    dynamic raw,
+  );
+
+  @protected
   McpServerDto dco_decode_box_autoadd_mcp_server_dto(dynamic raw);
 
   @protected
@@ -367,6 +372,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   KnowledgeDigestJobDto dco_decode_knowledge_digest_job_dto(dynamic raw);
+
+  @protected
+  KnowledgeDigestReadingDto dco_decode_knowledge_digest_reading_dto(
+    dynamic raw,
+  );
 
   @protected
   KnowledgeDigestRunDto dco_decode_knowledge_digest_run_dto(dynamic raw);
@@ -790,6 +800,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
+  KnowledgeDigestReadingDto?
+  dco_decode_opt_box_autoadd_knowledge_digest_reading_dto(dynamic raw);
+
+  @protected
   MessageRecordabilityDto? dco_decode_opt_box_autoadd_message_recordability_dto(
     dynamic raw,
   );
@@ -1111,6 +1125,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
+  KnowledgeDigestReadingDto sse_decode_box_autoadd_knowledge_digest_reading_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   McpServerDto sse_decode_box_autoadd_mcp_server_dto(
     SseDeserializer deserializer,
   );
@@ -1373,6 +1392,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   KnowledgeDigestJobDto sse_decode_knowledge_digest_job_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KnowledgeDigestReadingDto sse_decode_knowledge_digest_reading_dto(
     SseDeserializer deserializer,
   );
 
@@ -1938,6 +1962,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
+  KnowledgeDigestReadingDto?
+  sse_decode_opt_box_autoadd_knowledge_digest_reading_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   MessageRecordabilityDto? sse_decode_opt_box_autoadd_message_recordability_dto(
     SseDeserializer deserializer,
   );
@@ -2416,6 +2446,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_box_autoadd_i_64(PlatformInt64 raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_i_64(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_knowledge_digest_reading_dto(
+    KnowledgeDigestReadingDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_knowledge_digest_reading_dto(raw);
   }
 
   @protected
@@ -3203,6 +3241,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny cst_encode_knowledge_digest_job_dto(KnowledgeDigestJobDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
+      cst_encode_opt_box_autoadd_knowledge_digest_reading_dto(raw.reading),
       cst_encode_String(raw.jobId),
       cst_encode_String(raw.eventId),
       cst_encode_String(raw.eventExcerpt),
@@ -3215,6 +3254,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_opt_String(raw.skipReason),
       cst_encode_opt_String(raw.batchId),
       cst_encode_String(raw.updatedAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_knowledge_digest_reading_dto(KnowledgeDigestReadingDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.phase),
+      cst_encode_i_64(raw.readChars),
+      cst_encode_i_64(raw.totalChars),
+      cst_encode_i_64(raw.completedLeaves),
+      cst_encode_i_64(raw.completedMerges),
+      cst_encode_opt_String(raw.error),
+      cst_encode_String(raw.retryAt),
     ].jsify()!;
   }
 
@@ -3255,15 +3308,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   JSAny cst_encode_knowledge_digest_tick_result(KnowledgeDigestTickResult raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
+    if (raw is KnowledgeDigestTickResult_Reading) {
+      return [
+        0,
+        cst_encode_String(raw.eventId),
+        cst_encode_String(raw.state),
+        cst_encode_opt_String(raw.error),
+      ].jsify()!;
+    }
     if (raw is KnowledgeDigestTickResult_NoProvider) {
-      return [0].jsify()!;
+      return [1].jsify()!;
     }
     if (raw is KnowledgeDigestTickResult_Idle) {
-      return [1].jsify()!;
+      return [2].jsify()!;
     }
     if (raw is KnowledgeDigestTickResult_Processed) {
       return [
-        2,
+        3,
         cst_encode_i_64(raw.events),
         cst_encode_list_String(raw.createdSlugs),
         cst_encode_list_String(raw.updatedSlugs),
@@ -3272,7 +3333,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     }
     if (raw is KnowledgeDigestTickResult_Failed) {
       return [
-        3,
+        4,
         cst_encode_i_64(raw.events),
         cst_encode_String(raw.error),
       ].jsify()!;
@@ -4273,6 +4334,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny? cst_encode_opt_box_autoadd_i_64(PlatformInt64? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_i_64(raw);
+  }
+
+  @protected
+  JSAny? cst_encode_opt_box_autoadd_knowledge_digest_reading_dto(
+    KnowledgeDigestReadingDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? null
+        : cst_encode_box_autoadd_knowledge_digest_reading_dto(raw);
   }
 
   @protected
@@ -5302,6 +5373,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_knowledge_digest_reading_dto(
+    KnowledgeDigestReadingDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_mcp_server_dto(
     McpServerDto self,
     SseSerializer serializer,
@@ -5649,6 +5726,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_knowledge_digest_job_dto(
     KnowledgeDigestJobDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_knowledge_digest_reading_dto(
+    KnowledgeDigestReadingDto self,
     SseSerializer serializer,
   );
 
@@ -6354,6 +6437,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_knowledge_digest_reading_dto(
+    KnowledgeDigestReadingDto? self,
     SseSerializer serializer,
   );
 

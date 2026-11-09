@@ -56,10 +56,11 @@ extension KnowledgeDigestTickResultPatterns on KnowledgeDigestTickResult {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( KnowledgeDigestTickResult_NoProvider value)?  noProvider,TResult Function( KnowledgeDigestTickResult_Idle value)?  idle,TResult Function( KnowledgeDigestTickResult_Processed value)?  processed,TResult Function( KnowledgeDigestTickResult_Failed value)?  failed,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( KnowledgeDigestTickResult_Reading value)?  reading,TResult Function( KnowledgeDigestTickResult_NoProvider value)?  noProvider,TResult Function( KnowledgeDigestTickResult_Idle value)?  idle,TResult Function( KnowledgeDigestTickResult_Processed value)?  processed,TResult Function( KnowledgeDigestTickResult_Failed value)?  failed,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
-case KnowledgeDigestTickResult_NoProvider() when noProvider != null:
+case KnowledgeDigestTickResult_Reading() when reading != null:
+return reading(_that);case KnowledgeDigestTickResult_NoProvider() when noProvider != null:
 return noProvider(_that);case KnowledgeDigestTickResult_Idle() when idle != null:
 return idle(_that);case KnowledgeDigestTickResult_Processed() when processed != null:
 return processed(_that);case KnowledgeDigestTickResult_Failed() when failed != null:
@@ -81,10 +82,11 @@ return failed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( KnowledgeDigestTickResult_NoProvider value)  noProvider,required TResult Function( KnowledgeDigestTickResult_Idle value)  idle,required TResult Function( KnowledgeDigestTickResult_Processed value)  processed,required TResult Function( KnowledgeDigestTickResult_Failed value)  failed,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( KnowledgeDigestTickResult_Reading value)  reading,required TResult Function( KnowledgeDigestTickResult_NoProvider value)  noProvider,required TResult Function( KnowledgeDigestTickResult_Idle value)  idle,required TResult Function( KnowledgeDigestTickResult_Processed value)  processed,required TResult Function( KnowledgeDigestTickResult_Failed value)  failed,}){
 final _that = this;
 switch (_that) {
-case KnowledgeDigestTickResult_NoProvider():
+case KnowledgeDigestTickResult_Reading():
+return reading(_that);case KnowledgeDigestTickResult_NoProvider():
 return noProvider(_that);case KnowledgeDigestTickResult_Idle():
 return idle(_that);case KnowledgeDigestTickResult_Processed():
 return processed(_that);case KnowledgeDigestTickResult_Failed():
@@ -102,10 +104,11 @@ return failed(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( KnowledgeDigestTickResult_NoProvider value)?  noProvider,TResult? Function( KnowledgeDigestTickResult_Idle value)?  idle,TResult? Function( KnowledgeDigestTickResult_Processed value)?  processed,TResult? Function( KnowledgeDigestTickResult_Failed value)?  failed,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( KnowledgeDigestTickResult_Reading value)?  reading,TResult? Function( KnowledgeDigestTickResult_NoProvider value)?  noProvider,TResult? Function( KnowledgeDigestTickResult_Idle value)?  idle,TResult? Function( KnowledgeDigestTickResult_Processed value)?  processed,TResult? Function( KnowledgeDigestTickResult_Failed value)?  failed,}){
 final _that = this;
 switch (_that) {
-case KnowledgeDigestTickResult_NoProvider() when noProvider != null:
+case KnowledgeDigestTickResult_Reading() when reading != null:
+return reading(_that);case KnowledgeDigestTickResult_NoProvider() when noProvider != null:
 return noProvider(_that);case KnowledgeDigestTickResult_Idle() when idle != null:
 return idle(_that);case KnowledgeDigestTickResult_Processed() when processed != null:
 return processed(_that);case KnowledgeDigestTickResult_Failed() when failed != null:
@@ -126,9 +129,10 @@ return failed(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  noProvider,TResult Function()?  idle,TResult Function( PlatformInt64 events,  List<String> createdSlugs,  List<String> updatedSlugs,  List<String> protectedSlugs)?  processed,TResult Function( PlatformInt64 events,  String error)?  failed,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String eventId,  String state,  String? error)?  reading,TResult Function()?  noProvider,TResult Function()?  idle,TResult Function( PlatformInt64 events,  List<String> createdSlugs,  List<String> updatedSlugs,  List<String> protectedSlugs)?  processed,TResult Function( PlatformInt64 events,  String error)?  failed,required TResult orElse(),}) {final _that = this;
 switch (_that) {
-case KnowledgeDigestTickResult_NoProvider() when noProvider != null:
+case KnowledgeDigestTickResult_Reading() when reading != null:
+return reading(_that.eventId,_that.state,_that.error);case KnowledgeDigestTickResult_NoProvider() when noProvider != null:
 return noProvider();case KnowledgeDigestTickResult_Idle() when idle != null:
 return idle();case KnowledgeDigestTickResult_Processed() when processed != null:
 return processed(_that.events,_that.createdSlugs,_that.updatedSlugs,_that.protectedSlugs);case KnowledgeDigestTickResult_Failed() when failed != null:
@@ -150,9 +154,10 @@ return failed(_that.events,_that.error);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  noProvider,required TResult Function()  idle,required TResult Function( PlatformInt64 events,  List<String> createdSlugs,  List<String> updatedSlugs,  List<String> protectedSlugs)  processed,required TResult Function( PlatformInt64 events,  String error)  failed,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String eventId,  String state,  String? error)  reading,required TResult Function()  noProvider,required TResult Function()  idle,required TResult Function( PlatformInt64 events,  List<String> createdSlugs,  List<String> updatedSlugs,  List<String> protectedSlugs)  processed,required TResult Function( PlatformInt64 events,  String error)  failed,}) {final _that = this;
 switch (_that) {
-case KnowledgeDigestTickResult_NoProvider():
+case KnowledgeDigestTickResult_Reading():
+return reading(_that.eventId,_that.state,_that.error);case KnowledgeDigestTickResult_NoProvider():
 return noProvider();case KnowledgeDigestTickResult_Idle():
 return idle();case KnowledgeDigestTickResult_Processed():
 return processed(_that.events,_that.createdSlugs,_that.updatedSlugs,_that.protectedSlugs);case KnowledgeDigestTickResult_Failed():
@@ -170,9 +175,10 @@ return failed(_that.events,_that.error);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  noProvider,TResult? Function()?  idle,TResult? Function( PlatformInt64 events,  List<String> createdSlugs,  List<String> updatedSlugs,  List<String> protectedSlugs)?  processed,TResult? Function( PlatformInt64 events,  String error)?  failed,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String eventId,  String state,  String? error)?  reading,TResult? Function()?  noProvider,TResult? Function()?  idle,TResult? Function( PlatformInt64 events,  List<String> createdSlugs,  List<String> updatedSlugs,  List<String> protectedSlugs)?  processed,TResult? Function( PlatformInt64 events,  String error)?  failed,}) {final _that = this;
 switch (_that) {
-case KnowledgeDigestTickResult_NoProvider() when noProvider != null:
+case KnowledgeDigestTickResult_Reading() when reading != null:
+return reading(_that.eventId,_that.state,_that.error);case KnowledgeDigestTickResult_NoProvider() when noProvider != null:
 return noProvider();case KnowledgeDigestTickResult_Idle() when idle != null:
 return idle();case KnowledgeDigestTickResult_Processed() when processed != null:
 return processed(_that.events,_that.createdSlugs,_that.updatedSlugs,_that.protectedSlugs);case KnowledgeDigestTickResult_Failed() when failed != null:
@@ -187,9 +193,81 @@ return failed(_that.events,_that.error);case _:
 /// @nodoc
 
 
+class KnowledgeDigestTickResult_Reading extends KnowledgeDigestTickResult {
+  const KnowledgeDigestTickResult_Reading({required this.eventId, required this.state, this.error}): super._();
+
+
+ final  String eventId;
+ final  String state;
+ final  String? error;
+
+/// Create a copy of KnowledgeDigestTickResult
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$KnowledgeDigestTickResult_ReadingCopyWith<KnowledgeDigestTickResult_Reading> get copyWith => _$KnowledgeDigestTickResult_ReadingCopyWithImpl<KnowledgeDigestTickResult_Reading>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is KnowledgeDigestTickResult_Reading&&(identical(other.eventId, eventId) || other.eventId == eventId)&&(identical(other.state, state) || other.state == state)&&(identical(other.error, error) || other.error == error));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,eventId,state,error);
+}
+
+@override
+String toString() {
+    return 'KnowledgeDigestTickResult.reading(eventId: $eventId, state: $state, error: $error)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $KnowledgeDigestTickResult_ReadingCopyWith<$Res> implements $KnowledgeDigestTickResultCopyWith<$Res> {
+  factory $KnowledgeDigestTickResult_ReadingCopyWith(KnowledgeDigestTickResult_Reading value, $Res Function(KnowledgeDigestTickResult_Reading) _then) = _$KnowledgeDigestTickResult_ReadingCopyWithImpl;
+@useResult
+$Res call({
+ String eventId, String state, String? error
+});
+
+
+
+
+}
+/// @nodoc
+class _$KnowledgeDigestTickResult_ReadingCopyWithImpl<$Res>
+    implements $KnowledgeDigestTickResult_ReadingCopyWith<$Res> {
+  _$KnowledgeDigestTickResult_ReadingCopyWithImpl(this._self, this._then);
+
+  final KnowledgeDigestTickResult_Reading _self;
+  final $Res Function(KnowledgeDigestTickResult_Reading) _then;
+
+/// Create a copy of KnowledgeDigestTickResult
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? eventId = null,Object? state = null,Object? error = freezed,}) {
+  return _then(KnowledgeDigestTickResult_Reading(
+eventId: null == eventId ? _self.eventId : eventId // ignore: cast_nullable_to_non_nullable
+as String,state: null == state ? _self.state : state // ignore: cast_nullable_to_non_nullable
+as String,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
 class KnowledgeDigestTickResult_NoProvider extends KnowledgeDigestTickResult {
   const KnowledgeDigestTickResult_NoProvider(): super._();
-  
+
 
 
 
@@ -221,7 +299,7 @@ String toString() {
 
 class KnowledgeDigestTickResult_Idle extends KnowledgeDigestTickResult {
   const KnowledgeDigestTickResult_Idle(): super._();
-  
+
 
 
 
@@ -253,7 +331,7 @@ String toString() {
 
 class KnowledgeDigestTickResult_Processed extends KnowledgeDigestTickResult {
   const KnowledgeDigestTickResult_Processed({required this.events, required  List<String> createdSlugs, required  List<String> updatedSlugs, required  List<String> protectedSlugs}): _createdSlugs = createdSlugs,_updatedSlugs = updatedSlugs,_protectedSlugs = protectedSlugs,super._();
-  
+
 
  final  PlatformInt64 events;
  final  List<String> _createdSlugs;
@@ -345,7 +423,7 @@ as List<String>,
 
 class KnowledgeDigestTickResult_Failed extends KnowledgeDigestTickResult {
   const KnowledgeDigestTickResult_Failed({required this.events, required this.error}): super._();
-  
+
 
  final  PlatformInt64 events;
  final  String error;

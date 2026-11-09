@@ -10143,6 +10143,10 @@ impl SseDecode for crate::knowledge::review::KnowledgeDiffPart {
 impl SseDecode for crate::api::knowledge_digest::KnowledgeDigestJobDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_reading =
+            <Option<crate::api::knowledge_digest::KnowledgeDigestReadingDto>>::sse_decode(
+                deserializer,
+            );
         let mut var_jobId = <String>::sse_decode(deserializer);
         let mut var_eventId = <String>::sse_decode(deserializer);
         let mut var_eventExcerpt = <String>::sse_decode(deserializer);
@@ -10156,6 +10160,7 @@ impl SseDecode for crate::api::knowledge_digest::KnowledgeDigestJobDto {
         let mut var_batchId = <Option<String>>::sse_decode(deserializer);
         let mut var_updatedAt = <String>::sse_decode(deserializer);
         return crate::api::knowledge_digest::KnowledgeDigestJobDto {
+            reading: var_reading,
             job_id: var_jobId,
             event_id: var_eventId,
             event_excerpt: var_eventExcerpt,
@@ -10168,6 +10173,28 @@ impl SseDecode for crate::api::knowledge_digest::KnowledgeDigestJobDto {
             skip_reason: var_skipReason,
             batch_id: var_batchId,
             updated_at: var_updatedAt,
+        };
+    }
+}
+
+impl SseDecode for crate::api::knowledge_digest::KnowledgeDigestReadingDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_phase = <String>::sse_decode(deserializer);
+        let mut var_readChars = <i64>::sse_decode(deserializer);
+        let mut var_totalChars = <i64>::sse_decode(deserializer);
+        let mut var_completedLeaves = <i64>::sse_decode(deserializer);
+        let mut var_completedMerges = <i64>::sse_decode(deserializer);
+        let mut var_error = <Option<String>>::sse_decode(deserializer);
+        let mut var_retryAt = <String>::sse_decode(deserializer);
+        return crate::api::knowledge_digest::KnowledgeDigestReadingDto {
+            phase: var_phase,
+            read_chars: var_readChars,
+            total_chars: var_totalChars,
+            completed_leaves: var_completedLeaves,
+            completed_merges: var_completedMerges,
+            error: var_error,
+            retry_at: var_retryAt,
         };
     }
 }
@@ -10234,12 +10261,22 @@ impl SseDecode for crate::api::knowledge_digest::KnowledgeDigestTickResult {
         let mut tag_ = <i32>::sse_decode(deserializer);
         match tag_ {
             0 => {
-                return crate::api::knowledge_digest::KnowledgeDigestTickResult::NoProvider;
+                let mut var_eventId = <String>::sse_decode(deserializer);
+                let mut var_state = <String>::sse_decode(deserializer);
+                let mut var_error = <Option<String>>::sse_decode(deserializer);
+                return crate::api::knowledge_digest::KnowledgeDigestTickResult::Reading {
+                    event_id: var_eventId,
+                    state: var_state,
+                    error: var_error,
+                };
             }
             1 => {
-                return crate::api::knowledge_digest::KnowledgeDigestTickResult::Idle;
+                return crate::api::knowledge_digest::KnowledgeDigestTickResult::NoProvider;
             }
             2 => {
+                return crate::api::knowledge_digest::KnowledgeDigestTickResult::Idle;
+            }
+            3 => {
                 let mut var_events = <i64>::sse_decode(deserializer);
                 let mut var_createdSlugs = <Vec<String>>::sse_decode(deserializer);
                 let mut var_updatedSlugs = <Vec<String>>::sse_decode(deserializer);
@@ -10251,7 +10288,7 @@ impl SseDecode for crate::api::knowledge_digest::KnowledgeDigestTickResult {
                     protected_slugs: var_protectedSlugs,
                 };
             }
-            3 => {
+            4 => {
                 let mut var_events = <i64>::sse_decode(deserializer);
                 let mut var_error = <String>::sse_decode(deserializer);
                 return crate::api::knowledge_digest::KnowledgeDigestTickResult::Failed {
@@ -12140,6 +12177,19 @@ impl SseDecode for Option<i64> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<i64>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::knowledge_digest::KnowledgeDigestReadingDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::api::knowledge_digest::KnowledgeDigestReadingDto>::sse_decode(deserializer),
+            );
         } else {
             return None;
         }
@@ -15028,6 +15078,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::review::KnowledgeDiffPa
 impl flutter_rust_bridge::IntoDart for crate::api::knowledge_digest::KnowledgeDigestJobDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.reading.into_into_dart().into_dart(),
             self.job_id.into_into_dart().into_dart(),
             self.event_id.into_into_dart().into_dart(),
             self.event_excerpt.into_into_dart().into_dart(),
@@ -15052,6 +15103,32 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::knowledge_digest::KnowledgeDi
     for crate::api::knowledge_digest::KnowledgeDigestJobDto
 {
     fn into_into_dart(self) -> crate::api::knowledge_digest::KnowledgeDigestJobDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::knowledge_digest::KnowledgeDigestReadingDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.phase.into_into_dart().into_dart(),
+            self.read_chars.into_into_dart().into_dart(),
+            self.total_chars.into_into_dart().into_dart(),
+            self.completed_leaves.into_into_dart().into_dart(),
+            self.completed_merges.into_into_dart().into_dart(),
+            self.error.into_into_dart().into_dart(),
+            self.retry_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::knowledge_digest::KnowledgeDigestReadingDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::knowledge_digest::KnowledgeDigestReadingDto>
+    for crate::api::knowledge_digest::KnowledgeDigestReadingDto
+{
+    fn into_into_dart(self) -> crate::api::knowledge_digest::KnowledgeDigestReadingDto {
         self
     }
 }
@@ -15117,11 +15194,22 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::knowledge_digest::KnowledgeDi
 impl flutter_rust_bridge::IntoDart for crate::api::knowledge_digest::KnowledgeDigestTickResult {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
+            crate::api::knowledge_digest::KnowledgeDigestTickResult::Reading {
+                event_id,
+                state,
+                error,
+            } => [
+                0.into_dart(),
+                event_id.into_into_dart().into_dart(),
+                state.into_into_dart().into_dart(),
+                error.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             crate::api::knowledge_digest::KnowledgeDigestTickResult::NoProvider => {
-                [0.into_dart()].into_dart()
+                [1.into_dart()].into_dart()
             }
             crate::api::knowledge_digest::KnowledgeDigestTickResult::Idle => {
-                [1.into_dart()].into_dart()
+                [2.into_dart()].into_dart()
             }
             crate::api::knowledge_digest::KnowledgeDigestTickResult::Processed {
                 events,
@@ -15129,7 +15217,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::knowledge_digest::KnowledgeDi
                 updated_slugs,
                 protected_slugs,
             } => [
-                2.into_dart(),
+                3.into_dart(),
                 events.into_into_dart().into_dart(),
                 created_slugs.into_into_dart().into_dart(),
                 updated_slugs.into_into_dart().into_dart(),
@@ -15137,7 +15225,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::knowledge_digest::KnowledgeDi
             ]
             .into_dart(),
             crate::api::knowledge_digest::KnowledgeDigestTickResult::Failed { events, error } => [
-                3.into_dart(),
+                4.into_dart(),
                 events.into_into_dart().into_dart(),
                 error.into_into_dart().into_dart(),
             ]
@@ -18043,6 +18131,10 @@ impl SseEncode for crate::knowledge::review::KnowledgeDiffPart {
 impl SseEncode for crate::api::knowledge_digest::KnowledgeDigestJobDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::api::knowledge_digest::KnowledgeDigestReadingDto>>::sse_encode(
+            self.reading,
+            serializer,
+        );
         <String>::sse_encode(self.job_id, serializer);
         <String>::sse_encode(self.event_id, serializer);
         <String>::sse_encode(self.event_excerpt, serializer);
@@ -18055,6 +18147,19 @@ impl SseEncode for crate::api::knowledge_digest::KnowledgeDigestJobDto {
         <Option<String>>::sse_encode(self.skip_reason, serializer);
         <Option<String>>::sse_encode(self.batch_id, serializer);
         <String>::sse_encode(self.updated_at, serializer);
+    }
+}
+
+impl SseEncode for crate::api::knowledge_digest::KnowledgeDigestReadingDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.phase, serializer);
+        <i64>::sse_encode(self.read_chars, serializer);
+        <i64>::sse_encode(self.total_chars, serializer);
+        <i64>::sse_encode(self.completed_leaves, serializer);
+        <i64>::sse_encode(self.completed_merges, serializer);
+        <Option<String>>::sse_encode(self.error, serializer);
+        <String>::sse_encode(self.retry_at, serializer);
     }
 }
 
@@ -18094,11 +18199,21 @@ impl SseEncode for crate::api::knowledge_digest::KnowledgeDigestTickResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         match self {
-            crate::api::knowledge_digest::KnowledgeDigestTickResult::NoProvider => {
+            crate::api::knowledge_digest::KnowledgeDigestTickResult::Reading {
+                event_id,
+                state,
+                error,
+            } => {
                 <i32>::sse_encode(0, serializer);
+                <String>::sse_encode(event_id, serializer);
+                <String>::sse_encode(state, serializer);
+                <Option<String>>::sse_encode(error, serializer);
+            }
+            crate::api::knowledge_digest::KnowledgeDigestTickResult::NoProvider => {
+                <i32>::sse_encode(1, serializer);
             }
             crate::api::knowledge_digest::KnowledgeDigestTickResult::Idle => {
-                <i32>::sse_encode(1, serializer);
+                <i32>::sse_encode(2, serializer);
             }
             crate::api::knowledge_digest::KnowledgeDigestTickResult::Processed {
                 events,
@@ -18106,14 +18221,14 @@ impl SseEncode for crate::api::knowledge_digest::KnowledgeDigestTickResult {
                 updated_slugs,
                 protected_slugs,
             } => {
-                <i32>::sse_encode(2, serializer);
+                <i32>::sse_encode(3, serializer);
                 <i64>::sse_encode(events, serializer);
                 <Vec<String>>::sse_encode(created_slugs, serializer);
                 <Vec<String>>::sse_encode(updated_slugs, serializer);
                 <Vec<String>>::sse_encode(protected_slugs, serializer);
             }
             crate::api::knowledge_digest::KnowledgeDigestTickResult::Failed { events, error } => {
-                <i32>::sse_encode(3, serializer);
+                <i32>::sse_encode(4, serializer);
                 <i64>::sse_encode(events, serializer);
                 <String>::sse_encode(error, serializer);
             }
@@ -19449,6 +19564,18 @@ impl SseEncode for Option<i64> {
     }
 }
 
+impl SseEncode for Option<crate::api::knowledge_digest::KnowledgeDigestReadingDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::knowledge_digest::KnowledgeDigestReadingDto>::sse_encode(
+                value, serializer,
+            );
+        }
+    }
+}
+
 impl SseEncode for Option<crate::api::analysis_schema::MessageRecordabilityDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -20580,6 +20707,16 @@ mod io {
             unsafe { *flutter_rust_bridge::for_generated::box_from_leak_ptr(self) }
         }
     }
+    impl CstDecode<crate::api::knowledge_digest::KnowledgeDigestReadingDto>
+        for *mut wire_cst_knowledge_digest_reading_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::knowledge_digest::KnowledgeDigestReadingDto {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::knowledge_digest::KnowledgeDigestReadingDto>::cst_decode(*wrap)
+                .into()
+        }
+    }
     impl CstDecode<crate::api::mcp::McpServerDto> for *mut wire_cst_mcp_server_dto {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::mcp::McpServerDto {
@@ -21396,6 +21533,7 @@ mod io {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::knowledge_digest::KnowledgeDigestJobDto {
             crate::api::knowledge_digest::KnowledgeDigestJobDto {
+                reading: self.reading.cst_decode(),
                 job_id: self.job_id.cst_decode(),
                 event_id: self.event_id.cst_decode(),
                 event_excerpt: self.event_excerpt.cst_decode(),
@@ -21408,6 +21546,22 @@ mod io {
                 skip_reason: self.skip_reason.cst_decode(),
                 batch_id: self.batch_id.cst_decode(),
                 updated_at: self.updated_at.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::knowledge_digest::KnowledgeDigestReadingDto>
+        for wire_cst_knowledge_digest_reading_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::knowledge_digest::KnowledgeDigestReadingDto {
+            crate::api::knowledge_digest::KnowledgeDigestReadingDto {
+                phase: self.phase.cst_decode(),
+                read_chars: self.read_chars.cst_decode(),
+                total_chars: self.total_chars.cst_decode(),
+                completed_leaves: self.completed_leaves.cst_decode(),
+                completed_merges: self.completed_merges.cst_decode(),
+                error: self.error.cst_decode(),
+                retry_at: self.retry_at.cst_decode(),
             }
         }
     }
@@ -21455,9 +21609,17 @@ mod io {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::knowledge_digest::KnowledgeDigestTickResult {
             match self.tag {
-                0 => crate::api::knowledge_digest::KnowledgeDigestTickResult::NoProvider,
-                1 => crate::api::knowledge_digest::KnowledgeDigestTickResult::Idle,
-                2 => {
+                0 => {
+                    let ans = unsafe { self.kind.Reading };
+                    crate::api::knowledge_digest::KnowledgeDigestTickResult::Reading {
+                        event_id: ans.event_id.cst_decode(),
+                        state: ans.state.cst_decode(),
+                        error: ans.error.cst_decode(),
+                    }
+                }
+                1 => crate::api::knowledge_digest::KnowledgeDigestTickResult::NoProvider,
+                2 => crate::api::knowledge_digest::KnowledgeDigestTickResult::Idle,
+                3 => {
                     let ans = unsafe { self.kind.Processed };
                     crate::api::knowledge_digest::KnowledgeDigestTickResult::Processed {
                         events: ans.events.cst_decode(),
@@ -21466,7 +21628,7 @@ mod io {
                         protected_slugs: ans.protected_slugs.cst_decode(),
                     }
                 }
-                3 => {
+                4 => {
                     let ans = unsafe { self.kind.Failed };
                     crate::api::knowledge_digest::KnowledgeDigestTickResult::Failed {
                         events: ans.events.cst_decode(),
@@ -24633,6 +24795,7 @@ mod io {
     impl NewWithNullPtr for wire_cst_knowledge_digest_job_dto {
         fn new_with_null_ptr() -> Self {
             Self {
+                reading: core::ptr::null_mut(),
                 job_id: core::ptr::null_mut(),
                 event_id: core::ptr::null_mut(),
                 event_excerpt: core::ptr::null_mut(),
@@ -24649,6 +24812,24 @@ mod io {
         }
     }
     impl Default for wire_cst_knowledge_digest_job_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_knowledge_digest_reading_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                phase: core::ptr::null_mut(),
+                read_chars: Default::default(),
+                total_chars: Default::default(),
+                completed_leaves: Default::default(),
+                completed_merges: Default::default(),
+                error: core::ptr::null_mut(),
+                retry_at: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_knowledge_digest_reading_dto {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -29492,6 +29673,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_knowledge_digest_reading_dto()
+    -> *mut wire_cst_knowledge_digest_reading_dto {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_knowledge_digest_reading_dto::new_with_null_ptr(),
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_box_autoadd_mcp_server_dto()
     -> *mut wire_cst_mcp_server_dto {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
@@ -31373,6 +31562,7 @@ mod io {
     #[repr(C)]
     #[derive(Clone, Copy)]
     pub struct wire_cst_knowledge_digest_job_dto {
+        reading: *mut wire_cst_knowledge_digest_reading_dto,
         job_id: *mut wire_cst_list_prim_u_8_strict,
         event_id: *mut wire_cst_list_prim_u_8_strict,
         event_excerpt: *mut wire_cst_list_prim_u_8_strict,
@@ -31385,6 +31575,17 @@ mod io {
         skip_reason: *mut wire_cst_list_prim_u_8_strict,
         batch_id: *mut wire_cst_list_prim_u_8_strict,
         updated_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_knowledge_digest_reading_dto {
+        phase: *mut wire_cst_list_prim_u_8_strict,
+        read_chars: i64,
+        total_chars: i64,
+        completed_leaves: i64,
+        completed_merges: i64,
+        error: *mut wire_cst_list_prim_u_8_strict,
+        retry_at: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -31423,9 +31624,17 @@ mod io {
     #[repr(C)]
     #[derive(Clone, Copy)]
     pub union KnowledgeDigestTickResultKind {
+        Reading: wire_cst_KnowledgeDigestTickResult_Reading,
         Processed: wire_cst_KnowledgeDigestTickResult_Processed,
         Failed: wire_cst_KnowledgeDigestTickResult_Failed,
         nil__: (),
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_KnowledgeDigestTickResult_Reading {
+        event_id: *mut wire_cst_list_prim_u_8_strict,
+        state: *mut wire_cst_list_prim_u_8_strict,
+        error: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -34305,23 +34514,49 @@ mod web {
                 .unwrap();
             assert_eq!(
                 self_.length(),
-                12,
-                "Expected 12 elements, got {}",
+                13,
+                "Expected 13 elements, got {}",
                 self_.length()
             );
             crate::api::knowledge_digest::KnowledgeDigestJobDto {
-                job_id: self_.get(0).cst_decode(),
-                event_id: self_.get(1).cst_decode(),
-                event_excerpt: self_.get(2).cst_decode(),
-                recorded_at: self_.get(3).cst_decode(),
-                status: self_.get(4).cst_decode(),
-                attempts: self_.get(5).cst_decode(),
-                failed_rounds: self_.get(6).cst_decode(),
-                available_at: self_.get(7).cst_decode(),
-                last_error: self_.get(8).cst_decode(),
-                skip_reason: self_.get(9).cst_decode(),
-                batch_id: self_.get(10).cst_decode(),
-                updated_at: self_.get(11).cst_decode(),
+                reading: self_.get(0).cst_decode(),
+                job_id: self_.get(1).cst_decode(),
+                event_id: self_.get(2).cst_decode(),
+                event_excerpt: self_.get(3).cst_decode(),
+                recorded_at: self_.get(4).cst_decode(),
+                status: self_.get(5).cst_decode(),
+                attempts: self_.get(6).cst_decode(),
+                failed_rounds: self_.get(7).cst_decode(),
+                available_at: self_.get(8).cst_decode(),
+                last_error: self_.get(9).cst_decode(),
+                skip_reason: self_.get(10).cst_decode(),
+                batch_id: self_.get(11).cst_decode(),
+                updated_at: self_.get(12).cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::knowledge_digest::KnowledgeDigestReadingDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::knowledge_digest::KnowledgeDigestReadingDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                7,
+                "Expected 7 elements, got {}",
+                self_.length()
+            );
+            crate::api::knowledge_digest::KnowledgeDigestReadingDto {
+                phase: self_.get(0).cst_decode(),
+                read_chars: self_.get(1).cst_decode(),
+                total_chars: self_.get(2).cst_decode(),
+                completed_leaves: self_.get(3).cst_decode(),
+                completed_merges: self_.get(4).cst_decode(),
+                error: self_.get(5).cst_decode(),
+                retry_at: self_.get(6).cst_decode(),
             }
         }
     }
@@ -34388,15 +34623,20 @@ mod web {
         fn cst_decode(self) -> crate::api::knowledge_digest::KnowledgeDigestTickResult {
             let self_ = self.unchecked_into::<flutter_rust_bridge::for_generated::js_sys::Array>();
             match self_.get(0).unchecked_into_f64() as _ {
-                0 => crate::api::knowledge_digest::KnowledgeDigestTickResult::NoProvider,
-                1 => crate::api::knowledge_digest::KnowledgeDigestTickResult::Idle,
-                2 => crate::api::knowledge_digest::KnowledgeDigestTickResult::Processed {
+                0 => crate::api::knowledge_digest::KnowledgeDigestTickResult::Reading {
+                    event_id: self_.get(1).cst_decode(),
+                    state: self_.get(2).cst_decode(),
+                    error: self_.get(3).cst_decode(),
+                },
+                1 => crate::api::knowledge_digest::KnowledgeDigestTickResult::NoProvider,
+                2 => crate::api::knowledge_digest::KnowledgeDigestTickResult::Idle,
+                3 => crate::api::knowledge_digest::KnowledgeDigestTickResult::Processed {
                     events: self_.get(1).cst_decode(),
                     created_slugs: self_.get(2).cst_decode(),
                     updated_slugs: self_.get(3).cst_decode(),
                     protected_slugs: self_.get(4).cst_decode(),
                 },
-                3 => crate::api::knowledge_digest::KnowledgeDigestTickResult::Failed {
+                4 => crate::api::knowledge_digest::KnowledgeDigestTickResult::Failed {
                     events: self_.get(1).cst_decode(),
                     error: self_.get(2).cst_decode(),
                 },

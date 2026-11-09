@@ -198,6 +198,12 @@ fn utf8_prefix(text: &str, max_bytes: usize) -> &str {
 /// 后台知识消化一次 tick 的结果。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DigestTick {
+    /// Persistent reading advanced, is waiting, or failed independently.
+    Reading {
+        event_id: String,
+        state: String,
+        error: Option<String>,
+    },
     /// 没有到期可消化的事件
     Idle,
     /// 一批事件消化成功（页面变更已与任务确认同事务落库）
@@ -215,10 +221,16 @@ fn build_digest_user_prompt(
     max_chars: usize,
     index_bytes: usize,
     ranked: &[crate::storage::WikiPage],
+    reading_material: Option<&str>,
 ) -> Result<String> {
     let mut out = store.render_processing_instruction("digest_events", &[])?;
     for (i, e) in events.iter().enumerate() {
-        out.push_str(&format!("[{}] {} | {}\n", i + 1, e.recorded_at, e.raw_text));
+        let body = if i == 0 {
+            reading_material.unwrap_or(&e.raw_text)
+        } else {
+            &e.raw_text
+        };
+        out.push_str(&format!("[{}] {} | {}\n", i + 1, e.recorded_at, body));
     }
 
     let mut index_pages = Vec::new();
@@ -297,18 +309,55 @@ pub fn process_digest_queue(
     model: Option<&str>,
 ) -> Result<DigestTick> {
     store.settle_digest_queue()?;
+    if !store.background_processing_allowed()? {
+        return Ok(DigestTick::Idle);
+    }
+    if store.prefer_event_reading()? {
+        if let Some(tick) = scheduling::reading_tick(store, provider, model)? {
+            return Ok(tick);
+        }
+    }
     let Some(mut batch) =
         store.claim_digest_batch(DIGEST_BATCH_MAX_EVENTS, DIGEST_BATCH_MAX_CHARS, model)?
     else {
-        return Ok(DigestTick::Idle);
+        return Ok(scheduling::reading_tick(store, provider, model)?.unwrap_or(DigestTick::Idle));
     };
+    store.set_digest_lane(false)?;
     let bundle = store.digest_prompt_bundle(&batch.id)?;
     let _prompt_scope = store.use_prompt_bundle(&bundle);
-    let applied =
-        digest_batch_drafts(store, provider, &batch.events).and_then(|(drafts, selected)| {
+    let prepared_count = std::cell::Cell::new(0usize);
+    let applied = digest_batch_drafts(store, provider, &batch.events, None, None, &prepared_count)
+        .and_then(|(drafts, selected)| {
             store.resize_digest_batch(&mut batch, selected)?;
             store.apply_digest_batch(&batch, &drafts)
         });
+    if applied
+        .as_ref()
+        .err()
+        .is_some_and(|error| error.is::<scheduling::NeedsEventReading>())
+    {
+        store.resize_digest_batch(&mut batch, 1)?;
+        let task = match store.ensure_event_reading(&batch) {
+            Ok(task) => task,
+            Err(error) => {
+                let message = format!("{error:#}");
+                store.fail_digest_batch(&batch, &message)?;
+                return Ok(DigestTick::Failed {
+                    events: 1,
+                    error: message,
+                });
+            }
+        };
+        store.park_digest_for_reading(&batch)?;
+        return Ok(DigestTick::Reading {
+            event_id: task.event_id,
+            state: "preparing".into(),
+            error: None,
+        });
+    }
+    if applied.is_err() {
+        store.resize_digest_batch(&mut batch, prepared_count.get().max(1))?;
+    }
     let events = batch.events.len();
     match applied {
         Ok(outcome) => Ok(DigestTick::Processed { events, outcome }),
@@ -328,6 +377,12 @@ fn digest_batch_drafts(
     store: &Store,
     provider: &dyn AiProvider,
     events: &[EventRecord],
+    reading_material: Option<&str>,
+    final_claim: Option<(
+        &crate::storage::event_readings::FinalReadingLease,
+        &crate::storage::DigestBatch,
+    )>,
+    selected: &std::cell::Cell<usize>,
 ) -> Result<(Vec<WikiPageDraft>, usize)> {
     let system = format!(
         "{}\n{}\n{}",
@@ -343,7 +398,7 @@ fn digest_batch_drafts(
         .filter(|kind| *kind != "memo")
         .collect();
     let ranked_cache = std::cell::RefCell::new(None::<(usize, Vec<crate::storage::WikiPage>)>);
-    let selected = std::cell::Cell::new(0usize);
+    let readable_overflow = std::cell::Cell::new(false);
     // Preparation is local and repeated for each actual failover candidate.
     let prepare = |fits: &crate::ai::provider::RequestFit<'_>| {
         let request = |count: usize,
@@ -383,6 +438,7 @@ fn digest_batch_drafts(
                         detail_bytes,
                         index_bytes,
                         ranked,
+                        reading_material,
                     )?,
                 ),
             ])
@@ -395,6 +451,20 @@ fn digest_batch_drafts(
                 break;
             }
             if count == 1 {
+                if reading_material.is_none() {
+                    let mut empty = events[0].clone();
+                    empty.raw_text.clear();
+                    let fixed = vec![
+                        ContextMessage::new("system", system.clone()),
+                        ContextMessage::new(
+                            "user",
+                            build_digest_user_prompt(&[empty], store, 0, 0, &[], None)?,
+                        ),
+                    ];
+                    if fits(&fixed)? {
+                        readable_overflow.set(true);
+                    }
+                }
                 return Err(crate::ai::budget::RequestBudgetError(
                     "digest_required_input_exceeds_budget: 单条完整事件与固定指令已超出该 Provider 输入预算；事件保留在队列中，未截断或确认为已消化".into()).into());
             }
@@ -423,19 +493,90 @@ fn digest_batch_drafts(
             best.len()
         ));
         selected.set(count);
+        if let Some((lease, batch)) = final_claim {
+            store.renew_event_reading_final(lease, batch, chrono::Utc::now().timestamp())?;
+        }
         Ok(best)
     };
-    let reply = provider
-        .generate_prepared(&prepare)
-        .context("调用模型失败")?
-        .content;
+    let reply = if reading_material.is_some() {
+        provider.generate_budgeted_prepared(&prepare)
+    } else {
+        provider.generate_prepared(&prepare)
+    }
+    .map_err(|error| {
+        if reading_material.is_none() && selected.get() == 0 && readable_overflow.get() {
+            anyhow::Error::new(scheduling::NeedsEventReading)
+        } else {
+            error.context("调用模型失败")
+        }
+    })?;
+    if reading_material.is_some() {
+        if let Some(usage) = &reply.usage {
+            store.record_token_usage(
+                None,
+                usage.prompt_tokens as i64,
+                usage.completion_tokens as i64,
+                usage.total_tokens as i64,
+                reply.model.as_deref(),
+            )?;
+        }
+    }
+    let text = if reading_material.is_some() {
+        let text = crate::knowledge::structured_text(&reply, "event final digest")?;
+        anyhow::ensure!(
+            reply.finish_reason.as_deref() == Some("stop"),
+            "event_reading_final_finish_reason_invalid"
+        );
+        anyhow::ensure!(text.len() <= 131072, "event_reading_final_output_limit");
+        let value: serde_json::Value = serde_json::from_str(text)?;
+        let items = value
+            .as_array()
+            .context("event_reading_final_expected_array")?;
+        anyhow::ensure!(items.len() <= 32, "event_reading_final_proposal_limit");
+        for item in items {
+            let object = item
+                .as_object()
+                .context("event_reading_final_expected_proposal")?;
+            anyhow::ensure!(
+                object.keys().all(|key| [
+                    "op",
+                    "kind",
+                    "slug",
+                    "title",
+                    "summary",
+                    "content",
+                    "tags",
+                    "source_event_ids",
+                    "reason"
+                ]
+                .contains(&key.as_str())),
+                "event_reading_final_unknown_field"
+            );
+        }
+        text
+    } else {
+        &reply.content
+    };
     let selected = selected.get();
     anyhow::ensure!(
         selected > 0 && selected <= events.len(),
         "digest preparation did not select an event batch"
     );
     let events = &events[..selected];
-    let mut proposals = parse_proposals(&reply)?;
+    let mut proposals = parse_proposals(text)?;
+    if reading_material.is_some() {
+        // Final reading material retains the actual immutable event identity.
+        // Accept that exact in-batch identity as an alias for its batch number;
+        // unrelated UUIDs and out-of-batch numeric references still fail below.
+        for proposal in &mut proposals {
+            for id in &mut proposal.source_event_ids {
+                if let Some(index) = events.iter().position(|event| event.id == *id) {
+                    *id = (index + 1).to_string();
+                }
+            }
+        }
+    }
+
     // 先补全模型漏写的 kind 前缀，再做同义新建重定向。缺前缀的 slug 是
     // 「同一习惯被当成新页」的直接来源：例如 habit 提案给 after-lunch-walk，
     // 归一成 habit/after-lunch-walk 后会命中既有页并走 update。
@@ -510,3 +651,8 @@ fn proposal_to_draft(p: &DigestProposal, events: &[EventRecord]) -> Result<WikiP
         source_url: None,
     })
 }
+
+mod finalization;
+pub(crate) use finalization::finalize_event_reading;
+
+mod scheduling;

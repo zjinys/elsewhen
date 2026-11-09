@@ -326,7 +326,12 @@ extension RepoWorkerReminders on RustBridgeRepository {
     try {
       while (!_disposed && !_analysisRerunRequested) {
         final result = await api.triggerKnowledgeDigest();
-        // Idle / NoProvider / Failed 都停：失败已退避回队，由 timer 在到期后重试。
+        // A reading node yields to the next timer tick; never drain the full
+        // long event in this loop. Progress refreshes the existing queue view.
+        if (result is api.KnowledgeDigestTickResult_Reading) {
+          if (!_disposed) knowledgeRevision.value++;
+          break;
+        }
         if (result is! api.KnowledgeDigestTickResult_Processed) break;
         if (!_disposed) knowledgeRevision.value++;
       }

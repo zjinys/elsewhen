@@ -199,6 +199,9 @@ impl FailoverProvider {
     /// 照常全试（冷却只是优先级提示，不是熔断死锁）。
     fn attempt_order(&self) -> (Vec<usize>, Vec<String>) {
         let len = self.entries.len();
+        if len == 0 {
+            return (Vec::new(), Vec::new());
+        }
         let start = self.preferred.load(Ordering::Relaxed) % len;
         let mut order = Vec::with_capacity(len);
         let mut skipped = Vec::new();
@@ -256,6 +259,28 @@ fn unusable_background_reply(reply: &AiReply) -> Option<String> {
 }
 
 impl AiProvider for FailoverProvider {
+    fn visit_request_budgets(
+        &self,
+        visitor: &mut dyn FnMut(&RequestFit<'_>) -> Result<()>,
+    ) -> Result<()> {
+        let (order, _) = self.attempt_order();
+        let mut visited = false;
+        for index in order {
+            self.entries[index]
+                .provider
+                .visit_request_budgets(&mut |fits| {
+                    visited = true;
+                    visitor(fits)
+                })?;
+        }
+        anyhow::ensure!(visited, "event_reading_provider_budget_unavailable");
+        Ok(())
+    }
+
+    fn generate_budgeted_prepared(&self, prepare: &PrepareRequest<'_>) -> Result<AiReply> {
+        self.try_each(&|provider| provider.generate_budgeted_prepared(prepare))
+    }
+
     fn generate_reply_with_tools(
         &self,
         messages: Vec<ContextMessage>,

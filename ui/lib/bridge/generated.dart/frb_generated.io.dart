@@ -157,6 +157,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
+  KnowledgeDigestReadingDto dco_decode_box_autoadd_knowledge_digest_reading_dto(
+    dynamic raw,
+  );
+
+  @protected
   McpServerDto dco_decode_box_autoadd_mcp_server_dto(dynamic raw);
 
   @protected
@@ -365,6 +370,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   KnowledgeDigestJobDto dco_decode_knowledge_digest_job_dto(dynamic raw);
+
+  @protected
+  KnowledgeDigestReadingDto dco_decode_knowledge_digest_reading_dto(
+    dynamic raw,
+  );
 
   @protected
   KnowledgeDigestRunDto dco_decode_knowledge_digest_run_dto(dynamic raw);
@@ -788,6 +798,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
+  KnowledgeDigestReadingDto?
+  dco_decode_opt_box_autoadd_knowledge_digest_reading_dto(dynamic raw);
+
+  @protected
   MessageRecordabilityDto? dco_decode_opt_box_autoadd_message_recordability_dto(
     dynamic raw,
   );
@@ -1109,6 +1123,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
+  KnowledgeDigestReadingDto sse_decode_box_autoadd_knowledge_digest_reading_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   McpServerDto sse_decode_box_autoadd_mcp_server_dto(
     SseDeserializer deserializer,
   );
@@ -1371,6 +1390,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   KnowledgeDigestJobDto sse_decode_knowledge_digest_job_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KnowledgeDigestReadingDto sse_decode_knowledge_digest_reading_dto(
     SseDeserializer deserializer,
   );
 
@@ -1936,6 +1960,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
+  KnowledgeDigestReadingDto?
+  sse_decode_opt_box_autoadd_knowledge_digest_reading_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   MessageRecordabilityDto? sse_decode_opt_box_autoadd_message_recordability_dto(
     SseDeserializer deserializer,
   );
@@ -2370,6 +2400,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ffi.Pointer<ffi.Int64> cst_encode_box_autoadd_i_64(PlatformInt64 raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return wire.cst_new_box_autoadd_i_64(cst_encode_i_64(raw));
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_knowledge_digest_reading_dto>
+  cst_encode_box_autoadd_knowledge_digest_reading_dto(
+    KnowledgeDigestReadingDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_knowledge_digest_reading_dto();
+    cst_api_fill_to_wire_knowledge_digest_reading_dto(raw, ptr.ref);
+    return ptr;
   }
 
   @protected
@@ -3578,6 +3619,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_knowledge_digest_reading_dto>
+  cst_encode_opt_box_autoadd_knowledge_digest_reading_dto(
+    KnowledgeDigestReadingDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? ffi.nullptr
+        : cst_encode_box_autoadd_knowledge_digest_reading_dto(raw);
+  }
+
+  @protected
   ffi.Pointer<wire_cst_message_recordability_dto>
   cst_encode_opt_box_autoadd_message_recordability_dto(
     MessageRecordabilityDto? raw,
@@ -3856,6 +3908,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_habit_nudge_input_dto> wireObj,
   ) {
     cst_api_fill_to_wire_habit_nudge_input_dto(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_knowledge_digest_reading_dto(
+    KnowledgeDigestReadingDto apiObj,
+    ffi.Pointer<wire_cst_knowledge_digest_reading_dto> wireObj,
+  ) {
+    cst_api_fill_to_wire_knowledge_digest_reading_dto(apiObj, wireObj.ref);
   }
 
   @protected
@@ -4677,6 +4737,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     KnowledgeDigestJobDto apiObj,
     wire_cst_knowledge_digest_job_dto wireObj,
   ) {
+    wireObj.reading = cst_encode_opt_box_autoadd_knowledge_digest_reading_dto(
+      apiObj.reading,
+    );
     wireObj.job_id = cst_encode_String(apiObj.jobId);
     wireObj.event_id = cst_encode_String(apiObj.eventId);
     wireObj.event_excerpt = cst_encode_String(apiObj.eventExcerpt);
@@ -4689,6 +4752,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.skip_reason = cst_encode_opt_String(apiObj.skipReason);
     wireObj.batch_id = cst_encode_opt_String(apiObj.batchId);
     wireObj.updated_at = cst_encode_String(apiObj.updatedAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_knowledge_digest_reading_dto(
+    KnowledgeDigestReadingDto apiObj,
+    wire_cst_knowledge_digest_reading_dto wireObj,
+  ) {
+    wireObj.phase = cst_encode_String(apiObj.phase);
+    wireObj.read_chars = cst_encode_i_64(apiObj.readChars);
+    wireObj.total_chars = cst_encode_i_64(apiObj.totalChars);
+    wireObj.completed_leaves = cst_encode_i_64(apiObj.completedLeaves);
+    wireObj.completed_merges = cst_encode_i_64(apiObj.completedMerges);
+    wireObj.error = cst_encode_opt_String(apiObj.error);
+    wireObj.retry_at = cst_encode_String(apiObj.retryAt);
   }
 
   @protected
@@ -4730,12 +4807,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     KnowledgeDigestTickResult apiObj,
     wire_cst_knowledge_digest_tick_result wireObj,
   ) {
-    if (apiObj is KnowledgeDigestTickResult_NoProvider) {
+    if (apiObj is KnowledgeDigestTickResult_Reading) {
+      var pre_event_id = cst_encode_String(apiObj.eventId);
+      var pre_state = cst_encode_String(apiObj.state);
+      var pre_error = cst_encode_opt_String(apiObj.error);
       wireObj.tag = 0;
+      wireObj.kind.Reading.event_id = pre_event_id;
+      wireObj.kind.Reading.state = pre_state;
+      wireObj.kind.Reading.error = pre_error;
+      return;
+    }
+    if (apiObj is KnowledgeDigestTickResult_NoProvider) {
+      wireObj.tag = 1;
       return;
     }
     if (apiObj is KnowledgeDigestTickResult_Idle) {
-      wireObj.tag = 1;
+      wireObj.tag = 2;
       return;
     }
     if (apiObj is KnowledgeDigestTickResult_Processed) {
@@ -4743,7 +4830,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_created_slugs = cst_encode_list_String(apiObj.createdSlugs);
       var pre_updated_slugs = cst_encode_list_String(apiObj.updatedSlugs);
       var pre_protected_slugs = cst_encode_list_String(apiObj.protectedSlugs);
-      wireObj.tag = 2;
+      wireObj.tag = 3;
       wireObj.kind.Processed.events = pre_events;
       wireObj.kind.Processed.created_slugs = pre_created_slugs;
       wireObj.kind.Processed.updated_slugs = pre_updated_slugs;
@@ -4753,7 +4840,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is KnowledgeDigestTickResult_Failed) {
       var pre_events = cst_encode_i_64(apiObj.events);
       var pre_error = cst_encode_String(apiObj.error);
-      wireObj.tag = 3;
+      wireObj.tag = 4;
       wireObj.kind.Failed.events = pre_events;
       wireObj.kind.Failed.error = pre_error;
       return;
@@ -6130,6 +6217,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_knowledge_digest_reading_dto(
+    KnowledgeDigestReadingDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_mcp_server_dto(
     McpServerDto self,
     SseSerializer serializer,
@@ -6477,6 +6570,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_knowledge_digest_job_dto(
     KnowledgeDigestJobDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_knowledge_digest_reading_dto(
+    KnowledgeDigestReadingDto self,
     SseSerializer serializer,
   );
 
@@ -7186,6 +7285,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_knowledge_digest_reading_dto(
+    KnowledgeDigestReadingDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_message_recordability_dto(
     MessageRecordabilityDto? self,
     SseSerializer serializer,
@@ -7817,6 +7922,23 @@ class RustLibWire implements BaseWire {
       );
   late final _cst_new_box_autoadd_i_64 = _cst_new_box_autoadd_i_64Ptr
       .asFunction<ffi.Pointer<ffi.Int64> Function(int)>();
+
+  ffi.Pointer<wire_cst_knowledge_digest_reading_dto>
+  cst_new_box_autoadd_knowledge_digest_reading_dto() {
+    return _cst_new_box_autoadd_knowledge_digest_reading_dto();
+  }
+
+  late final _cst_new_box_autoadd_knowledge_digest_reading_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_knowledge_digest_reading_dto> Function()
+        >
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_knowledge_digest_reading_dto');
+  late final _cst_new_box_autoadd_knowledge_digest_reading_dto =
+      _cst_new_box_autoadd_knowledge_digest_reading_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_knowledge_digest_reading_dto> Function()
+          >();
 
   ffi.Pointer<wire_cst_mcp_server_dto> cst_new_box_autoadd_mcp_server_dto() {
     return _cst_new_box_autoadd_mcp_server_dto();
@@ -18341,6 +18463,8 @@ const int ENVELOPE_VERSION = 1;
 const int GROUP_TOP_N = 50;
 
 final class KnowledgeDigestTickResultKind extends ffi.Union {
+  external wire_cst_KnowledgeDigestTickResult_Reading Reading;
+
   external wire_cst_KnowledgeDigestTickResult_Processed Processed;
 
   external wire_cst_KnowledgeDigestTickResult_Failed Failed;
@@ -18428,6 +18552,24 @@ final class wire_cst_KnowledgeDigestTickResult_Processed extends ffi.Struct {
     ..ref.created_slugs = created_slugs
     ..ref.updated_slugs = updated_slugs
     ..ref.protected_slugs = protected_slugs;
+}
+
+final class wire_cst_KnowledgeDigestTickResult_Reading extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> state;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> error;
+
+  static ffi.Pointer<wire_cst_KnowledgeDigestTickResult_Reading> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> state,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> error,
+  }) => $allocator<wire_cst_KnowledgeDigestTickResult_Reading>()
+    ..ref.event_id = event_id
+    ..ref.state = state
+    ..ref.error = error;
 }
 
 final class wire_cst_PeriodReportTickResult_DetectFailed extends ffi.Struct {
@@ -20377,6 +20519,8 @@ final class wire_cst_knowledge_diff_part extends ffi.Struct {
 }
 
 final class wire_cst_knowledge_digest_job_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_knowledge_digest_reading_dto> reading;
+
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> job_id;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id;
@@ -20405,6 +20549,7 @@ final class wire_cst_knowledge_digest_job_dto extends ffi.Struct {
 
   static ffi.Pointer<wire_cst_knowledge_digest_job_dto> $allocate(
     ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_knowledge_digest_reading_dto> reading,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> job_id,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> event_id,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> event_excerpt,
@@ -20418,6 +20563,7 @@ final class wire_cst_knowledge_digest_job_dto extends ffi.Struct {
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> batch_id,
     required ffi.Pointer<wire_cst_list_prim_u_8_strict> updated_at,
   }) => $allocator<wire_cst_knowledge_digest_job_dto>()
+    ..ref.reading = reading
     ..ref.job_id = job_id
     ..ref.event_id = event_id
     ..ref.event_excerpt = event_excerpt
@@ -20430,6 +20576,44 @@ final class wire_cst_knowledge_digest_job_dto extends ffi.Struct {
     ..ref.skip_reason = skip_reason
     ..ref.batch_id = batch_id
     ..ref.updated_at = updated_at;
+}
+
+final class wire_cst_knowledge_digest_reading_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> phase;
+
+  @ffi.Int64()
+  external int read_chars;
+
+  @ffi.Int64()
+  external int total_chars;
+
+  @ffi.Int64()
+  external int completed_leaves;
+
+  @ffi.Int64()
+  external int completed_merges;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> error;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> retry_at;
+
+  static ffi.Pointer<wire_cst_knowledge_digest_reading_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> phase,
+    required int read_chars,
+    required int total_chars,
+    required int completed_leaves,
+    required int completed_merges,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> error,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> retry_at,
+  }) => $allocator<wire_cst_knowledge_digest_reading_dto>()
+    ..ref.phase = phase
+    ..ref.read_chars = read_chars
+    ..ref.total_chars = total_chars
+    ..ref.completed_leaves = completed_leaves
+    ..ref.completed_merges = completed_merges
+    ..ref.error = error
+    ..ref.retry_at = retry_at;
 }
 
 final class wire_cst_knowledge_digest_run_dto extends ffi.Struct {

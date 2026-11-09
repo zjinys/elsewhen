@@ -184,12 +184,12 @@ fn digest_oversized_single_event_never_calls_network_or_confirms_partial_input()
     let metered = provider(7000, false, seen.clone());
     let tick = process_digest_queue(&t.store, &metered, None).unwrap();
     assert!(
-        matches!(&tick,DigestTick::Failed{error,..} if error.contains("digest_required_input_exceeds_budget")),
+        matches!(&tick,DigestTick::Reading{state,..} if state=="preparing"),
         "{tick:?}"
     );
     assert!(seen.lock().unwrap().is_empty());
     assert_eq!(t.store.digest_job_stats().unwrap().succeeded, 0);
-    assert_eq!(t.store.digest_job_stats().unwrap().retry, 1);
+    assert_eq!(t.store.digest_job_stats().unwrap().pending, 1);
     let retained: String = t
         .store
         .connection
@@ -199,4 +199,39 @@ fn digest_oversized_single_event_never_calls_network_or_confirms_partial_input()
         .unwrap();
     assert_eq!(retained, original);
     assert!(t.store.list_wiki_pages(None, None).unwrap().is_empty());
+}
+
+#[test]
+fn digest_failed_prepared_prefix_refunds_unsubmitted_tail() {
+    let t = TempStore::new();
+    for i in 0..3 {
+        record(
+            &t.store,
+            &format!("event-{i} {} TAIL-{i}", "中文记录".repeat(300)),
+        );
+    }
+    make_ready(&t.store);
+    let seen = Arc::new(Mutex::new(vec![]));
+    assert!(matches!(
+        process_digest_queue(&t.store, &provider(7000, true, seen.clone()), None).unwrap(),
+        DigestTick::Failed { events: 1, .. }
+    ));
+    assert_eq!(seen.lock().unwrap().len(), 1);
+    let attempts: Vec<(String, i64)> = t
+        .store
+        .connection
+        .prepare("SELECT status,attempts FROM knowledge_digest_jobs ORDER BY status")
+        .unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    assert_eq!(
+        attempts,
+        vec![
+            ("pending".into(), 0),
+            ("pending".into(), 0),
+            ("retry".into(), 1)
+        ]
+    );
 }

@@ -12165,6 +12165,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  KnowledgeDigestReadingDto dco_decode_box_autoadd_knowledge_digest_reading_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_knowledge_digest_reading_dto(raw);
+  }
+
+  @protected
   McpServerDto dco_decode_box_autoadd_mcp_server_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_mcp_server_dto(raw);
@@ -13121,21 +13129,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   KnowledgeDigestJobDto dco_decode_knowledge_digest_job_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
-    if (arr.length != 12)
-      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
     return KnowledgeDigestJobDto(
-      jobId: dco_decode_String(arr[0]),
-      eventId: dco_decode_String(arr[1]),
-      eventExcerpt: dco_decode_String(arr[2]),
-      recordedAt: dco_decode_String(arr[3]),
-      status: dco_decode_String(arr[4]),
-      attempts: dco_decode_i_64(arr[5]),
-      failedRounds: dco_decode_i_64(arr[6]),
-      availableAt: dco_decode_String(arr[7]),
-      lastError: dco_decode_opt_String(arr[8]),
-      skipReason: dco_decode_opt_String(arr[9]),
-      batchId: dco_decode_opt_String(arr[10]),
-      updatedAt: dco_decode_String(arr[11]),
+      reading: dco_decode_opt_box_autoadd_knowledge_digest_reading_dto(arr[0]),
+      jobId: dco_decode_String(arr[1]),
+      eventId: dco_decode_String(arr[2]),
+      eventExcerpt: dco_decode_String(arr[3]),
+      recordedAt: dco_decode_String(arr[4]),
+      status: dco_decode_String(arr[5]),
+      attempts: dco_decode_i_64(arr[6]),
+      failedRounds: dco_decode_i_64(arr[7]),
+      availableAt: dco_decode_String(arr[8]),
+      lastError: dco_decode_opt_String(arr[9]),
+      skipReason: dco_decode_opt_String(arr[10]),
+      batchId: dco_decode_opt_String(arr[11]),
+      updatedAt: dco_decode_String(arr[12]),
+    );
+  }
+
+  @protected
+  KnowledgeDigestReadingDto dco_decode_knowledge_digest_reading_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return KnowledgeDigestReadingDto(
+      phase: dco_decode_String(arr[0]),
+      readChars: dco_decode_i_64(arr[1]),
+      totalChars: dco_decode_i_64(arr[2]),
+      completedLeaves: dco_decode_i_64(arr[3]),
+      completedMerges: dco_decode_i_64(arr[4]),
+      error: dco_decode_opt_String(arr[5]),
+      retryAt: dco_decode_String(arr[6]),
     );
   }
 
@@ -13187,17 +13215,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     final arr = dcoDecodeList(raw);
     switch (dcoDecodePrimitiveInt(arr[0])) {
       case 0:
-        return KnowledgeDigestTickResult_NoProvider();
+        return KnowledgeDigestTickResult_Reading(
+          eventId: dco_decode_String(arr[1]),
+          state: dco_decode_String(arr[2]),
+          error: dco_decode_opt_String(arr[3]),
+        );
       case 1:
-        return KnowledgeDigestTickResult_Idle();
+        return KnowledgeDigestTickResult_NoProvider();
       case 2:
+        return KnowledgeDigestTickResult_Idle();
+      case 3:
         return KnowledgeDigestTickResult_Processed(
           events: dco_decode_i_64(arr[1]),
           createdSlugs: dco_decode_list_String(arr[2]),
           updatedSlugs: dco_decode_list_String(arr[3]),
           protectedSlugs: dco_decode_list_String(arr[4]),
         );
-      case 3:
+      case 4:
         return KnowledgeDigestTickResult_Failed(
           events: dco_decode_i_64(arr[1]),
           error: dco_decode_String(arr[2]),
@@ -14299,6 +14333,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_i_64(raw);
+  }
+
+  @protected
+  KnowledgeDigestReadingDto?
+  dco_decode_opt_box_autoadd_knowledge_digest_reading_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_knowledge_digest_reading_dto(raw);
   }
 
   @protected
@@ -15621,6 +15664,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  KnowledgeDigestReadingDto sse_decode_box_autoadd_knowledge_digest_reading_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_knowledge_digest_reading_dto(deserializer));
+  }
+
+  @protected
   McpServerDto sse_decode_box_autoadd_mcp_server_dto(
     SseDeserializer deserializer,
   ) {
@@ -16820,6 +16871,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_reading = sse_decode_opt_box_autoadd_knowledge_digest_reading_dto(
+      deserializer,
+    );
     var var_jobId = sse_decode_String(deserializer);
     var var_eventId = sse_decode_String(deserializer);
     var var_eventExcerpt = sse_decode_String(deserializer);
@@ -16833,6 +16887,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_batchId = sse_decode_opt_String(deserializer);
     var var_updatedAt = sse_decode_String(deserializer);
     return KnowledgeDigestJobDto(
+      reading: var_reading,
       jobId: var_jobId,
       eventId: var_eventId,
       eventExcerpt: var_eventExcerpt,
@@ -16845,6 +16900,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       skipReason: var_skipReason,
       batchId: var_batchId,
       updatedAt: var_updatedAt,
+    );
+  }
+
+  @protected
+  KnowledgeDigestReadingDto sse_decode_knowledge_digest_reading_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_phase = sse_decode_String(deserializer);
+    var var_readChars = sse_decode_i_64(deserializer);
+    var var_totalChars = sse_decode_i_64(deserializer);
+    var var_completedLeaves = sse_decode_i_64(deserializer);
+    var var_completedMerges = sse_decode_i_64(deserializer);
+    var var_error = sse_decode_opt_String(deserializer);
+    var var_retryAt = sse_decode_String(deserializer);
+    return KnowledgeDigestReadingDto(
+      phase: var_phase,
+      readChars: var_readChars,
+      totalChars: var_totalChars,
+      completedLeaves: var_completedLeaves,
+      completedMerges: var_completedMerges,
+      error: var_error,
+      retryAt: var_retryAt,
     );
   }
 
@@ -16915,10 +16993,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        return KnowledgeDigestTickResult_NoProvider();
+        var var_eventId = sse_decode_String(deserializer);
+        var var_state = sse_decode_String(deserializer);
+        var var_error = sse_decode_opt_String(deserializer);
+        return KnowledgeDigestTickResult_Reading(
+          eventId: var_eventId,
+          state: var_state,
+          error: var_error,
+        );
       case 1:
-        return KnowledgeDigestTickResult_Idle();
+        return KnowledgeDigestTickResult_NoProvider();
       case 2:
+        return KnowledgeDigestTickResult_Idle();
+      case 3:
         var var_events = sse_decode_i_64(deserializer);
         var var_createdSlugs = sse_decode_list_String(deserializer);
         var var_updatedSlugs = sse_decode_list_String(deserializer);
@@ -16929,7 +17016,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           updatedSlugs: var_updatedSlugs,
           protectedSlugs: var_protectedSlugs,
         );
-      case 3:
+      case 4:
         var var_events = sse_decode_i_64(deserializer);
         var var_error = sse_decode_String(deserializer);
         return KnowledgeDigestTickResult_Failed(
@@ -18823,6 +18910,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  KnowledgeDigestReadingDto?
+  sse_decode_opt_box_autoadd_knowledge_digest_reading_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_knowledge_digest_reading_dto(
+        deserializer,
+      ));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   MessageRecordabilityDto? sse_decode_opt_box_autoadd_message_recordability_dto(
     SseDeserializer deserializer,
   ) {
@@ -20479,6 +20582,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_knowledge_digest_reading_dto(
+    KnowledgeDigestReadingDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_knowledge_digest_reading_dto(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_mcp_server_dto(
     McpServerDto self,
     SseSerializer serializer,
@@ -21335,6 +21447,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_knowledge_digest_reading_dto(
+      self.reading,
+      serializer,
+    );
     sse_encode_String(self.jobId, serializer);
     sse_encode_String(self.eventId, serializer);
     sse_encode_String(self.eventExcerpt, serializer);
@@ -21347,6 +21463,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.skipReason, serializer);
     sse_encode_opt_String(self.batchId, serializer);
     sse_encode_String(self.updatedAt, serializer);
+  }
+
+  @protected
+  void sse_encode_knowledge_digest_reading_dto(
+    KnowledgeDigestReadingDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.phase, serializer);
+    sse_encode_i_64(self.readChars, serializer);
+    sse_encode_i_64(self.totalChars, serializer);
+    sse_encode_i_64(self.completedLeaves, serializer);
+    sse_encode_i_64(self.completedMerges, serializer);
+    sse_encode_opt_String(self.error, serializer);
+    sse_encode_String(self.retryAt, serializer);
   }
 
   @protected
@@ -21392,17 +21523,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
-      case KnowledgeDigestTickResult_NoProvider():
+      case KnowledgeDigestTickResult_Reading(
+        eventId: final eventId,
+        state: final state,
+        error: final error,
+      ):
         sse_encode_i_32(0, serializer);
-      case KnowledgeDigestTickResult_Idle():
+        sse_encode_String(eventId, serializer);
+        sse_encode_String(state, serializer);
+        sse_encode_opt_String(error, serializer);
+      case KnowledgeDigestTickResult_NoProvider():
         sse_encode_i_32(1, serializer);
+      case KnowledgeDigestTickResult_Idle():
+        sse_encode_i_32(2, serializer);
       case KnowledgeDigestTickResult_Processed(
         events: final events,
         createdSlugs: final createdSlugs,
         updatedSlugs: final updatedSlugs,
         protectedSlugs: final protectedSlugs,
       ):
-        sse_encode_i_32(2, serializer);
+        sse_encode_i_32(3, serializer);
         sse_encode_i_64(events, serializer);
         sse_encode_list_String(createdSlugs, serializer);
         sse_encode_list_String(updatedSlugs, serializer);
@@ -21411,7 +21551,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         events: final events,
         error: final error,
       ):
-        sse_encode_i_32(3, serializer);
+        sse_encode_i_32(4, serializer);
         sse_encode_i_64(events, serializer);
         sse_encode_String(error, serializer);
     }
@@ -22953,6 +23093,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_i_64(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_knowledge_digest_reading_dto(
+    KnowledgeDigestReadingDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_knowledge_digest_reading_dto(self, serializer);
     }
   }
 

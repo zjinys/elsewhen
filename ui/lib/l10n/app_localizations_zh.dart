@@ -6880,4 +6880,36 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get errorKnowledgeReviewChanged => '页面、来源或规则设置已变化，请重新审阅。';
+
+  @override
+  String get digestReadingPhase => '正在分段阅读';
+
+  @override
+  String get digestMergingPhase => '正在合并已读片段';
+
+  @override
+  String get digestReadyPhase => '全文已读完 · 等待最终整理';
+
+  @override
+  String get digestCancelledPhase => '事件分类变化，阅读已暂停';
+
+  @override
+  String digestReadingProgress(
+    String read,
+    String total,
+    String leaves,
+    String merges,
+  ) {
+    return '已读 $read / $total 字 · $leaves 个片段 · $merges 次合并';
+  }
+
+  @override
+  String get digestReadingBudgetHelp =>
+      '等待具有足够上下文容量的渠道。请检查上下文窗口、输出预留和自定义指令。已读进度保留。';
+
+  @override
+  String get digestReadingRetryHelp => '本步骤未完成，稍后自动重试；已读进度保留。';
+
+  @override
+  String get digestReadingLimitHelp => '事件或阅读缓存达到处理上限。原文和已读进度均已保留。';
 }

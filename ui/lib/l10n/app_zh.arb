@@ -4071,5 +4071,29 @@
       }
     }
   },
-  "errorKnowledgeReviewChanged": "页面、来源或规则设置已变化，请重新审阅。"
+  "errorKnowledgeReviewChanged": "页面、来源或规则设置已变化，请重新审阅。",
+  "digestReadingPhase": "正在分段阅读",
+  "digestMergingPhase": "正在合并已读片段",
+  "digestReadyPhase": "全文已读完 · 等待最终整理",
+  "digestCancelledPhase": "事件分类变化，阅读已暂停",
+  "digestReadingProgress": "已读 {read} / {total} 字 · {leaves} 个片段 · {merges} 次合并",
+  "digestReadingBudgetHelp": "等待具有足够上下文容量的渠道。请检查上下文窗口、输出预留和自定义指令。已读进度保留。",
+  "digestReadingRetryHelp": "本步骤未完成，稍后自动重试；已读进度保留。",
+  "digestReadingLimitHelp": "事件或阅读缓存达到处理上限。原文和已读进度均已保留。",
+  "@digestReadingProgress": {
+    "placeholders": {
+      "read": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "leaves": {
+        "type": "String"
+      },
+      "merges": {
+        "type": "String"
+      }
+    }
+  }
 }

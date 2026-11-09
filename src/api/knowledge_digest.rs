@@ -8,6 +8,11 @@ use super::*;
 /// 一次后台消化 tick 的结果。
 #[derive(Clone, Debug)]
 pub enum KnowledgeDigestTickResult {
+    Reading {
+        event_id: String,
+        state: String,
+        error: Option<String>,
+    },
     /// 尚未配置 AI provider：事件照常保存，任务等待
     NoProvider,
     /// 没有到期可消化的事件
@@ -37,7 +42,19 @@ pub struct KnowledgeDigestStatsDto {
 }
 
 #[derive(Clone, Debug)]
+pub struct KnowledgeDigestReadingDto {
+    pub phase: String,
+    pub read_chars: i64,
+    pub total_chars: i64,
+    pub completed_leaves: i64,
+    pub completed_merges: i64,
+    pub error: Option<String>,
+    pub retry_at: String,
+}
+
+#[derive(Clone, Debug)]
 pub struct KnowledgeDigestJobDto {
+    pub reading: Option<KnowledgeDigestReadingDto>,
     pub job_id: String,
     pub event_id: String,
     pub event_excerpt: String,
@@ -91,6 +108,15 @@ pub fn trigger_knowledge_digest() -> Result<KnowledgeDigestTickResult> {
     })?;
     Ok(
         match crate::wiki::process_digest_queue(&store, provider.as_ref(), Some(model.as_str()))? {
+            crate::wiki::DigestTick::Reading {
+                event_id,
+                state,
+                error,
+            } => KnowledgeDigestTickResult::Reading {
+                event_id,
+                state,
+                error,
+            },
             crate::wiki::DigestTick::Idle => KnowledgeDigestTickResult::Idle,
             crate::wiki::DigestTick::Processed { events, outcome } => {
                 KnowledgeDigestTickResult::Processed {
@@ -137,21 +163,34 @@ pub fn list_knowledge_digest_jobs(
     Ok(store
         .list_digest_jobs(status, limit.clamp(1, 500) as usize)?
         .into_iter()
-        .map(|row| KnowledgeDigestJobDto {
-            job_id: row.job_id,
-            event_id: row.event_id,
-            event_excerpt: row.event_excerpt,
-            recorded_at: row.recorded_at,
-            status: row.status,
-            attempts: row.attempts,
-            failed_rounds: row.failed_rounds,
-            available_at: row.available_at,
-            last_error: row.last_error,
-            skip_reason: row.skip_reason,
-            batch_id: row.batch_id,
-            updated_at: row.updated_at,
+        .map(|row| {
+            Ok(KnowledgeDigestJobDto {
+                reading: store.event_reading_progress(&row.event_id)?.map(|p| {
+                    KnowledgeDigestReadingDto {
+                        phase: p.phase,
+                        read_chars: p.read_chars,
+                        total_chars: p.total_chars,
+                        completed_leaves: p.completed_leaves,
+                        completed_merges: p.completed_merges,
+                        error: p.error,
+                        retry_at: p.retry_at,
+                    }
+                }),
+                job_id: row.job_id,
+                event_id: row.event_id,
+                event_excerpt: row.event_excerpt,
+                recorded_at: row.recorded_at,
+                status: row.status,
+                attempts: row.attempts,
+                failed_rounds: row.failed_rounds,
+                available_at: row.available_at,
+                last_error: row.last_error,
+                skip_reason: row.skip_reason,
+                batch_id: row.batch_id,
+                updated_at: row.updated_at,
+            })
         })
-        .collect())
+        .collect::<Result<Vec<_>>>()?)
 }
 
 /// 最近的运行日志（只读），按开始时间倒序。

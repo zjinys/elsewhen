@@ -1,8 +1,8 @@
 # 中英文支持 Roadmap（界面、AI 对话与知识语言）
 
 - 建立：2026-11-06。
-- 状态：**L0–L6工程完成；L7待验收**。
-- 下一步：L7真实模型、桌面/Android及多设备验收。
+- 状态：**L0–L6工程完成；L7待验收；Goal 按用户要求暂停（2026-11-08）**。
+- 恢复后下一步：L7真实模型、桌面/Android及多设备验收；本轮 backlog 整理不恢复 Goal。
 - 产品依据：[多语言可行性复核](../notes/proposed/product/2026-11-04-i18n-feasibility-assessment.md)。
 - 运行契约：[版本化 Prompt 与多语言策略](../notes/proposed/architecture/2026-11-05-versioned-prompt-management.md)。承接该设计未完成的 P3，并包含 Flutter 全应用本地化；不重做已交付的中文入库。
 - 进度归属：[主路线](2026-09-17-personal-cognition-main-loop-roadmap.md)的跨模块子路线；[backlog](../proposal-backlog.md)只保留一条多语言待办，本文件记录具体执行进度。

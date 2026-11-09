@@ -204,7 +204,7 @@ impl Store {
 
     /// 领取一批到期、可消化的任务（按记录时间，受条数与字符预算约束），并写一条
     /// running 运行日志。没有可领取任务时返回 None（不写日志）。
-    /// 至少领取一条：单条超出字符预算时按单条成批，由提示词侧截断展示。
+    /// 至少领取一条：单条超出字符预算时按单条成批，完整请求预检后进入持久阅读。
     pub fn claim_digest_batch(
         &self,
         max_events: usize,
@@ -225,6 +225,7 @@ impl Store {
              JOIN events e ON e.id=j.event_id
              LEFT JOIN analysis_jobs aj ON aj.event_id=j.event_id
              WHERE j.digest_version=?1 AND j.status IN ('pending','retry') AND j.available_at<=?2
+               AND NOT EXISTS(SELECT 1 FROM event_reading_tasks t WHERE t.event_id=j.event_id AND t.bundle_id=j.prompt_bundle_id AND t.status IN ('active','ready'))
                AND (
                  EXISTS (SELECT 1 FROM event_recordability_decisions d WHERE d.event_id=j.event_id)
                  OR aj.status IS NULL OR aj.status IN ('succeeded','failed')
@@ -335,10 +336,36 @@ impl Store {
         batch: &DigestBatch,
         drafts: &[WikiPageDraft],
     ) -> Result<DigestBatchOutcome> {
+        self.apply_digest_batch_with_reading(batch, drafts, None)
+    }
+
+    pub(crate) fn apply_digest_batch_with_reading(
+        &self,
+        batch: &DigestBatch,
+        drafts: &[WikiPageDraft],
+        reading: Option<&super::event_readings::FinalReadingLease>,
+    ) -> Result<DigestBatchOutcome> {
         let now = chrono::Utc::now();
         let now_text = now.to_rfc3339();
         let tx = Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
         self.require_background_processor()?;
+        if let Some(lease) = reading {
+            self.require_event_reading_final(lease, batch, now.timestamp())?;
+            anyhow::ensure!(
+                drafts.iter().all(|draft| !draft.source_event_ids.is_empty()
+                    && draft
+                        .source_event_ids
+                        .iter()
+                        .all(|id| id == &batch.events[0].id)),
+                "event_reading_final_sources_invalid"
+            );
+        } else {
+            for event in &batch.events {
+                let reading:bool=tx.query_row("SELECT EXISTS(SELECT 1 FROM event_reading_tasks WHERE event_id=?1 AND bundle_id=?2 AND status<>'succeeded')",params![event.id,self.digest_prompt_bundle(&batch.id)?],|r|r.get(0))?;
+                anyhow::ensure!(!reading, "event_reading_requires_verified_root");
+            }
+        }
+
         let bundle = self.digest_prompt_bundle(&batch.id)?;
         self.record_language_artifact(
             "digest",
@@ -431,6 +458,9 @@ impl Store {
                 serde_json::to_string(&outcome.protected)?,
             ],
         )?;
+        if let Some(lease) = reading {
+            tx.execute("UPDATE event_reading_tasks SET status='succeeded',lease_token=NULL,lease_until=NULL,last_error=NULL,available_at=?2,updated_at=?2 WHERE id=?1",params![lease.task_id,now.timestamp()])?;
+        }
         tx.commit()?;
         Ok(outcome)
     }
@@ -495,13 +525,13 @@ impl Store {
         let recovered = tx.execute(
             "UPDATE knowledge_digest_jobs
          SET status='retry', last_error='应用退出时消化尚未完成', available_at=?1, updated_at=?1
-         WHERE status='running'",
+         WHERE status='running' AND NOT EXISTS(SELECT 1 FROM event_reading_tasks t WHERE t.event_id=knowledge_digest_jobs.event_id AND t.lease_token IS NOT NULL AND t.lease_until>unixepoch() AND t.authority_generation=(SELECT generation FROM event_reading_authority WHERE singleton=1))",
             [&now],
         )?;
         tx.execute(
             "UPDATE knowledge_digest_runs
          SET status='failed', finished_at=?1, error='应用退出时消化尚未完成'
-         WHERE status='running'",
+         WHERE status='running' AND NOT EXISTS(SELECT 1 FROM knowledge_digest_jobs j WHERE j.batch_id=knowledge_digest_runs.id AND j.status='running')",
             [&now],
         )?;
         tx.commit()?;

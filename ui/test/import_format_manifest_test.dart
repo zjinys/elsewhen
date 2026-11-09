@@ -38,7 +38,7 @@ void main() {
           locale: const Locale('en'),
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
-          home: const Scaffold(body: PromptSettings()),
+          home: const Scaffold(body: PromptSettings(showDiagnostics: true)),
         ),
       );
       await tester.tap(find.text('View run versions'));

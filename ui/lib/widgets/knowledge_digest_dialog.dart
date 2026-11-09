@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'app_error_notice.dart';
 import '../l10n/localization.dart';
 
@@ -50,14 +52,25 @@ class _KnowledgeDigestDialogState extends ConsumerState<KnowledgeDigestDialog> {
   List<api.KnowledgeDigestRunDto>? _runs;
   Object? _error;
   _JobFilter _filter = _JobFilter.all;
+  Timer? _refresh;
+  bool _loading = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _refresh = Timer.periodic(const Duration(seconds: 5), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _refresh?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
+    if (_loading) return;
+    _loading = true;
     try {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
       final results = await Future.wait([
@@ -73,6 +86,8 @@ class _KnowledgeDigestDialogState extends ConsumerState<KnowledgeDigestDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e);
+    } finally {
+      _loading = false;
     }
   }
 
@@ -324,7 +339,43 @@ class _JobTile extends StatelessWidget {
             detail.join(' · '),
             style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
           ),
-          if (reason != null && reason.isNotEmpty) ...[
+          if (job.reading case final reading?) ...[
+            const SizedBox(height: 4),
+            Text(switch (reading.phase) {
+              'reading' => context.l10n.digestReadingPhase,
+              'merging' => context.l10n.digestMergingPhase,
+              'ready' => context.l10n.digestReadyPhase,
+              'cancelled' => context.l10n.digestCancelledPhase,
+              _ => _statusStyle(context, job.status).label,
+            }, style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+            Text(
+              context.l10n.digestReadingProgress(
+                reading.readChars.toString(),
+                reading.totalChars.toString(),
+                reading.completedLeaves.toString(),
+                reading.completedMerges.toString(),
+              ),
+              style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+            ),
+            if (reading.error case final error?) ...[
+              const SizedBox(height: 2),
+              Text(
+                error.contains('budget') || error.contains('instructions')
+                    ? context.l10n.digestReadingBudgetHelp
+                    : error.contains('_limit')
+                    ? context.l10n.digestReadingLimitHelp
+                    : context.l10n.digestReadingRetryHelp,
+                style: TextStyle(fontSize: 12, color: AppTheme.warning),
+              ),
+              Text(
+                context.l10n.l6NextAttemptArg0272da(
+                  _formatTime(reading.retryAt),
+                ),
+                style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+              ),
+            ],
+          ],
+          if (reason != null && reason.isNotEmpty && job.reading == null) ...[
             const SizedBox(height: 2),
             if (job.status == 'skipped')
               ProcessingNotes(
