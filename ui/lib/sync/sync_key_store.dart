@@ -255,11 +255,21 @@ class SyncKeyStore {
         return _decode(encoded);
       });
 
-  /// 抹掉一个安装的本机密钥与修订记录。仅用于「删除加入暂存项」这类
+  /// 抹掉一个安装的本机密钥与修订记录。仅用于已确认的「删除加入暂存项／旧数据集副本」这类
   /// 明确放弃该数据集的动作；日常同步绝不调用（fail-closed 前提）。
-  Future<void> deleteInstallation(String installationId) =>
-      _serialized(() async {
-        await _storage.delete(key: _key(installationId));
-        await _storage.delete(key: _revisionKey(installationId));
-      });
+  Future<void> deleteInstallation(String installationId) => _serialized(
+    () async {
+      final masterKey = _key(installationId);
+      final revisionKey = _revisionKey(installationId);
+      try {
+        await _storage.delete(key: masterKey);
+        await _storage.delete(key: revisionKey);
+      } catch (_) {
+        throw const SyncKeyStoreException(SyncKeyStoreError.unavailable);
+      }
+      if (await _read(masterKey) != null || await _read(revisionKey) != null) {
+        throw const SyncKeyStoreException(SyncKeyStoreError.unavailable);
+      }
+    },
+  );
 }

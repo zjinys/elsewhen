@@ -119,7 +119,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -642298063;
+  int get rustContentHash => -510745108;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -245,6 +245,12 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<CompanionRevisitDto?> crateApiCompanionFlowCheckCompanionRevisit();
+
+  Future<SyncDatasetCleanupDto> crateApiSyncDatasetsCleanupSyncDatasetCopy({
+    required String entryId,
+    required PlatformInt64 expectedCatalogRevision,
+    required String expectedFileToken,
+  });
 
   Future<LocalSyncStateDto> crateApiSyncRepairClearLocalSyncIdentity();
 
@@ -492,6 +498,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<WikiPageDto?> crateApiTweetFindTweetSourcePage({required String url});
+
+  Future<void> crateApiSyncDatasetsFinishSyncDatasetCleanup({
+    required String entryId,
+  });
 
   Future<InputRecordDto> crateApiRecordsFinishUrlInput({
     required String inputId,
@@ -895,6 +905,9 @@ abstract class RustLibApi extends BaseApi {
   Future<List<RuleDto>> crateApiRulesListRules();
 
   Future<List<RuleDto>> crateApiRulesListRulesMissingEssence();
+
+  Future<List<SyncDatasetCleanupDto>>
+  crateApiSyncDatasetsListSyncDatasetCleanup();
 
   Future<(List<SyncDatasetEntryDto>, PlatformInt64)>
   crateApiSyncDatasetsListSyncDatasets();
@@ -2323,6 +2336,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiCompanionFlowCheckCompanionRevisitConstMeta =>
       const TaskConstMeta(debugName: "check_companion_revisit", argNames: []);
+
+  @override
+  Future<SyncDatasetCleanupDto> crateApiSyncDatasetsCleanupSyncDatasetCopy({
+    required String entryId,
+    required PlatformInt64 expectedCatalogRevision,
+    required String expectedFileToken,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(entryId);
+          var arg1 = cst_encode_i_64(expectedCatalogRevision);
+          var arg2 = cst_encode_String(expectedFileToken);
+          return wire
+              .wire__crate__api__sync__datasets__cleanup_sync_dataset_copy(
+                port_,
+                arg0,
+                arg1,
+                arg2,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_sync_dataset_cleanup_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncDatasetsCleanupSyncDatasetCopyConstMeta,
+        argValues: [entryId, expectedCatalogRevision, expectedFileToken],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncDatasetsCleanupSyncDatasetCopyConstMeta =>
+      const TaskConstMeta(
+        debugName: "cleanup_sync_dataset_copy",
+        argNames: ["entryId", "expectedCatalogRevision", "expectedFileToken"],
+      );
 
   @override
   Future<LocalSyncStateDto> crateApiSyncRepairClearLocalSyncIdentity() {
@@ -4120,6 +4170,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "find_tweet_source_page",
         argNames: ["url"],
+      );
+
+  @override
+  Future<void> crateApiSyncDatasetsFinishSyncDatasetCleanup({
+    required String entryId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(entryId);
+          return wire
+              .wire__crate__api__sync__datasets__finish_sync_dataset_cleanup(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncDatasetsFinishSyncDatasetCleanupConstMeta,
+        argValues: [entryId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncDatasetsFinishSyncDatasetCleanupConstMeta =>
+      const TaskConstMeta(
+        debugName: "finish_sync_dataset_cleanup",
+        argNames: ["entryId"],
       );
 
   @override
@@ -7365,6 +7446,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "list_rules_missing_essence",
         argNames: [],
       );
+
+  @override
+  Future<List<SyncDatasetCleanupDto>>
+  crateApiSyncDatasetsListSyncDatasetCleanup() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire
+              .wire__crate__api__sync__datasets__list_sync_dataset_cleanup(
+                port_,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_sync_dataset_cleanup_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncDatasetsListSyncDatasetCleanupConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncDatasetsListSyncDatasetCleanupConstMeta =>
+      const TaskConstMeta(debugName: "list_sync_dataset_cleanup", argNames: []);
 
   @override
   Future<(List<SyncDatasetEntryDto>, PlatformInt64)>
@@ -14049,6 +14155,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SyncDatasetCleanupDto> dco_decode_list_sync_dataset_cleanup_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_sync_dataset_cleanup_dto).toList();
+  }
+
+  @protected
   List<SyncDatasetEntryDto> dco_decode_list_sync_dataset_entry_dto(
     dynamic raw,
   ) {
@@ -15007,6 +15121,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SyncDatasetCleanupDto dco_decode_sync_dataset_cleanup_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return SyncDatasetCleanupDto(
+      entryId: dco_decode_String(arr[0]),
+      installationId: dco_decode_String(arr[1]),
+      name: dco_decode_String(arr[2]),
+      bytes: dco_decode_u_64(arr[3]),
+      catalogRevision: dco_decode_i_64(arr[4]),
+      fileToken: dco_decode_String(arr[5]),
+      pending: dco_decode_bool(arr[6]),
+    );
+  }
+
+  @protected
   SyncDatasetEntryDto dco_decode_sync_dataset_entry_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -15295,6 +15426,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int dco_decode_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodePrimitiveInt(raw);
+  }
+
+  @protected
+  BigInt dco_decode_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeU64(raw);
   }
 
   @protected
@@ -18494,6 +18631,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SyncDatasetCleanupDto> sse_decode_list_sync_dataset_cleanup_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SyncDatasetCleanupDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_sync_dataset_cleanup_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<SyncDatasetEntryDto> sse_decode_list_sync_dataset_entry_dto(
     SseDeserializer deserializer,
   ) {
@@ -19855,6 +20006,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SyncDatasetCleanupDto sse_decode_sync_dataset_cleanup_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_entryId = sse_decode_String(deserializer);
+    var var_installationId = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_bytes = sse_decode_u_64(deserializer);
+    var var_catalogRevision = sse_decode_i_64(deserializer);
+    var var_fileToken = sse_decode_String(deserializer);
+    var var_pending = sse_decode_bool(deserializer);
+    return SyncDatasetCleanupDto(
+      entryId: var_entryId,
+      installationId: var_installationId,
+      name: var_name,
+      bytes: var_bytes,
+      catalogRevision: var_catalogRevision,
+      fileToken: var_fileToken,
+      pending: var_pending,
+    );
+  }
+
+  @protected
   SyncDatasetEntryDto sse_decode_sync_dataset_entry_dto(
     SseDeserializer deserializer,
   ) {
@@ -20227,6 +20401,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int sse_decode_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint32();
+  }
+
+  @protected
+  BigInt sse_decode_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getBigUint64();
   }
 
   @protected
@@ -22852,6 +23032,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_sync_dataset_cleanup_dto(
+    List<SyncDatasetCleanupDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_sync_dataset_cleanup_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_sync_dataset_entry_dto(
     List<SyncDatasetEntryDto> self,
     SseSerializer serializer,
@@ -23905,6 +24097,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_sync_dataset_cleanup_dto(
+    SyncDatasetCleanupDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.entryId, serializer);
+    sse_encode_String(self.installationId, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_u_64(self.bytes, serializer);
+    sse_encode_i_64(self.catalogRevision, serializer);
+    sse_encode_String(self.fileToken, serializer);
+    sse_encode_bool(self.pending, serializer);
+  }
+
+  @protected
   void sse_encode_sync_dataset_entry_dto(
     SyncDatasetEntryDto self,
     SseSerializer serializer,
@@ -24156,6 +24363,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_u_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint32(self);
+  }
+
+  @protected
+  void sse_encode_u_64(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putBigUint64(self);
   }
 
   @protected

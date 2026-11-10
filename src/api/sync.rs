@@ -23,13 +23,14 @@ pub mod join;
 pub mod repair;
 
 pub use conflicts::{
-    ObjectConflictDto, list_object_conflicts, list_wiki_page_conflicts,
-    resolve_object_conflict, resolve_wiki_page_conflict,
+    ObjectConflictDto, list_object_conflicts, list_wiki_page_conflicts, resolve_object_conflict,
+    resolve_wiki_page_conflict,
 };
 pub use datasets::{
-    ProviderConflictProfileDto, ProviderSyncConflictDto, SyncRosterDto, SyncRosterMemberDto,
-    WikiPageConflictDto, WikiPageConflictSideDto, approve_processor_handoff,
-    confirm_processor_takeover, get_processor_handoff_state, get_sync_roster, list_sync_datasets,
+    ProviderConflictProfileDto, ProviderSyncConflictDto, SyncDatasetCleanupDto, SyncRosterDto,
+    SyncRosterMemberDto, WikiPageConflictDto, WikiPageConflictSideDto, approve_processor_handoff,
+    cleanup_sync_dataset_copy, confirm_processor_takeover, finish_sync_dataset_cleanup,
+    get_processor_handoff_state, get_sync_roster, list_sync_dataset_cleanup, list_sync_datasets,
     list_sync_provider_conflicts, rename_sync_device, resolve_sync_provider_conflict,
     revoke_sync_member, select_default_sync_dataset, select_sync_dataset, yield_sync_processor,
 };
@@ -40,8 +41,6 @@ pub use invite::{
     get_local_sync_state, inspect_owner_sync_invitation, install_sync_key, lock_local_sync,
     prepare_sync_key_request, release_sync_key_request, send_owner_sync_approval,
 };
-pub use repair::clear_local_sync_identity;
-pub use repair::provider_keys_migratable;
 pub use join::{
     SyncDatasetEntryDto, SyncEnrollmentStateDto, SyncJoinEntryDto, SyncJoinStateDto,
     SyncTickResultDto, advance_sync_enrollment, confirm_sync_enrollment, confirm_sync_join_key,
@@ -50,3 +49,5 @@ pub use join::{
     prepare_sync_join_resume, preview_sync_join, release_sync_join, send_sync_join_proof,
     send_sync_join_request, trigger_network_sync,
 };
+pub use repair::clear_local_sync_identity;
+pub use repair::provider_keys_migratable;

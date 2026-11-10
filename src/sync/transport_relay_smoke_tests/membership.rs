@@ -327,7 +327,12 @@ pub(super) fn roundtrip(client: &RelayClient, directory: &std::path::Path) {
     )
     .unwrap();
     assert_eq!(premature.accepted, 0);
-    assert_eq!(premature.rejected, 1);
+    assert_eq!(
+        premature.waiting, 1,
+        "D7: approved business mail waits for the first roster"
+    );
+    assert_eq!(premature.rejected, 0);
+    assert_eq!(premature.dropped, 0);
     assert!(b.list_events().unwrap().is_empty());
     engine::stage_membership_roster(&a, joiner, 1, &owner_send, vault_a.identity()).unwrap();
     assert_eq!(

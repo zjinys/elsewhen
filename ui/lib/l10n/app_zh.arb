@@ -4108,5 +4108,24 @@
   "compassGentleCheck": "当前计划还合适吗？",
   "wikiAddedEvidence": "本次新增依据",
   "wikiRetainedEvidence": "原有依据会保留；确认时会重新核验新增依据。",
-  "wikiApplicabilityCheck": "请核对适用条件与限制是否仍然合适。"
+  "wikiApplicabilityCheck": "请核对适用条件与限制是否仍然合适。",
+  "datasetCleanupTitle": "清理旧数据集副本",
+  "datasetCleanupHelp": "仅列出未使用且未选中的已完成副本。请先锁定同步再清理；当前数据集、默认库和加入暂存项受保护。",
+  "datasetCleanupRefresh": "刷新副本列表",
+  "datasetCleanupEmpty": "没有可清理的旧副本。",
+  "datasetCleanupReview": "查看并清理",
+  "datasetCleanupConfirmTitle": "删除此本机数据集副本？",
+  "datasetCleanupWarning": "将永久删除此副本的全部本机数据及对应的本机同步密钥，无法撤销。其他设备及远端数据不会被删除，设备名册也不会改变。如有未同步的内容，请先备份。清理中断后可重试。",
+  "datasetCleanupDelete": "永久删除本机副本",
+  "datasetCleanupSize": "本机文件：{bytes} 字节",
+  "datasetCleanupPending": "清理未完成（文件或本机密钥），请重试。",
+  "datasetCleanupRetry": "继续清理",
+  "@datasetCleanupSize": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "datasetCleanupFailed": "清理未完成。请先锁定同步、关闭使用此副本的其他应用进程，再刷新列表重试；未完成的文件或密钥清理会保留待办。"
 }

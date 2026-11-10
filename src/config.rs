@@ -22,11 +22,19 @@ const LEGACY_DB_FILE_NAME: &str = "events.db";
 ///
 /// 钉死之后库路径在进程内唯一且不可改写：问题 1 消失；问题 2 变成 `pin` 里的**显式
 /// 报错**，把「一个进程内无法隔离多个 suite」这个真实约束摆到台面上，而不是随机 BUSY。
-static PINNED: RwLock<Option<AppConfig>> = RwLock::new(None);
+struct PinnedConfig {
+    config: AppConfig,
+    _dataset_lease: Option<crate::sync::datasets::DatasetUseLease>,
+}
+static PINNED: RwLock<Option<PinnedConfig>> = RwLock::new(None);
 
 fn read_pinned() -> Option<AppConfig> {
     // 锁中毒（持有期间 panic）不阻断后续调用，取回内层值继续即可。
-    PINNED.read().unwrap_or_else(|e| e.into_inner()).clone()
+    PINNED
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .as_ref()
+        .map(|p| p.config.clone())
 }
 
 #[derive(Debug, Clone)]
@@ -98,7 +106,16 @@ impl AppConfig {
             None => Self::resolve_data_dir()?,
         };
         let cfg = Self::build(&data_dir)?;
-        *PINNED.write().unwrap_or_else(|e| e.into_inner()) = Some(cfg.clone());
+        let dataset_lease = if data_dir.join("sync-workspace.db").exists() {
+            crate::sync::datasets::DatasetCatalog::open(&data_dir)?
+                .pin_selected_use(&cfg.database_path)?
+        } else {
+            None
+        };
+        *PINNED.write().unwrap_or_else(|e| e.into_inner()) = Some(PinnedConfig {
+            config: cfg.clone(),
+            _dataset_lease: dataset_lease,
+        });
         Ok(cfg)
     }
 }

@@ -362,9 +362,6 @@ pub(crate) fn accept(
     ciphertext: &str,
     key: &ContentKey,
 ) -> Result<ReceiveOutcome> {
-    if super::defer_snapshot_start(store, ciphertext)? {
-        return Ok(ReceiveOutcome::Waiting);
-    }
     let wire = authenticate_relay_payload(
         store,
         ciphertext,
@@ -373,6 +370,9 @@ pub(crate) fn accept(
         key,
         &record.peer.signing_key,
     )?;
+    if wire.awaiting_roster {
+        return Ok(ReceiveOutcome::Waiting);
+    }
     let id = &wire.header.message_id;
     if id.starts_with("membership:") {
         if record.role != EnrollmentRole::Joiner {

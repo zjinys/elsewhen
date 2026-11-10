@@ -6951,4 +6951,45 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get wikiApplicabilityCheck => '请核对适用条件与限制是否仍然合适。';
+
+  @override
+  String get datasetCleanupTitle => '清理旧数据集副本';
+
+  @override
+  String get datasetCleanupHelp =>
+      '仅列出未使用且未选中的已完成副本。请先锁定同步再清理；当前数据集、默认库和加入暂存项受保护。';
+
+  @override
+  String get datasetCleanupRefresh => '刷新副本列表';
+
+  @override
+  String get datasetCleanupEmpty => '没有可清理的旧副本。';
+
+  @override
+  String get datasetCleanupReview => '查看并清理';
+
+  @override
+  String get datasetCleanupConfirmTitle => '删除此本机数据集副本？';
+
+  @override
+  String get datasetCleanupWarning =>
+      '将永久删除此副本的全部本机数据及对应的本机同步密钥，无法撤销。其他设备及远端数据不会被删除，设备名册也不会改变。如有未同步的内容，请先备份。清理中断后可重试。';
+
+  @override
+  String get datasetCleanupDelete => '永久删除本机副本';
+
+  @override
+  String datasetCleanupSize(String bytes) {
+    return '本机文件：$bytes 字节';
+  }
+
+  @override
+  String get datasetCleanupPending => '清理未完成（文件或本机密钥），请重试。';
+
+  @override
+  String get datasetCleanupRetry => '继续清理';
+
+  @override
+  String get datasetCleanupFailed =>
+      '清理未完成。请先锁定同步、关闭使用此副本的其他应用进程，再刷新列表重试；未完成的文件或密钥清理会保留待办。';
 }

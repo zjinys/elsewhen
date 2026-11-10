@@ -11,7 +11,7 @@ import 'join.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `conflict_profile_dto`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 
 /// Read-only catalog for the selection UI. Secret-bearing material is never
 /// part of a dataset entry; repair of a lost identity goes through the
@@ -106,6 +106,26 @@ Future<void> approveProcessorHandoff({
 /// 新加工端确认接管（frontier 追平后调用）。
 Future<void> confirmProcessorTakeover() =>
     RustLib.instance.api.crateApiSyncDatasetsConfirmProcessorTakeover();
+
+Future<List<SyncDatasetCleanupDto>> listSyncDatasetCleanup() =>
+    RustLib.instance.api.crateApiSyncDatasetsListSyncDatasetCleanup();
+
+/// User confirmation must return the exact displayed catalog revision and file
+/// token. Keep sync locked while removing old copies; never reuse a live lease.
+Future<SyncDatasetCleanupDto> cleanupSyncDatasetCopy({
+  required String entryId,
+  required PlatformInt64 expectedCatalogRevision,
+  required String expectedFileToken,
+}) => RustLib.instance.api.crateApiSyncDatasetsCleanupSyncDatasetCopy(
+  entryId: entryId,
+  expectedCatalogRevision: expectedCatalogRevision,
+  expectedFileToken: expectedFileToken,
+);
+
+Future<void> finishSyncDatasetCleanup({required String entryId}) => RustLib
+    .instance
+    .api
+    .crateApiSyncDatasetsFinishSyncDatasetCleanup(entryId: entryId);
 
 class ProviderConflictProfileDto {
   final String id;
@@ -227,6 +247,51 @@ class ProviderSyncConflictDto {
           remoteFailoverOrder == other.remoteFailoverOrder &&
           localProfiles == other.localProfiles &&
           localActiveId == other.localActiveId;
+}
+
+/// Reviewed local-copy removal; pending means an already confirmed cleanup
+/// needs its filesystem/native-key step retried. No remote revocation occurs.
+class SyncDatasetCleanupDto {
+  final String entryId;
+  final String installationId;
+  final String name;
+  final BigInt bytes;
+  final PlatformInt64 catalogRevision;
+  final String fileToken;
+  final bool pending;
+
+  const SyncDatasetCleanupDto({
+    required this.entryId,
+    required this.installationId,
+    required this.name,
+    required this.bytes,
+    required this.catalogRevision,
+    required this.fileToken,
+    required this.pending,
+  });
+
+  @override
+  int get hashCode =>
+      entryId.hashCode ^
+      installationId.hashCode ^
+      name.hashCode ^
+      bytes.hashCode ^
+      catalogRevision.hashCode ^
+      fileToken.hashCode ^
+      pending.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncDatasetCleanupDto &&
+          runtimeType == other.runtimeType &&
+          entryId == other.entryId &&
+          installationId == other.installationId &&
+          name == other.name &&
+          bytes == other.bytes &&
+          catalogRevision == other.catalogRevision &&
+          fileToken == other.fileToken &&
+          pending == other.pending;
 }
 
 class SyncRosterDto {

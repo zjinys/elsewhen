@@ -6,6 +6,7 @@ use crate::sync::transport_relay::{RelaySource, WINDOW_CHUNKS};
 use rusqlite::params;
 
 mod fragments;
+mod joining;
 
 struct Database {
     store: Store,

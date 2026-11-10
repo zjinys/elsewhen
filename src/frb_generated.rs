@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.14.0-beta.2";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -642298063;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -510745108;
 
 // Section: executor
 
@@ -692,6 +692,37 @@ fn wire__crate__api__companion_flow__check_companion_revisit_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::companion_flow::check_companion_revisit()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__datasets__cleanup_sync_dataset_copy_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    entry_id: impl CstDecode<String>,
+    expected_catalog_revision: impl CstDecode<i64>,
+    expected_file_token: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "cleanup_sync_dataset_copy",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_entry_id = entry_id.cst_decode();
+            let api_expected_catalog_revision = expected_catalog_revision.cst_decode();
+            let api_expected_file_token = expected_file_token.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::datasets::cleanup_sync_dataset_copy(
+                            api_entry_id,
+                            api_expected_catalog_revision,
+                            api_expected_file_token,
+                        )?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -2226,6 +2257,30 @@ fn wire__crate__api__tweet__find_tweet_source_page_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::tweet::find_tweet_source_page(api_url)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__datasets__finish_sync_dataset_cleanup_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    entry_id: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "finish_sync_dataset_cleanup",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_entry_id = entry_id.cst_decode();
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok =
+                            crate::api::sync::datasets::finish_sync_dataset_cleanup(api_entry_id)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -4971,6 +5026,27 @@ fn wire__crate__api__rules__list_rules_missing_essence_impl(
                 transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::rules::list_rules_missing_essence()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__datasets__list_sync_dataset_cleanup_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_sync_dataset_cleanup",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| {
+                transform_result_dco::<_, _, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::sync::datasets::list_sync_dataset_cleanup()?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -8858,6 +8934,12 @@ impl CstDecode<u32> for u32 {
         self
     }
 }
+impl CstDecode<u64> for u64 {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    fn cst_decode(self) -> u64 {
+        self
+    }
+}
 impl CstDecode<u8> for u8 {
     // Codec=Cst (C-struct based), see doc to use other codecs
     fn cst_decode(self) -> u8 {
@@ -11684,6 +11766,20 @@ impl SseDecode for Vec<crate::storage::knowledge::core::SourceSnapshot> {
     }
 }
 
+impl SseDecode for Vec<crate::api::sync::datasets::SyncDatasetCleanupDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(
+                <crate::api::sync::datasets::SyncDatasetCleanupDto>::sse_decode(deserializer),
+            );
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::sync::join::SyncDatasetEntryDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -13044,6 +13140,28 @@ impl SseDecode for crate::knowledge::workflows::SuggestionFeedback {
     }
 }
 
+impl SseDecode for crate::api::sync::datasets::SyncDatasetCleanupDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_entryId = <String>::sse_decode(deserializer);
+        let mut var_installationId = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_bytes = <u64>::sse_decode(deserializer);
+        let mut var_catalogRevision = <i64>::sse_decode(deserializer);
+        let mut var_fileToken = <String>::sse_decode(deserializer);
+        let mut var_pending = <bool>::sse_decode(deserializer);
+        return crate::api::sync::datasets::SyncDatasetCleanupDto {
+            entry_id: var_entryId,
+            installation_id: var_installationId,
+            name: var_name,
+            bytes: var_bytes,
+            catalog_revision: var_catalogRevision,
+            file_token: var_fileToken,
+            pending: var_pending,
+        };
+    }
+}
+
 impl SseDecode for crate::api::sync::join::SyncDatasetEntryDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -13416,6 +13534,13 @@ impl SseDecode for u32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_u32::<NativeEndian>().unwrap()
+    }
+}
+
+impl SseDecode for u64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_u64::<NativeEndian>().unwrap()
     }
 }
 
@@ -16757,6 +16882,32 @@ impl flutter_rust_bridge::IntoIntoDart<crate::knowledge::workflows::SuggestionFe
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sync::datasets::SyncDatasetCleanupDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.entry_id.into_into_dart().into_dart(),
+            self.installation_id.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+            self.bytes.into_into_dart().into_dart(),
+            self.catalog_revision.into_into_dart().into_dart(),
+            self.file_token.into_into_dart().into_dart(),
+            self.pending.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sync::datasets::SyncDatasetCleanupDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::datasets::SyncDatasetCleanupDto>
+    for crate::api::sync::datasets::SyncDatasetCleanupDto
+{
+    fn into_into_dart(self) -> crate::api::sync::datasets::SyncDatasetCleanupDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::sync::join::SyncDatasetEntryDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -19336,6 +19487,16 @@ impl SseEncode for Vec<crate::storage::knowledge::core::SourceSnapshot> {
     }
 }
 
+impl SseEncode for Vec<crate::api::sync::datasets::SyncDatasetCleanupDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::sync::datasets::SyncDatasetCleanupDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::sync::join::SyncDatasetEntryDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -20263,6 +20424,19 @@ impl SseEncode for crate::knowledge::workflows::SuggestionFeedback {
     }
 }
 
+impl SseEncode for crate::api::sync::datasets::SyncDatasetCleanupDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.entry_id, serializer);
+        <String>::sse_encode(self.installation_id, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <u64>::sse_encode(self.bytes, serializer);
+        <i64>::sse_encode(self.catalog_revision, serializer);
+        <String>::sse_encode(self.file_token, serializer);
+        <bool>::sse_encode(self.pending, serializer);
+    }
+}
+
 impl SseEncode for crate::api::sync::join::SyncDatasetEntryDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -20487,6 +20661,13 @@ impl SseEncode for u32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_u32::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for u64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_u64::<NativeEndian>(self).unwrap();
     }
 }
 
@@ -22911,6 +23092,18 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::api::sync::datasets::SyncDatasetCleanupDto>>
+        for *mut wire_cst_list_sync_dataset_cleanup_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::sync::datasets::SyncDatasetCleanupDto> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::sync::join::SyncDatasetEntryDto>>
         for *mut wire_cst_list_sync_dataset_entry_dto
     {
@@ -23622,6 +23815,22 @@ mod io {
                 suggestion: self.suggestion.cst_decode(),
                 rewrite: self.rewrite.cst_decode(),
                 created_at: self.created_at.cst_decode(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::sync::datasets::SyncDatasetCleanupDto>
+        for wire_cst_sync_dataset_cleanup_dto
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::datasets::SyncDatasetCleanupDto {
+            crate::api::sync::datasets::SyncDatasetCleanupDto {
+                entry_id: self.entry_id.cst_decode(),
+                installation_id: self.installation_id.cst_decode(),
+                name: self.name.cst_decode(),
+                bytes: self.bytes.cst_decode(),
+                catalog_revision: self.catalog_revision.cst_decode(),
+                file_token: self.file_token.cst_decode(),
+                pending: self.pending.cst_decode(),
             }
         }
     }
@@ -26120,6 +26329,24 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_sync_dataset_cleanup_dto {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                entry_id: core::ptr::null_mut(),
+                installation_id: core::ptr::null_mut(),
+                name: core::ptr::null_mut(),
+                bytes: Default::default(),
+                catalog_revision: Default::default(),
+                file_token: core::ptr::null_mut(),
+                pending: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_sync_dataset_cleanup_dto {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_sync_dataset_entry_dto {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -26866,6 +27093,21 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__datasets__cleanup_sync_dataset_copy(
+        port_: i64,
+        entry_id: *mut wire_cst_list_prim_u_8_strict,
+        expected_catalog_revision: i64,
+        expected_file_token: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sync__datasets__cleanup_sync_dataset_copy_impl(
+            port_,
+            entry_id,
+            expected_catalog_revision,
+            expected_file_token,
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__repair__clear_local_sync_identity(
         port_: i64,
     ) {
@@ -27444,6 +27686,14 @@ mod io {
         url: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__tweet__find_tweet_source_page_impl(port_, url)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__datasets__finish_sync_dataset_cleanup(
+        port_: i64,
+        entry_id: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sync__datasets__finish_sync_dataset_cleanup_impl(port_, entry_id)
     }
 
     #[unsafe(no_mangle)]
@@ -28377,6 +28627,13 @@ mod io {
         port_: i64,
     ) {
         wire__crate__api__rules__list_rules_missing_essence_impl(port_)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_wire__crate__api__sync__datasets__list_sync_dataset_cleanup(
+        port_: i64,
+    ) {
+        wire__crate__api__sync__datasets__list_sync_dataset_cleanup_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -31063,6 +31320,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_sync_dataset_cleanup_dto(
+        len: i32,
+    ) -> *mut wire_cst_list_sync_dataset_cleanup_dto {
+        let wrap = wire_cst_list_sync_dataset_cleanup_dto {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_sync_dataset_cleanup_dto>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_elsewhen_ui_cst_new_list_sync_dataset_entry_dto(
         len: i32,
     ) -> *mut wire_cst_list_sync_dataset_entry_dto {
@@ -32589,6 +32860,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_sync_dataset_cleanup_dto {
+        ptr: *mut wire_cst_sync_dataset_cleanup_dto,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_sync_dataset_entry_dto {
         ptr: *mut wire_cst_sync_dataset_entry_dto,
         len: i32,
@@ -33105,6 +33382,17 @@ mod io {
         suggestion: *mut wire_cst_list_prim_u_8_strict,
         rewrite: *mut wire_cst_list_prim_u_8_strict,
         created_at: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_sync_dataset_cleanup_dto {
+        entry_id: *mut wire_cst_list_prim_u_8_strict,
+        installation_id: *mut wire_cst_list_prim_u_8_strict,
+        name: *mut wire_cst_list_prim_u_8_strict,
+        bytes: u64,
+        catalog_revision: i64,
+        file_token: *mut wire_cst_list_prim_u_8_strict,
+        pending: bool,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -36238,6 +36526,18 @@ mod web {
                 .collect()
         }
     }
+    impl CstDecode<Vec<crate::api::sync::datasets::SyncDatasetCleanupDto>>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::api::sync::datasets::SyncDatasetCleanupDto> {
+            self.dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap()
+                .iter()
+                .map(CstDecode::cst_decode)
+                .collect()
+        }
+    }
     impl CstDecode<Vec<crate::api::sync::join::SyncDatasetEntryDto>>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -37349,6 +37649,31 @@ mod web {
             }
         }
     }
+    impl CstDecode<crate::api::sync::datasets::SyncDatasetCleanupDto>
+        for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::sync::datasets::SyncDatasetCleanupDto {
+            let self_ = self
+                .dyn_into::<flutter_rust_bridge::for_generated::js_sys::Array>()
+                .unwrap();
+            assert_eq!(
+                self_.length(),
+                7,
+                "Expected 7 elements, got {}",
+                self_.length()
+            );
+            crate::api::sync::datasets::SyncDatasetCleanupDto {
+                entry_id: self_.get(0).cst_decode(),
+                installation_id: self_.get(1).cst_decode(),
+                name: self_.get(2).cst_decode(),
+                bytes: self_.get(3).cst_decode(),
+                catalog_revision: self_.get(4).cst_decode(),
+                file_token: self_.get(5).cst_decode(),
+                pending: self_.get(6).cst_decode(),
+            }
+        }
+    }
     impl CstDecode<crate::api::sync::join::SyncDatasetEntryDto>
         for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue
     {
@@ -38106,6 +38431,12 @@ mod web {
             self.unchecked_into_f64() as _
         }
     }
+    impl CstDecode<u64> for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> u64 {
+            ::std::convert::TryInto::<u64>::try_into(self).unwrap() as _
+        }
+    }
     impl CstDecode<u8> for flutter_rust_bridge::for_generated::wasm_bindgen::JsValue {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> u8 {
@@ -38363,6 +38694,21 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
         wire__crate__api__companion_flow__check_companion_revisit_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__datasets__cleanup_sync_dataset_copy(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        entry_id: String,
+        expected_catalog_revision: flutter_rust_bridge::for_generated::wasm_bindgen::JsValue,
+        expected_file_token: String,
+    ) {
+        wire__crate__api__sync__datasets__cleanup_sync_dataset_copy_impl(
+            port_,
+            entry_id,
+            expected_catalog_revision,
+            expected_file_token,
+        )
     }
 
     #[wasm_bindgen]
@@ -38946,6 +39292,14 @@ mod web {
         url: String,
     ) {
         wire__crate__api__tweet__find_tweet_source_page_impl(port_, url)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__datasets__finish_sync_dataset_cleanup(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+        entry_id: String,
+    ) {
+        wire__crate__api__sync__datasets__finish_sync_dataset_cleanup_impl(port_, entry_id)
     }
 
     #[wasm_bindgen]
@@ -39901,6 +40255,13 @@ mod web {
         port_: flutter_rust_bridge::for_generated::MessagePort,
     ) {
         wire__crate__api__rules__list_rules_missing_essence_impl(port_)
+    }
+
+    #[wasm_bindgen]
+    pub fn wire__crate__api__sync__datasets__list_sync_dataset_cleanup(
+        port_: flutter_rust_bridge::for_generated::MessagePort,
+    ) {
+        wire__crate__api__sync__datasets__list_sync_dataset_cleanup_impl(port_)
     }
 
     #[wasm_bindgen]

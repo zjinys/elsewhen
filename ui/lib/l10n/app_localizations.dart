@@ -12417,6 +12417,78 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'请核对适用条件与限制是否仍然合适。'**
   String get wikiApplicabilityCheck;
+
+  /// No description provided for @datasetCleanupTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'清理旧数据集副本'**
+  String get datasetCleanupTitle;
+
+  /// No description provided for @datasetCleanupHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'仅列出未使用且未选中的已完成副本。请先锁定同步再清理；当前数据集、默认库和加入暂存项受保护。'**
+  String get datasetCleanupHelp;
+
+  /// No description provided for @datasetCleanupRefresh.
+  ///
+  /// In zh, this message translates to:
+  /// **'刷新副本列表'**
+  String get datasetCleanupRefresh;
+
+  /// No description provided for @datasetCleanupEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有可清理的旧副本。'**
+  String get datasetCleanupEmpty;
+
+  /// No description provided for @datasetCleanupReview.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看并清理'**
+  String get datasetCleanupReview;
+
+  /// No description provided for @datasetCleanupConfirmTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除此本机数据集副本？'**
+  String get datasetCleanupConfirmTitle;
+
+  /// No description provided for @datasetCleanupWarning.
+  ///
+  /// In zh, this message translates to:
+  /// **'将永久删除此副本的全部本机数据及对应的本机同步密钥，无法撤销。其他设备及远端数据不会被删除，设备名册也不会改变。如有未同步的内容，请先备份。清理中断后可重试。'**
+  String get datasetCleanupWarning;
+
+  /// No description provided for @datasetCleanupDelete.
+  ///
+  /// In zh, this message translates to:
+  /// **'永久删除本机副本'**
+  String get datasetCleanupDelete;
+
+  /// No description provided for @datasetCleanupSize.
+  ///
+  /// In zh, this message translates to:
+  /// **'本机文件：{bytes} 字节'**
+  String datasetCleanupSize(String bytes);
+
+  /// No description provided for @datasetCleanupPending.
+  ///
+  /// In zh, this message translates to:
+  /// **'清理未完成（文件或本机密钥），请重试。'**
+  String get datasetCleanupPending;
+
+  /// No description provided for @datasetCleanupRetry.
+  ///
+  /// In zh, this message translates to:
+  /// **'继续清理'**
+  String get datasetCleanupRetry;
+
+  /// No description provided for @datasetCleanupFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'清理未完成。请先锁定同步、关闭使用此副本的其他应用进程，再刷新列表重试；未完成的文件或密钥清理会保留待办。'**
+  String get datasetCleanupFailed;
 }
 
 class _AppLocalizationsDelegate

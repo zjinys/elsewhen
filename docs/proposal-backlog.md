@@ -1,18 +1,17 @@
 # Proposal Backlog（未完成提案总索引）
 
-更新：2026-11-09；最近实现提交：`0cf70c7`。本文件只记录当前缺口与归属；逐批进度、旧测试数字和历史方案见[历史快照](reference/proposal-backlog-history-2026-11-08.md)，实现依据见各条链接。
+更新：2026-11-10；最近实现提交：`eda07ee`。本文件只记录当前缺口与归属；逐批进度、旧测试数字和历史方案见[历史快照](reference/proposal-backlog-history-2026-11-08.md)，实现依据见各条链接。
 
-当前共 **3 项工程待办、14 项验收事项、3 项后置增量、2 项方向讨论、1 项搁置**。工程完成不等于真实模型或真人设备验收通过。超长事件分块消化已交付，真实验收范围及限制见实现记录；多语言 Goal 按用户要求暂停，L7只保留验收。
+当前共 **2 项工程待办、14 项验收事项、3 项后置增量、2 项方向讨论、1 项搁置**。工程完成不等于真实模型或真人设备验收通过。超长事件分块消化已交付，真实验收范围及限制见实现记录；多语言 Goal 按用户要求暂停，L7只保留验收。
 
 维护规则：新增缺口先查已有归属，避免同一工作重复排期；推进时同步具体提案或路线，记录证据；已交付能力从工程待办移除，验收缺口单列。本文分类描述当前进度，历史提案的 `proposed` 状态不等于其全部内容尚未实现。
 
-## 工程待办（3 项）
+## 工程待办（2 项）
 
 按建议优先顺序排列，尚未开始的新项明确标注；不把人工验收算作工程开发。
 
 | 项目 | 当前缺口 | 优先级 |
 |---|---|---|
-| [同步生命周期 D6/D7](roadmap/2026-10-27-sync-lifecycle-boundaries-roadmap.md) | D6：旧数据集清理出口，先明确显式确认和保留边界；D7：录入期名册尚未激活时推迟业务帧。C0–C12、D8/D9 已实现；快照字节采样另列验收 | 中 |
 | [工作项一等页面](notes/proposed/architecture/2026-09-22-work-items-as-first-class-pages.md) | 已有 `open_todo_work_item` 与讨论入口；仍缺待办统一为页面模型、兼容投影及历史迁移 | 中 |
 | [Wayland 窗口恢复](notes/proposed/bug-fix/2026-10-10-window-geometry-wayland.md) | 关闭时补存已实现。恢复侧仍需 compositor 实机取证后决定尺寸/位置策略，不以重复 `setBounds` 认定修复 | 中 |
 
@@ -34,7 +33,7 @@
 | [记事本页](notes/proposed/product/2026-10-19-notepad-memo-pages.md) | `memo`、AI 隔离、创建/追加与 Flutter 入口已实现；待真人 GUI 验收。旧 Capture 模式已删除，不恢复该验收项 |
 | [定时提醒](notes/proposed/architecture/2026-10-19-timed-reminders.md) | 持久提醒、5 秒 tick、稍后提醒、解析及确认制工具已实现；待真人 GUI 验收。系统通知为后置增量 |
 | [习惯主动问候](notes/proposed/product/2026-10-22-proactive-habit-checkins.md) | 问候、聊聊预填、限流/忽略反馈、设置与 owner 单写已实现；待真人 GUI 和多设备验收 |
-| [多设备同步 S06](notes/proposed/architecture/2026-09-30-multi-device-sync.md) | 核心同步与后续 relay 改造已有交付记录；综合真人门禁按[人工测试路线](roadmap/2026-10-14-sync-manual-test-roadmap.md)与[S06 清单](roadmap/2026-10-14-s06-human-gate-checklist.md)完成。D6/D7 只在工程待办维护 |
+| [多设备同步 S06](notes/proposed/architecture/2026-09-30-multi-device-sync.md) | 核心同步与后续 relay 改造已有交付记录；综合真人门禁按[人工测试路线](roadmap/2026-10-14-sync-manual-test-roadmap.md)与[S06 清单](roadmap/2026-10-14-s06-human-gate-checklist.md)完成。D6/D7 已补齐旧副本显式清理与合法加入期消息等待，Rust1222单元+2集成、Relay49项及15项变异验证完成；Flutter617项、analyze与Release／FRB／本地化门禁通过，证据见[生命周期路线C13–C17](roadmap/2026-10-27-sync-lifecycle-boundaries-roadmap.md)。按[双端测试步骤](testing/2026-11-10-sync-d6-d7-manual-test.md)验收系统密钥、清理恢复和录入期间加入收敛 |
 | [AI 对话体验](notes/proposed/architecture/2026-09-30-ai-chat-experience.md) | C00–C09 工程及合成场景完成；待[人工验收 S1–S6](roadmap/2026-10-04-ai-chat-manual-acceptance-roadmap.md) |
 
 ## 后置增量（3 项）

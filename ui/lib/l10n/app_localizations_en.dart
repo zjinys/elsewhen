@@ -7424,4 +7424,46 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get wikiApplicabilityCheck =>
       'Check whether the conditions and limits still fit.';
+
+  @override
+  String get datasetCleanupTitle => 'Clean up old dataset copies';
+
+  @override
+  String get datasetCleanupHelp =>
+      'Only completed, unused and unselected copies are listed. Lock sync before cleanup. The current dataset, default database and join staging are protected.';
+
+  @override
+  String get datasetCleanupRefresh => 'Refresh copies';
+
+  @override
+  String get datasetCleanupEmpty => 'No old copies to clean up.';
+
+  @override
+  String get datasetCleanupReview => 'Review cleanup';
+
+  @override
+  String get datasetCleanupConfirmTitle => 'Delete this local dataset copy?';
+
+  @override
+  String get datasetCleanupWarning =>
+      'This permanently deletes all local data in this copy and its local sync key. This cannot be undone. Other devices, remote data and the device roster are unchanged. Back up any unsynced content first. Interrupted cleanup can be retried.';
+
+  @override
+  String get datasetCleanupDelete => 'Permanently delete local copy';
+
+  @override
+  String datasetCleanupSize(String bytes) {
+    return 'Local files: $bytes bytes';
+  }
+
+  @override
+  String get datasetCleanupPending =>
+      'Cleanup incomplete (files or local key). Retry to finish.';
+
+  @override
+  String get datasetCleanupRetry => 'Resume cleanup';
+
+  @override
+  String get datasetCleanupFailed =>
+      'Cleanup is incomplete. Lock sync, close other app processes using this copy, then refresh and retry. Unfinished file or key cleanup remains pending.';
 }

@@ -45,14 +45,14 @@ fn dataset_selection_does_not_replace_installation_display_language() {
     assert_eq!(count, 1);
 }
 
-struct Workspace(PathBuf);
+pub(super) struct Workspace(pub(super) PathBuf);
 impl Workspace {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let path = std::env::temp_dir().join(format!("elsewhen-datasets-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&path).unwrap();
         Self(path)
     }
-    fn original(&self) -> Store {
+    pub(super) fn original(&self) -> Store {
         let store = Store::open(&self.0.join("elsewhen.db")).unwrap();
         store
             .submit_input_as_event("personal original", "capture", None)
@@ -78,7 +78,7 @@ impl Drop for Workspace {
     }
 }
 
-fn imported(catalog: &DatasetCatalog) -> (DatasetEntry, [u8; 32]) {
+pub(super) fn imported(catalog: &DatasetCatalog) -> (DatasetEntry, [u8; 32]) {
     let entry = catalog
         .create_staging(
             "shared-dataset",

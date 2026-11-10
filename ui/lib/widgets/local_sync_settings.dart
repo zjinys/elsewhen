@@ -14,6 +14,8 @@ import '../sync/sync_dataset_switch_api.dart';
 import '../sync/sync_repair_api.dart';
 import '../sync/sync_roster_controller.dart';
 import 'dataset_switch_card.dart';
+import 'dataset_cleanup_card.dart';
+import '../sync/sync_dataset_cleanup_api.dart';
 import '../sync/sync_provider_conflicts_controller.dart';
 import '../sync/sync_wiki_conflicts_controller.dart';
 import '../sync/sync_setup_controller.dart';
@@ -44,12 +46,14 @@ class LocalSyncSettings extends StatefulWidget {
     this.handoffController,
     this.rosterController,
     this.datasetApi,
+    this.cleanupApi,
     this.repairApi,
   });
   final SyncSetupController? controller;
 
   /// 数据集切换注入缝；为空用默认原生实现（见 DatasetSwitchCard）。
   final SyncDatasetSwitchApi? datasetApi;
+  final SyncDatasetCleanupApi? cleanupApi;
 
   /// 「清除本机同步身份」注入缝；为空用默认原生实现。
   final SyncRepairApi? repairApi;
@@ -77,6 +81,9 @@ enum _SyncTab { bind, manage }
 
 class _LocalSyncSettingsState extends State<LocalSyncSettings> {
   _SyncTab _tab = _SyncTab.bind;
+  late final SyncDatasetCleanupApi _cleanupApi =
+      widget.cleanupApi ?? FrbSyncDatasetCleanupApi();
+  int _cleanupRevision = 0;
   bool _repairBusy = false;
   bool _tabTouched = false;
   final _name = TextEditingController(text: 'This device');
@@ -304,9 +311,17 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
               }),
             ),
             DatasetSwitchCard(
+              key: ValueKey(_cleanupRevision),
               api: widget.datasetApi ?? const FrbSyncDatasetSwitchApi(),
               catalogChanges: controller.joiner,
             ),
+            if (tab == _SyncTab.manage) ...[
+              const SizedBox(height: 12),
+              DatasetCleanupCard(
+                api: _cleanupApi,
+                onChanged: () => setState(() => _cleanupRevision++),
+              ),
+            ],
             const SizedBox(height: 12),
             if (tab == _SyncTab.bind)
               _buildBindContent(theme, controller, state, configured)

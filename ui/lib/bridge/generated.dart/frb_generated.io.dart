@@ -682,6 +682,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SourceSnapshot> dco_decode_list_source_snapshot(dynamic raw);
 
   @protected
+  List<SyncDatasetCleanupDto> dco_decode_list_sync_dataset_cleanup_dto(
+    dynamic raw,
+  );
+
+  @protected
   List<SyncDatasetEntryDto> dco_decode_list_sync_dataset_entry_dto(dynamic raw);
 
   @protected
@@ -944,6 +949,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SuggestionFeedback dco_decode_suggestion_feedback(dynamic raw);
 
   @protected
+  SyncDatasetCleanupDto dco_decode_sync_dataset_cleanup_dto(dynamic raw);
+
+  @protected
   SyncDatasetEntryDto dco_decode_sync_dataset_entry_dto(dynamic raw);
 
   @protected
@@ -996,6 +1004,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int dco_decode_u_32(dynamic raw);
+
+  @protected
+  BigInt dco_decode_u_64(dynamic raw);
 
   @protected
   int dco_decode_u_8(dynamic raw);
@@ -1836,6 +1847,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<SyncDatasetCleanupDto> sse_decode_list_sync_dataset_cleanup_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SyncDatasetEntryDto> sse_decode_list_sync_dataset_entry_dto(
     SseDeserializer deserializer,
   );
@@ -2170,6 +2186,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SyncDatasetCleanupDto sse_decode_sync_dataset_cleanup_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SyncDatasetEntryDto sse_decode_sync_dataset_entry_dto(
     SseDeserializer deserializer,
   );
@@ -2240,6 +2261,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
+
+  @protected
+  BigInt sse_decode_u_64(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_8(SseDeserializer deserializer);
@@ -3410,6 +3434,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_sync_dataset_cleanup_dto>
+  cst_encode_list_sync_dataset_cleanup_dto(List<SyncDatasetCleanupDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_sync_dataset_cleanup_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_sync_dataset_cleanup_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_sync_dataset_entry_dto>
   cst_encode_list_sync_dataset_entry_dto(List<SyncDatasetEntryDto> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
@@ -3788,6 +3823,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   cst_encode_opt_list_emotion_tag_dto(List<EmotionTagDto>? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? ffi.nullptr : cst_encode_list_emotion_tag_dto(raw);
+  }
+
+  @protected
+  int cst_encode_u_64(BigInt raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.toSigned(64).toInt();
   }
 
   @protected
@@ -5779,6 +5820,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_sync_dataset_cleanup_dto(
+    SyncDatasetCleanupDto apiObj,
+    wire_cst_sync_dataset_cleanup_dto wireObj,
+  ) {
+    wireObj.entry_id = cst_encode_String(apiObj.entryId);
+    wireObj.installation_id = cst_encode_String(apiObj.installationId);
+    wireObj.name = cst_encode_String(apiObj.name);
+    wireObj.bytes = cst_encode_u_64(apiObj.bytes);
+    wireObj.catalog_revision = cst_encode_i_64(apiObj.catalogRevision);
+    wireObj.file_token = cst_encode_String(apiObj.fileToken);
+    wireObj.pending = cst_encode_bool(apiObj.pending);
+  }
+
+  @protected
   void cst_api_fill_to_wire_sync_dataset_entry_dto(
     SyncDatasetEntryDto apiObj,
     wire_cst_sync_dataset_entry_dto wireObj,
@@ -7226,6 +7281,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_sync_dataset_cleanup_dto(
+    List<SyncDatasetCleanupDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_sync_dataset_entry_dto(
     List<SyncDatasetEntryDto> self,
     SseSerializer serializer,
@@ -7643,6 +7704,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_sync_dataset_cleanup_dto(
+    SyncDatasetCleanupDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_sync_dataset_entry_dto(
     SyncDatasetEntryDto self,
     SseSerializer serializer,
@@ -7734,6 +7801,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_u_64(BigInt self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_8(int self, SseSerializer serializer);
@@ -9426,6 +9496,25 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_source_snapshot');
   late final _cst_new_list_source_snapshot = _cst_new_list_source_snapshotPtr
       .asFunction<ffi.Pointer<wire_cst_list_source_snapshot> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_sync_dataset_cleanup_dto>
+  cst_new_list_sync_dataset_cleanup_dto(int len) {
+    return _cst_new_list_sync_dataset_cleanup_dto(len);
+  }
+
+  late final _cst_new_list_sync_dataset_cleanup_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_sync_dataset_cleanup_dto> Function(
+            ffi.Int32,
+          )
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_sync_dataset_cleanup_dto');
+  late final _cst_new_list_sync_dataset_cleanup_dto =
+      _cst_new_list_sync_dataset_cleanup_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_sync_dataset_cleanup_dto> Function(int)
+          >();
 
   ffi.Pointer<wire_cst_list_sync_dataset_entry_dto>
   cst_new_list_sync_dataset_entry_dto(int len) {
@@ -16032,6 +16121,44 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_processing_yield_proof_dto>)
           >();
 
+  void wire__crate__api__sync__datasets__cleanup_sync_dataset_copy(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entry_id,
+    int expected_catalog_revision,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> expected_file_token,
+  ) {
+    return _wire__crate__api__sync__datasets__cleanup_sync_dataset_copy(
+      port_,
+      entry_id,
+      expected_catalog_revision,
+      expected_file_token,
+    );
+  }
+
+  late final _wire__crate__api__sync__datasets__cleanup_sync_dataset_copyPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__datasets__cleanup_sync_dataset_copy',
+      );
+  late final _wire__crate__api__sync__datasets__cleanup_sync_dataset_copy =
+      _wire__crate__api__sync__datasets__cleanup_sync_dataset_copyPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__sync__datasets__confirm_processor_takeover(int port_) {
     return _wire__crate__api__sync__datasets__confirm_processor_takeover(port_);
   }
@@ -16043,6 +16170,33 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__sync__datasets__confirm_processor_takeover =
       _wire__crate__api__sync__datasets__confirm_processor_takeoverPtr
           .asFunction<void Function(int)>();
+
+  void wire__crate__api__sync__datasets__finish_sync_dataset_cleanup(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> entry_id,
+  ) {
+    return _wire__crate__api__sync__datasets__finish_sync_dataset_cleanup(
+      port_,
+      entry_id,
+    );
+  }
+
+  late final _wire__crate__api__sync__datasets__finish_sync_dataset_cleanupPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__datasets__finish_sync_dataset_cleanup',
+      );
+  late final _wire__crate__api__sync__datasets__finish_sync_dataset_cleanup =
+      _wire__crate__api__sync__datasets__finish_sync_dataset_cleanupPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
 
   void wire__crate__api__sync__datasets__get_processor_handoff_state(
     int port_,
@@ -16070,6 +16224,18 @@ class RustLibWire implements BaseWire {
       );
   late final _wire__crate__api__sync__datasets__get_sync_roster =
       _wire__crate__api__sync__datasets__get_sync_rosterPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__sync__datasets__list_sync_dataset_cleanup(int port_) {
+    return _wire__crate__api__sync__datasets__list_sync_dataset_cleanup(port_);
+  }
+
+  late final _wire__crate__api__sync__datasets__list_sync_dataset_cleanupPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__sync__datasets__list_sync_dataset_cleanup',
+      );
+  late final _wire__crate__api__sync__datasets__list_sync_dataset_cleanup =
+      _wire__crate__api__sync__datasets__list_sync_dataset_cleanupPtr
           .asFunction<void Function(int)>();
 
   void wire__crate__api__sync__datasets__list_sync_datasets(int port_) {
@@ -22638,6 +22804,21 @@ final class wire_cst_list_source_snapshot extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_sync_dataset_cleanup_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_sync_dataset_cleanup_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_sync_dataset_cleanup_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_sync_dataset_cleanup_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_sync_dataset_cleanup_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_sync_dataset_entry_dto extends ffi.Struct {
   external ffi.Pointer<wire_cst_sync_dataset_entry_dto> ptr;
 
@@ -24146,6 +24327,43 @@ final class wire_cst_suggestion_feedback extends ffi.Struct {
     ..ref.suggestion = suggestion
     ..ref.rewrite = rewrite
     ..ref.created_at = created_at;
+}
+
+final class wire_cst_sync_dataset_cleanup_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> entry_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> installation_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> name;
+
+  @ffi.Uint64()
+  external int bytes;
+
+  @ffi.Int64()
+  external int catalog_revision;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> file_token;
+
+  @ffi.Bool()
+  external bool pending;
+
+  static ffi.Pointer<wire_cst_sync_dataset_cleanup_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> entry_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> installation_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> name,
+    required int bytes,
+    required int catalog_revision,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> file_token,
+    required bool pending,
+  }) => $allocator<wire_cst_sync_dataset_cleanup_dto>()
+    ..ref.entry_id = entry_id
+    ..ref.installation_id = installation_id
+    ..ref.name = name
+    ..ref.bytes = bytes
+    ..ref.catalog_revision = catalog_revision
+    ..ref.file_token = file_token
+    ..ref.pending = pending;
 }
 
 final class wire_cst_sync_dataset_entry_dto extends ffi.Struct {

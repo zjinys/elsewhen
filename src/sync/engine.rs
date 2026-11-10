@@ -553,6 +553,7 @@ pub(super) struct AuthenticatedWire {
     header: EnvelopeHeader,
     plaintext: Vec<u8>,
     bytes: Vec<u8>,
+    awaiting_roster: bool,
 }
 
 pub(super) fn authenticate_relay_payload(
@@ -580,40 +581,45 @@ pub(super) fn authenticate_relay_payload(
         key_version,
         &message_id,
     )?;
+    // An approved join pins the owner before its first signed roster arrives.
+    // Only that owner may supply deferred business mail; normal/revoked members
+    // still take the ordinary membership gate. Authenticate the entire envelope
+    // before reporting a dependency wait (including snapshot-start signals).
+    let awaiting_roster = (message_id.starts_with("op-")
+        || message_id.starts_with("provider:")
+        || message_id.starts_with("snapshot-start:"))
+        && awaiting_initial_roster_from(store, sender, trusted_sender)?;
     store.require_sync_transport_key(
         sender,
         trusted_sender,
-        message_id.starts_with("membership:"),
+        message_id.starts_with("membership:") || awaiting_roster,
     )?;
     let plaintext = crypto::open(&envelope, &header, key, trusted_sender)?;
     Ok(AuthenticatedWire {
         header,
         plaintext,
         bytes,
+        awaiting_roster,
     })
 }
 
-/// Returns true only when the authenticated operation, receipt or encrypted
-/// snapshot piece is durable and the caller may acknowledge this relay mail.
-/// Snapshot staging is not publication; missing operation dependencies return
-/// false and never silently advance an application frontier.
-/// `snapshot-start:{id}` 只是「分片在哪个 blob 上」的线索（密文里只有 blob_id），
-/// 但发送端在开传第一拍就推它——那一刻配对中的 joiner 还没应用 roster，
-/// `require_sync_transport_key` 会拿 `sync_local_membership_inactive` 把它判红，
-/// 整条交接直接卡死。对这条信令只做「晚点再处理」：不消费、不 ack，下一拍再来；
-/// 成为正式成员后照旧走完整的签名域校验（与分片同一安全等级）。
-pub(crate) fn defer_snapshot_start(store: &Store, ciphertext_b64: &str) -> Result<bool> {
-    if !store.has_sync_authority()? || store.local_sync_membership_active()? {
+fn awaiting_initial_roster_from(store: &Store, sender: &str, key: &[u8; 32]) -> Result<bool> {
+    if !store.has_sync_authority()?
+        || store.local_sync_membership_active()?
+        || store.current_signed_roster()?.is_some()
+    {
         return Ok(false);
     }
-    Ok(STANDARD
-        .decode(ciphertext_b64)
-        .ok()
-        .and_then(|bytes| EncryptedEnvelope::from_bytes(&bytes).ok())
-        .map(|envelope| envelope.unverified_header().message_id.clone())
-        .is_some_and(|id| id.starts_with("snapshot-start:")))
+    let anchor = store.sync_pinned_authority()?;
+    let identity = store.sync_identity()?.context("sync_not_initialized")?;
+    Ok(identity.dataset_id == anchor.dataset_id
+        && identity.device_id != anchor.owner.device_id
+        && sender == anchor.owner.device_id
+        && key == &anchor.owner.signing_key)
 }
 
+/// Only durable, authenticated application may be acknowledged. A verified
+/// initial-join dependency wait neither rejects nor consumes the relay mail.
 pub(crate) fn accept_relay_payload(
     store: &Store,
     ciphertext_b64: &str,
@@ -622,9 +628,6 @@ pub(crate) fn accept_relay_payload(
     key: &ContentKey,
     trusted_sender: &[u8; 32],
 ) -> Result<bool> {
-    if defer_snapshot_start(store, ciphertext_b64)? {
-        return Ok(false);
-    }
     let wire = authenticate_relay_payload(
         store,
         ciphertext_b64,
@@ -633,6 +636,9 @@ pub(crate) fn accept_relay_payload(
         key,
         trusted_sender,
     )?;
+    if wire.awaiting_roster {
+        return Ok(false);
+    }
     let identity = store.sync_identity()?.context("sync_not_initialized")?;
     let expected = wire.header;
     let message_id = expected.message_id.clone();

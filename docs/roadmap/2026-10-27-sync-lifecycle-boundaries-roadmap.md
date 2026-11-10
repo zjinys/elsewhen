@@ -1,7 +1,7 @@
 # 同步生命周期边界 Roadmap（无出口状态 + 裸读单例 + UI 不收敛 + 状态不可见）
 
 - 建立：2026-10-27
-- 状态：**C0–C12、D8/D9 工程已落地**（2026-11-05 对照本文完成记录与代码纠正滞后头部）；D1/D2/D4/D5 有真机通过记录，D3 终态修复与两端收敛证据见 C7/C11。仍待处理的是 D6 旧数据集清理、D7 名册激活前业务帧推迟；不再将既有修复写为“零代码改动”。
+- 状态：**C0–C12、D8/D9 工程已落地**（2026-11-05 对照本文完成记录与代码纠正滞后头部）；D1/D2/D4/D5 有真机通过记录，D3 终态修复与两端收敛证据见 C7/C11。D6/D7 已于 2026-11-10 补齐工程与专项/变异验证（C13–C16），全量门禁已通过（C17），真人复核仍待执行；不再将既有修复写为“零代码改动”。
 - 起因：2026-10-27 彻底重置三处配对数据（桌面 `sync_*` 表 / Android 应用数据 / relay mailboxes）后重做配对，app 落进两个从未被走到的边界状态（一个**卡死不可操作**，一个**持续报错刷屏**）；随后配对终于跑通，又暴露第三个：**交接完成但界面不收敛**
 - 上游 roadmap：[配对快照交接收敛性](2026-10-26-enrollment-snapshot-convergence-roadmap.md)（C5-A 已落地，真机复跑进行中）
 - 口径：**根治，不打补丁**。四条缺陷的共性都是「把状态机的边界/终点当成了正常路径」：一条让状态无出口，一条让错误无领域语义，一条让终点不到达界面
@@ -320,3 +320,53 @@ Dart AI 分析 worker（每 tick）
 - **2026-10-28 14:45 C11 完成（`24bf7f6`，已 push）**：终态 `Phase::Joined` 由本地事实（快照 applied + 本机名册 active）在每拍状态轮询里幂等推导；joiner 卡死代码条件 `'complete'`→`'joined'`，「进入数据集」卡从此真正可达；owner 侧同缺陷同批修（`deviceJoined`）。Rust 用例 1 条 + 变异 3、Dart 用例 4 条 + 变异 3，全红后还原复绿。**顺带修掉一个测试基建泄漏**：relay 冒烟测试的 `elsewhen-relay-blob-snapshot-*` 目录从不清理，183 个 ≈ 2.5 GB 把 `/tmp` 堆到 99%，`flutter test` 全量因此 `No space left on device` 假死 —— 加 `Drop` guard 后 relay 49/49、残留 0。**教训**：*门禁「假超时」先查磁盘，别急着怀疑用例*；*每轮测试都新建临时目录的代码，必须有同生命周期内的清理路径*。五道门禁：cargo **983** / relay **49** / analyze **0 error** / flutter test **+483** / regen EXIT=0（数字见 §C11 证据明细 #11）。
 - **2026-10-28 10:05 D5 真机复核通过 + 新立档 D6**：debug 包覆盖安装后手机直接进主界面（09:29 截图），取证库 `messages=645`/`conversations=79`/`events=232`/`wiki_pages=134`、同步表全 0、同步页「同步未开启」。同时用户指出我把「两端都是未开启」说错了 —— 实测桌面 `sync_replica/vault/authority` 仍 1/1/1、名册 2 人 PEUM00 仍 active、outbox 有 11 条指向已死身份的 pending（`attempts` 已到 203）⇒ 那是「对着死人写信」，撤销成员时会按 `membership/members.rs:106-115` 清掉。并因重加入会产生第二份数据集，新立 **D6**（旧数据集无清理出口）。**教训**：*出口类改动只验「本机」，却对外宣称「两端」——涉及两端状态时必须两边各查一次库再说*。
 
+
+## 2026-11-09 D6/D7实施批次
+
+用户明确授权解决两项；分支 `fix/sync-dataset-cleanup-and-joining-defer`，基线 `eda07ee`。沿用write-notes-like-deepseek记录决策和验证，真实设备验收另列。
+
+| 编号 | 申报范围 | 证据 | 状态 |
+|---|---|---|---|
+| C13 | D6数据集预览与显式清理：仅ready且非当前进程／非目录选中项，校验预览修订及路径，不动默认库或staging；工作区占用保护、失败可恢复，清理本机对应安装密钥 | `src/sync/datasets/cleanup.rs` + `src/config.rs`；catalog v2 持久待办、共享/独占进程使用锁、预览 CAS；7 条新存储/API回归通过，见下表 | `[x]` 2026-11-10 |
+| C14 | D6同步页入口与中英文确认，展示所删本地副本及不可恢复边界；取消零删除，刷新目录；公开API变更regen | 设置→同步→管理 `DatasetCleanupCard`；双语确认、取消无写入、失败后重载待办和密钥删除读取确认。相关 Flutter 21 项通过（含真实隔离 Bridge） | `[x]` 2026-11-10 |
+| C15 | D7录入期间合法业务帧推迟：限定真实加入状态与可信发送方，验证信封签名／身份，等待不ack、不计拒收、不drop；名册激活后按现有路径处理 | `authenticate_relay_payload` 完整认证后产生等待状态，普通/enrollment 两条收信路径共用。3 条新回归含真实配对、业务/Provider、loopback 九轮 fetch、名册到达后仅应用一次及撤销/伪造拒收 | `[x]` 2026-11-10 |
+| C16 | 新存储／接收／UI／真实Bridge专项与变异：当前／选中／staging保护、过期预览、目录链接与失败恢复；业务帧等待后接受、陌生人／伪造／撤销不被等待分支吞掉 | Rust 11 项、Dart 4 项变异全部由断言检出；逐项还原后 Rust 数据集+加入期 24 项通过。变异名称、守卫与命令见下表 | `[x]` 2026-11-10 |
+| C17 | Rust全量／Release、Flutter全量／analyze、本地化／FRB／格式及文档；交付D6/D7用户操作验收步骤 | Rust all-targets（8线程）1222单元+2集成通过／23 ignored，Relay49通过；最终regen+release通过，FRB hash `-510745108`；Flutter全量617项、应用/工具/新测试analyze零问题；本地化/格式/Note与用户验收步骤完成 | `[x]` 2026-11-10 |
+
+D6新增API、数据集目录存储及本机密钥清理仅服务这一出口；D7不改relay协议或放宽成员权限，原始业务数据不通过修复脚本改写。
+
+
+### C16 专项与变异证据（2026-11-10）
+
+- `cargo test --lib -- sync::datasets sync::engine::tests::joining`：24 passed；新增 7 条 `sync::datasets::cleanup_tests`、3 条 `sync::engine::tests::joining`。所有 DB/密钥/文件均合成，未接触个人库。
+- `cd ui && fvm flutter test --no-pub test/sync_dataset_cleanup_test.dart test/sync_key_store_test.dart test/local_sync_settings_test.dart test/sync_dataset_switch_test.dart`：21 passed；新文件含 3 条 widget（中英窄屏+失败重试）、1 条密钥两步确认、1 条真实 Bridge 隔离库保护。
+- Rust 变异按 `cargo test --lib <下列完整命名空间::用例名> -- --exact` 运行；Dart 按下列 plain-name 过滤。每项都实际出现 FAILED（断言失败，无编译错误），随后恢复原文件；Rust 还原后统一 24 passed。最终 Flutter 复绿见 C17。
+
+| 变异 | 临时破坏点 | 检出的测试（命名空间 `sync::datasets::cleanup_tests` / `sync::engine::tests::joining`） | 结果 |
+|---|---|---|---|
+| D6-ready / selected / current / preview | 分别移除 ready、下次启动选中、当前库和修订/文件清单校验 | `cleanup_refuses_selected_pinned_staging_stale_and_changed_files` | 4 项均红 |
+| D6-lease | 绕过独占使用锁 | `cleanup_cannot_remove_a_copy_pinned_before_next_start_selection_changed` | 红 |
+| D6-symlink | inventory 改为跟随符号链接 | `cleanup_refuses_symlink_children_and_recovery_folder_replacement` | 红 |
+| D6-journal | 未完成文件删除也允许确认完成 | `cleanup_commit_failure_and_interrupted_files_remain_retryable` | 红 |
+| D7-wait | 取消加入期的可信 owner 认证通道 | `joining_business_mail_waits_without_rejections_ack_or_drop_then_applies_once` | 红 |
+| D7-authenticate | 加入期跳过完整信封验证 | `joining_wait_requires_pinned_owner_valid_signature_domain_and_never_revoked_membership` | 红 |
+| D7-revoked | 已有名册也可视为首次加入等待 | 同上 | 红 |
+| D7-enrollment | enrollment 绕过认证后的等待结果 | `joining_enrollment_path_defers_verified_business_and_snapshot_start_only_after_authentication` | 红 |
+| D6-ui-cancel | 反转显式确认条件 | `fvm flutter test --no-pub test/sync_dataset_cleanup_test.dart --plain-name 'cleanup en:'` | 红 |
+| D6-refresh | 清理部分失败后不通知目录切换卡刷新 | 同一测试文件 `--plain-name 'partial failure reloads'`，断言刷新计数应为1、实为0 | 红 |
+| D6-native-key / native-verify | 分别跳过安装密钥删除、跳过删除后的读取确认 | 同一测试文件 `--plain-name 'native key cleanup'` | 2 项均红 |
+
+本批操作入口和双端人工复核见[测试步骤](../testing/2026-11-10-sync-d6-d7-manual-test.md)，决策与代价见[Agent Note](../notes/implemented/bug-fix/2026-11-09-sync-dataset-cleanup-and-joining-defer.md)。旧版本已经 drop 的历史消息不会由该修复自动找回。
+
+
+### C17 全量门禁（2026-11-10）
+
+- `cargo test --all-targets -- --test-threads=8`：**1222 单元 + 2 集成 passed / 23 ignored / 0 failed**。初轮默认高并发同时跑其他套件时，5 条既有聊天 HTTP/流式用例触发 4/10 秒准备/等待期限；一条单独复验通过，再以8线程完整复跑全绿，未改动这些测试或期限。
+- `cd relay && npm test`：**49 passed / 0 failed**，包括实际 standalone Worker 下配对/加入及稳态增量。既有 `membership.rs` smoke 的 `premature.rejected=1` 旧断言更新为本批契约 `waiting=1/rejected=0/dropped=0`，后续名册和增量处理继续成功。
+- `./scripts/regen.sh`：通过，包含 `cargo build --release`；Rust/Dart hash 均为 `-510745108`。真实 Flutter Bridge 测试使用 `createIsolatedBridge()`，从新 Release 库启动并验证空目录与非法清理路径保护。
+- ARB：`python3 scripts/check-localization.py`，**2051** 项中英资源的键/参数/ICU分支通过；`fvm dart run tool/check_localization.dart` 通过（39 项既有显式例外，无未归属字面量）；`python3 -m unittest discover -s scripts -p test_localization.py` **3 passed**。
+- 格式：修改范围 Rust 使用 `rustfmt --edition 2024 --config skip_children=true --check` 通过，Dart 使用项目 FVM 格式化；`git diff --check` 通过。Agent Note tree/format 以 `AGENT_NOTE_ROOT` 指向仅本批新 Note 的临时树，各验证 **1 note passed**，未把旧提案树的历史格式问题算成本批通过。
+
+- `cd ui && fvm flutter test --no-pub`：最终 **617 passed / 0 failed**（含清理部分失败也刷新目录的断言）；Dart 4 项变异均已还原，最终全量复绿。
+- `cd ui && fvm flutter analyze --no-pub lib tool test/sync_dataset_cleanup_test.dart`：**No issues found**。
+- C13–C17 工程关闭；D6/D7 的系统密钥与两端实机复核未执行，继续作为 backlog 的 S06 真人验收子项维护。不得把这些自动/loopback结果写成真人通过。

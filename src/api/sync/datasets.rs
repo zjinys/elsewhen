@@ -355,3 +355,81 @@ pub struct WikiPageConflictDto {
     pub local: Option<WikiPageConflictSideDto>,
     pub local_head_deleted: bool,
 }
+
+/// Reviewed local-copy removal; pending means an already confirmed cleanup
+/// needs its filesystem/native-key step retried. No remote revocation occurs.
+#[derive(Clone, Debug)]
+pub struct SyncDatasetCleanupDto {
+    pub entry_id: String,
+    pub installation_id: String,
+    pub name: String,
+    pub bytes: u64,
+    pub catalog_revision: i64,
+    pub file_token: String,
+    pub pending: bool,
+}
+impl From<crate::sync::datasets::CleanupPreview> for SyncDatasetCleanupDto {
+    fn from(p: crate::sync::datasets::CleanupPreview) -> Self {
+        Self {
+            entry_id: p.entry_id,
+            installation_id: p.installation_id,
+            name: p.name,
+            bytes: p.bytes,
+            catalog_revision: p.catalog_revision,
+            file_token: p.file_token,
+            pending: p.pending,
+        }
+    }
+}
+
+pub fn list_sync_dataset_cleanup() -> Result<Vec<SyncDatasetCleanupDto>> {
+    let config = AppConfig::load()?;
+    let catalog = crate::sync::datasets::DatasetCatalog::open(&config.data_dir)?;
+    let selected = catalog.selected_id()?;
+    let mut previews: Vec<SyncDatasetCleanupDto> = catalog
+        .pending_cleanups()?
+        .into_iter()
+        .map(Into::into)
+        .collect();
+    for entry in catalog.list()? {
+        if !entry.ready
+            || selected.as_deref() == Some(&entry.id)
+            || catalog.path_for(&entry.id)? == config.database_path
+        {
+            continue;
+        }
+        match catalog.cleanup_preview(&entry.id, &config.database_path) {
+            Ok(preview) => previews.push(preview.into()),
+            Err(error) if error.to_string() == "sync_dataset_in_use" => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(previews)
+}
+
+/// User confirmation must return the exact displayed catalog revision and file
+/// token. Keep sync locked while removing old copies; never reuse a live lease.
+pub fn cleanup_sync_dataset_copy(
+    entry_id: String,
+    expected_catalog_revision: i64,
+    expected_file_token: String,
+) -> Result<SyncDatasetCleanupDto> {
+    let config = AppConfig::load()?;
+    let _guard =
+        runtime::initialization_guard(&config)?.context("sync_dataset_cleanup_requires_lock")?;
+    let catalog = crate::sync::datasets::DatasetCatalog::open(&config.data_dir)?;
+    Ok(catalog
+        .cleanup_copy(
+            &entry_id,
+            expected_catalog_revision,
+            &expected_file_token,
+            &config.database_path,
+        )?
+        .into())
+}
+
+pub fn finish_sync_dataset_cleanup(entry_id: String) -> Result<()> {
+    let config = AppConfig::load()?;
+    let catalog = crate::sync::datasets::DatasetCatalog::open(&config.data_dir)?;
+    catalog.finish_cleanup(&entry_id)
+}

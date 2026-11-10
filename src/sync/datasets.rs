@@ -28,6 +28,9 @@ pub(crate) struct DatasetSelection {
     pub vault_revision: i64,
 }
 
+mod cleanup;
+pub(crate) use cleanup::{CleanupPreview, DatasetUseLease};
+
 pub(crate) struct DatasetCatalog {
     root: PathBuf,
     connection: Connection,
@@ -82,7 +85,10 @@ fn data_path(root: &Path, id: &str) -> Result<PathBuf> {
 
 fn check_schema(connection: &Connection) -> Result<()> {
     let version: i64 = connection.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-    ensure!(version == 1, "sync_dataset_catalog_version_invalid");
+    ensure!(
+        (1..=2).contains(&version),
+        "sync_dataset_catalog_version_invalid"
+    );
     Ok(())
 }
 fn entry_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<DatasetEntry> {
@@ -123,6 +129,10 @@ impl DatasetCatalog {
             } else {
                 check_schema(&tx)?;
             }
+            if version < 2 {
+                tx.execute_batch("CREATE TABLE dataset_cleanup_jobs(entry_id TEXT PRIMARY KEY,installation_id TEXT NOT NULL UNIQUE,name TEXT NOT NULL,files_removed INTEGER NOT NULL DEFAULT 0 CHECK(files_removed IN (0,1)));
+                    PRAGMA user_version=2;")?;
+            }
             tx.commit()?;
         }
         #[cfg(unix)]
@@ -150,7 +160,7 @@ impl DatasetCatalog {
         let count: i64 = tx.query_row("SELECT COUNT(*) FROM datasets", [], |r| r.get(0))?;
         ensure!(count < 32, "sync_dataset_count_limit");
         let duplicate: bool = tx.query_row(
-            "SELECT EXISTS(SELECT 1 FROM datasets WHERE installation_id=?1)",
+            "SELECT EXISTS(SELECT 1 FROM datasets WHERE installation_id=?1 UNION ALL SELECT 1 FROM dataset_cleanup_jobs WHERE installation_id=?1)",
             [installation_id],
             |r| r.get(0),
         )?;
@@ -455,3 +465,6 @@ pub(crate) fn selected_database_path(root: &Path) -> Result<Option<PathBuf>> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod cleanup_tests;

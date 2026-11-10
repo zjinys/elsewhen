@@ -48,6 +48,7 @@ String? resolveNotice(
       .map((v) => resolveNotice(v, strings, depth + 1) ?? v)
       .toList();
   return switch (value['key']) {
+    'datasetCleanupFailed' when args.isEmpty => strings.datasetCleanupFailed,
     'nameRequiredError' when args.isEmpty => strings.nameRequiredError,
     'secretFieldsRequired' when args.isEmpty => strings.secretFieldsRequired,
     'aiProviderMissing' when args.isEmpty => strings.aiProviderMissing,

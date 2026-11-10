@@ -3305,5 +3305,24 @@
   "compassGentleCheck": "Does the current plan still fit?",
   "wikiAddedEvidence": "New evidence in this update",
   "wikiRetainedEvidence": "Existing evidence will be kept. The new evidence is checked again when you confirm.",
-  "wikiApplicabilityCheck": "Check whether the conditions and limits still fit."
+  "wikiApplicabilityCheck": "Check whether the conditions and limits still fit.",
+  "datasetCleanupTitle": "Clean up old dataset copies",
+  "datasetCleanupHelp": "Only completed, unused and unselected copies are listed. Lock sync before cleanup. The current dataset, default database and join staging are protected.",
+  "datasetCleanupRefresh": "Refresh copies",
+  "datasetCleanupEmpty": "No old copies to clean up.",
+  "datasetCleanupReview": "Review cleanup",
+  "datasetCleanupConfirmTitle": "Delete this local dataset copy?",
+  "datasetCleanupWarning": "This permanently deletes all local data in this copy and its local sync key. This cannot be undone. Other devices, remote data and the device roster are unchanged. Back up any unsynced content first. Interrupted cleanup can be retried.",
+  "datasetCleanupDelete": "Permanently delete local copy",
+  "datasetCleanupSize": "Local files: {bytes} bytes",
+  "datasetCleanupPending": "Cleanup incomplete (files or local key). Retry to finish.",
+  "datasetCleanupRetry": "Resume cleanup",
+  "@datasetCleanupSize": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "datasetCleanupFailed": "Cleanup is incomplete. Lock sync, close other app processes using this copy, then refresh and retry. Unfinished file or key cleanup remains pending."
 }
