@@ -31,6 +31,11 @@ const _gates = <String, Gate>{
   'real-tw-long-0ol': Gate.spaced, // 「0. 编号」保持；空行/尾随空格归一
   'real-tw-long-2': Gate.spaced,
   'real-tw-star': Gate.spaced,
+  // 真实导入页（pastePlainText 空行垫断）：表格块内空行被
+  // normalizeTableBlanks 修复（源按 GFM 解析为段落，往返输出为真
+  // table——预期语义变化）；宽松列表归紧、URL href 百分号编码为编码器
+  // 固有行为。knownDrift 快照锁定修复后的往返输出（文件版快照）。
+  'table_blank_lines_import': Gate.knownDrift,
 };
 
 /// knownDrift 快照：锁定往返输出字节；语义失败的 fixture 必须出现在此，
@@ -147,7 +152,14 @@ void main() {
             reason: '$name（spaced 门）语义必须相等：\n${diff.join('\n')}',
           );
         case Gate.knownDrift:
-          final snapshot = _knownDriftSnapshots[name];
+          // 快照优先取内联常量；存在同名 .snapshot.md 文件时用文件版
+          // （大页面快照不入测试源码，便于 diff 审阅）。
+          final snapshotFile = File('$_fixtureDir/$name.snapshot.md');
+          final snapshot =
+              _knownDriftSnapshots[name] ??
+              (snapshotFile.existsSync()
+                  ? snapshotFile.readAsStringSync()
+                  : null);
           expect(snapshot, isNotNull, reason: '$name 缺 knownDrift 快照');
           expect(
             _t1(out),
