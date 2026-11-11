@@ -1,6 +1,6 @@
 # Proposal Backlog（未完成提案总索引）
 
-更新：2026-11-10；最近实现提交：`eda07ee`。本文件只记录当前缺口与归属；逐批进度、旧测试数字和历史方案见[历史快照](reference/proposal-backlog-history-2026-11-08.md)，实现依据见各条链接。
+更新：2026-11-10；最近实现提交：`15d3487`。本文件只记录当前缺口与归属；逐批进度、旧测试数字和历史方案见[历史快照](reference/proposal-backlog-history-2026-11-08.md)，实现依据见各条链接。
 
 当前共 **2 项工程待办、14 项验收事项、3 项后置增量、2 项方向讨论、1 项搁置**。工程完成不等于真实模型或真人设备验收通过。超长事件分块消化已交付，真实验收范围及限制见实现记录；多语言 Goal 按用户要求暂停，L7只保留验收。
 
@@ -12,7 +12,7 @@
 
 | 项目 | 当前缺口 | 优先级 |
 |---|---|---|
-| [工作项一等页面](notes/proposed/architecture/2026-09-22-work-items-as-first-class-pages.md) | 已有 `open_todo_work_item` 与讨论入口；仍缺待办统一为页面模型、兼容投影及历史迁移 | 中 |
+| [待办讨论与 Wiki 结果](notes/proposed/architecture/2026-11-10-work-item-discussion-and-wiki-outcomes.md) | **设计草案，未实施/排期**：建议 A 先分离专属讨论与参考知识、修实时状态及旧关联，覆盖同步与过程页隔离；B 后置可选执行结果录入与已有消化/依据回链。保留 todos，不再默认推进[旧提案](notes/proposed/architecture/2026-09-22-work-items-as-first-class-pages.md)的全量页面化/导航重构 | 中 |
 | [Wayland 窗口恢复](notes/proposed/bug-fix/2026-10-10-window-geometry-wayland.md) | 关闭时补存已实现。恢复侧仍需 compositor 实机取证后决定尺寸/位置策略，不以重复 `setBounds` 认定修复 | 中 |
 
 ## 工程完成，待验收（14 项）
@@ -21,7 +21,7 @@
 
 | 项目 | 已实现及剩余验收 |
 |---|---|
-| [对话支撑 LLM Wiki](notes/proposed/product/2026-10-05-single-stream-topic-follow-ups.md) | 多问法召回、修订新增依据与依赖、相近新建／无增量去重及中英文依据预览已交付；Rust1212项单元＋2项集成、Flutter612项、Release和门禁通过。按用户要求由用户执行[测试计划T1–T10](testing/2026-11-09-wiki-conversation-support-manual-test.md)，验证真实模型主动召回、正确归属和独立提问复用；不重复排主题状态／排序 |
+| [对话支撑 LLM Wiki](notes/proposed/product/2026-10-05-single-stream-topic-follow-ups.md) | 多问法召回、修订新增依据与依赖、相近新建／无增量去重及中英文依据预览已交付；Rust1212项单元＋2项集成、Flutter612项、Release和门禁通过。用户按[现有页面优先测试计划](testing/2026-11-09-wiki-conversation-support-manual-test.md)先做E1–E4，再用已有材料覆盖T1–T10；虚构样例可选。已按[现有三问反馈](testing/2026-11-10-wiki-existing-page-quality-review.md)优化短页全文/长页分段与版本保护、引用记账及证据边界规范，Rust1227项单元＋2项集成和Release通过；新增独立负知识提醒（历史原因与当前条件核对，不作正面引用或草稿依据）；修复后原问法在新会话/长会话的忠实性、负知识避坑效果、写入与失效闭环仍待验收，不重复排主题状态／排序 |
 | [对话伴随工作区](notes/proposed/product/2026-10-04-chat-dialog-to-drawer.md) | 当前待办／目标速览／审阅已接入桌面并排工作区，窄屏底部，跨宽窄保留草稿；Flutter610项通过。待真人桌面与移动触摸／返回体验验收，范围及门禁见[路线](roadmap/2026-11-09-chat-companion-workspace-roadmap.md)，不恢复草稿／生成历史旧入口 |
 | [中英文支持](roadmap/2026-11-06-multilingual-support-roadmap.md) | **L1–L6 工程完成，Goal 暂停**。2018 项资源及资源门禁已接通；L7 真实模型、桌面/Android 实机、多设备语言/owner 验收未完成，交付 C 未关闭。原文、协议及运行固定约束继续有效 |
 | [Prompt 入库与版本管理](notes/implemented/architecture/2026-11-05-prompt-database-and-budget.md) | 修订、CAS 激活/回滚、运行 bundle、核心处理接线已完成；待真人编辑/回滚/运行版本体验验收。两个诊断按钮默认隐藏，连续点击标题 10 次显示。多语言验收只在上行维护 |

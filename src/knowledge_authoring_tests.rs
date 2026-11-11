@@ -55,6 +55,9 @@ fn conversation_draft_reuses_verified_sources_and_remains_retrievable() {
         .any(|c| c.page_slug == saved.slug));
     // A later request to save the answer can inherit its real citations after restart.
     let answer = format!("先检查幂等，再重试。[[{}]]", raw.slug);
+    let (answer, cited) =
+        validate_answer_citations(&answer, &current_candidates(s, &hits).unwrap());
+    assert_eq!(cited.len(), 1, "普通页面链接也登记本轮真实依据");
     record_usage(
         s,
         "conversation",
@@ -63,7 +66,7 @@ fn conversation_draft_reuses_verified_sources_and_remains_retrievable() {
             crate::storage::knowledge::content_hash(&answer)
         ),
         &hits,
-        &hits,
+        &cited,
     )
     .unwrap();
     s.send_message(&conv, "assistant", &answer, None).unwrap();

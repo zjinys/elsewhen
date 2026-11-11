@@ -115,12 +115,16 @@ impl Tool for GetWikiPageTool {
         "get_wiki_page"
     }
     fn description(&self) -> &'static str {
-        "按 slug 读取知识页（长文返回限长片段），带来源状态。先用 list_wiki_pages 拿到 slug。"
+        "按已知 slug 读取知识页，返回全文或可继续读取的片段及来源状态。摘要不足以核对具体要求；长文按 next_offset 继续，携带 content_hash 核对版本。"
     }
     fn parameters_schema(&self) -> Value {
         json!({
             "type":"object",
-            "properties":{"slug":{"type":"string","description":"页面 slug，必填"}},
+            "properties":{
+                "slug":{"type":"string","description":"页面 slug，必填"},
+                "offset":{"type":"integer","minimum":0,"description":"正文字符偏移，默认0；继续读取用返回的next_offset"},
+                "content_hash":{"type":"string","description":"继续读取时必填，使用前一片段的content_hash，防止拼接不同版本"}
+            },
             "required":["slug"],
             "additionalProperties":false
         })
@@ -131,6 +135,34 @@ impl Tool for GetWikiPageTool {
             .store
             .get_wiki_page(&slug)?
             .context("没有找到该知识页")?;
+        let offset = match args.get("offset") {
+            None => 0,
+            Some(value) => value
+                .as_u64()
+                .and_then(|n| usize::try_from(n).ok())
+                .context("wiki_read_offset_invalid")?,
+        };
+        let hash = crate::storage::knowledge::content_hash(&page.content_md);
+        if offset > 0 || args.get("content_hash").is_some() {
+            anyhow::ensure!(
+                args.get("content_hash").and_then(Value::as_str) == Some(hash.as_str()),
+                "wiki_read_version_changed"
+            );
+        }
+        let total = page.content_md.chars().count();
+        anyhow::ensure!(offset <= total, "wiki_read_offset_invalid");
+        let excerpt = page
+            .content_md
+            .chars()
+            .skip(offset)
+            .take(2400)
+            .collect::<String>();
+        let end = offset + excerpt.chars().count();
+        let reading = json!({
+            "coverage":if offset == 0 && end == total { "full" } else { "excerpt" },
+            "start_char":offset,"end_char":end,"total_chars":total,
+            "next_offset":if end < total { Some(end) } else { None },"content_hash":hash
+        });
         let citation = crate::knowledge::citation_for_page_explicit(
             ctx.store,
             &page,
@@ -138,10 +170,16 @@ impl Tool for GetWikiPageTool {
             2400,
         )?;
         match citation {
-            Some(citation) => crate::knowledge::tool_context(&[citation]),
+            Some(mut citation) => {
+                citation.excerpt = excerpt;
+                Ok(
+                    json!({"knowledge_candidates":[citation],"knowledge_reading":{(slug):reading}})
+                        .to_string(),
+                )
+            }
             None => Ok(json!({"knowledge_candidates":[],"unverified_page":{
                 "slug":page.slug,"title":page.title,
-                "content_md":page.content_md.chars().take(2400).collect::<String>(),
+                "content_md":excerpt,"reading":reading,
                 "notice":"仅供读取与编辑；缺少有效来源、来源待复核或已被拒绝，不可作为正面证据。"
             }})
             .to_string()),
@@ -216,6 +254,7 @@ impl Tool for SearchKnowledgeBaseTool {
         let mut candidates =
             crate::knowledge::select::select_knowledge_variants(ctx.store, &queries, 4000)?;
         candidates.truncate(limit);
+        let warnings = crate::knowledge::negative::select_warnings(ctx.store, &queries, 1600)?;
         let mut events = Vec::new();
         let mut stmt = ctx.store.connection.prepare(
             "SELECT id,substr(raw_text,1,350) FROM events
@@ -231,7 +270,19 @@ impl Tool for SearchKnowledgeBaseTool {
                 events.push(json!({"event_id":id,"excerpt":text,"category":"用户记录"}));
             }
         }
-        Ok(json!({"knowledge_candidates":candidates,"events":events}).to_string())
+        let mut reading = serde_json::Map::new();
+        for candidate in &candidates {
+            if let Some(page) = ctx.store.get_wiki_page(&candidate.page_slug)? {
+                reading.insert(candidate.page_slug.clone(), json!({
+                    "coverage":if candidate.excerpt == page.content_md { "full" } else { "excerpt" },
+                    "total_chars":page.content_md.chars().count()
+                }));
+            }
+        }
+        Ok(
+            json!({"knowledge_candidates":candidates,"knowledge_reading":reading,"knowledge_warnings":warnings,"events":events})
+                .to_string(),
+        )
     }
 }
 

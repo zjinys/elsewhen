@@ -22,7 +22,7 @@ macro_rules! debug_eprintln {
     };
 }
 
-/// 把相关知识摘要包成可选背景段；无命中返回 None（不挂空没损失）。
+/// 把相关知识摘要／预算内短页全文包成可选背景段；无命中返回 None。
 /// 段在引用校验/usage 里与 search 结果一视同仁，因为沿用同一个
 /// 「知识选材：」识别前缀。
 pub(crate) fn relevant_knowledge_mount(

@@ -97,9 +97,11 @@
     }
   },
   "get_wiki_page": {
-    "description": "Read a knowledge page by slug, returning a bounded excerpt for long text and its source status. Use list_wiki_pages to find a slug first.",
+    "description": "Read a known page slug, returning complete text or a bounded excerpt; knowledge_reading gives coverage and next_offset. Read the relevant text before answering specific requirements, prohibitions or deliverables. Continue long pages with next_offset as offset and the previous content_hash; restart if the version changes.",
     "parameters": {
-      "/properties/slug/description": "Required page slug"
+      "/properties/slug/description": "Required page slug",
+      "/properties/offset/description": "Character offset, default 0; use the returned next_offset to continue reading",
+      "/properties/content_hash/description": "Required when continuing; use the previous content_hash to prevent mixing page versions"
     }
   },
   "import_directory_as_project": {
@@ -246,7 +248,7 @@
     }
   },
   "search_knowledge_base": {
-    "description": "Search verified knowledge using the question plus up to 3 alternate concept, synonym or translated queries in alternate_queries. Keep all queries about the same need. Retrieved pages are candidates: inspect applicability, negation and limits before answering. When initial wording misses, try meaningful alternate concepts; do not claim that a lexical match proves relevance.",
+    "description": "Search verified knowledge using the question plus up to 3 alternate concept, synonym or translated queries in alternate_queries. Keep all queries about the same need. Retrieved pages are candidates: inspect applicability, negation and limits before answering. When initial wording misses, try meaningful alternate concepts; do not claim that a lexical match proves relevance. Also returns separate knowledge_warnings about historical rejections, solely to compare past reasons with current conditions, never as positive evidence.",
     "parameters": {
       "/properties/limit/description": "Maximum returned results; default 5",
       "/properties/query/description": "Required search keywords",

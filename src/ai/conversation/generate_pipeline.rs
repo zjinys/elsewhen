@@ -215,7 +215,7 @@ pub(crate) fn generate_with_provider_configs(
 
     // 相关知识的确定性摘要挂载（2026-10-18/19 事故档案「投递侧不设防」
     // 结论的落地）：不赌模型自觉检索，也不回到 3.2k 整包预载——只挂
-    // 少量 AI 摘要（OptionalBackground，预算紧张时最先让路，且不会像
+    // 少量摘要／预算内短页全文（OptionalBackground，预算紧张时最先让路，且不会像
     // 工具结果那样变成顶包素材）。
     if let Some(mounted) = relevant_knowledge_mount(
         store,

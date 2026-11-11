@@ -422,13 +422,9 @@ pub(crate) fn context_text_for_run(
     context_text(candidates)
 }
 
-/// 依据当前用户问题自动挂载少量已核验知识的摘要段。
-/// 背景：2026-10 的速度优化硬掉了每轮知识预载（固定 3.2k tokens），把
-/// 「用不用知识」完全赌在模型的 search_knowledge_base 工具调用上；
-/// 2026-10-18/19 事故证明长对话里这正是知识投递断供的时刻。本函数
-/// 是折中重建：只挂 AI 摘要（不在整包正文），上限 3 页、总字符封顶；
-/// 沿用「知识选材：」JSON 前缀，引用校验与 usage 记录零改动。返回
-/// 空串表示没有命中，调用方不挂空段。
+/// Mount bounded discovery summaries, upgrading short pages to their complete
+/// text when the same budget permits. Summaries are explicitly labelled so they
+/// cannot be mistaken for a complete reading of the source's requirements.
 /// 返回 (挂载文本, 命中页 slug 列表)：列表供 knowledge_mounted 事件
 /// 与健康巡检统计投递面。
 pub fn summary_mount(
@@ -437,31 +433,56 @@ pub fn summary_mount(
     max_pages: usize,
 ) -> Result<(String, Vec<String>)> {
     const MOUNT_CHAR_LIMIT: usize = 3000;
+    const SHORT_PAGE_CHAR_LIMIT: usize = 1200;
+    let warnings = super::negative::select_warnings(store, &[query.to_owned()], 1200)?;
     let candidates = select_knowledge(store, query, "conversation", 2400)?;
     let mut slim = Vec::new();
+    let mut bodies = Vec::new();
+    let mut reading = serde_json::Map::new();
     for citation in candidates.into_iter().take(max_pages) {
         let Some(page) = store.get_wiki_page(&citation.page_slug)? else {
             continue;
         };
         let mut mounted = citation;
-        // current_candidates 只比对 content_hash/strength/applicable_when/
-        // event_ids/sources，不比对 excerpt：把千字级正文摘录换成 AI 摘要
-        // 是安全的，挂载体积从整包预载降一个量级。
         mounted.excerpt = mount_summary(&page.summary, &page.content_md);
+        if mounted.excerpt.trim().is_empty() {
+            continue;
+        }
+        reading.insert(
+            mounted.page_slug.clone(),
+            serde_json::json!({"coverage":"summary","total_chars":page.content_md.chars().count()}),
+        );
         slim.push(mounted);
+        bodies.push(page.content_md);
     }
-    while !slim.is_empty() && serde_json::to_string(&slim)?.chars().count() > MOUNT_CHAR_LIMIT {
-        slim.pop();
+    let envelope = |items: &[KnowledgeCitation],
+                    reading: &serde_json::Map<String, serde_json::Value>| {
+        serde_json::json!({"knowledge_candidates": items, "knowledge_reading": reading, "knowledge_warnings": warnings}).to_string()
+    };
+    while !slim.is_empty() && envelope(&slim, &reading).chars().count() > MOUNT_CHAR_LIMIT {
+        if let Some(removed) = slim.pop() {
+            reading.remove(&removed.page_slug);
+        }
+        bodies.pop();
     }
-    if slim.is_empty() {
+    if slim.is_empty() && warnings.is_empty() {
         return Ok((String::new(), Vec::new()));
     }
+    // Preserve the discovery set before spending spare space on full bodies.
+    // Do not truncate a full body to make it fit: it would conceal constraints.
+    for index in 0..slim.len() {
+        if bodies[index].chars().count() > SHORT_PAGE_CHAR_LIMIT {
+            continue;
+        }
+        let summary = std::mem::replace(&mut slim[index].excerpt, bodies[index].clone());
+        let slug = slim[index].page_slug.clone();
+        reading.get_mut(&slug).unwrap()["coverage"] = "full".into();
+        if envelope(&slim, &reading).chars().count() > MOUNT_CHAR_LIMIT {
+            slim[index].excerpt = summary;
+            reading.get_mut(&slug).unwrap()["coverage"] = "summary".into();
+        }
+    }
     let slugs = slim.iter().map(|c| c.page_slug.clone()).collect();
-    // 包装键与 tool_context 一致：candidates_in_context 只认
-    // {"knowledge_candidates":[...]} 形态。
-    let text = format!(
-        "知识选材：\n{}",
-        serde_json::to_string(&serde_json::json!({ "knowledge_candidates": slim }))?
-    );
+    let text = format!("知识选材：\n{}", envelope(&slim, &reading));
     Ok((text, slugs))
 }

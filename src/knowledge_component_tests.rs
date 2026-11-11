@@ -292,11 +292,8 @@ fn chat_revision_does_not_overwrite_edits_made_after_the_preview() {
     );
 }
 
-/// 2026-10-18/19 事故档案「投递侧不设防」结论的落地：相关知识自动
-/// 摘要挂载。挂载段沿用「知识选材：」识别前缀，excerpt 换成 AI 摘要
-/// （体积降一个量级），身份字段保真——引用校验与 usage 零改动。
 #[test]
-fn summary_mount_carries_ai_summary_with_verified_identity() {
+fn summary_mount_reads_complete_short_page_with_verified_identity() {
     let db = Db::new();
     let s = &db.store;
     let page = crate::wiki::save_text_page(
@@ -321,15 +318,10 @@ fn summary_mount_carries_ai_summary_with_verified_identity() {
         "slug 列表供 knowledge_mounted 事件"
     );
     assert!(mounted.starts_with("知识选材：\n"), "沿用引用校验识别前缀");
-    assert!(
-        mounted.contains("先校准再锁紧，最后通电自检"),
-        "excerpt 应是 AI 摘要而非正文摘录"
-    );
-    assert!(mounted.contains(&page.slug));
-    assert!(
-        !mounted.contains("分步锁紧螺栓"),
-        "挂载不带正文全文正文细节"
-    );
+    let value: serde_json::Value =
+        serde_json::from_str(mounted.strip_prefix("知识选材：\n").unwrap()).unwrap();
+    assert_eq!(value["knowledge_candidates"][0]["excerpt"], page.content_md);
+    assert_eq!(value["knowledge_reading"][&page.slug]["coverage"], "full");
 
     // 身份字段保真：挂载候选能通过 current_candidates 校验（否则答案里
     // 的 [[kb:slug]] 引用会被剥离）。
@@ -338,6 +330,107 @@ fn summary_mount_carries_ai_summary_with_verified_identity() {
     let current = current_candidates(s, &candidates).unwrap();
     assert_eq!(current.len(), 1, "挂载候选必须是校验通过的在册知识");
     assert_eq!(current[0].page_slug, page.slug);
+}
+
+#[test]
+fn summary_mount_labels_long_pages_and_preserves_the_total_budget() {
+    let db = Db::new();
+    let s = &db.store;
+    let body = format!(
+        "装配手册正文。{}结尾要求：不带手，不切镜头。",
+        "具体过程。".repeat(500)
+    );
+    let page = crate::wiki::save_text_page(&body, Some("长装配手册"), &[], s).unwrap();
+    s.connection
+        .execute(
+            "UPDATE wiki_pages SET summary=?1 WHERE id=?2",
+            rusqlite::params!["装配手册摘要，尚未列出所有要求。", page.id],
+        )
+        .unwrap();
+    let (mounted, slugs) = summary_mount(s, "长装配手册", 3).unwrap();
+    assert_eq!(slugs, vec![page.slug.clone()]);
+    let payload = mounted.strip_prefix("知识选材：\n").unwrap();
+    assert!(payload.chars().count() <= 3000);
+    let value: serde_json::Value = serde_json::from_str(payload).unwrap();
+    assert_eq!(
+        value["knowledge_reading"][&page.slug]["coverage"],
+        "summary"
+    );
+    assert_eq!(
+        value["knowledge_reading"][&page.slug]["total_chars"],
+        body.chars().count()
+    );
+    assert_eq!(
+        value["knowledge_candidates"][0]["excerpt"],
+        "装配手册摘要，尚未列出所有要求。"
+    );
+    assert!(!mounted.contains("不切镜头"));
+    assert_eq!(
+        current_candidates(
+            s,
+            &candidates_in_context(&[ContextMessage::new("system", mounted)])
+        )
+        .unwrap()
+        .len(),
+        1
+    );
+}
+
+#[test]
+fn plain_and_prefixed_wiki_links_share_current_evidence_validation() {
+    let db = Db::new();
+    let s = &db.store;
+    let page = source(s, "https://example.com/links", "SQLite 事务整体回滚。");
+    let candidates = select_knowledge(s, "SQLite 事务", "test", 4000).unwrap();
+    let answer = format!(
+        "结论 [[{}|说明]]，同页 [[kb:{}]]，导航 [[other-page|目录]]，伪引用 [[kb:other-page]]。",
+        page.slug, page.slug
+    );
+    let (rendered, cited) =
+        validate_answer_citations(&answer, &current_candidates(s, &candidates).unwrap());
+    assert_eq!(cited.len(), 1);
+    assert_eq!(cited[0].content_hash, candidates[0].content_hash);
+    assert!(rendered.contains(&format!("[[{}|说明]]", page.slug)));
+    assert!(rendered.contains("[[other-page|目录]]"));
+    assert!(!rendered.contains("[[kb:"));
+    source(s, "https://example.com/links", "SQLite 事务要求已修订。");
+    let (stale_rendered, cited) =
+        validate_answer_citations(&answer, &current_candidates(s, &candidates).unwrap());
+    assert!(cited.is_empty(), "过期链接可以导航，不能登记证据");
+    assert!(!stale_rendered.contains(&format!("[[{}]]", page.slug)));
+    assert!(stale_rendered.contains(&format!("[[{}|说明]]", page.slug)));
+}
+
+#[test]
+fn later_page_read_replaces_discovery_excerpt_and_old_revision() {
+    let db = Db::new();
+    let s = &db.store;
+    let page = source(s, "https://example.com/later-read", "SQLite 事务旧说明。");
+    let page = s.get_wiki_page(&page.slug).unwrap().unwrap();
+    let mut initial = citation_for_page(s, &page, "摘要".into(), 1000)
+        .unwrap()
+        .unwrap();
+    initial.excerpt = "发现摘要".into();
+    let updated = source(
+        s,
+        "https://example.com/later-read",
+        "SQLite 事务完整的新说明，包含结尾限制。",
+    );
+    let updated = s.get_wiki_page(&updated.slug).unwrap().unwrap();
+    let latest = citation_for_page(s, &updated, "完整读取".into(), 2400)
+        .unwrap()
+        .unwrap();
+    let context = vec![
+        ContextMessage::new("system", context_text(&[initial]).unwrap()),
+        ContextMessage::new("tool", tool_context(&[latest.clone()]).unwrap()),
+    ];
+    let found = candidates_in_context(&context);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].excerpt, latest.excerpt);
+    assert_eq!(
+        current_candidates(s, &found).unwrap()[0].content_hash,
+        latest.content_hash
+    );
 }
 
 /// 未命中知识时不挂空段；命中但零摘要时也不产出只有壳的挂载。

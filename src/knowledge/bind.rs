@@ -3,7 +3,7 @@
 use super::*;
 
 pub fn candidates_in_context(context: &[ContextMessage]) -> Vec<KnowledgeCitation> {
-    let mut found = Vec::new();
+    let mut found: Vec<KnowledgeCitation> = Vec::new();
     for message in context
         .iter()
         .filter(|m| m.role == "system" || m.role == "tool")
@@ -51,10 +51,13 @@ pub fn candidates_in_context(context: &[ContextMessage]) -> Vec<KnowledgeCitatio
                     if let Ok(items) = serde_json::from_value::<Vec<KnowledgeCitation>>(raw.clone())
                     {
                         for item in items {
-                            if !found
-                                .iter()
-                                .any(|c: &KnowledgeCitation| c.page_slug == item.page_slug)
+                            if let Some(previous) =
+                                found.iter_mut().find(|c| c.page_slug == item.page_slug)
                             {
+                                // A later explicit read can contain the complete page or a
+                                // newer revision than the initial discovery summary.
+                                *previous = item;
+                            } else {
                                 found.push(item);
                             }
                         }
@@ -124,7 +127,8 @@ pub fn bound_model_context(context: &mut [ContextMessage], max_chars: usize) -> 
 }
 
 /// Returns citations that the model actually emitted AND were supplied by the
-/// system. Unknown markers are removed, never displayed as verified citations.
+/// system. Both supported wiki-link spellings use the same allowlist. Unknown
+/// explicit citation markers are removed; ordinary navigation links stay links.
 pub fn validate_answer_citations(
     answer: &str,
     candidates: &[KnowledgeCitation],
@@ -132,15 +136,17 @@ pub fn validate_answer_citations(
     let mut rest = answer;
     let mut rendered = String::new();
     let mut cited = Vec::new();
-    while let Some(start) = rest.find("[[kb:") {
+    while let Some(start) = rest.find("[[") {
         rendered.push_str(&rest[..start]);
-        let tail = &rest[start + 5..];
+        let tail = &rest[start + 2..];
         let Some(end) = tail.find("]]") else {
             rendered.push_str(&rest[start..]);
             rest = "";
             break;
         };
-        let slug = &tail[..end];
+        let link = &tail[..end];
+        let target = link.strip_prefix("kb:").unwrap_or(link);
+        let slug = target.split('|').next().unwrap_or(target);
         if let Some(citation) = candidates.iter().find(|c| c.page_slug == slug) {
             if !cited
                 .iter()
@@ -148,7 +154,9 @@ pub fn validate_answer_citations(
             {
                 cited.push(citation.clone());
             }
-            rendered.push_str(&format!("[[{}]]", citation.page_slug));
+            rendered.push_str(&format!("[[{target}]]"));
+        } else if !link.starts_with("kb:") {
+            rendered.push_str(&rest[start..start + 2 + end + 2]);
         }
         rest = &tail[end + 2..];
     }

@@ -121,3 +121,101 @@ fn decide_source_requires_adopted_derivative_for_endorse_and_logs_negative_knowl
     );
     workflows::decide_source(s, &page2.slug, "endorse", "").unwrap_err();
 }
+
+#[test]
+fn negative_knowledge_is_delivered_alone_without_becoming_citable() {
+    let db = Db::new();
+    let s = &db.store;
+    let page = incubating_source(
+        s,
+        "https://example.com/rejected-budget",
+        "推广投放需要先确定客户群。",
+    );
+    workflows::decide_source(
+        s,
+        &page.slug,
+        "reject",
+        "预算不足，不适合当前客户群；条件变化后再评估。",
+    )
+    .unwrap();
+    let (text, slugs) = summary_mount(s, "推广投放", 3).unwrap();
+    assert!(!text.is_empty(), "没有正面命中也能提供历史提醒");
+    assert!(slugs.is_empty());
+    let value: serde_json::Value =
+        serde_json::from_str(text.strip_prefix("知识选材：\n").unwrap()).unwrap();
+    assert!(value["knowledge_candidates"].as_array().unwrap().is_empty());
+    assert_eq!(value["knowledge_warnings"][0]["page_slug"], page.slug);
+    assert!(
+        value["knowledge_warnings"][0]["rejection_reason"]
+            .as_str()
+            .unwrap()
+            .contains("预算不足")
+    );
+    assert_eq!(
+        value["knowledge_warnings"][0]["usage"],
+        "historical_rejection_only"
+    );
+    let candidates = candidates_in_context(&[ContextMessage::new("system", text)]);
+    assert!(candidates.is_empty());
+    let (_, cited) = validate_answer_citations(
+        &format!("曾被排除 [[{}]] [[kb:{}]]", page.slug, page.slug),
+        &candidates,
+    );
+    assert!(cited.is_empty(), "不能继承为正面草稿依据");
+    assert!(summary_mount(s, "天文望远镜光学", 3).unwrap().0.is_empty());
+}
+
+#[test]
+fn negative_knowledge_requires_a_recorded_rejection_and_keeps_budget() {
+    let db = Db::new();
+    let s = &db.store;
+    let pending = incubating_source(s, "https://example.com/pending", "推广投放");
+    let archived = source(s, "https://example.com/archived", "推广投放");
+    s.connection
+        .execute(
+            "UPDATE wiki_pages SET status='archived' WHERE id=?1",
+            [&archived.id],
+        )
+        .unwrap();
+    let accepted = source(s, "https://example.com/accepted", "推广投放");
+    assert!(
+        negative::select_warnings(s, &["推广投放".into()], 1600)
+            .unwrap()
+            .is_empty()
+    );
+    let mut rejected = vec![];
+    for i in 0..5 {
+        let p = incubating_source(s, &format!("https://example.com/negative-{i}"), "推广投放");
+        workflows::decide_source(
+            s,
+            &p.slug,
+            "reject",
+            &format!("推广投放预算条件：{}", "暂不适合。".repeat(200)),
+        )
+        .unwrap();
+        rejected.push(p);
+    }
+    let warnings = negative::select_warnings(s, &["推广投放".into()], 1600).unwrap();
+    assert!(!warnings.is_empty());
+    assert!(warnings.len() <= 3);
+    assert!(serde_json::to_string(&warnings).unwrap().chars().count() <= 1600);
+    for w in &warnings {
+        assert_eq!(w["reason_truncated"], true);
+        assert!(rejected.iter().any(|p| w["page_slug"] == p.slug));
+        assert_ne!(w["page_slug"], pending.slug);
+        assert_ne!(w["page_slug"], accepted.slug);
+        assert_ne!(w["page_slug"], archived.slug);
+    }
+    s.connection
+        .execute(
+            "UPDATE knowledge_sources SET reject_reason=NULL WHERE opinion='reject'",
+            [],
+        )
+        .unwrap();
+    assert!(
+        negative::select_warnings(s, &["推广投放".into()], 1600)
+            .unwrap()
+            .is_empty(),
+        "不猜历史缺失原因"
+    );
+}

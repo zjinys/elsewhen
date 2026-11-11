@@ -79,6 +79,88 @@ impl Drop for Fixture {
 }
 
 #[test]
+fn wiki_support_long_page_reading_reaches_tail_without_mixing_versions() {
+    let f = Fixture::new();
+    let body = format!("{}结尾要求：不带手，不切镜头。", "编织🧵过程。".repeat(850));
+    let page = f.page("method/long-embroidery", "编织视频要求", &body);
+    let hash = crate::storage::knowledge::content_hash(&body);
+    let mut offset = 0;
+    let mut collected = String::new();
+    loop {
+        let mut args = json!({"slug":page.slug,"offset":offset});
+        if offset > 0 {
+            args["content_hash"] = hash.clone().into();
+        }
+        let result = f.call("get_wiki_page", args);
+        assert!(result.success, "{}", result.content);
+        let value: Value = serde_json::from_str(&result.content).unwrap();
+        let read = &value["knowledge_reading"][&page.slug];
+        assert_eq!(read["coverage"], "excerpt");
+        assert_eq!(read["start_char"], offset);
+        assert_eq!(read["total_chars"], body.chars().count());
+        assert_eq!(read["content_hash"], hash);
+        let text = value["knowledge_candidates"][0]["excerpt"]
+            .as_str()
+            .unwrap();
+        assert!(text.chars().count() <= 2400);
+        assert_eq!(read["end_char"], offset + text.chars().count());
+        collected.push_str(text);
+        let Some(next) = read["next_offset"].as_u64() else {
+            break;
+        };
+        assert!(next > offset as u64);
+        offset = next as usize;
+    }
+    assert_eq!(collected, body);
+    assert!(collected.ends_with("不切镜头。"));
+    for args in [
+        json!({"slug":page.slug,"offset":-1}),
+        json!({"slug":page.slug,"offset":2400}),
+        json!({"slug":page.slug,"offset":body.chars().count()+1,"content_hash":hash}),
+    ] {
+        assert!(!f.call("get_wiki_page", args).success);
+    }
+    f.store
+        .save_wiki_page_content(&page.slug, "新版本，不可与旧文拼接。", "manual", None)
+        .unwrap();
+    let stale = f.call(
+        "get_wiki_page",
+        json!({"slug":page.slug,"offset":2400,"content_hash":hash}),
+    );
+    assert!(!stale.success);
+    assert!(stale.content.contains("wiki_read_version_changed"));
+}
+
+#[test]
+fn wiki_support_reading_coverage_keeps_unverified_material_unattributed() {
+    let f = Fixture::new();
+    let page = f.page(
+        "method/short-embroidery",
+        "编织要求",
+        "不带手，不切镜头；未限定针。",
+    );
+    let result = f.call("get_wiki_page", json!({"slug":page.slug}));
+    assert!(result.success, "{}", result.content);
+    let value: Value = serde_json::from_str(&result.content).unwrap();
+    assert_eq!(value["knowledge_reading"][&page.slug]["coverage"], "full");
+    assert!(value["knowledge_reading"][&page.slug]["next_offset"].is_null());
+    assert_eq!(value["knowledge_candidates"][0]["excerpt"], page.content_md);
+    f.store
+        .connection
+        .execute(
+            "UPDATE wiki_pages SET status='archived' WHERE id=?1",
+            [&page.id],
+        )
+        .unwrap();
+    let result = f.call("get_wiki_page", json!({"slug":page.slug}));
+    assert!(result.success, "{}", result.content);
+    let value: Value = serde_json::from_str(&result.content).unwrap();
+    assert!(value["knowledge_candidates"].as_array().unwrap().is_empty());
+    assert_eq!(value["unverified_page"]["content_md"], page.content_md);
+    assert_eq!(value["unverified_page"]["reading"]["coverage"], "full");
+}
+
+#[test]
 fn wiki_support_paraphrases_fuse_without_duplicates_and_keep_eligibility() {
     let f = Fixture::new();
     let page = f.page(
@@ -474,5 +556,60 @@ fn wiki_support_source_snapshot_is_bound_and_old_snapshot_cannot_be_accepted() {
             .unwrap()
             .source_event_ids
             .contains(&target.source_event_ids[0])
+    );
+}
+
+#[test]
+fn wiki_support_search_delivers_rejections_via_paraphrases_separately() {
+    let f = Fixture::new();
+    let page = f
+        .store
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                slug: "source/rejected-marketing".into(),
+                title: "旧推广方案".into(),
+                content_md: "推广投放面向大型客户。".into(),
+                summary: "推广投放".into(),
+                kind: "source".into(),
+                tags: vec![],
+                source_event_ids: vec![],
+                source_url: Some("https://example.com/rejected-marketing".into()),
+                status: "active".into(),
+                reason: "fixture".into(),
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap()
+        .page;
+    crate::knowledge::workflows::decide_source(
+        &f.store,
+        &page.slug,
+        "reject",
+        "当前预算不足，不适合小店客户群。",
+    )
+    .unwrap();
+    let result = f.call(
+        "search_knowledge_base",
+        json!({"query":"acquisition experiments", "alternate_queries":["推广投放"]}),
+    );
+    assert!(result.success, "{}", result.content);
+    let value: Value = serde_json::from_str(&result.content).unwrap();
+    assert!(value["knowledge_candidates"].as_array().unwrap().is_empty());
+    assert_eq!(value["knowledge_warnings"].as_array().unwrap().len(), 1);
+    assert_eq!(value["knowledge_warnings"][0]["page_slug"], page.slug);
+    assert_eq!(
+        value["knowledge_warnings"][0]["rejection_reason"],
+        "当前预算不足，不适合小店客户群。"
+    );
+    assert!(
+        crate::knowledge::candidates_in_context(&[crate::ai::memory::ContextMessage::new(
+            "tool",
+            result.content
+        )])
+        .is_empty()
+    );
+    assert_eq!(
+        f.store.get_wiki_page(&page.slug).unwrap().unwrap().status,
+        "archived"
     );
 }

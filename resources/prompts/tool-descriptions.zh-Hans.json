@@ -97,9 +97,11 @@
     }
   },
   "get_wiki_page": {
-    "description": "按 slug 读取知识页（长文返回限长片段），带来源状态。先用 list_wiki_pages 拿到 slug。",
+    "description": "按已知 slug 读取知识页，返回全文或有界片段，knowledge_reading 标明范围与 next_offset。核对具体要求、禁止项或交付清单时不要只凭摘要；长文继续读取需同时提供 next_offset 为 offset 和前次 content_hash，版本变化应从头重读。",
     "parameters": {
-      "/properties/slug/description": "页面 slug，必填"
+      "/properties/slug/description": "页面 slug，必填",
+      "/properties/offset/description": "正文字符偏移，默认0；继续读取用返回的next_offset",
+      "/properties/content_hash/description": "继续读取时必填，使用前一片段的content_hash，防止拼接不同版本"
     }
   },
   "import_directory_as_project": {
@@ -246,7 +248,7 @@
     }
   },
   "search_knowledge_base": {
-    "description": "检索已核验知识：query为原问题关键词，alternate_queries可提供最多3种同义、概念或跨语言改写，保持同一需求，一次融合返回。初次未命中时换有意义的概念检索。结果只是候选，回答前核对适用条件、否定和局限，不把词面命中当成语义相关。",
+    "description": "检索已核验知识：query为原问题关键词，alternate_queries可提供最多3种同义、概念或跨语言改写，保持同一需求，一次融合返回。初次未命中时换有意义的概念检索。结果只是候选，回答前核对适用条件、否定和局限，不把词面命中当成语义相关。 同时返回独立的knowledge_warnings历史否定记录，仅用于核对当时原因与当前条件，不作为正面依据。",
     "parameters": {
       "/properties/limit/description": "最多返回条数，默认 5",
       "/properties/query/description": "搜索关键词，必填",
