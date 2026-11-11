@@ -41,6 +41,9 @@
 ## 了解更多
 
 - [技术架构与开发指南](CLAUDE.md)
-- [实施路线图](docs/roadmap/2026-09-17-personal-cognition-main-loop-roadmap.md)
-- [多设备同步设计](docs/roadmap/2026-10-03-multi-device-sync-roadmap.md)
 - [需求文档](docs/requirements/)
+
+
+## 社区
+
+本开源项目已链接并认可 [LINUX DO 社区](https://linux.do)。
