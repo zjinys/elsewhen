@@ -42,6 +42,15 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      # 版本一致性守卫：tag 必须与 pubspec 一致，防止某平台包版本漂移
+      # （v0.7.0 曾因 PKGBUILD 硬编码 pkgver 发出 0.5.1 的 pacman 包）。
+      - name: 版本一致性守卫（tag vs pubspec）
+        run: |
+          set -e
+          tag_ver="${GITHUB_REF_NAME#v}"
+          pub_ver=$(sed -n 's/^version: \([0-9.]*\).*/\1/p' ui/pubspec.yaml)
+          [ "$tag_ver" = "$pub_ver" ] || {
+            echo "tag=$tag_ver 与 ui/pubspec.yaml=$pub_ver 不一致，请先对齐版本号"; exit 1; }
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: subosito/flutter-action@v2
@@ -110,6 +119,13 @@ jobs:
           path: bundle-artifacts
       - name: 安装运行时依赖（pacman 库同步 + gtk3/libsecret）
         run: pacman -Sy --noconfirm gtk3 libsecret libayatana-appindicator libayatana-indicator ayatana-ido
+      # PKGBUILD 的 pkgver 只服务本地 makepkg；发版一律以 tag 为准，
+      # 避免源文件忘改版本号时再发出错版本的包（v0.7.0 曾发出 0.5.1）。
+      - name: PKGBUILD pkgver 同步自 tag
+        run: |
+          set -e
+          pkgver="${GITHUB_REF_NAME#v}"
+          sed -i "s/^pkgver=.*/pkgver=${pkgver}/" packaging/linux/PKGBUILD
       - name: 还原 bundle 到 PKGBUILD 预期路径
         run: |
           set -e
