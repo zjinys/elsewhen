@@ -2,8 +2,9 @@
 //!
 //! 纪律：
 //! - 候选登记（pending）在本机库内排队：仅 insight（带行动建议）/ 新成立的
-//!   habit 页 / 识别出的 recurring_cost 页入池；同一页面终身最多浮现 1 次；
-//! - 每日最多浮现 1 条（本地自然日），07:00–22:00 之外静默、候选保留；
+//!   habit 页 / 识别出的 recurring_cost 页入池；同一页面终身最多浮现 1 次，
+//!   换措辞同主题的洞察由生成侧主题级去重拦截（knowledge_background）；
+//! - 不限每日条数：07:00–22:00 内有候选即按最老优先浮现，噪音由去重控制；
 //! - 仅 owner 主设备插入消息；副设备经同步收到 `digest_insight` 消息后直接
 //!   展示，不重复写；动作产物（规则/待办）作为一等公民各自同步；
 //! - 本表对齐 `habit_nudge_fires` 的「本机台账」定位：不进快照、不参与同步；
@@ -223,7 +224,8 @@ impl Store {
             .map_err(Into::into)
     }
 
-    /// 5s tick 调用：过期超时卡片，然后至多把一条候选浮现进主对话。
+    /// 5s tick 调用：过期超时卡片，然后把排队的候选按最老优先浮现进主对话
+    ///（不限每日条数，静默窗/owner 判定仍然生效）。
     pub fn tick_digest_insights(&self) -> Result<Vec<String>> {
         self.tick_digest_insights_at(Local::now())
     }
@@ -244,15 +246,6 @@ impl Store {
             return Ok(Vec::new());
         };
         let date = local_date(now);
-        // 全局每日最多 1 条（含已动作/已忽略/已过期的当天卡片）。
-        let surfaced_today: i64 = self.connection.query_row(
-            "SELECT COUNT(*) FROM digest_insight_surfacings WHERE surfaced_date=?1",
-            [&date],
-            |row| row.get(0),
-        )?;
-        if surfaced_today >= 1 {
-            return Ok(Vec::new());
-        }
         let next: Option<String> = self
             .connection
             .query_row(

@@ -1,5 +1,6 @@
-//! 知识库洞见浮现：候选登记、频控 tick、四重闭环动作（提案
-//! 2026-11-05-surfacing-digest-insights §3–§5）。
+//! 知识库洞见浮现：候选登记、排队 tick（静默窗/owner/过期）、四重闭环动作
+//! （提案 2026-11-05-surfacing-digest-insights §3–§5；2026-11-11 取消每日
+//! 1 条限额，见 implemented/bug-fix/2026-11-11 主题级去重笔记）。
 
 use super::*;
 use crate::sync::membership::RosterAnchor;
@@ -91,7 +92,7 @@ fn register_walk_candidate(store: &Store) {
 }
 
 #[test]
-fn candidate_registers_once_per_page_and_surfaces_one_card_per_day() {
+fn candidate_registers_once_per_page_and_queued_candidates_surface_immediately() {
     let (path, store) = insight_store();
     register_walk_candidate(&store);
     // 终身一次：同页重复登记直接跳过（换标题/来源也不行）。
@@ -147,7 +148,7 @@ fn candidate_registers_once_per_page_and_surfaces_one_card_per_day() {
     assert_eq!(parsed.2.as_deref(), Some("散步后直接做 5 分钟拉伸"));
     assert_eq!(parsed.3, "habit/walk");
 
-    // 当日额度已用：第二个候选排队但不再浮现。
+    // 不限每日条数：同日登记的第二个候选也在下一个 tick 立即浮现。
     entity_page(&store, "insight/other", "insight", "其它洞察");
     assert!(
         store
@@ -161,23 +162,28 @@ fn candidate_registers_once_per_page_and_surfaces_one_card_per_day() {
             )
             .unwrap()
     );
-    assert!(
-        store.tick_digest_insights_at(at(11, 0)).unwrap().is_empty(),
-        "当日已浮现 1 条，不再插入"
+    let second_ids = store.tick_digest_insights_at(at(11, 0)).unwrap();
+    assert_eq!(
+        second_ids.len(),
+        1,
+        "排队候选应立即浮现，不再受每日 1 条限额"
     );
-    let statuses: Vec<String> = store
-        .list_digest_insight_surfacings()
-        .unwrap()
-        .into_iter()
-        .map(|row| row.status)
-        .collect();
-    assert!(statuses.contains(&"pending".to_string()));
+    assert_ne!(second_ids[0], ids[0]);
+    let surfaced_count: i64 = store
+        .connection
+        .query_row(
+            "SELECT COUNT(*) FROM digest_insight_surfacings WHERE status='surfaced'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(surfaced_count, 2);
 
     let _ = std::fs::remove_file(path);
 }
 
 #[test]
-fn quiet_hours_hold_candidates_and_quota_resets_next_day() {
+fn quiet_hours_hold_candidates_and_queue_surfaces_when_window_opens() {
     let (path, store) = insight_store();
     register_walk_candidate(&store);
     assert!(
@@ -206,17 +212,17 @@ fn quiet_hours_hold_candidates_and_quota_resets_next_day() {
             )
             .unwrap()
     );
-    assert!(
-        store.tick_digest_insights_at(at(12, 0)).unwrap().is_empty(),
-        "当日已有卡片，不再浮现"
-    );
     assert_eq!(
+        store.tick_digest_insights_at(at(12, 0)).unwrap().len(),
+        1,
+        "静默窗内排队：窗口一开即浮现，不限当日已浮现条数"
+    );
+    assert!(
         store
             .tick_digest_insights_at(at_day(1, 9, 0))
             .unwrap()
-            .len(),
-        1,
-        "次日恢复浮现"
+            .is_empty(),
+        "队列已清空，次日无新候选则不再浮现"
     );
     let rows = store.list_digest_insight_surfacings().unwrap();
     let second = rows
@@ -225,7 +231,7 @@ fn quiet_hours_hold_candidates_and_quota_resets_next_day() {
         .unwrap();
     assert_eq!(
         second.surfaced_date.as_deref(),
-        Some(at_day(1, 9, 0).format("%Y-%m-%d").to_string().as_str())
+        Some(at(12, 0).format("%Y-%m-%d").to_string().as_str())
     );
 
     let _ = std::fs::remove_file(path);

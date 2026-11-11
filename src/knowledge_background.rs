@@ -168,11 +168,14 @@ fn generate(
     let _scope = store.prompt_scope("background_task", &format!("insight:{run_id}"))?;
     store.bind_background_prompt_bundle(run_id)?;
     let candidates = select_knowledge(store, input, "insight", 5000)?;
-    let past = store
-        .list_insights()?
-        .into_iter()
-        .take(20)
-        .map(|i| i.title)
+    let history = store.list_insights()?;
+    // 提示词只挂最近 20 条既有标题约束生成；去重窗口放宽到 300 条——
+    // 换措辞复述同一主题的洞察完全可能落在 20 条之外。
+    let past = history.iter().take(20).map(|i| i.title.clone()).collect::<Vec<_>>();
+    let mut seen_titles = history
+        .iter()
+        .take(300)
+        .map(|i| i.title.clone())
         .collect::<Vec<_>>();
     // 罗盘衔接（D4）：把近期事件分析给出的指导要点作为素材挂进洞察窗口；
     // 只挂接不重写——insight 生成路径本身不变，空段整体省略。
@@ -239,7 +242,12 @@ fn generate(
     }
     let mut count = 0;
     for insight in insights {
-        if past.contains(&insight.title) {
+        // 主题级去重：精确匹配 + 换措辞同主题（含本批刚写入的）一律跳过，
+        // 不建页也不入池——这是「每天启动都弹同主题卡片」的根因堵点。
+        if seen_titles
+            .iter()
+            .any(|t| duplicate_insight_title(t, &insight.title))
+        {
             continue;
         }
         let used = candidates
@@ -327,6 +335,7 @@ fn generate(
                 None,
             )?;
         }
+        seen_titles.push(insight.title.clone());
         count += 1;
     }
     store.append_wiki_log(&format!("后台认知洞察 {run_id}：{count} 条"))?;
@@ -334,4 +343,55 @@ fn generate(
         params![chrono::Utc::now().to_rfc3339(),count,run_id])?;
     tx.commit()?;
     Ok(count)
+}
+
+/// 主题级去重：模型每天会换措辞复述同一主题，标题逐字不同但意思相同，
+/// 精确匹配拦不住。标题归一化（仅字母数字、小写）后取二元组（bigram）
+/// Jaccard 相似度，≥0.45 判为同一主题。
+///
+/// 阈值用 2026-11 本地全量 47 条洞察校准：唯一真重复对（闲置AI算力→跨
+/// 平台内容生成服务，两次生成措辞不同）0.52，其余不同主题对全部 <0.2。
+/// 观察正文不参与比对——实测真重复对的观察相似度仅 0.04，比标题噪声大。
+fn duplicate_insight_title(existing: &str, candidate: &str) -> bool {
+    fn normalized(text: &str) -> String {
+        text.chars()
+            .filter(|c| c.is_alphanumeric())
+            .flat_map(char::to_lowercase)
+            .collect()
+    }
+    fn bigrams(text: &str) -> std::collections::HashSet<String> {
+        let text = normalized(text);
+        let chars: Vec<_> = text.chars().collect();
+        if chars.len() < 2 {
+            return std::iter::once(text).collect();
+        }
+        chars.windows(2).map(|w| w.iter().collect()).collect()
+    }
+    let (a, b) = (bigrams(existing), bigrams(candidate));
+    let overlap = a.intersection(&b).count();
+    let union = a.union(&b).count().max(1);
+    overlap as f64 / union as f64 >= 0.45
+}
+
+#[cfg(test)]
+mod insight_dedup_tests {
+    use super::duplicate_insight_title;
+
+    #[test]
+    fn reworded_same_theme_is_caught_but_distinct_themes_pass() {
+        // 真实重复对：两次生成换措辞复述同一主题（2026-11 实测相似度 0.52）。
+        assert!(duplicate_insight_title(
+            "闲置AI算力转化为跨平台内容生成服务",
+            "将闲置AI算力包装为跨平台内容生成服务提升发布收益"
+        ));
+        // 不同主题必须放行（实测分布 <0.2）。
+        assert!(!duplicate_insight_title(
+            "闲置AI算力转化为跨平台内容生成服务",
+            "竞品出现只证明品类被展示，不等于付费需求成立"
+        ));
+        assert!(!duplicate_insight_title(
+            "深度AI实操内容的互动效率高于浅教程",
+            "技术写作Skill附带网盘精选资料作为拉新承接"
+        ));
+    }
 }
