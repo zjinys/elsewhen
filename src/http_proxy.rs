@@ -67,11 +67,11 @@ pub(crate) fn with_outbound_proxy(
     }
     if mode == "custom" && !custom_url.is_empty() {
         if let Ok(proxy) = reqwest::Proxy::all(&custom_url) {
-            return builder.proxy(proxy);
+            return builder.proxy(with_local_bypass(proxy));
         }
     }
     match env_proxy() {
-        Some(proxy) => builder.proxy(with_loopback_bypass(proxy)),
+        Some(proxy) => builder.proxy(with_local_bypass(proxy)),
         // auto 但无白名单变量：显式关掉默认探测（http_proxy 不算）。
         None => builder.no_proxy(),
     }
@@ -87,11 +87,11 @@ pub(crate) fn with_outbound_proxy_async(builder: reqwest::ClientBuilder) -> reqw
     }
     if mode == "custom" && !custom_url.is_empty() {
         if let Ok(proxy) = reqwest::Proxy::all(&custom_url) {
-            return builder.proxy(proxy);
+            return builder.proxy(with_local_bypass(proxy));
         }
     }
     match env_proxy() {
-        Some(proxy) => builder.proxy(with_loopback_bypass(proxy)),
+        Some(proxy) => builder.proxy(with_local_bypass(proxy)),
         None => builder.no_proxy(),
     }
 }
@@ -123,10 +123,18 @@ fn env_proxy() -> Option<reqwest::Proxy> {
     None
 }
 
-/// 回环豁免：127.0.0.1/localhost/::1 永远直连。本地 FakeRelay（测试）、
-/// 本机 Ollama、relay 调试都不该被送进代理。
-fn with_loopback_bypass(proxy: reqwest::Proxy) -> reqwest::Proxy {
-    proxy.no_proxy(reqwest::NoProxy::from_string("localhost,127.0.0.1,::1"))
+/// 本地/内网豁免表（loopback + RFC1918 + link-local + IPv6 本地 + mDNS）。
+/// 出站代理只服务公网（AI provider 等）；发往局域网的服务——尤其是
+/// 自建同步 relay（如 http://192.168.101.116:8787）——必须直连：远端
+/// 代理节点摸不到用户局域网，走代理等于全部 transport 失败（v0.7.2
+/// 时期事故：custom 代理把同步推信全吞，Android 永远「等待成员授权」）。
+/// reqwest 的 NoProxy 支持 IP 与 CIDR 匹配。
+const LOCAL_NO_PROXY: &str = "localhost,127.0.0.1,::1,\
+    10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16,\
+    fe80::/10,fc00::/7,fd00::/8,.local";
+
+fn with_local_bypass(proxy: reqwest::Proxy) -> reqwest::Proxy {
+    proxy.no_proxy(reqwest::NoProxy::from_string(LOCAL_NO_PROXY))
 }
 
 #[cfg(test)]
@@ -213,5 +221,37 @@ mod proxy_policy_tests {
         unsafe { std::env::set_var("HTTPS_PROXY", "http://127.0.0.1:7890") };
         let _ = with_outbound_proxy_async(reqwest::Client::builder());
         unsafe { std::env::remove_var("HTTPS_PROXY") };
+    }
+
+    /// custom 代理必须放行回环地址（行为实证）：起本地 mock server，
+    /// custom 指向一个必死的代理端口——回环请求若被送进代理就会失败，
+    /// 直连则命中 mock。这是 v0.7.2 同步全灭事故的回归测试。
+    #[test]
+    fn custom_proxy_still_reaches_loopback_directly() {
+        use std::io::{Read as _, Write as _};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buf = [0u8; 1024];
+            let _ = stream.read(&mut buf);
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\nok")
+                .unwrap();
+        });
+        let _guard = crate::config::test_env_guard();
+        apply_policy("custom", "http://127.0.0.1:9"); // discard 端口，必死
+        let client = with_outbound_proxy(reqwest::blocking::Client::builder())
+            .build()
+            .unwrap();
+        let body = client
+            .get(format!("http://{addr}/"))
+            .send()
+            .expect("回环请求必须直连命中 mock，而不是死代理")
+            .text()
+            .unwrap();
+        assert_eq!(body, "ok");
+        server.join().unwrap();
+        apply_policy("auto", "");
     }
 }
