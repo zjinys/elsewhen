@@ -120,7 +120,12 @@ class SyncNavSummary extends StatelessWidget {
         }
         final roster = snapshot.data!;
         final members = roster.members;
-        final online = members.where((m) => m.active).length;
+        // 「设备 x/y 在线」的分母只数活跃成员：名册里保留的已撤销行是
+        // 给 owner 审计用的，不是当前设备群——解绑后这里若仍按 members
+        // 全量计数，数字永远不降，看起来像解绑没生效。
+        final activeMembers = members.where((m) => m.active).toList();
+        final online = activeMembers.length;
+        final revoked = members.length - activeMembers.length;
         final local = members.where((m) => m.isLocal).toList();
         final localName = local.isEmpty
             ? context.l10n.l6ThisDevice8b4c1
@@ -151,8 +156,13 @@ class SyncNavSummary extends StatelessWidget {
                 icon: Icons.devices_outlined,
                 text: context.l10n.l6DevicesOnlineArg0Arg1c5eda(
                   (online).toString(),
-                  (members.length).toString(),
+                  (activeMembers.length).toString(),
                 ),
+                // 名册里保留的已撤销行是审计用的，不算在册数；有撤销时
+                // 用 badge 提示，数字才不会在解绑后纹丝不动。
+                badge: revoked > 0
+                    ? '${context.l10n.l6Revoked61063} $revoked'
+                    : null,
               ),
               ValueListenableBuilder<api.SyncTickResultDto?>(
                 valueListenable: bridge.lastSyncTick,
