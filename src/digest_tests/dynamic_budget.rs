@@ -39,7 +39,6 @@ fn provider(
         meter: OpenAiCompatibleProvider::new(OpenAiCompatibleConfig {
             model: "unknown-byte-budget-model".into(),
             context_window: Some(window),
-            max_tokens: Some(1024),
             base_url: "http://127.0.0.1:1/v1".into(),
             api_key: "synthetic".into(),
             ..Default::default()
@@ -62,7 +61,7 @@ fn digest_candidate_budget_splits_without_truncation_or_charging_unsubmitted_job
     make_ready(&t.store);
     let seen = Arc::new(Mutex::new(Vec::new()));
     // One full ~3.6KB event fits; two do not.
-    let metered = provider(7000, false, seen.clone());
+    let metered = provider(24192, false, seen.clone());
     let tick = process_digest_queue(&t.store, &metered, None).unwrap();
     assert!(
         matches!(tick, DigestTick::Processed { events: 1, .. }),
@@ -142,12 +141,12 @@ fn digest_failover_rebuilds_for_smaller_window_and_retains_unprocessed_sources()
         FailoverEntry::new(
             "dynamic-budget-big",
             "big",
-            Box::new(provider(32000, true, big.clone())),
+            Box::new(provider(40192, true, big.clone())),
         ),
         FailoverEntry::new(
             "dynamic-budget-small",
             "small",
-            Box::new(provider(7000, false, small.clone())),
+            Box::new(provider(24192, false, small.clone())),
         ),
     ]);
     let tick = process_digest_queue(&t.store, &chain, None).unwrap();
@@ -181,7 +180,7 @@ fn digest_oversized_single_event_never_calls_network_or_confirms_partial_input()
     let id = record(&t.store, &original);
     make_ready(&t.store);
     let seen = Arc::new(Mutex::new(Vec::new()));
-    let metered = provider(7000, false, seen.clone());
+    let metered = provider(24192, false, seen.clone());
     let tick = process_digest_queue(&t.store, &metered, None).unwrap();
     assert!(
         matches!(&tick,DigestTick::Reading{state,..} if state=="preparing"),
@@ -213,7 +212,7 @@ fn digest_failed_prepared_prefix_refunds_unsubmitted_tail() {
     make_ready(&t.store);
     let seen = Arc::new(Mutex::new(vec![]));
     assert!(matches!(
-        process_digest_queue(&t.store, &provider(7000, true, seen.clone()), None).unwrap(),
+        process_digest_queue(&t.store, &provider(24192, true, seen.clone()), None).unwrap(),
         DigestTick::Failed { events: 1, .. }
     ));
     assert_eq!(seen.lock().unwrap().len(), 1);

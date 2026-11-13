@@ -302,7 +302,7 @@ fn multiple_long_events_rotate_and_configuration_failure_leaves_short_work_eligi
     );
     let seen = Arc::new(Mutex::new(vec![]));
     assert!(
-        matches!(process_digest_queue(&f.store,&meter(1800,1024,"ok",seen.clone()),None).unwrap(),DigestTick::Reading{ref state,..} if state=="failed")
+        matches!(process_digest_queue(&f.store,&meter(12192,"ok",seen.clone()),None).unwrap(),DigestTick::Reading{ref state,..} if state=="failed")
     );
     assert!(seen.lock().unwrap().is_empty());
     let short = f

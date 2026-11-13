@@ -344,7 +344,9 @@ fn followup_full_request_reaches_http_provider_after_memory_compression() {
             "default",
             "openai-compatible",
             &format!("http://{}/v1", listener.local_addr().unwrap()),
-            "fixture",
+            // deepseek 系：default_window 65536 / default_output 8192，
+            // 保证固定指令 + 原始请求 + 工具 schema 仍在预算内。
+            "deepseek-flash",
             "test-key",
             0.7,
             Some(512),

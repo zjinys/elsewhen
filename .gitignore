@@ -68,3 +68,4 @@ ui/linux/flutter/ephemeral/
 
 # 自建中继镜像导出物（二进制，不入库）
 relay/*.tar.gz
+dist-pacman-fix/

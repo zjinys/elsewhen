@@ -183,14 +183,12 @@ pub fn digest_provider(store: &Store) -> Result<Option<(Box<dyn AiProvider>, Str
             let provider = OpenAiCompatibleProvider::new(OpenAiCompatibleConfig {
                 base_url: config.base_url,
                 api_key: config.api_key,
-                model: config.model,
+                model: config.model.clone(),
                 temperature: 0.3,
-                // 知识整理允许 5000 字正文；固定 3000 会在 reasoning 或
-                // 长 JSON 上把输出截断。尊重用户配置，未配置时给 8192。
-                max_tokens: Some(
-                    config.max_tokens.filter(|value| *value > 0).unwrap_or(8192) as u32
-                ),
-                context_window: config.context_window.map(|v| v as u32),
+                // 知识整理允许 5000 字正文；按模型族系统默认给定输出上限，
+                // 未配置的渠道也能拿到 8K/16K 而不是旧默认 4096。
+                max_tokens: Some(crate::ai::budget::default_output(&config.model) as u32),
+                context_window: None,
             })?;
             Ok(FailoverEntry::new(
                 config.id,

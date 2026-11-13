@@ -46,7 +46,7 @@ fn final_failover_rechecks_candidate_window_and_preserves_verified_material() {
         FailoverEntry::new(
             format!("tiny-{unique}"),
             "tiny",
-            Box::new(meter(1700, 1024, "network", tiny.clone())),
+            Box::new(meter(12192, "network", tiny.clone())),
         ),
         FailoverEntry::new(
             format!("network-{unique}"),
@@ -114,7 +114,7 @@ fn an_unmergeable_pair_waits_for_budget_without_claiming_partial_root() {
             .unwrap();
     }
     let seen = Arc::new(Mutex::new(vec![]));
-    let provider = meter(3500, 1024, "ok", seen.clone());
+    let provider = meter(15192, "ok", seen.clone());
     assert!(
         crate::knowledge::event_reading::advance(&f.store, &provider, &f.task.id)
             .unwrap_err()

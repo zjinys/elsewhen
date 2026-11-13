@@ -176,6 +176,26 @@ fn default_window_recognizes_mainstream_model_families() {
 }
 
 #[test]
+fn default_output_recognizes_model_families() {
+    assert_eq!(default_output("deepseek-chat"), 8192);
+    assert_eq!(default_output("deepseek-coder"), 8192);
+    assert_eq!(default_output("deepseek-reasoner"), 32768);
+    assert_eq!(default_output("deepseek-v4.1-flash"), 32768);
+    assert_eq!(default_output("deepseek/deepseek-v4.1-flash-1017"), 32768);
+    assert_eq!(default_output("deepseek-v3.2-exp"), 32768);
+    assert_eq!(default_output("gpt-4o"), 32768);
+    assert_eq!(default_output("glm-5.3-flash"), 32768);
+    assert_eq!(default_output("zai-org/glm-5.3"), 32768);
+    assert_eq!(default_output("kimi-k2"), 32768);
+    assert_eq!(default_output("qwen3-235b"), 32768);
+    assert_eq!(default_output("claude-opus-4-6"), 32768);
+    assert_eq!(default_output("gemini-3.0-pro"), 32768);
+    // 未知模型仍保守，但不再回到老默认的 4K 档
+    assert_eq!(default_output("llama3-8b"), 16384);
+    assert_eq!(default_output("my-finetune-v2"), 16384);
+}
+
+#[test]
 fn optional_background_is_removed_without_touching_evidence_or_tool_exchange() {
     let evidence = "经核验的原文，不得裁剪。".repeat(15);
     let mut req = serde_json::json!({"messages":[

@@ -38,6 +38,11 @@ impl OllamaProvider {
 
         Ok(Self { config, client })
     }
+
+    /// 运行时输出预留：provider 配置不再提供输出上限，按模型族系统默认。
+    fn output_reserve(&self) -> usize {
+        crate::ai::budget::default_output(&self.config.model)
+    }
 }
 
 #[derive(Serialize)]
@@ -164,7 +169,7 @@ impl AiProvider for OllamaProvider {
         let (payload, _) = self.request_parts(messages.to_vec(), None)?;
         let limit = crate::ai::budget::input_limit(
             self.config.context_window.unwrap_or(32768) as usize,
-            self.config.max_tokens.unwrap_or(4096) as usize,
+            self.output_reserve(),
         )?;
         Ok(
             crate::ai::budget::input_tokens(&self.config.model, &payload).saturating_add(512)
@@ -218,7 +223,7 @@ impl OllamaProvider {
             options: OllamaOptions {
                 temperature: self.config.temperature,
                 num_ctx: self.config.context_window.unwrap_or(32768) as usize,
-                num_predict: self.config.max_tokens.unwrap_or(4096) as usize,
+                num_predict: self.output_reserve(),
             },
             tools: None,
         };
@@ -239,7 +244,7 @@ impl OllamaProvider {
     ) -> Result<AiReply> {
         let (mut payload, mut policies) = self.request_parts(messages, tools)?;
         let window = self.config.context_window.unwrap_or(32768) as usize;
-        let output = self.config.max_tokens.unwrap_or(4096) as usize;
+        let output = self.output_reserve();
         let url = format!("{}/api/chat", self.config.base_url.trim_end_matches('/'));
         if let Some(observer) = observer.as_deref_mut() {
             observer(ProviderEvent::Poll)?;

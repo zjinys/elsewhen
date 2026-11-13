@@ -71,7 +71,6 @@ struct Metered {
 }
 fn meter(
     window: u32,
-    reserve: u32,
     mode: &'static str,
     seen: Arc<Mutex<Vec<Vec<ContextMessage>>>>,
 ) -> Metered {
@@ -79,7 +78,6 @@ fn meter(
         meter: OpenAiCompatibleProvider::new(OpenAiCompatibleConfig {
             model: "unknown-byte-budget-model".into(),
             context_window: Some(window),
-            max_tokens: Some(reserve),
             base_url: "http://127.0.0.1:1/v1".into(),
             api_key: "synthetic".into(),
             ..Default::default()
@@ -167,7 +165,7 @@ fn mixed_unicode_leaves_cover_every_scalar_once_across_ticks_and_restart() {
     );
     let f = Fixture::new(&original, false);
     let seen = Arc::new(Mutex::new(vec![]));
-    let provider = meter(6200, 1200, "ok", seen.clone());
+    let provider = meter(21792, "ok", seen.clone());
     let mut ticks = 0;
     loop {
         let before = seen.lock().unwrap().len();
@@ -221,12 +219,12 @@ fn failover_uses_range_that_fits_smaller_candidate_and_keeps_pinned_bundle() {
         FailoverEntry::new(
             format!("large-{unique}"),
             "large",
-            Box::new(meter(18000, 1024, "network", large_seen.clone())),
+            Box::new(meter(26192, "network", large_seen.clone())),
         ),
         FailoverEntry::new(
             format!("small-{unique}"),
             "small",
-            Box::new(meter(5200, 1500, "ok", small_seen.clone())),
+            Box::new(meter(22192, "ok", small_seen.clone())),
         ),
     ]);
     assert!(matches!(
@@ -265,7 +263,9 @@ fn failover_uses_range_that_fits_smaller_candidate_and_keeps_pinned_bundle() {
 fn fixed_instructions_and_unknown_budgets_do_not_send_or_plan_empty_nodes() {
     let f = Fixture::new(&"中文🙂".repeat(1000), false);
     let seen = Arc::new(Mutex::new(vec![]));
-    let provider = meter(2000, 1024, "ok", seen.clone());
+    // 未知模型输出预留 16384：窗口 17408 时输入预算只剩几百 token，
+    // 固定指令装不下但预算本身合法（区别于 candidate_budget_invalid）。
+    let provider = meter(17408, "ok", seen.clone());
     let error = advance(&f.store, &provider, &f.task.id).unwrap_err();
     assert!(format!("{error:#}").contains("fixed_instructions_exceed_budget"));
     assert!(f.store.event_reading_nodes(&f.task.id).unwrap().is_empty());
@@ -297,7 +297,7 @@ fn fixed_instructions_and_unknown_budgets_do_not_send_or_plan_empty_nodes() {
         FailoverEntry::new(
             format!("invalid-{}", uuid::Uuid::new_v4()),
             "invalid",
-            Box::new(meter(1000, 1500, "ok", seen.clone())),
+            Box::new(meter(1000, "ok", seen.clone())),
         ),
         FailoverEntry::new(
             format!("unknown-{}", uuid::Uuid::new_v4()),
@@ -307,7 +307,7 @@ fn fixed_instructions_and_unknown_budgets_do_not_send_or_plan_empty_nodes() {
         FailoverEntry::new(
             format!("known-{}", uuid::Uuid::new_v4()),
             "known",
-            Box::new(meter(8000, 1024, "ok", seen.clone())),
+            Box::new(meter(24192, "ok", seen.clone())),
         ),
     ]);
     assert!(matches!(
@@ -332,7 +332,7 @@ fn malformed_truncated_forged_and_oversized_outputs_never_enter_completed_cache(
         let f = Fixture::new(&"长引文🙂否定42\"code\"\n".repeat(300), false);
         let seen = Arc::new(Mutex::new(vec![]));
         assert!(matches!(
-            advance(&f.store, &meter(8000, 1024, mode, seen.clone()), &f.task.id).unwrap(),
+            advance(&f.store, &meter(24192, mode, seen.clone()), &f.task.id).unwrap(),
             ReadingTick::Failed { .. }
         ));
         assert_eq!(seen.lock().unwrap().len(), 1);
@@ -340,13 +340,13 @@ fn malformed_truncated_forged_and_oversized_outputs_never_enter_completed_cache(
         assert_eq!(nodes.len(), 1);
         assert!(nodes[0].output.is_none());
         assert_eq!(
-            advance(&f.store, &meter(8000, 1024, "ok", seen.clone()), &f.task.id).unwrap(),
+            advance(&f.store, &meter(24192, "ok", seen.clone()), &f.task.id).unwrap(),
             ReadingTick::Waiting
         );
         assert_eq!(seen.lock().unwrap().len(), 1);
         f.retry_now();
         assert!(matches!(
-            advance(&f.store, &meter(8000, 1024, "ok", seen.clone()), &f.task.id).unwrap(),
+            advance(&f.store, &meter(24192, "ok", seen.clone()), &f.task.id).unwrap(),
             ReadingTick::Advanced { .. }
         ));
         assert_eq!(
@@ -362,14 +362,14 @@ fn a_previously_pinned_range_is_never_relabelled_for_a_smaller_window() {
     let f = Fixture::new(&"事实🙂 date 17\n".repeat(500), true);
     let failed = Arc::new(Mutex::new(vec![]));
     assert!(matches!(
-        advance(&f.store, &meter(18000, 1024, "network", failed), &f.task.id).unwrap(),
+        advance(&f.store, &meter(26192, "network", failed), &f.task.id).unwrap(),
         ReadingTick::Failed { .. }
     ));
     let before = f.store.event_reading_nodes(&f.task.id).unwrap()[0].clone();
     f.retry_now();
     let seen = Arc::new(Mutex::new(vec![]));
     assert!(matches!(
-        advance(&f.store, &meter(4500, 1024, "ok", seen.clone()), &f.task.id).unwrap(),
+        advance(&f.store, &meter(17192, "ok", seen.clone()), &f.task.id).unwrap(),
         ReadingTick::Failed { .. }
     ));
     assert!(seen.lock().unwrap().is_empty());
@@ -413,7 +413,7 @@ fn in_flight_reclassification_writes_without_network_lock_and_fences_result() {
         }
     }
     let provider = Reclassifies {
-        inner: meter(8000, 1024, "ok", Arc::new(Mutex::new(vec![]))),
+        inner: meter(24192, "ok", Arc::new(Mutex::new(vec![]))),
         fixture: &f,
     };
     assert!(advance(&f.store, &provider, &f.task.id).is_err());
@@ -469,7 +469,7 @@ fn old_digest_bundle_uses_frozen_reading_contract_in_its_original_locale() {
         .unwrap();
     let seen = Arc::new(Mutex::new(vec![]));
     assert!(matches!(
-        advance(&f.store, &meter(8000, 1024, "ok", seen.clone()), &task.id).unwrap(),
+        advance(&f.store, &meter(24192, "ok", seen.clone()), &task.id).unwrap(),
         ReadingTick::Advanced { .. }
     ));
     assert!(

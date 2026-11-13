@@ -133,22 +133,8 @@ pub fn save_ai_provider_config(provider: AiProviderConfigDto) -> Result<String> 
     } else {
         Some(provider.id.trim())
     };
-    if let Some(output) = provider.max_tokens {
-        anyhow::ensure!(
-            output > 0 && output <= 1_000_000,
-            "输出上限应为正数且不超过 1000000 token"
-        );
-    }
-    if let Some(window) = provider.context_window {
-        anyhow::ensure!(
-            (4096..=2_000_000).contains(&window),
-            "上下文窗口应为 4096 至 2000000 token"
-        );
-        anyhow::ensure!(
-            provider.max_tokens.unwrap_or(4096) + (window / 20).clamp(256, 4096) < window,
-            "上下文窗口必须大于输出预留与安全余量"
-        );
-    }
+    // 输出上限/上下文窗口不再来自设置：运行时按模型族系统默认，保存时
+    // 恒置 NULL（历史值只在旧库里躺着，不再生效）。温度仍保留用户输入。
     let tx = rusqlite::Transaction::new_unchecked(
         &store.connection,
         rusqlite::TransactionBehavior::Immediate,
@@ -164,11 +150,11 @@ pub fn save_ai_provider_config(provider: AiProviderConfigDto) -> Result<String> 
         provider.model.trim(),
         provider.api_key.trim(),
         provider.temperature,
-        provider.max_tokens,
+        None,
     )?;
     store.connection.execute(
-        "UPDATE ai_provider_configs SET context_window=?2 WHERE id=?1",
-        rusqlite::params![saved, provider.context_window],
+        "UPDATE ai_provider_configs SET context_window=NULL WHERE id=?1",
+        rusqlite::params![saved],
     )?;
     tx.commit()?;
     Ok(saved)

@@ -38,6 +38,11 @@ impl OpenAiCompatibleProvider {
 
         Ok(Self { config, client })
     }
+
+    /// 运行时输出预留：provider 配置不再提供输出上限，按模型族系统默认。
+    fn output_reserve(&self) -> usize {
+        crate::ai::budget::default_output(&self.config.model)
+    }
 }
 
 #[derive(Serialize)]
@@ -237,10 +242,7 @@ impl AiProvider for OpenAiCompatibleProvider {
             .context_window
             .map(|v| v as usize)
             .unwrap_or_else(|| crate::ai::budget::default_window(&self.config.model));
-        let limit = crate::ai::budget::input_limit(
-            window,
-            self.config.max_tokens.unwrap_or(4096) as usize,
-        )?;
+        let limit = crate::ai::budget::input_limit(window, self.output_reserve())?;
         Ok(
             crate::ai::budget::input_tokens(&self.config.model, &payload).saturating_add(512)
                 <= limit,
@@ -261,10 +263,7 @@ impl AiProvider for OpenAiCompatibleProvider {
             .context_window
             .map(|v| v as usize)
             .unwrap_or_else(|| crate::ai::budget::default_window(&self.config.model));
-        let limit = crate::ai::budget::input_limit(
-            window,
-            self.config.max_tokens.unwrap_or(4096) as usize,
-        )?;
+        let limit = crate::ai::budget::input_limit(window, self.output_reserve())?;
         // Do not trim any existing exchange to fit a supplement. Extra reserve
         // covers clock refresh and protocol framing between probe and request.
         Ok(
@@ -322,7 +321,9 @@ impl OpenAiCompatibleProvider {
                 })
                 .collect(),
             temperature: self.config.temperature,
-            max_tokens: Some(self.config.max_tokens.unwrap_or(4096)),
+            // 输出上限不再来自 provider 设置：配置里的 max_tokens 仅作为
+            // 兼容旧库的遗留字段，不再有设置入口；None 时按模型族系统默认。
+            max_tokens: Some(self.output_reserve() as u32),
             tools: tools
                 .filter(|tools| !tools.is_empty())
                 .map(openai_tool_defs),
@@ -346,7 +347,7 @@ impl OpenAiCompatibleProvider {
             self.config.base_url.trim_end_matches('/')
         );
 
-        let output = self.config.max_tokens.unwrap_or(4096) as usize;
+        let output = self.output_reserve();
         let mut window = self
             .config
             .context_window

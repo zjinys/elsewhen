@@ -70,13 +70,12 @@ fn server(fail: bool) -> (String, std::thread::JoinHandle<serde_json::Value>) {
     });
     (url, worker)
 }
-fn model(url: String, window: u32, reserve: u32) -> OpenAiCompatibleProvider {
+fn model(url: String, window: u32) -> OpenAiCompatibleProvider {
     OpenAiCompatibleProvider::new(OpenAiCompatibleConfig {
         base_url: url,
         api_key: "synthetic".into(),
         model: "unknown-budget-model".into(),
         context_window: Some(window),
-        max_tokens: Some(reserve),
         ..Default::default()
     })
     .unwrap()
@@ -94,20 +93,19 @@ fn exact_payload_and_failover_keep_the_same_snapshot_and_candidate_reserve() {
         FailoverEntry::new(
             format!("bad-{id}"),
             "bad",
-            Box::new(model(bad, 24000, 1024)),
+            Box::new(model(bad, 32768)),
         ),
         FailoverEntry::new(
             format!("good-{id}"),
             "good",
-            Box::new(model(good, 24000, 1536)),
+            Box::new(model(good, 32768)),
         ),
     ]);
     let card = tick_with_provider(&f.store, &chain).unwrap().unwrap();
     let bad = bad_worker.join().unwrap();
     let good = good_worker.join().unwrap();
     assert_eq!(bad["messages"], good["messages"]);
-    assert_eq!(bad["max_tokens"], 1024);
-    assert_eq!(good["max_tokens"], 1536);
+    assert_eq!(bad["max_tokens"], 16384);
     assert!(good.get("tools").is_none());
     let dto = crate::api::goals::compass_dto(&f.store, card).unwrap();
     assert_eq!(dto.assessment.unwrap().evidence.len(), 2);

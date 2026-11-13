@@ -41,8 +41,8 @@ fn large_wiki_directory_allows_second_model_request_near_context_limit() {
         api_key: "fixture-key".into(),
         model: "deepseek-flash".into(),
         temperature: 0.7,
-        max_tokens: Some(4096),
-        context_window: Some(65536),
+        max_tokens: None,
+        context_window: Some(131072),
     })
     .unwrap();
     let conversation = store.create_conversation(None, None).unwrap();
@@ -73,7 +73,7 @@ fn large_wiki_directory_allows_second_model_request_near_context_limit() {
         first_tokens > 45000,
         "fixture 应接近实际失败的初始预算：{first_tokens}"
     );
-    assert!(crate::ai::budget::input_tokens("deepseek-flash", &requests[1]) <= 58164);
+    assert!(crate::ai::budget::input_tokens("deepseek-flash", &requests[1]) <= 122880);
     let messages = requests[1]["messages"].as_array().unwrap();
     let directory = messages
         .iter()
@@ -113,9 +113,10 @@ fn large_wiki_directory_allows_second_model_request_near_context_limit() {
     // 把最大的近期工具结果带披露地截断到预算内（永不拒绝）。目录分页仍是
     // 首选：上面的完整 10 页列表语义完整，而这里模型只拿到被截断的目录
     // 头部与「重新分页」提示，需要再次读取。
-    let fitted = crate::ai::budget::fit_request("deepseek-flash", &mut unbounded, 65536, 4096)
-        .expect("带披露截断后应回到预算内");
-    assert!(fitted <= 58164);
+    let fitted =
+        crate::ai::budget::fit_request("deepseek-flash", &mut unbounded, 131072, 8192)
+            .expect("带披露截断后应回到预算内");
+    assert!(fitted <= 116327);
     let fitted_directory = unbounded["messages"]
         .as_array()
         .unwrap()

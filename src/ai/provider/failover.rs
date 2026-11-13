@@ -354,8 +354,8 @@ pub(crate) fn active_first_provider_chain(store: &Store) -> Result<Option<Box<dy
                 api_key: config.api_key,
                 model: config.model,
                 temperature: config.temperature as f32,
-                max_tokens: config.max_tokens.map(|v| v as u32),
-                context_window: config.context_window.map(|v| v as u32),
+                max_tokens: None,
+                context_window: None,
             })?;
             Ok(FailoverEntry::new(
                 config.id,

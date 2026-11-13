@@ -61,13 +61,8 @@ pub fn create_page_mark(conversation_id: String, boundary_message_id: String) ->
         config.provider_type
     );
     let provider_basis = crate::storage::knowledge::content_hash(&format!(
-        "{}|{}|{}|{:?}|{:?}|{}",
-        config.id,
-        config.base_url,
-        config.model,
-        config.max_tokens,
-        config.context_window,
-        config.temperature
+        "{}|{}|{}|{}",
+        config.id, config.base_url, config.model, config.temperature
     ));
     let provider = crate::ai::provider::OpenAiCompatibleProvider::new(
         crate::ai::provider::OpenAiCompatibleConfig {
@@ -75,8 +70,8 @@ pub fn create_page_mark(conversation_id: String, boundary_message_id: String) ->
             api_key: config.api_key.clone(),
             model: config.model.clone(),
             temperature: config.temperature as f32,
-            max_tokens: config.max_tokens.map(|v| v as u32),
-            context_window: config.context_window.map(|v| v as u32),
+            max_tokens: None,
+            context_window: None,
         },
     )?;
     crate::ai::summary::generate_page_mark(

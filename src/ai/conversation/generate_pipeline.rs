@@ -57,13 +57,12 @@ pub(crate) fn generate_with_provider_configs(
         let provider = providers.first();
         let window = provider
             .as_ref()
-            .map(|p| {
-                p.context_window
-                    .map(|v| v as usize)
-                    .unwrap_or_else(|| super::budget::default_window(&p.model))
-            })
+            .map(|p| super::budget::default_window(&p.model))
             .unwrap_or(32768);
-        let output = provider.as_ref().and_then(|p| p.max_tokens).unwrap_or(4096) as usize;
+        let output = provider
+            .as_ref()
+            .map(|p| super::budget::default_output(&p.model))
+            .unwrap_or(4096);
         // 注意：不要在此处加“总预算上限”——历史预算 = 上限 - tool_reserve，
         // 在 21 个工具定义 ≈16k tokens 的现状下，20k 上限会把历史预算挤到
         // 负值，记忆整体失效（实测：全部历史被“较早对话已省略”替代）。
@@ -239,7 +238,7 @@ pub(crate) fn generate_with_provider_configs(
 
     super::generation::event(store, "provider_basis", serde_json::json!(providers.iter().map(|p| serde_json::json!({
         "id":p.id,"model":p.model,"context_window":p.context_window,
-        "version":crate::storage::knowledge::content_hash(&format!("{}|{}|{}|{:?}|{:?}|{}",p.id,p.base_url,p.model,p.max_tokens,p.context_window,p.temperature))
+        "version":crate::storage::knowledge::content_hash(&format!("{}|{}|{}|{}",p.id,p.base_url,p.model,p.temperature))
     })).collect::<Vec<_>>()))?;
     let summary_configs: std::collections::HashMap<_, _> = providers
         .iter()
@@ -249,8 +248,8 @@ pub(crate) fn generate_with_provider_configs(
                 (
                     p.model.clone(),
                     crate::storage::knowledge::content_hash(&format!(
-                        "{}|{}|{}|{:?}|{:?}|{}",
-                        p.id, p.base_url, p.model, p.max_tokens, p.context_window, p.temperature
+                        "{}|{}|{}|{}",
+                        p.id, p.base_url, p.model, p.temperature
                     )),
                 ),
             )
@@ -273,8 +272,8 @@ pub(crate) fn generate_with_provider_configs(
                             api_key: ai_config.api_key,
                             model: ai_config.model,
                             temperature: ai_config.temperature as f32,
-                            max_tokens: ai_config.max_tokens.map(|v| v as u32),
-                            context_window: ai_config.context_window.map(|v| v as u32),
+                            max_tokens: None,
+                            context_window: None,
                         };
                         Ok((
                             Some(id),

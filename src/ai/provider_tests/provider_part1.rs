@@ -36,19 +36,19 @@ fn prepared_request_preflight_reserves_output_for_both_transports() {
         ContextMessage::new("system", "fixed contract"),
         ContextMessage::new("user", "中文事件".repeat(400)),
     ];
-    for output in [1024, 6000] {
-        let expected = output == 1024;
+    // 未知模型输出预留固定为 default_output = 16384；用两个窗口验证
+    // 预算判定：32K 窗口放得下，17408 窗口（预留后只剩几百 token）放不下。
+    for window in [32768, 17408] {
+        let expected = window == 32768;
         let openai = OpenAiCompatibleProvider::new(OpenAiCompatibleConfig {
             model: "unknown-budget-model".into(),
-            context_window: Some(8000),
-            max_tokens: Some(output),
+            context_window: Some(window),
             ..Default::default()
         })
         .unwrap();
         let ollama = OllamaProvider::new(OllamaConfig {
             model: "unknown-budget-model".into(),
-            context_window: Some(8000),
-            max_tokens: Some(output),
+            context_window: Some(window),
             ..Default::default()
         })
         .unwrap();

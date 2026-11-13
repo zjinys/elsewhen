@@ -11,8 +11,6 @@ class _ProviderDraft {
   final String model;
   final String apiKey;
   final double temperature;
-  final int? maxTokens;
-  final int? contextWindow;
 
   _ProviderDraft({
     required this.name,
@@ -21,8 +19,6 @@ class _ProviderDraft {
     required this.model,
     required this.apiKey,
     required this.temperature,
-    required this.maxTokens,
-    required this.contextWindow,
   });
 }
 
@@ -44,8 +40,6 @@ class _ProviderEditorDialog extends StatefulWidget {
     required this.initialBaseUrl,
     required this.initialModel,
     required this.initialTemperature,
-    required this.initialContextWindow,
-    required this.initialMaxTokens,
     required this.initialProviderType,
     required this.initialHasApiKey,
     this.initialSecretName,
@@ -68,8 +62,6 @@ class _ProviderEditorDialog extends StatefulWidget {
   final String initialBaseUrl;
   final String initialModel;
   final double initialTemperature;
-  final String initialContextWindow;
-  final String initialMaxTokens;
   final String initialProviderType;
 
   @override
@@ -83,8 +75,6 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
   // 密钥不回填明文：留空即保留原 key（新建则必填）
   late final TextEditingController _apiKey;
   late final TextEditingController _temperature;
-  late final TextEditingController _contextWindow;
-  late final TextEditingController _maxTokens;
   late String _providerType;
   bool _saving = false;
   String? _error;
@@ -104,8 +94,6 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
     _temperature = TextEditingController(
       text: widget.initialTemperature.toString(),
     );
-    _contextWindow = TextEditingController(text: widget.initialContextWindow);
-    _maxTokens = TextEditingController(text: widget.initialMaxTokens);
     _providerType = widget.initialProviderType;
     if (_useSecret) _readSecretTitle();
   }
@@ -184,8 +172,6 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
     _model.dispose();
     _apiKey.dispose();
     _temperature.dispose();
-    _contextWindow.dispose();
-    _maxTokens.dispose();
     super.dispose();
   }
 
@@ -298,33 +284,13 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
                 ),
               ),
               const SizedBox(height: 12),
+              // 输出上限与上下文窗口由系统按模型自动决定（不提供输入框）：
+              // 用户无法预知各模型的合适值，误填小值只会导致截断。
               _UsageFonts._buildTextField(
-                label: context.l10n.contextWindow,
-                hint: context.l10n.contextWindowHint,
+                label: 'Temperature',
+                hint: '0.7',
                 keyboardType: TextInputType.number,
-                controller: _contextWindow,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _UsageFonts._buildTextField(
-                      label: 'Temperature',
-                      hint: '0.7',
-                      keyboardType: TextInputType.number,
-                      controller: _temperature,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _UsageFonts._buildTextField(
-                      label: context.l10n.maximumOutput,
-                      hint: context.l10n.optional,
-                      keyboardType: TextInputType.number,
-                      controller: _maxTokens,
-                    ),
-                  ),
-                ],
+                controller: _temperature,
               ),
             ],
           ),
@@ -364,8 +330,6 @@ class _ProviderEditorDialogState extends State<_ProviderEditorDialog> {
                         ? '{{secret:$_selectedSecret}}'
                         : _apiKey.text.trim(),
                     temperature: double.tryParse(_temperature.text) ?? 0.7,
-                    maxTokens: int.tryParse(_maxTokens.text),
-                    contextWindow: int.tryParse(_contextWindow.text),
                   );
                   final validationError = draft.name.isEmpty
                       ? context.l10n.providerNameMissing

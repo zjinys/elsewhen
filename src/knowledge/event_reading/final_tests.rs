@@ -10,7 +10,7 @@ struct TreeModel {
 impl TreeModel {
     fn new(mode: &'static str) -> Self {
         Self {
-            meter: meter(6500, 1024, "ok", Arc::new(Mutex::new(vec![]))),
+            meter: meter(22192, "ok", Arc::new(Mutex::new(vec![]))),
             final_mode: mode,
             calls: Default::default(),
         }

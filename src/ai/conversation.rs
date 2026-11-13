@@ -140,19 +140,11 @@ pub(crate) fn primary_summary_provider(
         return Ok(None);
     };
     let basis = crate::storage::knowledge::content_hash(&format!(
-        "{}|{}|{}|{:?}|{:?}|{}",
-        config.id,
-        config.base_url,
-        config.model,
-        config.max_tokens,
-        config.context_window,
-        config.temperature
+        "{}|{}|{}|{}",
+        config.id, config.base_url, config.model, config.temperature
     ));
-    let window = config
-        .context_window
-        .map(|v| v as usize)
-        .unwrap_or_else(|| super::budget::default_window(&config.model));
-    let output = config.max_tokens.unwrap_or(4096) as usize;
+    let window = super::budget::default_window(&config.model);
+    let output = super::budget::default_output(&config.model);
     // 生产 selection_budget = window - output - window/20 - tool_reserve；
     // tool_reserve 是 21 个工具 schema 的实测规模（≈40K）。budget 只影响
     // 触发线与 allowance 校验，不进缓存键，近似无害。
@@ -166,8 +158,8 @@ pub(crate) fn primary_summary_provider(
             api_key: config.api_key,
             model: config.model.clone(),
             temperature: config.temperature as f32,
-            max_tokens: config.max_tokens.map(|v| v as u32),
-            context_window: config.context_window.map(|v| v as u32),
+            max_tokens: None,
+            context_window: None,
         })?;
     Ok(Some((
         Box::new(provider),

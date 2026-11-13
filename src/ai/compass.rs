@@ -22,10 +22,11 @@ fn provider(store: &Store) -> Result<Option<Box<dyn AiProvider>>> {
             let provider = OpenAiCompatibleProvider::new(OpenAiCompatibleConfig {
                 base_url: c.base_url,
                 api_key: c.api_key,
-                model: c.model,
+                model: c.model.clone(),
                 temperature: 0.1,
-                max_tokens: Some(c.max_tokens.filter(|t| *t > 0).unwrap_or(2048).min(4096) as u32),
-                context_window: c.context_window.map(|t| t as u32),
+                // 指南针是短提示任务，输出上限取主流系默认的一半。
+                max_tokens: Some(crate::ai::budget::default_output(&c.model).min(4096) as u32),
+                context_window: None,
             })?;
             Ok(FailoverEntry::new(c.id, c.name, Box::new(provider)))
         })

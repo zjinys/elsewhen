@@ -80,7 +80,7 @@ fn generate_content_reply(context: Vec<ContextMessage>, store: &Store) -> Result
         model: ai_config.model,
         temperature: 0.7,
         max_tokens: None,
-        context_window: ai_config.context_window.map(|v| v as u32),
+        context_window: None,
     };
     let provider = OpenAiCompatibleProvider::new(provider_config)?;
 

@@ -318,7 +318,7 @@ fn call_provider(store: &Store, system: &str, user: &str, max_tokens: u32) -> Re
         model: ai_config.model,
         temperature: 0.3,
         max_tokens: Some(max_tokens),
-        context_window: ai_config.context_window.map(|v| v as u32),
+        context_window: None,
     };
     let provider = OpenAiCompatibleProvider::new(provider_config)?;
     provider

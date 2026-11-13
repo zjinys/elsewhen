@@ -6,7 +6,6 @@ use serde_json::json;
 use std::{collections::HashMap, io::Write, process::Command};
 const TEST: &str = "digest_tests::real_long_event::real_model_long_event_acceptance";
 const WINDOW: u32 = 4096;
-const RESERVE: u32 = 1536;
 
 pub(super) fn config() -> OpenAiCompatibleConfig {
     let text =
@@ -30,7 +29,9 @@ pub(super) fn config() -> OpenAiCompatibleConfig {
         model: value("ELSEWHEN_AI_MODEL"),
         base_url: value("ELSEWHEN_AI_BASE_URL"),
         temperature: 0.1,
-        max_tokens: Some(RESERVE),
+        // 输出上限已改为按模型族系统默认（max_tokens 不再从配置读取），
+        // 这里显式保留 None：真实模型验收不再注入过小的输出上限。
+        max_tokens: None,
         context_window: Some(WINDOW),
     }
 }
@@ -245,7 +246,7 @@ fn real_model_long_event_acceptance() {
         .iter()
         .map(|p| json!({"slug":p.slug,"content":p.content_md,"sources":p.source_event_ids}))
         .collect::<Vec<_>>();
-    let output = json!({"provider_host":reqwest::Url::parse(&config.base_url).unwrap().host_str(),"model":config.model,"context_window":WINDOW,"output_reserve":RESERVE,"actual_request_limit":32,"complete":complete,"settings_changed_after_first_node":changed,"ticks":ticks,"pages":artifacts});
+    let output = json!({"provider_host":reqwest::Url::parse(&config.base_url).unwrap().host_str(),"model":config.model,"context_window":WINDOW,"output_reserve":crate::ai::budget::default_output(&config.model),"actual_request_limit":32,"complete":complete,"settings_changed_after_first_node":changed,"ticks":ticks,"pages":artifacts});
     std::fs::write(
         dir.join("report.json"),
         serde_json::to_string_pretty(&output).unwrap(),

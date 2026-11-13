@@ -293,8 +293,8 @@ pub fn generate_daily_review(date: String) -> Result<DailyReviewResult> {
         api_key: provider_config.api_key,
         model: provider_config.model,
         temperature: provider_config.temperature as f32,
-        max_tokens: provider_config.max_tokens.map(|value| value as u32),
-        context_window: provider_config.context_window.map(|v| v as u32),
+        max_tokens: None,
+        context_window: None,
     })?;
     generate_daily_review_with_provider(&store, date, &provider)
 }

@@ -79,11 +79,11 @@ fn http_optional_background_is_omitted_without_internal_metadata() {
         api_key: "fixture-key".into(),
         model: "fixture".into(),
         temperature: 0.7,
-        max_tokens: Some(512),
-        context_window: Some(4096),
+        max_tokens: None,
+        context_window: Some(65536),
     })
     .unwrap();
-    let mut background = ContextMessage::new("system", "其他会话背景".repeat(1000));
+    let mut background = ContextMessage::new("system", "其他会话背景".repeat(30000));
     background.optional_background = true;
     let question = "当前问题全文";
     provider

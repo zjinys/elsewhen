@@ -328,8 +328,9 @@ extension _ProvidersView on _SettingsScreenState {
           // 复制出的配置不继承激活态：避免出现两个同时激活。
           isActive: duplicate ? false : target?.isActive ?? false,
           temperature: draft.temperature,
-          maxTokens: draft.maxTokens,
-          contextWindow: draft.contextWindow,
+          // 输出上限与上下文窗口由系统按模型自动决定，不再随编辑保存。
+          maxTokens: target?.maxTokens,
+          contextWindow: target?.contextWindow,
           // revisionToken 仅编辑原配置时携带；duplicate 是新建，不带锁令牌。
           revisionToken: (target != null && !duplicate)
               ? target.revisionToken
@@ -350,8 +351,6 @@ extension _ProvidersView on _SettingsScreenState {
         initialBaseUrl: existing?.baseUrl ?? '',
         initialModel: existing?.model ?? '',
         initialTemperature: existing?.temperature ?? 0.7,
-        initialContextWindow: existing?.contextWindow?.toString() ?? '',
-        initialMaxTokens: existing?.maxTokens?.toString() ?? '',
         initialProviderType: existing?.providerType ?? 'openai-compatible',
         initialHasApiKey: existing?.hasApiKey ?? true,
         initialSecretName:

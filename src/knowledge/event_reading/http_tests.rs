@@ -72,13 +72,12 @@ fn server(fail: bool) -> (String, std::thread::JoinHandle<serde_json::Value>) {
     });
     (url, worker)
 }
-fn http_provider(url: String, window: u32, reserve: u32) -> OpenAiCompatibleProvider {
+fn http_provider(url: String, window: u32) -> OpenAiCompatibleProvider {
     OpenAiCompatibleProvider::new(OpenAiCompatibleConfig {
         base_url: url,
         api_key: "synthetic".into(),
         model: "unknown-byte-budget-model".into(),
         context_window: Some(window),
-        max_tokens: Some(reserve),
         ..Default::default()
     })
     .unwrap()
@@ -95,12 +94,12 @@ fn chain() -> (
             FailoverEntry::new(
                 format!("bad-{unique}"),
                 "synthetic bad",
-                Box::new(http_provider(bad, 9000, 1536)),
+                Box::new(http_provider(bad, 32768)),
             ),
             FailoverEntry::new(
                 format!("good-{unique}"),
                 "synthetic good",
-                Box::new(http_provider(good, 6500, 1024)),
+                Box::new(http_provider(good, 24576)),
             ),
         ]),
         vec![bad_worker, good_worker],
@@ -109,14 +108,14 @@ fn chain() -> (
 fn verify_payloads(workers: Vec<std::thread::JoinHandle<serde_json::Value>>) {
     let payloads: Vec<_> = workers.into_iter().map(|w| w.join().unwrap()).collect();
     assert_eq!(payloads.len(), 2);
-    assert_eq!(payloads[0]["max_tokens"], 1536);
-    assert_eq!(payloads[1]["max_tokens"], 1024);
+    assert_eq!(payloads[0]["max_tokens"], 16384);
+    assert_eq!(payloads[1]["max_tokens"], 16384);
     assert_eq!(
         payloads[0]["messages"][1]["content"],
         payloads[1]["messages"][1]["content"]
     );
-    for (payload, (window, reserve)) in payloads.iter().zip([(9000, 1536), (6500, 1024)]) {
-        let limit = crate::ai::budget::input_limit(window, reserve).unwrap();
+    for (payload, window) in payloads.iter().zip([32768usize, 24576]) {
+        let limit = crate::ai::budget::input_limit(window, 16384).unwrap();
         assert!(
             crate::ai::budget::input_tokens("unknown-byte-budget-model", payload) + 512 <= limit
         );
@@ -194,7 +193,7 @@ fn strict_reader_does_not_resend_after_server_context_rejection() {
             "same node must not be sent twice to one channel"
         );
     });
-    let provider = http_provider(url, 6500, 1024);
+    let provider = http_provider(url, 22192);
     assert!(matches!(
         crate::knowledge::event_reading::advance_leaves(&f.store, &provider, &f.task.id).unwrap(),
         ReadingTick::Failed { .. }

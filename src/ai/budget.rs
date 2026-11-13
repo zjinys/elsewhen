@@ -633,6 +633,45 @@ pub fn default_window(model: &str) -> usize {
         32768
     }
 }
+/// 输出上限的系统默认（provider 不再提供该设置；按模型族口径给定）。
+/// max_tokens 是上限不是目标：偏小只会让长结构化输出被截断（正反馈为
+/// 「响应被截断」诚实失败），偏大才可能撞上游硬限制——所以这里比
+/// default_window 更激进。仍避免超过模型窗口可容纳的一半，未知模型 16384。
+pub fn default_output(model: &str) -> usize {
+    let m = model.to_ascii_lowercase();
+    let m = m.rsplit('/').next().unwrap_or(&m); // 兼容 openrouter 风格 vendor/model
+    if m.starts_with("deepseek") {
+        if m.contains("v3.2")
+            || m.contains("v4")
+            || m.starts_with("deepseek-reasoner")
+            || m.starts_with("deepseek-r1")
+        {
+            // V3.2/V4 系与推理模型官方输出上限 ≥32K（V4 系甚至 384K）
+            32768
+        } else {
+            // 老代 deepseek-chat / deepseek-coder 硬上限 8K
+            8192
+        }
+    } else if m.starts_with("gpt-4o")
+        || m.starts_with("gpt-5")
+        || m.starts_with("o1")
+        || m.starts_with("o3")
+        || m.starts_with("o4")
+        || m.starts_with("glm")
+        || m.starts_with("qwen")
+        || m.starts_with("kimi")
+        || m.starts_with("moonshot")
+        || m.starts_with("doubao")
+        || m.starts_with("claude")
+        || m.starts_with("gemini")
+    {
+        // 主流现役模型族官方输出上限 ≥32K（GLM-4.6 128K、Claude 64K、
+        // Doubao Seed 32K、GPT-4o 16384 但兼容渠道普遍放宽）
+        32768
+    } else {
+        16384
+    }
+}
 pub fn input_tokens(model: &str, request: &Value) -> usize {
     // Includes message roles, call IDs/arguments, reasoning, tool schemas and
     // wrapper keys. The extra per-message allowance covers server chat framing.
