@@ -38,13 +38,9 @@ pub(crate) fn background_preheat(store: &Store) -> Result<i64> {
     else {
         return Ok(0);
     };
-    // 渠道错配防线（P1 修复 c）：该会话最近一次真实生成用的渠道
-    // （chat_run_requests.provider_name 是事实记录）必须与预热渠道同名，
-    // 否则 provider_basis 错位、建出的节点生产命不中——白烧。无生成
-    // 历史的会话无从判定，同样跳过（刚建的会话也不急着预热）。
-    if !preheat_channel_matches(store, &conversation, &name)? {
-        return Ok(0);
-    }
+    // 摘要缓存键不绑定渠道（summary_node 查找只锚内容基+策略），预热用
+    // 当前激活渠道即可，建出的节点任何后续渠道都能命中——不再需要
+    // P1 时代的「预热渠道必须与最后生成渠道同名」错位防线。
     background_preheat_with(
         store,
         &conversation,
@@ -54,26 +50,6 @@ pub(crate) fn background_preheat(store: &Store) -> Result<i64> {
         &model,
         budget,
     )
-}
-
-/// 渠道匹配判定：独立成函数让测试可以注入历史 run 请求。
-pub(crate) fn preheat_channel_matches(
-    store: &Store,
-    conversation: &str,
-    provider_name: &str,
-) -> Result<bool> {
-    let last: Option<String> = store
-        .connection
-        .query_row(
-            "SELECT req.provider_name FROM chat_run_requests req
-             JOIN chat_runs r ON r.id=req.run_id
-             WHERE r.conversation_id=?1
-             ORDER BY req.started_at DESC, req.id DESC LIMIT 1",
-            [conversation],
-            |r| r.get(0),
-        )
-        .optional()?;
-    Ok(last.as_deref() == Some(provider_name))
 }
 
 /// P1 修复(c) 的实现体：单 tick 内连续多批推进，直到根节点建成

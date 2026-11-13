@@ -195,9 +195,12 @@ impl Builder<'_> {
             started.elapsed()
         ));
         let body = parse_body(&reply, self.model)?;
+        // 节点 id 只锚定「会话 + 内容基 + 策略」，不掺渠道：不同渠道对同
+        // 一逻辑节点建出的正文落同一行（INSERT OR IGNORE 去重），换渠道
+        // 不再冷启动重建整套树。渠道细节保留在 provider_basis/model 溶源。
         let node = SummaryNode {
             id: content_hash(
-                &json!([self.conversation, basis_hash, strategy, self.provider_basis]).to_string(),
+                &json!([self.conversation, basis_hash, strategy]).to_string(),
             ),
             conversation_id: self.conversation.into(),
             basis_hash,
@@ -632,4 +635,4 @@ mod preheat;
 
 pub(crate) use preheat::background_preheat;
 #[cfg(test)]
-pub(crate) use preheat::{background_preheat_with, preheat_channel_matches, probe_max_requests};
+pub(crate) use preheat::{background_preheat_with, probe_max_requests};

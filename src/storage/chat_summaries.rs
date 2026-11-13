@@ -173,6 +173,10 @@ impl Store {
         Ok(())
     }
 
+    /// 缓存查找不绑定生成渠道：摘要树是历史内容 + 提示词版本（strategy）的
+    /// 函数，换渠道/改温度应复用已建成的树而不是冷启动重建（实测同一会话
+    /// 曾因渠道切换建出 10 套重复树，486 节点 ~108 万 tokens）。
+    /// provider_basis 仅作偏好：同渠道命中优先，否则确定性复用最新节点。
     pub(crate) fn summary_node(
         &self,
         conversation: &str,
@@ -181,7 +185,8 @@ impl Store {
         provider_basis: &str,
     ) -> Result<Option<SummaryNode>> {
         let id: Option<String> = self.connection.query_row(
-            "SELECT id FROM chat_summary_nodes WHERE conversation_id=?1 AND basis_hash=?2 AND strategy=?3 AND provider_basis=?4",
+            "SELECT id FROM chat_summary_nodes WHERE conversation_id=?1 AND basis_hash=?2 AND strategy=?3
+             ORDER BY (provider_basis=?4) DESC, created_at DESC, id DESC LIMIT 1",
             params![conversation, basis, strategy, provider_basis], |row| row.get(0),
         ).optional()?;
         id.map(|id| self.summary_node_by_id(conversation, &id))
@@ -251,9 +256,11 @@ impl Store {
                 let child = self
                     .summary_node_by_id(&node.conversation_id, child)?
                     .context("摘要子节点不存在")?;
+                // 策略（提示词版本 + 语言）必须一致；渠道可以不同——缓存
+                // 键不绑定渠道后，混编树（换渠道续建）是合法形态。
                 ensure!(
-                    child.strategy == node.strategy && child.provider_basis == node.provider_basis,
-                    "摘要子节点策略或模型配置不一致"
+                    child.strategy == node.strategy,
+                    "摘要子节点策略不一致"
                 );
                 coverage.extend(child.spans);
             }

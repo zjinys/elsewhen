@@ -77,6 +77,8 @@ fn summary_cache_preserves_originals_and_unknown_usage() {
         store.list_messages(&conversation).unwrap()[0].content,
         before
     );
+    // 换策略（提示词版本变更）不命中；换渠道（provider_basis）仍命中——
+    // 摘要树是内容基+策略的函数，不绑定生成渠道。
     assert!(
         store
             .summary_node(
@@ -88,17 +90,16 @@ fn summary_cache_preserves_originals_and_unknown_usage() {
             .unwrap()
             .is_none()
     );
-    assert!(
-        store
-            .summary_node(
-                &conversation,
-                &summary.basis_hash,
-                "test-v1",
-                "new-provider"
-            )
-            .unwrap()
-            .is_none()
-    );
+    let cross_provider = store
+        .summary_node(
+            &conversation,
+            &summary.basis_hash,
+            "test-v1",
+            "new-provider",
+        )
+        .unwrap()
+        .expect("换渠道应复用已建成的摘要树");
+    assert_eq!(cross_provider.body, summary.body);
     let count: i64 = store
         .connection
         .query_row("SELECT COUNT(*) FROM chat_summary_nodes", [], |r| r.get(0))
