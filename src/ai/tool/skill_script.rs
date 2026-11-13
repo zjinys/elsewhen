@@ -438,6 +438,7 @@ mod trust_tests {
             conversation_id,
             source_event_id: None,
             knowledge_candidates: &[],
+            runtime: Default::default(),
         }
     }
 

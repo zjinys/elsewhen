@@ -190,6 +190,26 @@ impl AiProvider for OllamaProvider {
         )
     }
 
+    fn input_headroom(
+        &self,
+        messages: &[ContextMessage],
+        tools: Option<&[ToolSpec]>,
+    ) -> Result<Option<(usize, String)>> {
+        crate::ai::budget::validate_context_exchanges(messages)?;
+        let (payload, _) = self.request_parts(messages.to_vec(), tools)?;
+        let limit = crate::ai::budget::input_limit(
+            self.config.context_window.unwrap_or(32768) as usize,
+            self.output_reserve(),
+        )?;
+        Ok(Some((
+            limit.saturating_sub(crate::ai::budget::input_tokens(
+                &self.config.model,
+                &payload,
+            )),
+            self.config.model.clone(),
+        )))
+    }
+
     fn generate_reply_with_tools(
         &self,
         messages: Vec<ContextMessage>,

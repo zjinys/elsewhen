@@ -97,7 +97,7 @@
     }
   },
   "get_wiki_page": {
-    "description": "Read a known page slug, returning complete text or a bounded excerpt; knowledge_reading gives coverage and next_offset. Read the relevant text before answering specific requirements, prohibitions or deliverables. Continue long pages with next_offset as offset and the previous content_hash; restart if the version changes.",
+    "description": "Read a known page slug, returning complete text or a bounded excerpt; knowledge_reading gives coverage and next_offset. Read the relevant text before answering specific requirements, prohibitions or deliverables. Continue long pages with next_offset as offset and the previous content_hash; restart if the version changes. Excerpt length depends on the context left in this turn, so rely on end_char; wiki_read_budget_exhausted means no more page text fits in this turn: answer from what was read and say which parts remain unread.",
     "parameters": {
       "/properties/slug/description": "Required page slug",
       "/properties/offset/description": "Character offset, default 0; use the returned next_offset to continue reading",

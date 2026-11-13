@@ -50,4 +50,6 @@ pub(super) fn native_reply(content: &str, name: &str, args: Value) -> AiReply {
 
 mod progress_recovery;
 
+mod result_budget;
+
 mod save_task_lifecycle;

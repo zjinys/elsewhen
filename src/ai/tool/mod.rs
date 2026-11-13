@@ -29,6 +29,7 @@ use self::todo_contact_tools::{
 };
 use self::write_tools::RecordEventTool;
 use self::write_tools::SaveKnowledgeDraftTool;
+use crate::ai::provider::AiProvider;
 use crate::storage::Store;
 use serde::Serialize;
 use serde_json::Value;
@@ -245,12 +246,24 @@ mod plan_tools;
 mod skill_script;
 mod stats;
 
+/// 本轮生成链路交给工具的运行时信息。没有 provider 的场景（测试、确认后
+/// 执行、内部调用）用 `ToolRuntime::default()`。
+#[derive(Clone, Copy, Default)]
+pub struct ToolRuntime<'a> {
+    /// 当前渠道及其显示名：合成型工具在内部发子请求，并按渠道记账。
+    pub provider: Option<(&'a dyn AiProvider, &'a str)>,
+    /// 本次调用的结果最多可占用的输入预算（估算 token）与计数所用的模型名。
+    /// None = 不限制（provider 不提供传输预算）。
+    pub result_budget: Option<(usize, &'a str)>,
+}
+
 /// 工具运行上下文
 pub struct ToolContext<'a> {
     pub store: &'a Store,
     pub conversation_id: &'a str,
     pub source_event_id: Option<String>,
     pub knowledge_candidates: &'a [crate::knowledge::KnowledgeCitation],
+    pub runtime: ToolRuntime<'a>,
 }
 
 /// 一个可被 AI 调用的工具。

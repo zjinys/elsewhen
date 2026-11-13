@@ -97,7 +97,7 @@
     }
   },
   "get_wiki_page": {
-    "description": "按已知 slug 读取知识页，返回全文或有界片段，knowledge_reading 标明范围与 next_offset。核对具体要求、禁止项或交付清单时不要只凭摘要；长文继续读取需同时提供 next_offset 为 offset 和前次 content_hash，版本变化应从头重读。",
+    "description": "按已知 slug 读取知识页，返回全文或有界片段，knowledge_reading 标明范围与 next_offset。核对具体要求、禁止项或交付清单时不要只凭摘要；长文继续读取需同时提供 next_offset 为 offset 和前次 content_hash，版本变化应从头重读。片段长度随本轮剩余上下文而定，以 end_char 为准；返回 wiki_read_budget_exhausted 表示本轮已放不下更多正文，请基于已读内容作答并说明哪些部分还没读。",
     "parameters": {
       "/properties/slug/description": "页面 slug，必填",
       "/properties/offset/description": "正文字符偏移，默认0；继续读取用返回的next_offset",

@@ -1,8 +1,9 @@
 //! dispatch.rs：原 tool/mod.rs 同名分段外移，行为零变化。
 
-use super::Tool;
 use super::write_tools::store_create_pending;
-use super::{ToolCall, ToolContext, ToolPolicy, ToolRegistry, ToolResultMsg, ToolSpec};
+use super::{
+    Tool, ToolCall, ToolContext, ToolPolicy, ToolRegistry, ToolResultMsg, ToolRuntime, ToolSpec,
+};
 use crate::storage::Store;
 use anyhow::{Context, Result};
 use serde_json::{Value, json};
@@ -213,7 +214,14 @@ pub fn dispatch(
     store: &Store,
     conversation_id: &str,
 ) -> ToolResultMsg {
-    dispatch_with_knowledge(call, registry, store, conversation_id, &[])
+    dispatch_with_knowledge(
+        call,
+        registry,
+        store,
+        conversation_id,
+        &[],
+        ToolRuntime::default(),
+    )
 }
 
 pub fn dispatch_with_knowledge(
@@ -222,6 +230,7 @@ pub fn dispatch_with_knowledge(
     store: &Store,
     conversation_id: &str,
     knowledge_candidates: &[crate::knowledge::KnowledgeCitation],
+    runtime: ToolRuntime<'_>,
 ) -> ToolResultMsg {
     match registry.get(&call.name) {
         Some(tool) => {
@@ -246,6 +255,7 @@ pub fn dispatch_with_knowledge(
                 store,
                 conversation_id,
                 knowledge_candidates,
+                runtime,
                 source_event_id: store
                     .latest_event_id_for_conversation(conversation_id)
                     .ok()

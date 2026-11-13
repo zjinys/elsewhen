@@ -170,6 +170,7 @@ fn dispatch_guard_blocks_unenabled_deferred_tool() {
         conversation_id: &conv,
         source_event_id: None,
         knowledge_candidates: &[],
+        runtime: Default::default(),
     };
     let _ = ctx;
     // 走 conversation 层的守卫逻辑等价断言：未启用 + deferred => 拦截由 dispatch_for_turn 完成；

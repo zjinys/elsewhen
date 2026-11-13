@@ -69,6 +69,21 @@ impl Fixture {
             &self.store,
             &self.conv,
             &[citation],
+            Default::default(),
+        )
+    }
+    /// 带结果预算的调用：模拟代理循环量出余量后交给工具。
+    fn call_with_budget(&self, name: &str, args: Value, tokens: usize) -> ToolResultMsg {
+        dispatch_with_knowledge(
+            &ToolCall::new(name, args),
+            &ToolRegistry::default(),
+            &self.store,
+            &self.conv,
+            &[],
+            ToolRuntime {
+                provider: None,
+                result_budget: Some((tokens, "fixture")),
+            },
         )
     }
 }
@@ -129,6 +144,100 @@ fn wiki_support_long_page_reading_reaches_tail_without_mixing_versions() {
     );
     assert!(!stale.success);
     assert!(stale.content.contains("wiki_read_version_changed"));
+}
+
+#[test]
+fn wiki_support_page_reading_fits_the_remaining_request_budget() {
+    let f = Fixture::new();
+    let body = "预算内分段读取的正文。".repeat(2000);
+    let page = f.page("method/budgeted", "预算读取", &body);
+    let hash = crate::storage::knowledge::content_hash(&body);
+    // 结果作为 JSON 字符串嵌进请求后的成本。
+    let cost = |result: &ToolResultMsg| {
+        crate::ai::budget::text_tokens(
+            "fixture",
+            &Value::String(result.content.clone()).to_string(),
+        )
+    };
+
+    // 余量充足：与不带预算时一样返回 8000 字符。
+    let roomy = f.call_with_budget("get_wiki_page", json!({"slug":page.slug}), 100_000);
+    let value: Value = serde_json::from_str(&roomy.content).unwrap();
+    assert_eq!(value["knowledge_reading"][&page.slug]["end_char"], 8000);
+
+    // 余量有限：每段嵌入请求后的成本不超过预算，片段首尾相接直到读完。
+    let budget = 6000;
+    let mut offset = 0;
+    let mut collected = String::new();
+    loop {
+        let mut args = json!({"slug":page.slug,"offset":offset});
+        if offset > 0 {
+            args["content_hash"] = hash.clone().into();
+        }
+        let result = f.call_with_budget("get_wiki_page", args, budget);
+        assert!(result.success, "{}", result.content);
+        assert!(cost(&result) <= budget);
+        let value: Value = serde_json::from_str(&result.content).unwrap();
+        let read = &value["knowledge_reading"][&page.slug];
+        let text = value["knowledge_candidates"][0]["excerpt"]
+            .as_str()
+            .unwrap();
+        assert_eq!(read["start_char"], offset);
+        assert_eq!(read["end_char"], offset + text.chars().count());
+        collected.push_str(text);
+        let Some(next) = read["next_offset"].as_u64() else {
+            break;
+        };
+        // 没读完的片段不低于最小长度，也没有用满 8000。
+        assert!((1500..8000).contains(&text.chars().count()));
+        offset = next as usize;
+    }
+    assert_eq!(collected, body);
+
+    // 余量连最小片段都放不下：明确报错，不返回注定被截断的碎片。
+    let exhausted = f.call_with_budget("get_wiki_page", json!({"slug":page.slug}), 1200);
+    assert!(!exhausted.success);
+    assert!(exhausted.content.contains("wiki_read_budget_exhausted"));
+    // 页尾剩下的一小段读得完时照常返回。
+    let tail = body.chars().count() - 300;
+    let last = f.call_with_budget(
+        "get_wiki_page",
+        json!({"slug":page.slug,"offset":tail,"content_hash":hash}),
+        2000,
+    );
+    assert!(last.success, "{}", last.content);
+}
+
+#[test]
+fn knowledge_search_matches_events_by_terms_not_the_whole_query() {
+    let f = Fixture::new();
+    let at = chrono::Utc::now();
+    let long = format!(
+        "{}周三复盘：SQLite 写入失败后没有回滚，导致重复扣款。{}",
+        "铺垫。".repeat(200),
+        "后记。".repeat(50)
+    );
+    for text in [long.as_str(), "今天散步了四十分钟。"] {
+        f.store
+            .insert_event(NewEvent {
+                raw_text: text,
+                occurred_at: at,
+                recorded_at: at,
+                source: "capture",
+            })
+            .unwrap();
+    }
+    let result = f.call("search_knowledge_base", json!({"query":"SQLite 回滚 扣款"}));
+    assert!(result.success, "{}", result.content);
+    let value: Value = serde_json::from_str(&result.content).unwrap();
+    let events = value["events"].as_array().unwrap();
+    assert_eq!(events.len(), 1, "多词问法按词命中，无关事件不返回");
+    let excerpt = events[0]["excerpt"].as_str().unwrap();
+    assert!(
+        excerpt.contains("没有回滚"),
+        "摘录取命中处而不是事件开头：{excerpt}"
+    );
+    assert!(excerpt.chars().count() <= 352);
 }
 
 #[test]

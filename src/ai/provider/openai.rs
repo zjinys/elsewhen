@@ -269,22 +269,22 @@ impl AiProvider for OpenAiCompatibleProvider {
         messages: &[ContextMessage],
         tools: Option<&[ToolSpec]>,
     ) -> Result<bool> {
-        crate::ai::budget::validate_context_exchanges(messages)?;
-        let (mut payload, _) = self.request_parts(messages.to_vec(), tools)?;
-        payload["stream"] = Value::Bool(true);
-        payload["stream_options"] = serde_json::json!({"include_usage":true});
-        let window = self
-            .config
-            .context_window
-            .map(|v| v as usize)
-            .unwrap_or_else(|| crate::ai::budget::default_window(&self.config.model));
-        let limit = crate::ai::budget::input_limit(window, self.output_reserve())?;
+        let (used, limit) = self.stream_budget(messages, tools)?;
         // Do not trim any existing exchange to fit a supplement. Extra reserve
         // covers clock refresh and protocol framing between probe and request.
-        Ok(
-            crate::ai::budget::input_tokens(&self.config.model, &payload).saturating_add(512)
-                <= limit,
-        )
+        Ok(used.saturating_add(512) <= limit)
+    }
+
+    fn input_headroom(
+        &self,
+        messages: &[ContextMessage],
+        tools: Option<&[ToolSpec]>,
+    ) -> Result<Option<(usize, String)>> {
+        let (used, limit) = self.stream_budget(messages, tools)?;
+        Ok(Some((
+            limit.saturating_sub(used),
+            self.config.model.clone(),
+        )))
     }
 
     fn generate_reply_with_tools(
@@ -313,6 +313,29 @@ impl AiProvider for OpenAiCompatibleProvider {
 }
 
 impl OpenAiCompatibleProvider {
+    /// 流式请求口径下的 (已用, 上限)，单位是估算 token。与真实发送用同一份
+    /// 序列化请求（消息、工具清单、流式开关）和同一个估算器。
+    fn stream_budget(
+        &self,
+        messages: &[ContextMessage],
+        tools: Option<&[ToolSpec]>,
+    ) -> Result<(usize, usize)> {
+        crate::ai::budget::validate_context_exchanges(messages)?;
+        let (mut payload, _) = self.request_parts(messages.to_vec(), tools)?;
+        payload["stream"] = Value::Bool(true);
+        payload["stream_options"] = serde_json::json!({"include_usage":true});
+        let window = self
+            .config
+            .context_window
+            .map(|v| v as usize)
+            .unwrap_or_else(|| crate::ai::budget::default_window(&self.config.model));
+        let limit = crate::ai::budget::input_limit(window, self.output_reserve())?;
+        Ok((
+            crate::ai::budget::input_tokens(&self.config.model, &payload),
+            limit,
+        ))
+    }
+
     fn request_parts(
         &self,
         messages: Vec<ContextMessage>,

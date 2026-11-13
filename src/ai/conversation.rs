@@ -3,7 +3,9 @@ mod acceptance_tests;
 mod continuity;
 mod supplement_tests;
 
-use super::tool::{ToolCall, ToolPolicy, ToolRegistry, ToolResultMsg, dispatch_with_knowledge};
+use super::tool::{
+    ToolCall, ToolPolicy, ToolRegistry, ToolResultMsg, ToolRuntime, dispatch_with_knowledge,
+};
 use crate::ai::provider::{AiProvider, AiReply};
 use anyhow::Result;
 
@@ -214,6 +216,7 @@ fn dispatch_for_turn(
     allow_record_event: bool,
     knowledge_candidates: &[crate::knowledge::KnowledgeCitation],
     enabled_tools: &std::collections::HashSet<String>,
+    runtime: ToolRuntime<'_>,
 ) -> Result<ToolResultMsg> {
     super::generation::check(store)?;
     // 延迟加载守卫：未启用的延迟工具拒绝执行，指引模型先 enable_tools。
@@ -258,8 +261,14 @@ fn dispatch_for_turn(
         None
     };
     super::generation::check(store)?;
-    let result =
-        dispatch_with_knowledge(call, registry, store, conversation_id, knowledge_candidates);
+    let result = dispatch_with_knowledge(
+        call,
+        registry,
+        store,
+        conversation_id,
+        knowledge_candidates,
+        runtime,
+    );
     super::generation::check(store)?;
     if !result.success {
         drop(transaction);

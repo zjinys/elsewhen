@@ -124,6 +124,18 @@ pub trait AiProvider {
         Ok(false)
     }
 
+    /// 下一次请求还剩多少输入预算：返回 (估算 token 数, 计数口径所用的模型名)。
+    /// 与真实发送用同一份序列化请求和估算器，供工具在返回大块内容之前按
+    /// 余量裁剪。没有传输预算的测试/自定义 provider 返回 None，调用方按
+    /// 不限制处理。
+    fn input_headroom(
+        &self,
+        _messages: &[ContextMessage],
+        _tools: Option<&[ToolSpec]>,
+    ) -> Result<Option<(usize, String)>> {
+        Ok(None)
+    }
+
     /// 纯文本请求（不带 tools）
     fn generate_reply(&self, messages: Vec<ContextMessage>) -> Result<AiReply> {
         self.generate_reply_with_tools(messages, None)

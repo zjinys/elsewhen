@@ -2,9 +2,54 @@
 use super::continuity::{FollowUp, progress_fallback, unhelpful_failure_reply};
 use super::*;
 use crate::ai::provider::{AiProvider, AiReply};
-use crate::ai::tool::{ToolPolicy, ToolRegistry, ToolResultMsg};
+use crate::ai::tool::{ToolPolicy, ToolRegistry, ToolResultMsg, ToolRuntime, ToolSpec};
 use crate::storage::Store;
 use anyhow::Result;
+
+/// 一轮工具调用之后还会追加的内容（收尾指令、本轮行为清单、工具结果的
+/// 协议外衣）与估算误差，从工具结果预算里预先留出的余量（估算 token）。
+const FOLLOW_UP_RESERVE_TOKENS: usize = 2048;
+
+/// 本轮每个工具调用的结果最多可占用多少输入预算（估算 token）及计数所用
+/// 的模型。`probe` 是下一次请求的形状：含本轮 assistant 调用与空的结果占位。
+/// provider 不提供传输预算、或量不出来时返回 None，工具按各自的默认上限返回。
+fn result_budget(
+    provider: &dyn AiProvider,
+    conversation_id: &str,
+    probe: &[ContextMessage],
+    tools: Option<&[ToolSpec]>,
+    calls: usize,
+) -> Option<(usize, String)> {
+    let (headroom, model) = provider.input_headroom(probe, tools).ok().flatten()?;
+    // 启发式对这个渠道低估过时，按同一比率收紧（与历史预算的处理一致）。
+    let tightened = (headroom as f64
+        / super::generation::usage_underestimate_ratio(conversation_id, &model))
+        as usize;
+    Some((
+        tightened.saturating_sub(FOLLOW_UP_RESERVE_TOKENS) / calls.max(1),
+        model,
+    ))
+}
+
+/// 文本协议下随请求附带的工具清单提示。
+fn text_tool_prompt(
+    registry: &ToolRegistry,
+    allow_record_event: bool,
+    enabled_tools: &std::collections::HashSet<String>,
+    status_only: bool,
+) -> ContextMessage {
+    let mut specs = registry.provider_specs_partitioned(allow_record_event, enabled_tools);
+    if let Some(meta) = registry.meta_spec() {
+        specs.push(meta);
+    }
+    specs.retain(|spec| {
+        !status_only
+            || registry
+                .get(&spec.name)
+                .is_some_and(|t| t.policy() == ToolPolicy::Read)
+    });
+    ContextMessage::new("system", registry.localized_prompt_for_specs(&specs))
+}
 
 /// Agent 循环结果
 pub(crate) struct AgentOutcome {
@@ -201,23 +246,11 @@ pub(crate) fn run_agent_loop_inner(
 
         let mut request_context = context.clone();
         if protocol == Some(ToolProtocol::Text) && !finalizing {
-            let mut meta_specs =
-                registry.provider_specs_partitioned(allow_record_event, &enabled_tools);
-            if let Some(meta) = registry.meta_spec() {
-                meta_specs.push(meta);
-            }
-            let specs: Vec<_> = meta_specs
-                .into_iter()
-                .filter(|spec| {
-                    !status_only
-                        || registry
-                            .get(&spec.name)
-                            .is_some_and(|t| t.policy() == ToolPolicy::Read)
-                })
-                .collect();
-            request_context.push(ContextMessage::new(
-                "system",
-                registry.localized_prompt_for_specs(&specs),
+            request_context.push(text_tool_prompt(
+                registry,
+                allow_record_event,
+                &enabled_tools,
+                status_only,
             ));
         }
         // Only a completed tool exchange creates a steering boundary. Inputs
@@ -352,6 +385,30 @@ pub(crate) fn run_agent_loop_inner(
                 reply.tool_calls.clone(),
                 reply.reasoning_content.clone(),
             ));
+            // 预算前移：先量出下一次请求还能容纳多少，工具据此决定返回多少，
+            // 而不是返回之后再由预算层截断。
+            let budget = {
+                let mut probe = context.clone();
+                probe.extend(
+                    reply
+                        .tool_calls
+                        .iter()
+                        .map(|call| ContextMessage::tool_result(call.id.clone(), String::new())),
+                );
+                result_budget(
+                    provider,
+                    conversation_id,
+                    &probe,
+                    tools.as_deref(),
+                    reply.tool_calls.len(),
+                )
+            };
+            let runtime = ToolRuntime {
+                provider: Some((provider, provider_name)),
+                result_budget: budget
+                    .as_ref()
+                    .map(|(tokens, model)| (*tokens, model.as_str())),
+            };
             for call in &reply.tool_calls {
                 if let Some(body) = call.arguments.get("content_md").and_then(|v| v.as_str()) {
                     crate::knowledge::workflows::record_generation(
@@ -399,6 +456,7 @@ pub(crate) fn run_agent_loop_inner(
                     allow_record_event,
                     &crate::knowledge::candidates_in_context(context),
                     &enabled_tools,
+                    runtime,
                 )?;
                 debug_eprintln!(
                     "[agent] dispatch tool={} -> {}",
@@ -423,6 +481,23 @@ pub(crate) fn run_agent_loop_inner(
             protocol = Some(ToolProtocol::Text);
             let reply_model = reply.model.clone();
             context.push(assistant_continuation(reply));
+            // 预算前移（文本协议）：下一次请求会附带工具清单提示，一并计入。
+            let budget = {
+                let mut probe = context.clone();
+                probe.push(text_tool_prompt(
+                    registry,
+                    allow_record_event,
+                    &enabled_tools,
+                    status_only,
+                ));
+                result_budget(provider, conversation_id, &probe, None, calls.len())
+            };
+            let runtime = ToolRuntime {
+                provider: Some((provider, provider_name)),
+                result_budget: budget
+                    .as_ref()
+                    .map(|(tokens, model)| (*tokens, model.as_str())),
+            };
             for call in &calls {
                 if let Some(body) = call.arguments.get("content_md").and_then(|v| v.as_str()) {
                     crate::knowledge::workflows::record_generation(
@@ -481,6 +556,7 @@ pub(crate) fn run_agent_loop_inner(
                     allow_record_event,
                     &crate::knowledge::candidates_in_context(context),
                     &enabled_tools,
+                    runtime,
                 )?;
                 debug_eprintln!(
                     "[agent] text-protocol tool={} -> {}",

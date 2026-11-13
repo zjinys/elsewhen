@@ -204,7 +204,11 @@ fn fit(hits: impl Iterator<Item = SearchHit>, budget: usize, max: usize) -> Resu
 /// Select the most relevant full-text window instead of always citing the intro.
 /// 返回 (摘录, 窗口在页内的起始字符偏移)；整页不超过 `limit` 时摘录就是全文，
 /// 偏移为 None。窗口本身是逐字原文，省略号只标在两端。
-fn matching_excerpt(text: &str, terms: &[String], limit: usize) -> (String, Option<usize>) {
+pub(crate) fn matching_excerpt(
+    text: &str,
+    terms: &[String],
+    limit: usize,
+) -> (String, Option<usize>) {
     let chars: Vec<char> = text.chars().collect();
     if chars.len() <= limit {
         return (text.into(), None);

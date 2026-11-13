@@ -151,42 +151,75 @@ impl Tool for GetWikiPageTool {
         }
         let total = page.content_md.chars().count();
         anyhow::ensure!(offset <= total, "wiki_read_offset_invalid");
-        let excerpt = page
+        // 单次至多 8000 字符：输出预留与窗口已按模型族放大，5 万字手册
+        // 从 20+ 次翻页降到 ~7 次；翻页轮次烧尽是合成型问题的主要
+        // 失败模式（run 564fe4bb/8fd94ade）。
+        const MAX_READ_CHARS: usize = 8000;
+        // 余量连这么多都放不下时不再返回碎片（读得完的页尾除外）。
+        const MIN_READ_CHARS: usize = 1500;
+        let available: Vec<char> = page
             .content_md
             .chars()
             .skip(offset)
-            // 单次 8000 字符：输出预留与窗口已按模型族放大，5 万字手册
-            // 从 20+ 次翻页降到 ~7 次；翻页轮次烧尽是合成型问题的主要
-            // 失败模式（run 564fe4bb/8fd94ade）。
-            .take(8000)
-            .collect::<String>();
-        let end = offset + excerpt.chars().count();
-        let reading = json!({
-            "coverage":if offset == 0 && end == total { "full" } else { "excerpt" },
-            "start_char":offset,"end_char":end,"total_chars":total,
-            "next_offset":if end < total { Some(end) } else { None },"content_hash":hash
-        });
+            .take(MAX_READ_CHARS)
+            .collect();
         let citation = crate::knowledge::citation_for_page_explicit(
             ctx.store,
             &page,
             "用户明确打开此页".into(),
-            8000,
+            0,
         )?;
-        match citation {
-            Some(mut citation) => {
-                citation.excerpt = excerpt;
-                Ok(
-                    json!({"knowledge_candidates":[citation],"knowledge_reading":{(slug):reading}})
-                        .to_string(),
-                )
+        let render = |length: usize| -> String {
+            let excerpt: String = available[..length].iter().collect();
+            let end = offset + length;
+            let reading = json!({
+                "coverage":if offset == 0 && end == total { "full" } else { "excerpt" },
+                "start_char":offset,"end_char":end,"total_chars":total,
+                "next_offset":if end < total { Some(end) } else { None },"content_hash":hash
+            });
+            match &citation {
+                Some(citation) => {
+                    let mut citation = citation.clone();
+                    citation.excerpt = excerpt;
+                    json!({"knowledge_candidates":[citation],"knowledge_reading":{(slug.clone()):reading}})
+                        .to_string()
+                }
+                None => json!({"knowledge_candidates":[],"unverified_page":{
+                    "slug":page.slug,"title":page.title,
+                    "content_md":excerpt,"reading":reading,
+                    "notice":"仅供读取与编辑；缺少有效来源、来源待复核或已被拒绝，不可作为正面证据。"
+                }})
+                .to_string(),
             }
-            None => Ok(json!({"knowledge_candidates":[],"unverified_page":{
-                "slug":page.slug,"title":page.title,
-                "content_md":excerpt,"reading":reading,
-                "notice":"仅供读取与编辑；缺少有效来源、来源待复核或已被拒绝，不可作为正面证据。"
-            }})
-            .to_string()),
+        };
+        // 预算前移：代理循环量出了下一次请求还能容纳多少，这里按余量决定
+        // 返回多长，而不是返回 8000 字符之后再被预算层截断。结果会作为
+        // JSON 字符串嵌进请求，所以按嵌入后的形态计数。
+        let fits = |length: usize| match ctx.runtime.result_budget {
+            None => true,
+            Some((tokens, model)) => {
+                crate::ai::budget::text_tokens(model, &Value::String(render(length)).to_string())
+                    <= tokens
+            }
+        };
+        let mut length = available.len();
+        if !fits(length) {
+            let (mut low, mut high) = (0, length);
+            while low + 1 < high {
+                let middle = (low + high) / 2;
+                if fits(middle) {
+                    low = middle;
+                } else {
+                    high = middle;
+                }
+            }
+            length = low;
+            anyhow::ensure!(
+                length >= MIN_READ_CHARS.min(available.len()),
+                "wiki_read_budget_exhausted"
+            );
         }
+        Ok(render(length))
     }
 }
 
@@ -258,19 +291,44 @@ impl Tool for SearchKnowledgeBaseTool {
             crate::knowledge::select::select_knowledge_variants(ctx.store, &queries, 4000)?;
         hits.truncate(limit);
         let warnings = crate::knowledge::negative::select_warnings(ctx.store, &queries, 1600)?;
+        // 事件按词匹配：把整句当一个子串时，多词问法几乎匹配不到。命中词多的
+        // 排前，其次按时间；摘录取命中处的原文窗口，而不是固定取开头。
+        let mut seen = std::collections::HashSet::new();
+        let terms: Vec<String> = queries
+            .iter()
+            .flat_map(|query| crate::knowledge::select::query_terms(query))
+            .filter(|term| seen.insert(term.clone()))
+            .take(40)
+            .collect();
         let mut events = Vec::new();
-        let mut stmt = ctx.store.connection.prepare(
-            "SELECT id,substr(raw_text,1,350) FROM events
-            WHERE instr(lower(raw_text),lower(?1))>0 ORDER BY recorded_at DESC LIMIT ?2",
-        )?;
-        let rows = stmt
-            .query_map(rusqlite::params![query, limit.min(8) as i64], |r| {
-                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
-            })?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        for (id, text) in rows {
-            if ctx.store.recordable_event(&id)? {
-                events.push(json!({"event_id":id,"excerpt":text,"category":"用户记录"}));
+        if !terms.is_empty() {
+            let wanted = limit.min(8);
+            let hit = |index: usize| format!("(instr(lower(raw_text),?{index})>0)");
+            let sql = format!(
+                "SELECT id,raw_text FROM events WHERE {}
+                 ORDER BY ({}) DESC,recorded_at DESC LIMIT {}",
+                (1..=terms.len()).map(hit).collect::<Vec<_>>().join(" OR "),
+                (1..=terms.len()).map(hit).collect::<Vec<_>>().join("+"),
+                // 不可记录的事件在下面过滤掉，多取一些以便凑满。
+                wanted * 3
+            );
+            let rows = ctx
+                .store
+                .connection
+                .prepare(&sql)?
+                .query_map(rusqlite::params_from_iter(terms.iter()), |r| {
+                    Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            for (id, text) in rows {
+                if events.len() == wanted {
+                    break;
+                }
+                if ctx.store.recordable_event(&id)? {
+                    let (excerpt, _) =
+                        crate::knowledge::select::matching_excerpt(&text, &terms, 350);
+                    events.push(json!({"event_id":id,"excerpt":excerpt,"category":"用户记录"}));
+                }
             }
         }
         let mut reading = serde_json::Map::new();

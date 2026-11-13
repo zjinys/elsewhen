@@ -27,7 +27,14 @@ fn conversation_draft_reuses_verified_sources_and_remains_retrievable() {
         .pending_actions_for_conversation(&conv)
         .unwrap()
         .is_empty());
-    let result = dispatch_with_knowledge(&call, &ToolRegistry::default(), s, &conv, &hits);
+    let result = dispatch_with_knowledge(
+        &call,
+        &ToolRegistry::default(),
+        s,
+        &conv,
+        &hits,
+        Default::default(),
+    );
     assert!(result.success, "{}", result.content);
     let pending = s.pending_actions_for_conversation(&conv).unwrap().remove(0);
     assert!(s
@@ -95,7 +102,15 @@ fn conversation_draft_rechecks_sources_at_confirmation_and_keeps_free_notes_unat
             "save_knowledge_draft",
             serde_json::json!({"title":"有出处的总结","content_md":"总结","source_slugs":[raw.slug]}),
         );
-        assert!(dispatch_with_knowledge(&call, &ToolRegistry::default(), s, &conv, &hits).success);
+        assert!(dispatch_with_knowledge(
+            &call,
+            &ToolRegistry::default(),
+            s,
+            &conv,
+            &hits,
+            Default::default()
+        )
+        .success);
         let pending = s.pending_actions_for_conversation(&conv).unwrap().remove(0);
         if change == "version" {
             source(
