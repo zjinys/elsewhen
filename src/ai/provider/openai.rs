@@ -30,18 +30,33 @@ impl Default for OpenAiCompatibleConfig {
 pub struct OpenAiCompatibleProvider {
     config: OpenAiCompatibleConfig,
     client: reqwest::blocking::Client,
+    /// 运行时输出档位覆盖：None = 生成档（`default_output`）；聊天/摘要路径
+    /// 构造后调用 [`Self::with_output_reserve`] 切到低预留档，给输入预算让位。
+    /// 显式构造期传递而非全局变量：前台聊天与后台任务可能并发，全局档位会互相污染。
+    output_reserve_override: Option<usize>,
 }
 
 impl OpenAiCompatibleProvider {
     pub fn new(config: OpenAiCompatibleConfig) -> Result<Self> {
         let client = shared_blocking_client(60)?;
 
-        Ok(Self { config, client })
+        Ok(Self {
+            config,
+            client,
+            output_reserve_override: None,
+        })
+    }
+
+    /// 覆盖输出预留档位（聊天路径用 `budget::chat_output`）。
+    pub fn with_output_reserve(mut self, output: usize) -> Self {
+        self.output_reserve_override = Some(output);
+        self
     }
 
     /// 运行时输出预留：provider 配置不再提供输出上限，按模型族系统默认。
     fn output_reserve(&self) -> usize {
-        crate::ai::budget::default_output(&self.config.model)
+        self.output_reserve_override
+            .unwrap_or_else(|| crate::ai::budget::default_output(&self.config.model))
     }
 }
 

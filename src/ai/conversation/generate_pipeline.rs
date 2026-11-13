@@ -267,6 +267,7 @@ pub(crate) fn generate_with_provider_configs(
                     .into_iter()
                     .map(|ai_config| {
                         let id = ai_config.id.clone();
+                        let chat_output = crate::ai::budget::chat_output(&ai_config.model);
                         let provider_config = super::provider::OpenAiCompatibleConfig {
                             base_url: ai_config.base_url,
                             api_key: ai_config.api_key,
@@ -278,7 +279,13 @@ pub(crate) fn generate_with_provider_configs(
                         Ok((
                             Some(id),
                             ai_config.name,
-                            Box::new(OpenAiCompatibleProvider::new(provider_config)?)
+                            // 聊天会话用低预留档：32K 生成预留会把 64K 窗口的
+                            // 输入预算砍半，多轮工具结果直接撞本地拒绝
+                            //（run 8fd94ade）。max_tokens 仍不低于实测聊天输出量级。
+                            Box::new(
+                                OpenAiCompatibleProvider::new(provider_config)?
+                                    .with_output_reserve(chat_output),
+                            )
                                 as Box<dyn AiProvider>,
                         ))
                     })
@@ -289,6 +296,7 @@ pub(crate) fn generate_with_provider_configs(
                 let base_url = std::env::var("OLLAMA_BASE_URL")
                     .unwrap_or_else(|_| "http://localhost:11434".to_string());
                 let model = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "llama2".to_string());
+                let chat_output = crate::ai::budget::chat_output(&model);
 
                 let provider_config = super::provider::OllamaConfig {
                     context_window: None,
@@ -300,7 +308,10 @@ pub(crate) fn generate_with_provider_configs(
                 vec![(
                     None,
                     "Ollama".to_string(),
-                    Box::new(OllamaProvider::new(provider_config)?),
+                    Box::new(
+                        OllamaProvider::new(provider_config)?
+                            .with_output_reserve(chat_output),
+                    ),
                 )]
             }
         };

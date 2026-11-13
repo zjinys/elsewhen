@@ -196,6 +196,24 @@ fn default_output_recognizes_model_families() {
 }
 
 #[test]
+fn chat_output_is_lower_than_generation_reserve() {
+    // 聊天档取生成档的一半，但老代 8K 硬上限不动；64K 窗口的输入预算
+    // 因此回到 ~46K，多轮工具结果不再撞本地拒绝（run 8fd94ade）。
+    assert_eq!(chat_output("deepseek-chat"), 8192);
+    assert_eq!(chat_output("deepseek-v4.1-flash"), 16384);
+    assert_eq!(chat_output("deepseek/deepseek-v4.1-flash-1017"), 16384);
+    assert_eq!(chat_output("gpt-4o"), 16384);
+    assert_eq!(chat_output("glm-5.3-flash"), 16384);
+    assert_eq!(chat_output("kimi-k2"), 16384);
+    // 未知模型生成档 16384 → 聊天档 8192（仍高于实测聊天输出 ≤2.5K）
+    assert_eq!(chat_output("llama3-8b"), 8192);
+    // 不变量：聊天档永远 ≤ 生成档
+    for m in ["deepseek-chat", "deepseek-v4.1-flash", "gpt-4o", "llama3-8b"] {
+        assert!(chat_output(m) <= default_output(m));
+    }
+}
+
+#[test]
 fn optional_background_is_removed_without_touching_evidence_or_tool_exchange() {
     let evidence = "经核验的原文，不得裁剪。".repeat(15);
     let mut req = serde_json::json!({"messages":[

@@ -672,6 +672,23 @@ pub fn default_output(model: &str) -> usize {
         16384
     }
 }
+
+/// 聊天/摘要等对话型任务的输出预留（低于 `default_output` 的生成档）。
+///
+/// 实测生产聊天多轮 completion 从未超过 2.5K（run 564fe4bb 全轮 ≤2.4K）；
+/// 预留 32K 会把 64K 窗口的输入预算砍半，多轮工具结果直接撞本地拒绝
+/// （run 8fd94ade，41189 > 29492）。对话路径按 16K 档：既给工具密集轮与
+/// 文本协议余量，又把输入预算还给上下文。max_tokens 本身宁大勿小，但
+/// 「预留」同时压缩输入预算，必须按任务分开——这是两个不同的量。
+/// 结构化生成任务（全页修订/材料处理/摘要冷启动）仍用 `default_output`。
+pub fn chat_output(model: &str) -> usize {
+    match default_output(model) {
+        // 老代硬上限 8K，保留
+        8192 => 8192,
+        // 其余（32K/16K 生成档）聊天取半，不低于老代档
+        n => n.max(16384) / 2,
+    }
+}
 pub fn input_tokens(model: &str, request: &Value) -> usize {
     // Includes message roles, call IDs/arguments, reasoning, tool schemas and
     // wrapper keys. The extra per-message allowance covers server chat framing.

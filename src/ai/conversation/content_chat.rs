@@ -82,7 +82,9 @@ fn generate_content_reply(context: Vec<ContextMessage>, store: &Store) -> Result
         max_tokens: None,
         context_window: None,
     };
-    let provider = OpenAiCompatibleProvider::new(provider_config)?;
+    let provider = OpenAiCompatibleProvider::new(provider_config.clone())?
+        // 推文/内容处理也是对话型短输出，用低预留档给输入让位。
+        .with_output_reserve(crate::ai::budget::chat_output(&provider_config.model));
 
     let reply = provider.generate_reply(context)?;
     let completion_tokens_estimate = estimate_tokens(&reply.content) as u64;

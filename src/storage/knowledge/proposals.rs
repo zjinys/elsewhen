@@ -57,6 +57,75 @@ impl Store {
         Ok(())
     }
 
+    /// 页级 TL;DR 读取（迁移 82）。返回 None 表示未建或页面版本已过期
+    /// （content_hash 不匹配当前页面内容）。
+    pub(crate) fn page_tldr(&self, slug: &str) -> Result<Option<String>> {
+        let Some(page) = self.get_wiki_page(slug)? else {
+            return Ok(None);
+        };
+        let hash = crate::storage::knowledge::content_hash(&page.content_md);
+        let summary: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT t.summary FROM page_tldr t JOIN wiki_pages p ON p.id=t.page_id
+                 WHERE p.slug=?1 AND t.content_hash=?2",
+                params![slug, hash],
+                |r| r.get(0),
+            )
+            .optional()?;
+        Ok(summary)
+    }
+
+    /// 页级 TL;DR 写入（幂等 upsert，仅后台 tick 调用；内容哈希作版本舖）。
+    pub(crate) fn commit_page_tldr(
+        &self,
+        slug: &str,
+        summary: &str,
+        model: Option<&str>,
+    ) -> Result<()> {
+        let summary = summary.trim();
+        anyhow::ensure!(
+            !summary.is_empty() && summary.chars().count() <= 600,
+            "TL;DR 为空或过长"
+        );
+        let page = self.get_wiki_page(slug)?.context("知识页不存在")?;
+        let hash = crate::storage::knowledge::content_hash(&page.content_md);
+        let tx = Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
+        self.connection.execute(
+            "INSERT INTO page_tldr(page_id,content_hash,summary,model,created_at)
+             VALUES (?1,?2,?3,?4,?5) ON CONFLICT(page_id) DO UPDATE SET
+             content_hash=excluded.content_hash,summary=excluded.summary,
+             model=excluded.model,created_at=excluded.created_at",
+            params![
+                page.id,
+                hash,
+                summary,
+                model,
+                chrono::Utc::now().to_rfc3339()
+            ],
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// 有页面但 TL;DR 缺失的页（按最近更新排序，优先常用页）。
+    /// 返回 (slug, content_chars)；已建 TL;DR 但页面更新的过期行也计入——
+    /// 由调用方逐页比对 content_hash 判定，SQL 里无法预计算内容哈希。
+    pub(crate) fn pages_missing_tldr(&self, limit: usize) -> Result<Vec<(String, usize)>> {
+        let mut stmt = self.connection.prepare(
+            "SELECT p.slug, length(p.content_md) FROM wiki_pages p
+             LEFT JOIN page_tldr t ON t.page_id=p.id
+             WHERE p.status!='archived' AND p.content_md!='' AND t.page_id IS NULL
+             ORDER BY p.last_seen_at DESC, p.id LIMIT ?1",
+        )?;
+        let rows = stmt
+            .query_map(params![limit as i64], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)? as usize))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
+    }
+
     pub(crate) fn record_proposal(
         &self,
         draft: &WikiPageDraft,
