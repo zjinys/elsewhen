@@ -220,6 +220,9 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     ("knowledge_digest_runs", "local-knowledge-pipeline"),
     ("knowledge_generations", "local-knowledge-pipeline"),
     ("knowledge_metadata", "local-knowledge-pipeline"),
+    // 页级 TL;DR 索引（迁移 82）：本机后台生成的派生摘要，按 content_hash
+    // 锚定页面版本，换设备后台重建即可，不进快照。
+    ("page_tldr", "local-knowledge-pipeline"),
     ("knowledge_page_sources", "local-knowledge-pipeline"),
     ("knowledge_proposals", "local-knowledge-pipeline"),
     ("knowledge_refresh_jobs", "local-knowledge-pipeline"),

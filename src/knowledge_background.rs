@@ -5,6 +5,8 @@ mod refresh;
 pub(crate) use reconsolidation::run_knowledge_reconsolidation;
 pub(crate) use refresh::run_knowledge_refresh;
 mod sources;
+mod tldr;
+pub(crate) use tldr::run_page_tldr_backfill;
 use crate::ai::{insight::parse_insights, memory::ContextMessage, provider::AiProvider};
 use crate::knowledge::{record_usage, select_knowledge};
 use crate::storage::{ContentPolicy, Store, WikiPageDraft};

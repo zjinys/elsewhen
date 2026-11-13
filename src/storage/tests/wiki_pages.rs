@@ -455,3 +455,52 @@ fn list_wiki_page_metas_bounded_and_derivative_free() {
 
     let _ = std::fs::remove_file(path);
 }
+
+#[test]
+fn page_tldr_roundtrip_and_hash_expiry() {
+    let path = temporary_database();
+    let store = Store::open(&path).unwrap();
+    entity_page(&store, "method/relay", "method", "中继手册");
+
+    // 未建摘要 → None
+    assert!(store.page_tldr("method/relay").unwrap().is_none());
+    assert_eq!(store.pages_missing_tldr(10).unwrap().len(), 1);
+
+    // 建摘要 → 命中
+    store
+        .commit_page_tldr("method/relay", "中继页讲转发规则与配额。", Some("test-model"))
+        .unwrap();
+    assert_eq!(
+        store.page_tldr("method/relay").unwrap().unwrap(),
+        "中继页讲转发规则与配额。"
+    );
+    assert_eq!(store.pages_missing_tldr(10).unwrap().len(), 0);
+
+    // 页面更新 → content_hash 过期 → 返回 None（等待后台重建）
+    store
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                slug: "method/relay".into(),
+                kind: "method".into(),
+                title: "中继手册".into(),
+                summary: String::new(),
+                content_md: "# 中继手册 v2\n新增了配额章节。".into(),
+                tags: vec![],
+                source_event_ids: vec![],
+                status: "active".into(),
+                reason: "内容更新".into(),
+                source_url: None,
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap();
+    assert!(store.page_tldr("method/relay").unwrap().is_none());
+
+    // 空摘要与超长摘要被拒
+    assert!(store.commit_page_tldr("method/relay", "   ", None).is_err());
+    assert!(store
+        .commit_page_tldr("method/relay", &"长".repeat(601), None)
+        .is_err());
+
+    let _ = std::fs::remove_file(path);
+}

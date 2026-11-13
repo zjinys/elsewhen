@@ -155,7 +155,10 @@ impl Tool for GetWikiPageTool {
             .content_md
             .chars()
             .skip(offset)
-            .take(2400)
+            // 单次 8000 字符：输出预留与窗口已按模型族放大，5 万字手册
+            // 从 20+ 次翻页降到 ~7 次；翻页轮次烧尽是合成型问题的主要
+            // 失败模式（run 564fe4bb/8fd94ade）。
+            .take(8000)
             .collect::<String>();
         let end = offset + excerpt.chars().count();
         let reading = json!({
@@ -167,7 +170,7 @@ impl Tool for GetWikiPageTool {
             ctx.store,
             &page,
             "用户明确打开此页".into(),
-            2400,
+            8000,
         )?;
         match citation {
             Some(mut citation) => {

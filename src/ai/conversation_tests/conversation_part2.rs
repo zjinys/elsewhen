@@ -161,7 +161,8 @@ fn knowledge_tool_round_returns_only_supplied_bounded_citations() {
     .unwrap();
     let selected = crate::knowledge::candidates_in_context(&context);
     assert_eq!(selected.len(), 1);
-    assert!(selected[0].excerpt.chars().count() <= 2500);
+    // get_wiki_page 单次 8000 字符（2400→8000，减少长文翻页轮次烧尽）
+    assert!(selected[0].excerpt.chars().count() <= 8000);
     let (answer, cited) = crate::knowledge::validate_answer_citations(&reply.content, &selected);
     assert_eq!(cited.len(), 1);
     assert_eq!(cited[0].page_slug, page.slug);
@@ -171,8 +172,7 @@ fn knowledge_tool_round_returns_only_supplied_bounded_citations() {
             .iter()
             .map(|m| m.content.chars().count())
             .sum::<usize>()
-            <= 24000
-    );
+            <= 24000    );
     assert_eq!(
         store
             .source_snapshot(&cited[0].sources[0].snapshot_id)

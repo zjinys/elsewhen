@@ -250,7 +250,13 @@ pub fn select_knowledge(
             format!("问题与页面主题/正文匹配（{} 处主题线索）", prominent),
             1000,
         )? {
-            citation.excerpt = matching_excerpt(&page.content_md, &terms, 1000);
+            // 分层检索第一跳：有后台 TL;DR 时用摘要目录（~300 字），
+            // 让一次搜索能覆盖更多页；无 TL;DR 退回词窗正文摘录。
+            // 深读原文仍走 get_wiki_page 分页。
+            match store.page_tldr(&page.slug)? {
+                Some(tldr) => citation.excerpt = tldr,
+                None => citation.excerpt = matching_excerpt(&page.content_md, &terms, 1000),
+            }
             ranked.push((prominent * 4 + body_hits.min(10), citation));
         }
     }

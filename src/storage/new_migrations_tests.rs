@@ -128,6 +128,7 @@ fn migrations_are_discovered_from_the_directory() {
             "79-event-reading-scheduling",
             "80-semantic-goal-compass",
             "81-stalled-resnapshot-progress",
+            "82-page-tldr",
         ],
         "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
     );
@@ -159,7 +160,7 @@ fn migration_applies_goals_table() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 81, "全部迁移跑完，user_version 应为 81");
+    assert_eq!(version, 82, "全部迁移跑完，user_version 应为 82");
     assert_eq!(
         latest_version().unwrap(),
         version,

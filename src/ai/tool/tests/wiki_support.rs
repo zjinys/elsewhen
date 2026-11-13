@@ -81,7 +81,7 @@ impl Drop for Fixture {
 #[test]
 fn wiki_support_long_page_reading_reaches_tail_without_mixing_versions() {
     let f = Fixture::new();
-    let body = format!("{}结尾要求：不带手，不切镜头。", "编织🧵过程。".repeat(850));
+    let body = format!("{}结尾要求：不带手，不切镜头。", "编织🧵过程。".repeat(1500));
     let page = f.page("method/long-embroidery", "编织视频要求", &body);
     let hash = crate::storage::knowledge::content_hash(&body);
     let mut offset = 0;
@@ -102,7 +102,7 @@ fn wiki_support_long_page_reading_reaches_tail_without_mixing_versions() {
         let text = value["knowledge_candidates"][0]["excerpt"]
             .as_str()
             .unwrap();
-        assert!(text.chars().count() <= 2400);
+        assert!(text.chars().count() <= 8000);
         assert_eq!(read["end_char"], offset + text.chars().count());
         collected.push_str(text);
         let Some(next) = read["next_offset"].as_u64() else {
@@ -115,7 +115,7 @@ fn wiki_support_long_page_reading_reaches_tail_without_mixing_versions() {
     assert!(collected.ends_with("不切镜头。"));
     for args in [
         json!({"slug":page.slug,"offset":-1}),
-        json!({"slug":page.slug,"offset":2400}),
+        json!({"slug":page.slug,"offset":8000}),
         json!({"slug":page.slug,"offset":body.chars().count()+1,"content_hash":hash}),
     ] {
         assert!(!f.call("get_wiki_page", args).success);
@@ -125,7 +125,7 @@ fn wiki_support_long_page_reading_reaches_tail_without_mixing_versions() {
         .unwrap();
     let stale = f.call(
         "get_wiki_page",
-        json!({"slug":page.slug,"offset":2400,"content_hash":hash}),
+        json!({"slug":page.slug,"offset":8000,"content_hash":hash}),
     );
     assert!(!stale.success);
     assert!(stale.content.contains("wiki_read_version_changed"));

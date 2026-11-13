@@ -122,11 +122,20 @@ pub fn tick_knowledge_insights() -> Result<i64> {
         crate::knowledge_background::run_automatic_integration(&store, provider.as_ref())?;
     let reconsolidated =
         crate::knowledge_background::run_knowledge_reconsolidation(&store, provider.as_ref())?;
+    // 页级 TL;DR 索引回填（P1 分层检索）：失败不应阻断后续任务。
+    let tldr = crate::knowledge_background::run_page_tldr_backfill(&store, provider.as_ref())
+        .unwrap_or_else(|error| {
+            if std::env::var_os("ELSEWHEN_DEBUG").is_some() {
+                eprintln!("[knowledge-insights] TL;DR 回填失败，继续知识任务：{error:#}");
+            }
+            0
+        });
     Ok(preheated
         + refreshed
         + compiled
         + integrated
         + reconsolidated
+        + tldr
         + crate::knowledge_background::run_automatic_insights(&store, provider.as_ref())?)
 }
 
