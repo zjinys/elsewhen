@@ -155,6 +155,13 @@ impl Store {
                     [id],
                 )?;
             }
+            // 续传也是进展：接收端一旦开始 ack，这个时间戳就是「有人在动」的证据，
+            // claim 的卡死判定（见 `claim_sync_resnapshot`）靠它排除健康的
+            // 跨拍大快照传输。
+            self.connection.execute(
+                "UPDATE sync_snapshot_exports SET progress_at=?2 WHERE id=?1",
+                params![id, chrono::Utc::now().timestamp_millis()],
+            )?;
             if let Some(tx) = tx {
                 tx.commit()?;
             }
@@ -199,8 +206,8 @@ impl Store {
             .map(|s| s.roster.revision as i64)
             .unwrap_or(0);
         self.connection.execute(
-            "INSERT INTO sync_snapshot_exports(id,recipient_device_id,key_version,state,local_watermark,roster_revision,transport,blob_clock) VALUES(?1,?2,?3,'building',?4,?5,?6,?7)",
-            params![id,recipient,key_version as i64,local_watermark,roster_revision,SNAPSHOT_TRANSPORT,logical_clock],
+            "INSERT INTO sync_snapshot_exports(id,recipient_device_id,key_version,state,local_watermark,roster_revision,transport,blob_clock,progress_at) VALUES(?1,?2,?3,'building',?4,?5,?6,?7,?8)",
+            params![id,recipient,key_version as i64,local_watermark,roster_revision,SNAPSHOT_TRANSPORT,logical_clock,chrono::Utc::now().timestamp_millis()],
         )?;
         if let Some(tx) = tx {
             tx.commit()?;
@@ -218,8 +225,8 @@ impl Store {
             "sync_snapshot_blob_id_invalid"
         );
         let changed = self.connection.execute(
-            "UPDATE sync_snapshot_exports SET blob_id=?2 WHERE id=?1 AND state='building'",
-            params![id, blob_id],
+            "UPDATE sync_snapshot_exports SET blob_id=?2, progress_at=?3 WHERE id=?1 AND state='building'",
+            params![id, blob_id, chrono::Utc::now().timestamp_millis()],
         )?;
         ensure!(changed == 1, "sync_snapshot_export_not_building");
         Ok(())
@@ -229,8 +236,8 @@ impl Store {
     pub(crate) fn mark_snapshot_blob_progress(&self, id: &str, index: u64) -> Result<()> {
         ensure!(index <= i64::MAX as u64, "sync_snapshot_blob_index_invalid");
         let changed = self.connection.execute(
-            "UPDATE sync_snapshot_exports SET blob_index=?2 WHERE id=?1 AND state='building'",
-            params![id, index as i64],
+            "UPDATE sync_snapshot_exports SET blob_index=?2, progress_at=?3 WHERE id=?1 AND state='building'",
+            params![id, index as i64, chrono::Utc::now().timestamp_millis()],
         )?;
         ensure!(changed == 1, "sync_snapshot_export_not_building");
         Ok(())

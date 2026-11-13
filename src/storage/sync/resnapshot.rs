@@ -35,6 +35,16 @@ use rusqlite::{OptionalExtension, params};
 use crate::storage::Store;
 use crate::sync::protocol::validate_id;
 
+/// building 导出多久没有进展就判定卡死（毫秒）。
+///
+/// 卡死的根源（2026-11-12 事故）：blob 数据面的分片上传**不在**信箱 outbox 里，
+/// 「在途导出交给 outbox 重试」的前提对它不成立——接收端不 ack 时发送端每拍
+/// 等满 `window_wait_ms` 就收手，没有任何路径会推它。relay 侧 blob 的无进展
+/// TTL 是 30 分钟，分片被回收后这份导出永远不可能再被 ack，必须在这里接手。
+/// 取 35 分钟：略大于 relay TTL，保证判定卡死时 relay 侧也一定已经回收，
+/// 续传从零重传（blob_open created）不会留下半新半旧的片。
+const EXPORT_STALL_MS: i64 = 35 * 60 * 1000;
+
 /// A claimed re-snapshot: build exactly one export under this id.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ResnapshotClaim {
@@ -89,22 +99,43 @@ impl Store {
             }
             return Ok(None);
         }
-        let in_flight: Option<String> = self
+        let in_flight: Option<(String, String)> = self
             .connection
             .query_row(
-                "SELECT id FROM sync_snapshot_exports
+                "SELECT id,state FROM sync_snapshot_exports
                  WHERE recipient_device_id=?1 AND state IN ('building','ready')
                  ORDER BY rowid DESC LIMIT 1",
                 [member],
-                |r| r.get(0),
+                |r| Ok((r.get(0)?, r.get(1)?)),
             )
             .optional()?;
-        if in_flight.is_some() {
-            // One in-flight delivery per member; the wire outbox owns retries.
-            if let Some(tx) = tx {
-                tx.commit()?;
+        if let Some((export_id, state)) = in_flight {
+            if state == "ready" {
+                // ready 等的是 manifest 信令送达/接收端确认，outbox 真的重试这条。
+                if let Some(tx) = tx {
+                    tx.commit()?;
+                }
+                return Ok(None);
             }
-            return Ok(None);
+            // building：有进展（分片在动）就让它继续；停满 EXPORT_STALL_MS 就是
+            // 死导出——abort 掉。下一拍 claim 重跑：同 id 走 aborted 续传（blob
+            // 已被 relay TTL 回收时自动从零重传），request 校验也不会再拒绝它。
+            // 没有这条出路，一次接收端失联就把这份重快照永久钉死，owner 的 GC
+            // 冻结、配对流程的 id 校验全部跟着锁死（2026-11-12 事故形态）。
+            let progress_at: i64 = self.connection.query_row(
+                "SELECT progress_at FROM sync_snapshot_exports WHERE id=?1",
+                [&export_id],
+                |r| r.get(0),
+            )?;
+            let stalled = progress_at > 0
+                && chrono::Utc::now().timestamp_millis() - progress_at > EXPORT_STALL_MS;
+            if !stalled {
+                if let Some(tx) = tx {
+                    tx.commit()?;
+                }
+                return Ok(None);
+            }
+            self.abort_snapshot_export(&export_id)?;
         }
         // Idempotent replay: an OPEN request with NO export row at all
         // (claimed but never built) returns the same claim, not a new nonce.

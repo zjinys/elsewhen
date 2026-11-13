@@ -202,6 +202,89 @@ fn in_flight_export_blocks_new_claims_until_finished() {
 }
 
 #[test]
+fn stalled_building_export_is_aborted_by_claim_so_the_request_can_resume() {
+    let a = Db::new("a");
+    let b = Db::new("b");
+    pair(&a, &b);
+    a.capture_n("cap", 5);
+    a.flag("b");
+    let claim = a.store.claim_sync_resnapshot("b").unwrap().unwrap();
+    a.store
+        .begin_snapshot_export(&claim.snapshot_id, "b", 1)
+        .unwrap();
+    assert!(a.store.claim_sync_resnapshot("b").unwrap().is_none());
+
+    // Progress keeps a healthy transfer alive across ticks.
+    a.store
+        .mark_snapshot_blob_progress(&claim.snapshot_id, 3)
+        .unwrap();
+    assert!(a.store.claim_sync_resnapshot("b").unwrap().is_none());
+
+    // Backdate the progress stamp past the stall threshold: the export is now
+    // dead (receiver never acked, blob chunks expired on the relay). Claim must
+    // abort it; the NEXT claim resumes the SAME request id via the aborted
+    // path instead of the deadlock the 2026-11-12 incident exposed.
+    a.store
+        .connection
+        .execute(
+            "UPDATE sync_snapshot_exports SET progress_at=? WHERE id=?",
+            rusqlite::params![
+                chrono::Utc::now().timestamp_millis() - 36 * 60 * 1000,
+                claim.snapshot_id
+            ],
+        )
+        .unwrap();
+    // Abort and RESUME in the same claim pass: the current request is still
+    // open, so the caller gets a usable claim immediately instead of waiting
+    // another tick.
+    let retry = a.store.claim_sync_resnapshot("b").unwrap().unwrap();
+    assert_eq!(retry.snapshot_id, claim.snapshot_id);
+    // Same id, aborted state: begin must take the resume path (not
+    // requires_new_request) — that is the transfer-level fix.
+    // Resume (not a new request): the durable blob_index keeps whatever was
+    // already uploaded before the stall.
+    let resumed = a
+        .store
+        .begin_snapshot_export(&claim.snapshot_id, "b", 1)
+        .unwrap();
+    assert!(
+        matches!(resumed, BeginExport::Resume { .. }),
+        "aborted export must resume, got {resumed:?}"
+    );
+    assert_eq!(
+        a.export_state(&claim.snapshot_id).unwrap(),
+        "building",
+        "the aborted export was resumed back to building for the retry"
+    );
+    // The next claim sees a fresh in-flight export again.
+    assert!(a.store.claim_sync_resnapshot("b").unwrap().is_none());
+}
+
+#[test]
+fn fresh_exports_without_progress_stamp_are_not_aborted() {
+    let a = Db::new("a");
+    let b = Db::new("b");
+    pair(&a, &b);
+    a.capture_n("cap", 5);
+    a.flag("b");
+    let claim = a.store.claim_sync_resnapshot("b").unwrap().unwrap();
+    a.store
+        .begin_snapshot_export(&claim.snapshot_id, "b", 1)
+        .unwrap();
+    // A legacy row with progress_at=0 (never stamped, e.g. pre-migration) is
+    // treated as "unknown", not as "stalled since the epoch".
+    a.store
+        .connection
+        .execute(
+            "UPDATE sync_snapshot_exports SET progress_at=0 WHERE id=?",
+            [claim.snapshot_id.as_str()],
+        )
+        .unwrap();
+    assert!(a.store.claim_sync_resnapshot("b").unwrap().is_none());
+    assert_eq!(a.export_state(&claim.snapshot_id).unwrap(), "building");
+}
+
+#[test]
 fn begin_export_rejects_ids_that_do_not_match_the_current_request() {
     let a = Db::new("a");
     let b = Db::new("b");

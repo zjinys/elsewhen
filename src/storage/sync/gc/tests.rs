@@ -292,13 +292,21 @@ fn missing_watermark_row_counts_as_unconfirmed_not_excluded() {
     let before = a.count("sync_operations");
 
     let report = a.store.run_sync_gc().unwrap();
-    // A missing row must count as 0 (unconfirmed), which with any floor > 0
-    // window flags resnapshot or at minimum holds GC — never silently excluded.
+    // A missing row must NOT be flagged needs_resnapshot (that is the 2026-11-12
+    // incident: GC flagging a device still mid-pairing, deadlocking enrollment
+    // against the resnapshot flow) — but it must also hold GC back via floor=0:
+    // trimming history it has not received is never allowed.
+    let b_flagged = a
+        .member_state("b")
+        .map(|(_, flagged)| flagged)
+        .unwrap_or(false);
+    assert!(!b_flagged, "pairing member must not be flagged needs_resnapshot");
     assert_eq!(
         a.count("sync_operations"),
         before,
-        "a member with no watermark row holds back GC (not filtered out)"
+        "a member with no watermark row holds back GC (floor stays at 0)"
     );
+    assert!(!report.resnapshot_pending.contains(&"b".to_string()));
     assert_eq!(report.operations_pruned, 0);
 }
 

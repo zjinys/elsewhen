@@ -119,21 +119,28 @@ impl Store {
         let tx = self.begin_write_transaction()?;
 
         // The set of active members (excluding self) that must confirm.
-        // A member with no sync_member_state row counts as confirmed_sequence=0
-        // and immediately needs_resnapshot=0 unless head floor is high — but a
-        // brand-new member that just joined via snapshot starts at the snapshot
-        // frontiers, recorded by `mark_member_snapshotted`.
+        // 没有水印行的成员（confirmed IS NULL）**不参与落后判定**：那是还在配对、
+        // 快照还没送到的设备——2026-11-12 事故正是 GC 把这类设备标了
+        // needs_resnapshot，重快照流程与配对流程抢同一台设备，双端互锁。
+        // 它要么在配对完成后拿到快照水印（mark_member_snapshotted），要么被
+        // 撤销离开 active 集合，两种结局都不需要 GC 操心。
         let mut stmt = self.connection.prepare(
             "SELECT m.device_id,
                     COALESCE(s.confirmed_sequence, 0),
-                    COALESCE(s.needs_resnapshot, 0)
+                    COALESCE(s.needs_resnapshot, 0),
+                    s.confirmed_sequence IS NULL
              FROM sync_members m
              LEFT JOIN sync_member_state s ON s.device_id = m.device_id
              WHERE m.active = 1 AND m.device_id != ?1",
         )?;
-        let members: Vec<(String, i64, bool)> = stmt
+        let members: Vec<(String, i64, bool, bool)> = stmt
             .query_map([&identity.device_id], |r| {
-                Ok((r.get(0)?, r.get(1)?, r.get::<_, i64>(2)? != 0))
+                Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get::<_, i64>(2)? != 0,
+                    r.get(3)?,
+                ))
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
 
@@ -145,8 +152,9 @@ impl Store {
         // older, lower floor may be stale, but a member now beyond the window
         // must be flagged regardless of its stored flag).
         let mut resnapshot_pending = Vec::new();
-        for (device_id, confirmed, flagged) in &members {
-            let needs = *flagged || *confirmed < threshold;
+        for (device_id, confirmed, flagged, never_confirmed) in &members {
+            // 从没确认过的设备不标记也不纳入 pending（见上方查询注释）。
+            let needs = !*never_confirmed && (*flagged || *confirmed < threshold);
             if needs && !*flagged {
                 self.connection.execute(
                     "INSERT INTO sync_member_state(device_id,confirmed_sequence,needs_resnapshot)
@@ -174,9 +182,18 @@ impl Store {
 
         // Everyone is caught up. The new GC floor is the minimum active
         // member watermark, additionally bounded by the retention window.
+        // 无水印行（正在配对）的成员按 0 参与取最小值：floor 不会越过它们，
+        // 等它们拿到快照水印后自然放行——与「不打 needs_resnapshot 标」是
+        // 同一个事实的两面：不能修剪它们还没收到的历史，但也不该标它们。
         let min_member = members
             .iter()
-            .map(|(_, confirmed, _)| *confirmed)
+            .map(|(_, confirmed, _, never_confirmed)| {
+                if *never_confirmed {
+                    0
+                } else {
+                    *confirmed
+                }
+            })
             .min()
             .unwrap_or(i64::MAX);
         // Retention: never trim the newest SYNC_GC_MIN_RETAINED_OPERATIONS ops.
