@@ -223,6 +223,8 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     // 页级 TL;DR 索引（迁移 82）：本机后台生成的派生摘要，按 content_hash
     // 锚定页面版本，换设备后台重建即可，不进快照。
     ("page_tldr", "local-knowledge-pipeline"),
+    // TL;DR 回填的退避账本（迁移 83）：本机后台运行状态。
+    ("page_tldr_backoff", "local-knowledge-pipeline"),
     ("knowledge_page_sources", "local-knowledge-pipeline"),
     ("knowledge_proposals", "local-knowledge-pipeline"),
     ("knowledge_refresh_jobs", "local-knowledge-pipeline"),

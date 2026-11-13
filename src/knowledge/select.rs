@@ -115,12 +115,12 @@ pub(crate) fn select_knowledge_variants(
     store: &Store,
     queries: &[String],
     budget: usize,
-) -> Result<Vec<KnowledgeCitation>> {
+) -> Result<Vec<SearchHit>> {
     anyhow::ensure!(
         !queries.is_empty() && queries.len() <= 4,
         "knowledge_query_limit"
     );
-    let mut ranked = std::collections::HashMap::<String, (f64, KnowledgeCitation)>::new();
+    let mut ranked = std::collections::HashMap::<String, (f64, SearchHit)>::new();
     let mut seen = HashSet::new();
     for query in queries {
         let query = query.trim();
@@ -131,33 +131,83 @@ pub(crate) fn select_knowledge_variants(
         if !seen.insert(query.to_lowercase()) {
             continue;
         }
-        for (index, citation) in select_knowledge(store, query, "search", 12000)?
+        for (index, hit) in select_hits(store, query, true, 12000)?
             .into_iter()
             .enumerate()
         {
             let entry = ranked
-                .entry(citation.page_slug.clone())
-                .or_insert((0.0, citation));
+                .entry(hit.citation.page_slug.clone())
+                .or_insert((0.0, hit));
             entry.0 += 1.0 / (60.0 + index as f64);
         }
     }
     let mut ranked: Vec<_> = ranked.into_values().collect();
-    ranked.sort_by(|a, b| b.0.total_cmp(&a.0).then(a.1.page_slug.cmp(&b.1.page_slug)));
-    let mut output = Vec::new();
-    for (_, citation) in ranked.into_iter().take(12) {
-        output.push(citation);
-        if serde_json::to_string(&output)?.chars().count() > budget.min(12000) {
-            output.pop();
+    ranked.sort_by(|a, b| {
+        b.0.total_cmp(&a.0)
+            .then(a.1.citation.page_slug.cmp(&b.1.citation.page_slug))
+    });
+    fit(
+        ranked.into_iter().map(|(_, hit)| hit).take(12),
+        budget.min(12000),
+        usize::MAX,
+    )
+}
+
+/// 页级 TL;DR 只服务超过这个长度的页：更短的页检索时直接整页返回
+/// （`matching_excerpt` 的 1000 字符窗口），摘要只会让它从全文退化。
+pub(crate) const TLDR_MIN_CHARS: usize = 1000;
+/// 有 TL;DR 时搜索结果里的原文命中片段长度：摘要负责「这页讲什么」，
+/// 片段负责「命中处原文怎么说」。
+pub(crate) const TLDR_HIT_CHARS: usize = 240;
+
+/// 搜索命中：引用本体加上只在搜索路径返回的导航信息。
+pub(crate) struct SearchHit {
+    pub(crate) citation: KnowledgeCitation,
+    /// 页面正文总字符数。
+    pub(crate) total_chars: usize,
+    /// `citation.excerpt` 在页内的起始字符偏移；excerpt 就是整页时为 None。
+    pub(crate) hit_offset: Option<usize>,
+    /// 页级 TL;DR：生成摘要，不是原文。只有长页、且摘要对应当前正文版本时才有。
+    pub(crate) generated_summary: Option<String>,
+}
+
+impl SearchHit {
+    /// 生成摘要随结果返回时占用的字符数（含 JSON 键的少量开销）。
+    fn summary_cost(&self) -> usize {
+        self.generated_summary
+            .as_ref()
+            .map_or(0, |summary| summary.chars().count() + 40)
+    }
+}
+
+/// 按预算装入命中：引用的序列化长度加上随结果返回的生成摘要，合计不超过
+/// `budget` 字符；装不下的跳过，继续尝试后面的，至多 `max` 条。
+fn fit(hits: impl Iterator<Item = SearchHit>, budget: usize, max: usize) -> Result<Vec<SearchHit>> {
+    let mut selected: Vec<SearchHit> = Vec::new();
+    let mut summaries = 0usize;
+    for hit in hits {
+        let cost = hit.summary_cost();
+        let mut citations: Vec<&KnowledgeCitation> =
+            selected.iter().map(|chosen| &chosen.citation).collect();
+        citations.push(&hit.citation);
+        if serde_json::to_string(&citations)?.chars().count() + summaries + cost <= budget {
+            summaries += cost;
+            selected.push(hit);
+        }
+        if selected.len() == max {
+            break;
         }
     }
-    Ok(output)
+    Ok(selected)
 }
 
 /// Select the most relevant full-text window instead of always citing the intro.
-fn matching_excerpt(text: &str, terms: &[String], limit: usize) -> String {
+/// 返回 (摘录, 窗口在页内的起始字符偏移)；整页不超过 `limit` 时摘录就是全文，
+/// 偏移为 None。窗口本身是逐字原文，省略号只标在两端。
+fn matching_excerpt(text: &str, terms: &[String], limit: usize) -> (String, Option<usize>) {
     let chars: Vec<char> = text.chars().collect();
     if chars.len() <= limit {
-        return text.into();
+        return (text.into(), None);
     }
     let width = limit.saturating_sub(2).max(1);
     let step = (width / 2).max(1);
@@ -176,22 +226,37 @@ fn matching_excerpt(text: &str, terms: &[String], limit: usize) -> String {
         }
     }
     let end = (best.1 + width).min(chars.len());
-    format!(
-        "{}{}{}",
-        if best.1 > 0 { "…" } else { "" },
-        chars[best.1..end].iter().collect::<String>(),
-        if end < chars.len() { "…" } else { "" }
+    (
+        format!(
+            "{}{}{}",
+            if best.1 > 0 { "…" } else { "" },
+            chars[best.1..end].iter().collect::<String>(),
+            if end < chars.len() { "…" } else { "" }
+        ),
+        Some(best.1),
     )
 }
 
 /// Fetches at most 80 candidate rows. The serialized result, including metadata
 /// and provenance, fits the caller's character budget; empty is a valid result.
+/// Excerpts are always verbatim page text.
 pub fn select_knowledge(
     store: &Store,
     query: &str,
     _task: &str,
     budget: usize,
 ) -> Result<Vec<KnowledgeCitation>> {
+    Ok(select_hits(store, query, false, budget)?
+        .into_iter()
+        .map(|hit| hit.citation)
+        .collect())
+}
+
+/// `search` 为真时（只有搜索工具这条路径），已有页级 TL;DR 的长页只带短的
+/// 原文命中片段，摘要作为 `generated_summary` 单独返回并计入预算，一次搜索
+/// 能覆盖更多页。其余调用方始终拿到 1000 字符的原文词窗，不会把生成摘要
+/// 当成原文摘录。
+fn select_hits(store: &Store, query: &str, search: bool, budget: usize) -> Result<Vec<SearchHit>> {
     let terms = query_terms(query);
     if terms.is_empty() || budget < 300 {
         return Ok(vec![]);
@@ -250,29 +315,41 @@ pub fn select_knowledge(
             format!("问题与页面主题/正文匹配（{} 处主题线索）", prominent),
             1000,
         )? {
-            // 分层检索第一跳：有后台 TL;DR 时用摘要目录（~300 字），
-            // 让一次搜索能覆盖更多页；无 TL;DR 退回词窗正文摘录。
-            // 深读原文仍走 get_wiki_page 分页。
-            match store.page_tldr(&page.slug)? {
-                Some(tldr) => citation.excerpt = tldr,
-                None => citation.excerpt = matching_excerpt(&page.content_md, &terms, 1000),
-            }
-            ranked.push((prominent * 4 + body_hits.min(10), citation));
+            // 分层检索第一跳：摘要与原文分开供给。excerpt 永远是逐字原文；
+            // 搜索路径上有 TL;DR 的长页把原文窗口缩到命中片段，省下的预算
+            // 让一次搜索覆盖更多页。深读走 get_wiki_page（可从命中处开始）。
+            let total_chars = page.content_md.chars().count();
+            let generated_summary = if search && total_chars > TLDR_MIN_CHARS {
+                store.page_tldr_at(&page.id, &citation.content_hash)?
+            } else {
+                None
+            };
+            let (excerpt, hit_offset) = matching_excerpt(
+                &page.content_md,
+                &terms,
+                if generated_summary.is_some() {
+                    TLDR_HIT_CHARS
+                } else {
+                    1000
+                },
+            );
+            citation.excerpt = excerpt;
+            ranked.push((
+                prominent * 4 + body_hits.min(10),
+                SearchHit {
+                    citation,
+                    total_chars,
+                    hit_offset,
+                    generated_summary,
+                },
+            ));
         }
     }
-    ranked.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.page_slug.cmp(&b.1.page_slug)));
-    let mut selected = Vec::new();
-    for (_, citation) in ranked.into_iter().take(12) {
-        let mut next = selected.clone();
-        next.push(citation);
-        if serde_json::to_string(&next)?.chars().count() <= budget {
-            selected = next;
-        }
-        if selected.len() == 6 {
-            break;
-        }
-    }
-    Ok(selected)
+    ranked.sort_by(|a, b| {
+        b.0.cmp(&a.0)
+            .then(a.1.citation.page_slug.cmp(&b.1.citation.page_slug))
+    });
+    fit(ranked.into_iter().map(|(_, hit)| hit).take(12), budget, 6)
 }
 
 /// 造引用的默认通道：孵化闸门生效（自动投递路径：召回、挂载、依赖核验、

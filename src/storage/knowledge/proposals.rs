@@ -57,30 +57,39 @@ impl Store {
         Ok(())
     }
 
-    /// 页级 TL;DR 读取（迁移 82）。返回 None 表示未建或页面版本已过期
-    /// （content_hash 不匹配当前页面内容）。
+    /// 页级 TL;DR 读取。返回 None 表示未建，或摘要不是为这一版正文生成的。
+    pub(crate) fn page_tldr_at(&self, page_id: &str, content_hash: &str) -> Result<Option<String>> {
+        Ok(self
+            .connection
+            .query_row(
+                "SELECT summary FROM page_tldr WHERE page_id=?1 AND content_hash=?2",
+                params![page_id, content_hash],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
+    /// 按 slug 读取当前正文版本的 TL;DR。
+    #[cfg(test)]
     pub(crate) fn page_tldr(&self, slug: &str) -> Result<Option<String>> {
         let Some(page) = self.get_wiki_page(slug)? else {
             return Ok(None);
         };
-        let hash = crate::storage::knowledge::content_hash(&page.content_md);
-        let summary: Option<String> = self
-            .connection
-            .query_row(
-                "SELECT t.summary FROM page_tldr t JOIN wiki_pages p ON p.id=t.page_id
-                 WHERE p.slug=?1 AND t.content_hash=?2",
-                params![slug, hash],
-                |r| r.get(0),
-            )
-            .optional()?;
-        Ok(summary)
+        self.page_tldr_at(
+            &page.id,
+            &crate::storage::knowledge::content_hash(&page.content_md),
+        )
     }
 
-    /// 页级 TL;DR 写入（幂等 upsert，仅后台 tick 调用；内容哈希作版本舖）。
+    /// 页级 TL;DR 写入（仅后台 tick 调用）。`expected_hash` 是生成时读到的
+    /// 正文哈希：模型请求期间页面被改过就拒绝写入，否则旧正文的摘要会被
+    /// 盖上新版本的哈希。成功后清掉该页的退避记录。
     pub(crate) fn commit_page_tldr(
         &self,
         slug: &str,
+        expected_hash: &str,
         summary: &str,
+        basis: &str,
         model: Option<&str>,
     ) -> Result<()> {
         let summary = summary.trim();
@@ -88,42 +97,162 @@ impl Store {
             !summary.is_empty() && summary.chars().count() <= 600,
             "TL;DR 为空或过长"
         );
+        anyhow::ensure!(
+            matches!(basis, "full" | "head-outline" | "reading-root"),
+            "TL;DR 生成范围无效"
+        );
+        let tx = self.begin_write_transaction()?;
         let page = self.get_wiki_page(slug)?.context("知识页不存在")?;
-        let hash = crate::storage::knowledge::content_hash(&page.content_md);
-        let tx = Transaction::new_unchecked(&self.connection, TransactionBehavior::Immediate)?;
+        anyhow::ensure!(
+            crate::storage::knowledge::content_hash(&page.content_md) == expected_hash,
+            "page_tldr_version_changed"
+        );
         self.connection.execute(
-            "INSERT INTO page_tldr(page_id,content_hash,summary,model,created_at)
-             VALUES (?1,?2,?3,?4,?5) ON CONFLICT(page_id) DO UPDATE SET
+            "INSERT INTO page_tldr(page_id,content_hash,summary,model,created_at,basis)
+             VALUES (?1,?2,?3,?4,?5,?6) ON CONFLICT(page_id) DO UPDATE SET
              content_hash=excluded.content_hash,summary=excluded.summary,
-             model=excluded.model,created_at=excluded.created_at",
+             model=excluded.model,created_at=excluded.created_at,basis=excluded.basis",
             params![
                 page.id,
-                hash,
+                expected_hash,
                 summary,
                 model,
-                chrono::Utc::now().to_rfc3339()
+                chrono::Utc::now().to_rfc3339(),
+                basis
             ],
         )?;
-        tx.commit()?;
+        self.connection
+            .execute("DELETE FROM page_tldr_backoff WHERE page_id=?1", [&page.id])?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
         Ok(())
     }
 
-    /// 有页面但 TL;DR 缺失的页（按最近更新排序，优先常用页）。
-    /// 返回 (slug, content_chars)；已建 TL;DR 但页面更新的过期行也计入——
-    /// 由调用方逐页比对 content_hash 判定，SQL 里无法预计算内容哈希。
-    pub(crate) fn pages_missing_tldr(&self, limit: usize) -> Result<Vec<(String, usize)>> {
-        let mut stmt = self.connection.prepare(
-            "SELECT p.slug, length(p.content_md) FROM wiki_pages p
-             LEFT JOIN page_tldr t ON t.page_id=p.id
-             WHERE p.status!='archived' AND p.content_md!='' AND t.page_id IS NULL
-             ORDER BY p.last_seen_at DESC, p.id LIMIT ?1",
+    /// 这一版正文已经失败过几次（退避行属于别的正文版本时从零算）。
+    fn page_tldr_attempts(
+        &self,
+        page_id: &str,
+        content_hash: &str,
+    ) -> Result<(i64, Option<String>)> {
+        Ok(self
+            .connection
+            .query_row(
+                "SELECT attempts,failed_at FROM page_tldr_backoff
+                 WHERE page_id=?1 AND content_hash=?2",
+                params![page_id, content_hash],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?
+            .unwrap_or((0, None)))
+    }
+
+    fn set_page_tldr_backoff(
+        &self,
+        page_id: &str,
+        content_hash: &str,
+        attempts: i64,
+        failed_at: Option<String>,
+        seconds: i64,
+    ) -> Result<()> {
+        self.connection.execute(
+            "INSERT INTO page_tldr_backoff(page_id,content_hash,attempts,failed_at,retry_at)
+             VALUES (?1,?2,?3,?4,?5) ON CONFLICT(page_id) DO UPDATE SET
+             content_hash=excluded.content_hash,attempts=excluded.attempts,
+             failed_at=excluded.failed_at,retry_at=excluded.retry_at",
+            params![
+                page_id,
+                content_hash,
+                attempts,
+                failed_at,
+                (chrono::Utc::now() + chrono::Duration::seconds(seconds)).to_rfc3339()
+            ],
         )?;
+        Ok(())
+    }
+
+    /// 记一次生成失败并退避：2、4、8、16 分钟，第 5 次起 6 小时。页面正文
+    /// 变化时由迁移 83 的触发器清掉记录，新版本从头计数。
+    pub(crate) fn record_page_tldr_failure(&self, page_id: &str, content_hash: &str) -> Result<()> {
+        let attempts = self.page_tldr_attempts(page_id, content_hash)?.0 + 1;
+        let seconds = if attempts >= 5 {
+            21600
+        } else {
+            60 * (1i64 << attempts)
+        };
+        self.set_page_tldr_backoff(
+            page_id,
+            content_hash,
+            attempts,
+            Some(chrono::Utc::now().to_rfc3339()),
+            seconds,
+        )
+    }
+
+    /// 页面当前不可引用（缺少出处、来源待复核、依赖过期等）：一小时内不再
+    /// 逐页核对，也不占候选名额。不算失败，已有的失败次数保持不变。
+    pub(crate) fn defer_page_tldr(&self, page_id: &str, content_hash: &str) -> Result<()> {
+        let (attempts, failed_at) = self.page_tldr_attempts(page_id, content_hash)?;
+        self.set_page_tldr_backoff(page_id, content_hash, attempts, failed_at, 3600)
+    }
+
+    /// 最近 `seconds` 秒内有过生成失败：上游故障或模型持续返回不可用内容时，
+    /// 整个回填先停一停，不逐页重复请求。
+    pub(crate) fn page_tldr_recently_failed(&self, seconds: i64) -> Result<bool> {
+        Ok(self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM page_tldr_backoff
+             WHERE failed_at IS NOT NULL AND julianday(failed_at)>julianday(?1))",
+            [(chrono::Utc::now() - chrono::Duration::seconds(seconds)).to_rfc3339()],
+            |r| r.get(0),
+        )?)
+    }
+
+    /// TL;DR 回填的 SQL 预筛（分页）：超过 `min_chars` 的长页、没有摘要行、
+    /// 不在退避期内。记事本（人类专属）、归档、已否定和孵化中的页在这里
+    /// 就排除；是否真的可引用（来源有效、依赖未过期）由调用方用
+    /// `citation_for_page` 逐页确认。按最近出现排序，优先常用页。
+    pub(crate) fn page_tldr_candidates(
+        &self,
+        min_chars: usize,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<String>> {
+        let mut stmt = self.connection.prepare(&format!(
+            "SELECT p.slug FROM wiki_pages p
+             WHERE p.kind<>'memo' AND COALESCE(p.opinion,'')<>'reject' AND {}
+               AND length(p.content_md)>?1
+               AND NOT EXISTS(SELECT 1 FROM page_tldr t WHERE t.page_id=p.id)
+               AND NOT EXISTS(SELECT 1 FROM page_tldr_backoff f WHERE f.page_id=p.id
+                   AND julianday(f.retry_at)>julianday(?2))
+             ORDER BY p.last_seen_at DESC, p.id LIMIT ?3 OFFSET ?4",
+            crate::knowledge::select::sql_participating("p")
+        ))?;
         let rows = stmt
-            .query_map(params![limit as i64], |r| {
-                Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)? as usize))
-            })?
+            .query_map(
+                params![
+                    min_chars as i64,
+                    chrono::Utc::now().to_rfc3339(),
+                    limit as i64,
+                    offset as i64
+                ],
+                |r| r.get::<_, String>(0),
+            )?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
+    }
+
+    /// 来源原文的全文阅读根归纳（生成摘要，不是原文）。任一策略版本的根节点
+    /// 都覆盖全文，取最新一条即可。
+    pub(crate) fn source_reading_root_summary(&self, snapshot_id: &str) -> Result<Option<String>> {
+        Ok(self
+            .connection
+            .query_row(
+                "SELECT summary FROM knowledge_source_readings
+                 WHERE snapshot_id=?1 AND is_root=1 ORDER BY rowid DESC LIMIT 1",
+                [snapshot_id],
+                |r| r.get(0),
+            )
+            .optional()?)
     }
 
     pub(crate) fn record_proposal(

@@ -596,3 +596,265 @@ fn health_report_counts_reflect_pipeline_state() {
     // 无挂载、无引用）与 source 帮手的来源页共 2 页断点
     assert_eq!(report.pages_never_surfaced, 2);
 }
+
+struct CountingStub {
+    reply: String,
+    calls: std::cell::Cell<usize>,
+    last: std::cell::RefCell<String>,
+}
+impl CountingStub {
+    fn new(reply: &str) -> Self {
+        Self {
+            reply: reply.into(),
+            calls: Default::default(),
+            last: Default::default(),
+        }
+    }
+}
+impl AiProvider for CountingStub {
+    fn generate_reply_with_tools(
+        &self,
+        messages: Vec<ContextMessage>,
+        _: Option<&[ToolSpec]>,
+    ) -> Result<AiReply> {
+        self.calls.set(self.calls.get() + 1);
+        *self.last.borrow_mut() = messages
+            .iter()
+            .map(|m| m.content.clone())
+            .collect::<Vec<_>>()
+            .join("\n");
+        Ok(AiReply {
+            content: self.reply.clone(),
+            tool_calls: vec![],
+            usage: None,
+            model: Some("stub".into()),
+            reasoning_content: None,
+            finish_reason: None,
+        })
+    }
+}
+
+#[test]
+fn page_tldr_backfill_only_reads_citable_long_pages_and_search_keeps_excerpts_verbatim() {
+    use crate::ai::tool::{dispatch, ToolCall, ToolRegistry};
+    use crate::knowledge_background::run_page_tldr_backfill;
+    let db = Db::new();
+    let s = &db.store;
+    let body = format!(
+        "{}尾部要求：SQLite 事务失败必须整体回滚。{}",
+        "开头铺垫内容。".repeat(400),
+        "收尾说明。".repeat(50)
+    );
+    let long = source(s, "https://example.com/tldr-long", &body);
+    let short = source(s, "https://example.com/tldr-short", "SQLite 事务要短。");
+    let incubating = incubating_source(
+        s,
+        "https://example.com/tldr-incubating",
+        &"SQLite 事务孵化内容。".repeat(200),
+    );
+    let memo = s
+        .create_wiki_page("memo", "私人记事", &"SQLite 事务私人想法。".repeat(200), &[])
+        .unwrap();
+    // 没有任何出处的生成页：过了 SQL 预筛，但不可引用。
+    let unattributed = s
+        .upsert_wiki_page(
+            &WikiPageDraft {
+                slug: "method/unattributed".into(),
+                kind: "method".into(),
+                title: "没有出处的方法".into(),
+                summary: String::new(),
+                content_md: "SQLite 事务无出处内容。".repeat(200),
+                tags: vec![],
+                source_event_ids: vec![],
+                status: "active".into(),
+                reason: "test".into(),
+                source_url: None,
+            },
+            ContentPolicy::Always,
+        )
+        .unwrap()
+        .page;
+
+    let stub = CountingStub::new("这页讲 SQLite 事务的回滚要求。");
+    assert_eq!(run_page_tldr_backfill(s, &stub).unwrap(), 1);
+    assert_eq!(stub.calls.get(), 1, "只有可引用的长页被送给模型");
+    assert!(stub.last.borrow().contains("开头铺垫内容。"));
+    assert!(!stub.last.borrow().contains("私人想法"));
+    assert!(!stub.last.borrow().contains("孵化内容"));
+    assert!(!stub.last.borrow().contains("无出处内容"));
+    for slug in [&short.slug, &incubating.slug, &memo.slug, &unattributed.slug] {
+        assert!(s.page_tldr(slug).unwrap().is_none());
+    }
+    // 不可引用的页已延后，不再占候选名额；没有新候选时不再请求。
+    assert!(s.page_tldr_candidates(1000, 50, 0).unwrap().is_empty());
+    assert_eq!(run_page_tldr_backfill(s, &stub).unwrap(), 0);
+    assert_eq!(stub.calls.get(), 1);
+
+    let conv = s.create_conversation(Some("检索"), None).unwrap();
+    let call = ToolCall::new(
+        "search_knowledge_base",
+        serde_json::json!({"query":"SQLite 事务 回滚"}),
+    );
+    let result = dispatch(&call, &ToolRegistry::default(), s, &conv);
+    assert!(result.success, "{}", result.content);
+    let value: serde_json::Value = serde_json::from_str(&result.content).unwrap();
+    let hit = value["knowledge_candidates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["page_slug"] == long.slug.as_str())
+        .expect("长页应被检索到");
+    let excerpt = hit["excerpt"].as_str().unwrap();
+    let raw = excerpt.trim_matches('…');
+    assert!(body.contains(raw), "excerpt 必须是逐字原文，不能是生成摘要");
+    assert!(raw.contains("整体回滚"), "命中片段应落在命中处而非页首");
+    assert!(raw.chars().count() <= 240);
+    let reading = &value["knowledge_reading"][&long.slug];
+    assert_eq!(reading["coverage"], "excerpt");
+    assert_eq!(reading["generated_summary"], "这页讲 SQLite 事务的回滚要求。");
+    let offset = reading["hit_offset"].as_u64().unwrap() as usize;
+    assert!(body
+        .chars()
+        .skip(offset)
+        .collect::<String>()
+        .starts_with(raw));
+    // 短页仍整页返回，不带摘要。
+    let short_reading = &value["knowledge_reading"][&short.slug];
+    assert_eq!(short_reading["coverage"], "full");
+    assert!(short_reading.get("generated_summary").is_none());
+
+    // 非搜索调用方拿到的仍是原文词窗。
+    let mounted = select_knowledge(s, "SQLite 事务 回滚", "insight", 6000).unwrap();
+    let mounted = mounted.iter().find(|c| c.page_slug == long.slug).unwrap();
+    assert!(body.contains(mounted.excerpt.trim_matches('…')));
+    assert!(mounted.excerpt.chars().count() > 240);
+}
+
+#[test]
+fn page_tldr_backfill_backs_off_after_failure_and_bounds_overlong_replies() {
+    use crate::knowledge_background::run_page_tldr_backfill;
+    let db = Db::new();
+    let pages = [
+        source(
+            &db.store,
+            "https://example.com/tldr-backoff-1",
+            &"SQLite 事务退避内容甲。".repeat(200),
+        ),
+        source(
+            &db.store,
+            "https://example.com/tldr-backoff-2",
+            &"SQLite 事务退避内容乙。".repeat(200),
+        ),
+    ];
+    let empty = CountingStub::new("   ");
+    assert_eq!(run_page_tldr_backfill(&db.store, &empty).unwrap(), 0);
+    assert_eq!(empty.calls.get(), 1, "一页失败后本 tick 不再请求下一页");
+    assert_eq!(run_page_tldr_backfill(&db.store, &empty).unwrap(), 0);
+    assert_eq!(empty.calls.get(), 1, "失败后整个回填冷却，下个 tick 不换一页重试");
+    for page in &pages {
+        assert!(db.store.page_tldr(&page.slug).unwrap().is_none());
+    }
+
+    // 超长回复截到句末保存，而不是当作失败反复重试。
+    let other = Db::new();
+    let page = source(
+        &other.store,
+        "https://example.com/tldr-verbose",
+        &"SQLite 事务冗长内容。".repeat(200),
+    );
+    let verbose = CountingStub::new(&format!("{}。{}", "甲".repeat(400), "乙".repeat(400)));
+    assert_eq!(run_page_tldr_backfill(&other.store, &verbose).unwrap(), 1);
+    assert_eq!(
+        other.store.page_tldr(&page.slug).unwrap().unwrap(),
+        format!("{}。", "甲".repeat(400))
+    );
+}
+
+#[test]
+fn page_tldr_input_covers_long_pages_beyond_their_opening() {
+    use crate::knowledge_background::run_page_tldr_backfill;
+    let basis = |s: &Store, slug: &str| -> String {
+        s.connection
+            .query_row(
+                "SELECT t.basis FROM page_tldr t JOIN wiki_pages p ON p.id=t.page_id WHERE p.slug=?1",
+                [slug],
+                |r| r.get(0),
+            )
+            .unwrap()
+    };
+    let body = format!(
+        "{}\n## 尾部章节：回滚要求\n{}",
+        "SQLite 事务开头内容。".repeat(500),
+        "尾部正文不应出现在输入里。".repeat(200)
+    );
+
+    // 没有全文阅读缓存：开头原文加其余部分的标题骨架，并如实记为 head-outline。
+    let db = Db::new();
+    let page = source(&db.store, "https://example.com/tldr-outline", &body);
+    let stub = CountingStub::new("概括。");
+    assert_eq!(run_page_tldr_backfill(&db.store, &stub).unwrap(), 1);
+    assert_eq!(basis(&db.store, &page.slug), "head-outline");
+    assert!(stub.last.borrow().contains("SQLite 事务开头内容。"));
+    assert!(stub.last.borrow().contains("## 尾部章节：回滚要求"));
+    assert!(!stub.last.borrow().contains("尾部正文不应出现在输入里"));
+
+    // 页面就是来源原文且后台已读完全文：用覆盖全文的阅读根归纳。
+    let db = Db::new();
+    let page = source(&db.store, "https://example.com/tldr-root", &body);
+    let snapshot = db
+        .store
+        .page_source_snapshots(&page.slug)
+        .unwrap()
+        .remove(0);
+    db.store
+        .connection
+        .execute(
+            "INSERT INTO knowledge_source_readings(snapshot_id,strategy_version,level,part,start_char,end_char,summary,quotes_json,is_root)
+             VALUES(?1,'test',0,0,0,1,'全文阅读根归纳：尾部要求整体回滚。','[]',1)",
+            [&snapshot.id],
+        )
+        .unwrap();
+    let stub = CountingStub::new("概括。");
+    assert_eq!(run_page_tldr_backfill(&db.store, &stub).unwrap(), 1);
+    assert_eq!(basis(&db.store, &page.slug), "reading-root");
+    assert!(stub
+        .last
+        .borrow()
+        .contains("全文阅读根归纳：尾部要求整体回滚。"));
+    assert!(!stub.last.borrow().contains("SQLite 事务开头内容。"));
+}
+
+#[test]
+fn search_budget_counts_generated_summaries() {
+    let db = Db::new();
+    let s = &db.store;
+    for i in 0..6 {
+        let body = format!("第{i}份资料。{}", "SQLite 事务说明。".repeat(150));
+        let page = source(s, &format!("https://example.com/tldr-budget-{i}"), &body);
+        s.commit_page_tldr(
+            &page.slug,
+            &crate::storage::knowledge::content_hash(&body),
+            &"摘".repeat(590),
+            "full",
+            None,
+        )
+        .unwrap();
+    }
+    let hits =
+        crate::knowledge::select::select_knowledge_variants(s, &["SQLite 事务".to_string()], 4000)
+            .unwrap();
+    let citations: Vec<_> = hits.iter().map(|hit| &hit.citation).collect();
+    let summaries: usize = hits
+        .iter()
+        .map(|hit| hit.generated_summary.as_ref().unwrap().chars().count())
+        .sum();
+    assert!(
+        (2..6).contains(&hits.len()),
+        "摘要计入预算后装不下全部 6 页（实际 {}）",
+        hits.len()
+    );
+    assert!(serde_json::to_string(&citations).unwrap().chars().count() + summaries <= 4000);
+    assert!(hits
+        .iter()
+        .all(|hit| hit.citation.excerpt.chars().count() <= 240 && hit.hit_offset.is_some()));
+}

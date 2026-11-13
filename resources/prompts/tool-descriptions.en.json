@@ -248,7 +248,7 @@
     }
   },
   "search_knowledge_base": {
-    "description": "Search verified knowledge using the question plus up to 3 alternate concept, synonym or translated queries in alternate_queries. Keep all queries about the same need. Retrieved pages are candidates: inspect applicability, negation and limits before answering. When initial wording misses, try meaningful alternate concepts; do not claim that a lexical match proves relevance. Also returns separate knowledge_warnings about historical rejections, solely to compare past reasons with current conditions, never as positive evidence.",
+    "description": "Search verified knowledge using the question plus up to 3 alternate concept, synonym or translated queries in alternate_queries. Keep all queries about the same need. Retrieved pages are candidates: inspect applicability, negation and limits before answering. When initial wording misses, try meaningful alternate concepts; do not claim that a lexical match proves relevance. Also returns separate knowledge_warnings about historical rejections, solely to compare past reasons with current conditions, never as positive evidence. A generated_summary in knowledge_reading is a generated digest for judging relevance, not source text; to check specific requirements call get_wiki_page, where hit_offset may be passed as offset together with content_hash to start reading at the match.",
     "parameters": {
       "/properties/limit/description": "Maximum returned results; default 5",
       "/properties/query/description": "Required search keywords",

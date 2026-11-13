@@ -248,7 +248,7 @@
     }
   },
   "search_knowledge_base": {
-    "description": "检索已核验知识：query为原问题关键词，alternate_queries可提供最多3种同义、概念或跨语言改写，保持同一需求，一次融合返回。初次未命中时换有意义的概念检索。结果只是候选，回答前核对适用条件、否定和局限，不把词面命中当成语义相关。 同时返回独立的knowledge_warnings历史否定记录，仅用于核对当时原因与当前条件，不作为正面依据。",
+    "description": "检索已核验知识：query为原问题关键词，alternate_queries可提供最多3种同义、概念或跨语言改写，保持同一需求，一次融合返回。初次未命中时换有意义的概念检索。结果只是候选，回答前核对适用条件、否定和局限，不把词面命中当成语义相关。 同时返回独立的knowledge_warnings历史否定记录，仅用于核对当时原因与当前条件，不作为正面依据。 knowledge_reading里的generated_summary是生成摘要，只用于判断页面是否相关，不是原文；核对具体要求时用get_wiki_page，可把hit_offset作为offset并带上content_hash，直接从命中处读。",
     "parameters": {
       "/properties/limit/description": "最多返回条数，默认 5",
       "/properties/query/description": "搜索关键词，必填",

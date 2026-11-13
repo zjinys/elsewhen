@@ -457,50 +457,120 @@ fn list_wiki_page_metas_bounded_and_derivative_free() {
 }
 
 #[test]
-fn page_tldr_roundtrip_and_hash_expiry() {
+fn page_tldr_roundtrip_expiry_and_candidates() {
     let path = temporary_database();
     let store = Store::open(&path).unwrap();
-    entity_page(&store, "method/relay", "method", "中继手册");
-
-    // 未建摘要 → None
-    assert!(store.page_tldr("method/relay").unwrap().is_none());
-    assert_eq!(store.pages_missing_tldr(10).unwrap().len(), 1);
-
-    // 建摘要 → 命中
+    let long = |title: &str| format!("# {title}\n{}", "转发规则与配额。".repeat(200));
+    let put = |slug: &str, kind: &str, body: String| {
+        store
+            .upsert_wiki_page(&wiki_draft(slug, kind, &body), ContentPolicy::Always)
+            .unwrap();
+    };
+    put("method/relay", "method", long("中继手册"));
+    put("method/short", "method", "# 短页".into());
+    put("source/incubating", "source", long("孵化中的素材"));
     store
-        .commit_page_tldr("method/relay", "中继页讲转发规则与配额。", Some("test-model"))
+        .create_wiki_page("memo", "我的记事本", &long("随手记"), &[])
+        .unwrap();
+    let hash = |slug: &str| {
+        crate::storage::knowledge::content_hash(
+            &store.get_wiki_page(slug).unwrap().unwrap().content_md,
+        )
+    };
+    let candidates = || store.page_tldr_candidates(1000, 50, 0).unwrap();
+
+    // 只有可参与的长页进候选：短页、孵化中的素材、记事本都不送模型。
+    assert!(store.page_tldr("method/relay").unwrap().is_none());
+    assert_eq!(candidates(), vec!["method/relay".to_string()]);
+
+    let v1 = hash("method/relay");
+    store
+        .commit_page_tldr(
+            "method/relay",
+            &v1,
+            "中继页讲转发规则与配额。",
+            "full",
+            Some("test-model"),
+        )
         .unwrap();
     assert_eq!(
         store.page_tldr("method/relay").unwrap().unwrap(),
         "中继页讲转发规则与配额。"
     );
-    assert_eq!(store.pages_missing_tldr(10).unwrap().len(), 0);
+    assert!(candidates().is_empty());
 
-    // 页面更新 → content_hash 过期 → 返回 None（等待后台重建）
-    store
-        .upsert_wiki_page(
-            &WikiPageDraft {
-                slug: "method/relay".into(),
-                kind: "method".into(),
-                title: "中继手册".into(),
-                summary: String::new(),
-                content_md: "# 中继手册 v2\n新增了配额章节。".into(),
-                tags: vec![],
-                source_event_ids: vec![],
-                status: "active".into(),
-                reason: "内容更新".into(),
-                source_url: None,
-            },
-            ContentPolicy::Always,
-        )
-        .unwrap();
+    // 正文更新：旧摘要读不出来，并且重新成为候选（迁移 83 触发器删行）。
+    put("method/relay", "method", long("中继手册 v2"));
     assert!(store.page_tldr("method/relay").unwrap().is_none());
+    assert_eq!(candidates(), vec!["method/relay".to_string()]);
 
-    // 空摘要与超长摘要被拒
-    assert!(store.commit_page_tldr("method/relay", "   ", None).is_err());
-    assert!(store
-        .commit_page_tldr("method/relay", &"长".repeat(601), None)
-        .is_err());
+    // 生成期间页面被改过：旧正文的摘要不能盖上新版本的哈希。
+    let stale = store.commit_page_tldr("method/relay", &v1, "旧摘要", "full", None);
+    assert!(
+        stale
+            .unwrap_err()
+            .to_string()
+            .contains("page_tldr_version_changed")
+    );
+    let v2 = hash("method/relay");
+    // 空摘要、超长摘要与未知生成范围被拒
+    assert!(
+        store
+            .commit_page_tldr("method/relay", &v2, "   ", "full", None)
+            .is_err()
+    );
+    assert!(
+        store
+            .commit_page_tldr("method/relay", &v2, &"长".repeat(601), "full", None)
+            .is_err()
+    );
+    assert!(
+        store
+            .commit_page_tldr("method/relay", &v2, "摘要", "guess", None)
+            .is_err()
+    );
+
+    // 失败退避：退避期内不是候选，并让整个回填冷却；正文再变则清账重来。
+    let id = store.get_wiki_page("method/relay").unwrap().unwrap().id;
+    let attempts = || -> i64 {
+        store
+            .connection
+            .query_row(
+                "SELECT attempts FROM page_tldr_backoff WHERE page_id=?1",
+                [&id],
+                |r| r.get(0),
+            )
+            .unwrap()
+    };
+    assert!(!store.page_tldr_recently_failed(600).unwrap());
+    store.record_page_tldr_failure(&id, &v2).unwrap();
+    store.record_page_tldr_failure(&id, &v2).unwrap();
+    assert_eq!(attempts(), 2);
+    assert!(store.page_tldr_recently_failed(600).unwrap());
+    assert!(candidates().is_empty());
+    // 延后核对不算失败：次数不变。
+    store.defer_page_tldr(&id, &v2).unwrap();
+    assert_eq!(attempts(), 2);
+    put("method/relay", "method", long("中继手册 v3"));
+    assert_eq!(candidates(), vec!["method/relay".to_string()]);
+    assert!(!store.page_tldr_recently_failed(600).unwrap());
+
+    // 当前不可引用的页延后：不占候选名额，也不触发失败冷却。
+    let v3 = hash("method/relay");
+    store.defer_page_tldr(&id, &v3).unwrap();
+    assert_eq!(attempts(), 0);
+    assert!(candidates().is_empty());
+    assert!(!store.page_tldr_recently_failed(600).unwrap());
+
+    // 成功写入清掉退避记录。
+    store
+        .commit_page_tldr("method/relay", &v3, "新摘要", "head-outline", None)
+        .unwrap();
+    let rows: i64 = store
+        .connection
+        .query_row("SELECT COUNT(*) FROM page_tldr_backoff", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(rows, 0);
 
     let _ = std::fs::remove_file(path);
 }

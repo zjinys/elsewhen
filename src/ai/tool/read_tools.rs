@@ -254,9 +254,9 @@ impl Tool for SearchKnowledgeBaseTool {
             anyhow::ensure!(alternates.len() <= 3, "knowledge_query_limit");
             queries.extend(alternates);
         }
-        let mut candidates =
+        let mut hits =
             crate::knowledge::select::select_knowledge_variants(ctx.store, &queries, 4000)?;
-        candidates.truncate(limit);
+        hits.truncate(limit);
         let warnings = crate::knowledge::negative::select_warnings(ctx.store, &queries, 1600)?;
         let mut events = Vec::new();
         let mut stmt = ctx.store.connection.prepare(
@@ -274,13 +274,24 @@ impl Tool for SearchKnowledgeBaseTool {
             }
         }
         let mut reading = serde_json::Map::new();
-        for candidate in &candidates {
-            if let Some(page) = ctx.store.get_wiki_page(&candidate.page_slug)? {
-                reading.insert(candidate.page_slug.clone(), json!({
-                    "coverage":if candidate.excerpt == page.content_md { "full" } else { "excerpt" },
-                    "total_chars":page.content_md.chars().count()
-                }));
+        let mut candidates = Vec::with_capacity(hits.len());
+        for hit in hits {
+            let mut entry = json!({
+                "coverage":if hit.hit_offset.is_none() { "full" } else { "excerpt" },
+                "total_chars":hit.total_chars
+            });
+            if let Some(offset) = hit.hit_offset {
+                // 命中片段在页内的起点：get_wiki_page 可带 content_hash 直接
+                // 从这里读，不必从头翻页。
+                entry["hit_offset"] = offset.into();
             }
+            if let Some(summary) = hit.generated_summary {
+                // 生成摘要与原文摘录分开放：excerpt 仍是逐字原文，摘要明示
+                // 种类，不能被当作引文或具体要求的依据。
+                entry["generated_summary"] = summary.into();
+            }
+            reading.insert(hit.citation.page_slug.clone(), entry);
+            candidates.push(hit.citation);
         }
         Ok(
             json!({"knowledge_candidates":candidates,"knowledge_reading":reading,"knowledge_warnings":warnings,"events":events})
