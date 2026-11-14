@@ -138,7 +138,7 @@ pub(crate) fn request(
     messages: Vec<super::memory::ContextMessage>,
     tools: Option<&[super::tool::ToolSpec]>,
 ) -> Result<super::provider::AiReply> {
-    request_on_channel(store, provider, provider_name, messages, tools, true)
+    request_on_channel(store, provider, provider_name, messages, tools, None)
 }
 
 /// Derived-context requests share cancellation, budgeting and accounting, but
@@ -149,18 +149,34 @@ pub(crate) fn auxiliary_request(
     provider_name: &str,
     messages: Vec<super::memory::ContextMessage>,
 ) -> Result<super::provider::AiReply> {
-    event(store, "phase", json!({"phase":"summarizing"}))?;
-    request_on_channel(store, provider, provider_name, messages, None, false)
+    tool_request(store, provider, provider_name, messages, "summarizing")
 }
 
+/// 工具内部发出的子请求（如合成工具的分批证据提取）：与摘要请求走同一条
+/// 通道——共享取消、租约续期、预算与记账，不动用户可见的答复草稿。
+/// `phase` 只是运行记录里的阶段名。
+pub(crate) fn tool_request(
+    store: &Store,
+    provider: &dyn super::provider::AiProvider,
+    provider_name: &str,
+    messages: Vec<super::memory::ContextMessage>,
+    phase: &str,
+) -> Result<super::provider::AiReply> {
+    event(store, "phase", json!({"phase":phase}))?;
+    request_on_channel(store, provider, provider_name, messages, None, Some(phase))
+}
+
+/// `auxiliary_phase` 为 None 时是面向用户的答复请求（发布草稿）；有值时是
+/// 派生请求，只记阶段名。
 fn request_on_channel(
     store: &Store,
     provider: &dyn super::provider::AiProvider,
     provider_name: &str,
     messages: Vec<super::memory::ContextMessage>,
     tools: Option<&[super::tool::ToolSpec]>,
-    publish_draft: bool,
+    auxiliary_phase: Option<&str>,
 ) -> Result<super::provider::AiReply> {
+    let publish_draft = auxiliary_phase.is_none();
     check(store)?;
     let Some(run) = &store.chat_run_identity else {
         return provider.generate_reply_with_tools(messages, tools);
@@ -170,8 +186,8 @@ fn request_on_channel(
         event(store, "draft_reset", json!({}))?;
     }
     let (request, _) = store.start_chat_request(&run.id, &run.owner, provider_name, None)?;
-    if !publish_draft {
-        event(store, "phase", json!({"phase":"summarizing"}))?;
+    if let Some(phase) = auxiliary_phase {
+        event(store, "phase", json!({"phase":phase}))?;
     }
     if let Some(bundle) = store.prompt_bundle.borrow().as_ref() {
         event(

@@ -269,6 +269,46 @@ fn only_explicit_progress_questions_may_report_known_results() {
     let _ = std::fs::remove_file(path);
 }
 
+/// 合成结果的候选页不带摘录：追问进展时汇报的是逐字证据，不是空白，也不是
+/// 原始 JSON。
+#[test]
+fn progress_reports_show_synthesized_evidence_as_quotes_not_raw_json() {
+    let (store, path) = temporary_database();
+    let conv = store.create_conversation(Some("test"), None).unwrap();
+    for (role, text) in [
+        ("user", "比较两份方案的回滚要求"),
+        ("assistant", "我先看一下，稍后回复。"),
+        ("user", "搞定了吗？"),
+    ] {
+        store.send_message(&conv, role, text, None).unwrap();
+    }
+    let call = ToolCall::new("synthesize_knowledge", json!({}));
+    let results = vec![ToolResultMsg::ok(
+        &call,
+        json!({
+            "knowledge_candidates":[{"page_slug":"method/a","title":"方案甲","excerpt":""}],
+            "evidence":[{"q":[0],"kind":"limitation","page_slug":"method/a",
+                "start_char":10,"end_char":20,"quote":"失败必须整体回滚。","note":"回滚要求"}],
+            "coverage":{"chunks_read":1}
+        })
+        .to_string(),
+    )];
+    let report = progress_fallback(
+        &store,
+        &conv,
+        &[ContextMessage::new("user", "搞定了吗？")],
+        &results,
+        None,
+    )
+    .unwrap();
+    assert!(report.contains("方案甲 [[kb:method/a]]"));
+    assert!(report.contains("失败必须整体回滚。"));
+    assert!(!report.contains("knowledge_candidates"));
+    assert!(!report.contains("start_char"));
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}
+
 /// 事故 2026-10-18 根因 B：用户确认后的失败必须点名「答应的事没做到」。
 #[test]
 fn failure_notice_quotes_request_and_admits_unfulfilled_promise() {

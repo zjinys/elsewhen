@@ -331,6 +331,10 @@ impl Tool for SearchKnowledgeBaseTool {
                 }
             }
         }
+        // 命中页的篇幅超过本轮读得完的量时给一个确定性的指路（只看结果数据，
+        // 不看用户文本）；要不要综合仍由模型判断。
+        let heavy = hits.iter().any(|hit| hit.total_chars > 8000)
+            || hits.iter().map(|hit| hit.total_chars).sum::<usize>() > 24_000;
         let mut reading = serde_json::Map::new();
         let mut candidates = Vec::with_capacity(hits.len());
         for hit in hits {
@@ -351,9 +355,62 @@ impl Tool for SearchKnowledgeBaseTool {
             reading.insert(hit.citation.page_slug.clone(), entry);
             candidates.push(hit.citation);
         }
-        Ok(
-            json!({"knowledge_candidates":candidates,"knowledge_reading":reading,"knowledge_warnings":warnings,"events":events})
-                .to_string(),
+        let mut result = json!({"knowledge_candidates":candidates,"knowledge_reading":reading,"knowledge_warnings":warnings,"events":events});
+        if heavy {
+            result["suggest"] = "synthesize_knowledge".into();
+        }
+        Ok(result.to_string())
+    }
+}
+
+/// 跨页综合 / 通读长页：工具内部分批阅读原文，只返回校验过的逐字证据。
+pub(super) struct SynthesizeKnowledgeTool;
+impl Tool for SynthesizeKnowledgeTool {
+    fn name(&self) -> &'static str {
+        "synthesize_knowledge"
+    }
+    fn description(&self) -> &'static str {
+        "跨多篇知识页比较、归纳，或通读长页时用：工具内部分批读原文，只返回逐字证据（带页面和字符位置）和未读范围，原文不占对话上下文。会另发最多 6 次模型请求、较慢；简单查找用 search_knowledge_base 和 get_wiki_page。"
+    }
+    fn parameters_schema(&self) -> Value {
+        json!({
+            "type":"object",
+            "properties":{
+                "question":{"type":"string","description":"要回答的问题，完整复述，必填"},
+                "sub_questions":{"type":"array","minItems":1,"maxItems":6,"items":{"type":"string"},"description":"1 至 6 个分析维度或子问题；证据按它们分别提取，写出关键术语"},
+                "page_slugs":{"type":"array","maxItems":8,"items":{"type":"string"},"description":"已知要读的页面 slug，最多 8 个；指定后这些页通读"},
+                "queries":{"type":"array","maxItems":4,"items":{"type":"string"},"description":"用于找页的检索词，最多 4 条；不给且未指定页面时用 sub_questions 检索"}
+            },
+            "required":["question","sub_questions"],
+            "additionalProperties":false
+        })
+    }
+    fn run(&self, args: &Value, ctx: &ToolContext) -> Result<String> {
+        let strings = |key: &str| -> Result<Vec<String>> {
+            match args.get(key) {
+                None | Some(Value::Null) => Ok(Vec::new()),
+                Some(value) => serde_json::from_value(value.clone())
+                    .with_context(|| format!("参数 {key} 应为字符串数组")),
+            }
+        };
+        let (provider, provider_name) = ctx
+            .runtime
+            .provider
+            .context("synthesis_provider_unavailable")?;
+        crate::knowledge::synthesis::synthesize(
+            ctx.store,
+            ctx.conversation_id,
+            &crate::knowledge::synthesis::Channel {
+                provider,
+                provider_name,
+                result_budget: ctx.runtime.result_budget,
+            },
+            &crate::knowledge::synthesis::Request {
+                question: arg_str(args, "question")?,
+                sub_questions: strings("sub_questions")?,
+                page_slugs: strings("page_slugs")?,
+                queries: strings("queries")?,
+            },
         )
     }
 }

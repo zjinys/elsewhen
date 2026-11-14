@@ -238,6 +238,27 @@ fn knowledge_search_matches_events_by_terms_not_the_whole_query() {
         "摘录取命中处而不是事件开头：{excerpt}"
     );
     assert!(excerpt.chars().count() <= 352);
+    // 没有长页命中时不提示改用合成工具。
+    assert!(value.get("suggest").is_none());
+}
+
+#[test]
+fn knowledge_search_points_to_synthesis_when_hits_exceed_what_one_turn_can_read() {
+    let f = Fixture::new();
+    f.page("method/short-note", "短页", "SQLite 事务要点很短。");
+    let small = f.call("search_knowledge_base", json!({"query":"SQLite 事务"}));
+    let value: Value = serde_json::from_str(&small.content).unwrap();
+    assert_eq!(value["knowledge_candidates"].as_array().unwrap().len(), 1);
+    assert!(value.get("suggest").is_none());
+
+    f.page(
+        "method/long-manual",
+        "长手册",
+        &"SQLite 事务的长篇说明。".repeat(900),
+    );
+    let large = f.call("search_knowledge_base", json!({"query":"SQLite 事务"}));
+    let value: Value = serde_json::from_str(&large.content).unwrap();
+    assert_eq!(value["suggest"], "synthesize_knowledge");
 }
 
 #[test]

@@ -32,12 +32,22 @@ pub fn candidates_in_context(context: &[ContextMessage]) -> Vec<KnowledgeCitatio
             .or_else(|| {
                 message
                     .content
+                    .strip_prefix("工具「synthesize_knowledge」执行结果：")
+            })
+            .or_else(|| {
+                message
+                    .content
                     .strip_prefix("Result of tool \"search_knowledge_base\": ")
             })
             .or_else(|| {
                 message
                     .content
                     .strip_prefix("Result of tool \"get_wiki_page\": ")
+            })
+            .or_else(|| {
+                message
+                    .content
+                    .strip_prefix("Result of tool \"synthesize_knowledge\": ")
             })
             .or_else(|| message.content.strip_prefix("（已执行工具的历史结果）\n"))
             .or_else(|| {

@@ -9,6 +9,7 @@ pub mod queue;
 pub(crate) mod reading;
 pub(crate) mod negative;
 pub mod review;
+pub(crate) mod synthesis;
 pub mod workflows;
 use crate::ai::{
     memory::ContextMessage,

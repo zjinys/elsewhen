@@ -20,7 +20,7 @@ use self::query_tools::ListEventsByDateTool;
 use self::query_tools::{ArchiveConversationsByTitleTool, ImportUrlToWikiTool, RenameWikiPageTool};
 use self::read_tools::{
     DailyTokenUsageTool, FetchPageTool, FetchTweetTool, GetWikiPageTool, ListRulesTool,
-    ListWikiPagesTool, SearchKnowledgeBaseTool, WebSearchTool,
+    ListWikiPagesTool, SearchKnowledgeBaseTool, SynthesizeKnowledgeTool, WebSearchTool,
 };
 use self::revision_tools::SaveWikiRevisionTool;
 use self::todo_contact_tools::{
@@ -340,6 +340,7 @@ impl ToolRegistry {
             Box::new(GetWikiPageTool),
             Box::new(DailyTokenUsageTool),
             Box::new(SearchKnowledgeBaseTool),
+            Box::new(SynthesizeKnowledgeTool),
             Box::new(FetchTweetTool),
             Box::new(FetchPageTool),
             Box::new(WebSearchTool),

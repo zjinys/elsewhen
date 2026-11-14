@@ -106,3 +106,4 @@ fn incubating_source(store: &Store, url: &str, text: &str) -> crate::storage::Wi
 include!("knowledge_source_tests.rs");
 include!("knowledge_component_tests.rs");
 include!("knowledge_mount_tests.rs");
+include!("knowledge_synthesis_tests.rs");

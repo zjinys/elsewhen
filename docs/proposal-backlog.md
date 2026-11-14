@@ -1,6 +1,6 @@
 # Proposal Backlog（未完成提案总索引）
 
-更新：2026-11-13；最近实现提交：`15d3487`。本文件只记录当前缺口与归属；逐批进度、旧测试数字和历史方案见[历史快照](reference/proposal-backlog-history-2026-11-08.md)，实现依据见各条链接。
+更新：2026-11-15；最近实现提交：`15d3487`。本文件只记录当前缺口与归属；逐批进度、旧测试数字和历史方案见[历史快照](reference/proposal-backlog-history-2026-11-08.md)，实现依据见各条链接。
 
 当前共 **4 项工程待办、14 项验收事项、3 项后置增量、2 项方向讨论、1 项搁置**。工程完成不等于真实模型或真人设备验收通过。超长事件分块消化已交付，真实验收范围及限制见实现记录；多语言 Goal 按用户要求暂停，L7只保留验收。
 
@@ -13,7 +13,7 @@
 | 项目 | 当前缺口 | 优先级 |
 |---|---|---|
 | [个人规模同步简化](notes/proposed/architecture/2026-11-12-personal-scale-sync-simplification.md) | **设计提案，未排期**：2026-11-12 现场互锁（GC 重快照标记 × 配对 request id 校验）暴露同步子系统约 44,500 行、711 处失败关闭点、9 张 `sync_*` 状态表远超个人场景需要。提案三条主张：用“快照永远可用”替代增量追赶+GC、名册恒等于实际设备数、单 owner 降级处理器移交。P0 修复（GC 不标记配对中设备、卡死 building 导出可接管，迁移 v81）已交付并合入本条；P1 按 §3.1→§3.2→§3.3 推进 | 高 |
-| [合成型问题的上下文供给](notes/proposed/architecture/2026-11-13-synthesis-context-supply.md) | **实施中，进度见[路线](roadmap/2026-11-14-synthesis-context-supply-roadmap.md)**：合成型问题四轮耗尽在翻页（run `564fe4bb`）与多轮工具结果本地拒绝（run `8fd94ade`）之后，`e0823de`／`d06dc2a` 已交付聊天输出预留降档、页级 TL;DR（迁移 82）与单次 8000 字符读取。**P0 已提交 `68ad97a`**（迁移 83、Prompt 目录 v15）：TL;DR 失败退避与全局冷却、只为可引用长页生成、正文变化后重建、摘要与原文摘录分开并计入搜索预算、附命中偏移。**P1 已提交**（Prompt 目录 v16）：代理循环分发工具前量出下一次请求的余量，`get_wiki_page` 按余量决定返回多少（不足时返回 `wiki_read_budget_exhausted`），事件检索按词匹配；新增 5 项测试，库测试 1242 通过／23 忽略／3 项已知回环 HTTP 测试并行超时（单独运行通过）。均未调用真实模型。剩余：P2 只读合成工具、P4 估算偏差测量、P3 FTS5 词法索引（当前没有）；决策默认值见路线 | 中 |
+| [合成型问题的上下文供给](notes/proposed/architecture/2026-11-13-synthesis-context-supply.md) | **实施中，进度见[路线](roadmap/2026-11-14-synthesis-context-supply-roadmap.md)**：合成型问题四轮耗尽在翻页（run `564fe4bb`）与多轮工具结果本地拒绝（run `8fd94ade`）之后，`e0823de`／`d06dc2a` 已交付聊天输出预留降档、页级 TL;DR（迁移 82）与单次 8000 字符读取。**P0 已提交 `68ad97a`**（迁移 83、Prompt 目录 v15）：TL;DR 失败退避与全局冷却、只为可引用长页生成、正文变化后重建、摘要与原文摘录分开并计入搜索预算、附命中偏移。**P1 已提交 `4d079d5`**（Prompt 目录 v16）：代理循环分发工具前量出下一次请求的余量，`get_wiki_page` 按余量决定返回多少（不足时返回 `wiki_read_budget_exhausted`），事件检索按词匹配。**P2 已提交**（Prompt 目录 v17）：只读工具 `synthesize_knowledge` 在工具内部分批读原文（至多 6 次子请求），返回带页内位置的逐字证据与未读范围，原文不进主上下文；5 万字页在 64K 口径下两轮对话请求内完成；库测试 1255 通过／0 失败／23 忽略。均未调用真实模型，提取质量与模型是否主动调用待验收；界面的工具步骤名与证据展开未做。剩余：P4 估算偏差测量、P3 FTS5 词法索引（当前没有）；决策默认值见路线 | 中 |
 | [待办讨论与 Wiki 结果](notes/proposed/architecture/2026-11-10-work-item-discussion-and-wiki-outcomes.md) | **设计草案，未实施/排期**：建议 A 先分离专属讨论与参考知识、修实时状态及旧关联，覆盖同步与过程页隔离；B 后置可选执行结果录入与已有消化/依据回链。保留 todos，不再默认推进[旧提案](notes/proposed/architecture/2026-09-22-work-items-as-first-class-pages.md)的全量页面化/导航重构 | 中 |
 | [Wayland 窗口恢复](notes/proposed/bug-fix/2026-10-10-window-geometry-wayland.md) | 关闭时补存已实现。恢复侧仍需 compositor 实机取证后决定尺寸/位置策略，不以重复 `setBounds` 认定修复 | 中 |
 

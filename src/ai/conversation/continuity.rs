@@ -451,6 +451,40 @@ pub(crate) fn failure_notice(store: &Store, conversation_id: &str, reason: &str)
 }
 
 fn readable_result(store: &Store, result: &ToolResultMsg) -> Result<String> {
+    if result.call_name == "synthesize_knowledge" {
+        // 合成结果的候选页不带摘录，可读的内容是逐字证据：按页面标题列出引文。
+        if let Ok(data) = serde_json::from_str::<serde_json::Value>(&result.content) {
+            let title = |slug: &str| {
+                data["knowledge_candidates"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .find(|page| page["page_slug"] == slug)
+                    .and_then(|page| page["title"].as_str())
+                    .unwrap_or(slug)
+                    .to_string()
+            };
+            let found: Vec<String> = data["evidence"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .take(6)
+                .filter_map(|item| {
+                    let slug = item["page_slug"].as_str()?;
+                    Some(format!(
+                        "{} [[kb:{slug}]]\n{}",
+                        title(slug),
+                        excerpt(item["quote"].as_str()?, 300)
+                    ))
+                })
+                .collect();
+            return if found.is_empty() {
+                store.render_reply_instruction("no_material", &[])
+            } else {
+                Ok(found.join("\n\n"))
+            };
+        }
+    }
     if matches!(
         result.call_name.as_str(),
         "get_wiki_page" | "search_knowledge_base"

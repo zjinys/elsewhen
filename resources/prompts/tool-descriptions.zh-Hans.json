@@ -97,7 +97,7 @@
     }
   },
   "get_wiki_page": {
-    "description": "按已知 slug 读取知识页，返回全文或有界片段，knowledge_reading 标明范围与 next_offset。核对具体要求、禁止项或交付清单时不要只凭摘要；长文继续读取需同时提供 next_offset 为 offset 和前次 content_hash，版本变化应从头重读。片段长度随本轮剩余上下文而定，以 end_char 为准；返回 wiki_read_budget_exhausted 表示本轮已放不下更多正文，请基于已读内容作答并说明哪些部分还没读。",
+    "description": "按已知 slug 读取知识页，返回全文或有界片段，knowledge_reading 标明范围与 next_offset。核对具体要求、禁止项或交付清单时不要只凭摘要；长文继续读取需同时提供 next_offset 为 offset 和前次 content_hash，版本变化应从头重读。片段长度随本轮剩余上下文而定，以 end_char 为准。wiki_read_budget_exhausted 表示本轮放不下更多正文：改用 synthesize_knowledge 提取所需证据，或基于已读内容作答并说明未读部分。",
     "parameters": {
       "/properties/slug/description": "页面 slug，必填",
       "/properties/offset/description": "正文字符偏移，默认0；继续读取用返回的next_offset",
@@ -248,11 +248,20 @@
     }
   },
   "search_knowledge_base": {
-    "description": "检索已核验知识：query为原问题关键词，alternate_queries可提供最多3种同义、概念或跨语言改写，保持同一需求，一次融合返回。初次未命中时换有意义的概念检索。结果只是候选，回答前核对适用条件、否定和局限，不把词面命中当成语义相关。 同时返回独立的knowledge_warnings历史否定记录，仅用于核对当时原因与当前条件，不作为正面依据。 knowledge_reading里的generated_summary是生成摘要，只用于判断页面是否相关，不是原文；核对具体要求时用get_wiki_page，可把hit_offset作为offset并带上content_hash，直接从命中处读。",
+    "description": "检索已核验知识：query为原问题关键词，alternate_queries可提供最多3种同义、概念或跨语言改写，保持同一需求，一次融合返回。初次未命中时换有意义的概念检索。结果只是候选，回答前核对适用条件、否定和局限，不把词面命中当成语义相关。 同时返回独立的knowledge_warnings历史否定记录，仅用于核对当时原因与当前条件，不作为正面依据。 knowledge_reading里的generated_summary是生成摘要，只用于判断页面是否相关，不是原文；核对具体要求时用get_wiki_page，可把hit_offset作为offset并带上content_hash，直接从命中处读。结果带suggest=synthesize_knowledge表示命中页的篇幅超过本轮读得完的量，需要综合多页或通读时改用该工具。",
     "parameters": {
       "/properties/limit/description": "最多返回条数，默认 5",
       "/properties/query/description": "搜索关键词，必填",
       "/properties/alternate_queries/description": "最多3种同义／概念改写或跨语言关键词，保持同一问题，扩大召回后核对适用条件"
+    }
+  },
+  "synthesize_knowledge": {
+    "description": "跨多篇知识页比较、归纳，或通读长页时用：工具内部分批读原文，只返回逐字证据（evidence，带页面和字符位置），原文不占对话上下文。会另发最多6次模型请求、较慢；简单查找用search_knowledge_base和get_wiki_page。quote是校验过的原文，kind和note是提取模型的归类。coverage.unread是没读到的范围，结论依赖它时要说明。报错（synthesis_budget_exhausted、synthesis_extraction_failed）表示没读到内容，不等于没有相关证据。",
+    "parameters": {
+      "/properties/question/description": "要回答的问题，完整复述，必填",
+      "/properties/sub_questions/description": "1至6个分析维度或子问题；证据按它们分别提取，写出关键术语",
+      "/properties/page_slugs/description": "已知要读的页面slug，最多8个；指定后这些页通读",
+      "/properties/queries/description": "用于找页的检索词，最多4条；不给且未指定页面时用sub_questions检索"
     }
   },
   "update_goal_facets": {

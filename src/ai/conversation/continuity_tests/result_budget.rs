@@ -251,3 +251,166 @@ fn consecutive_page_reads_leave_a_64k_request_that_still_fits() {
     drop(store);
     let _ = std::fs::remove_file(path);
 }
+
+/// 既当聊天模型又当提取模型：第一轮调用合成工具，之后作答；收到带片段的
+/// 子请求时把含「手册要求」的整句逐字摘出。余量由真实的 64K provider 量出。
+struct SynthesizingProvider<'a> {
+    real: OpenAiCompatibleProvider,
+    store: &'a Store,
+    chat_requests: std::cell::Cell<usize>,
+    extraction_requests: std::cell::Cell<usize>,
+}
+
+impl AiProvider for SynthesizingProvider<'_> {
+    fn generate_reply_with_tools(
+        &self,
+        messages: Vec<ContextMessage>,
+        _: Option<&[ToolSpec]>,
+    ) -> Result<AiReply> {
+        let chunks = messages
+            .iter()
+            .find(|message| message.role == "user" && message.content.contains("<chunk id=\""));
+        if let Some(prompt) = chunks {
+            // 只读工具：等待子请求期间不持有写事务。
+            assert!(self.store.connection.is_autocommit());
+            self.extraction_requests
+                .set(self.extraction_requests.get() + 1);
+            let mut evidence = Vec::new();
+            for (id, block) in prompt.content.split("<chunk id=\"").skip(1).enumerate() {
+                let body = block.split_once(">\n").unwrap().1;
+                let body = body.split("\n</chunk>").next().unwrap();
+                for sentence in body.split_inclusive('。') {
+                    if sentence.contains("手册要求") {
+                        evidence.push(json!({
+                            "q":0,"chunk":id,"kind":"limitation","quote":sentence,"note":"写入要求"
+                        }));
+                    }
+                }
+            }
+            return Ok(AiReply::text(json!({"evidence":evidence}).to_string()));
+        }
+        self.chat_requests.set(self.chat_requests.get() + 1);
+        if self.chat_requests.get() == 1 {
+            return Ok(native_reply(
+                "",
+                "synthesize_knowledge",
+                json!({
+                    "question":"长手册对写入有哪些要求","sub_questions":["写入的要求"],
+                    "page_slugs":["method/manual"]
+                }),
+            ));
+        }
+        Ok(AiReply::text("手册的写入要求见上面的证据。"))
+    }
+
+    fn input_headroom(
+        &self,
+        messages: &[ContextMessage],
+        tools: Option<&[ToolSpec]>,
+    ) -> Result<Option<(usize, String)>> {
+        self.real.input_headroom(messages, tools)
+    }
+}
+
+#[test]
+fn a_fifty_thousand_character_page_is_synthesized_within_the_round_limit_at_64k() {
+    let (store, path) = temporary_database();
+    let conv = store.create_conversation(Some("test"), None).unwrap();
+    // 5040 句、每句 10 个字符；每 700 句放一条要求，共 8 条，都不落在块的重叠区。
+    const REQUIREMENT: &str = "手册要求：先开事务。";
+    let body: String = (0..5040)
+        .map(|index| {
+            if index % 700 == 50 {
+                REQUIREMENT
+            } else {
+                "这是一句铺垫的话呀。"
+            }
+        })
+        .collect();
+    let at = chrono::Utc::now();
+    let event = store
+        .insert_event(crate::event::NewEvent {
+            raw_text: "手册来源",
+            occurred_at: at,
+            recorded_at: at,
+            source: "capture",
+        })
+        .unwrap();
+    store
+        .upsert_wiki_page(
+            &crate::storage::WikiPageDraft {
+                slug: "method/manual".into(),
+                title: "长手册".into(),
+                content_md: body.clone(),
+                summary: String::new(),
+                kind: "method".into(),
+                tags: vec![],
+                source_event_ids: vec![event],
+                source_url: None,
+                status: "active".into(),
+                reason: "fixture".into(),
+            },
+            crate::storage::ContentPolicy::Always,
+        )
+        .unwrap();
+    let model = "deepseek-v4-flash";
+    let provider = SynthesizingProvider {
+        real: OpenAiCompatibleProvider::new(crate::ai::provider::OpenAiCompatibleConfig {
+            model: model.into(),
+            ..Default::default()
+        })
+        .unwrap()
+        .with_output_reserve(crate::ai::budget::chat_output(model)),
+        store: &store,
+        chat_requests: Default::default(),
+        extraction_requests: Default::default(),
+    };
+    let mut context = vec![ContextMessage::new("user", "长手册对写入有哪些要求")];
+    run_agent_loop(
+        &provider,
+        "test-provider",
+        &mut context,
+        &ToolRegistry::deferred_runtime(),
+        &store,
+        &conv,
+        chrono::Utc::now(),
+    )
+    .unwrap();
+
+    // 两轮对话请求（调用工具、作答），远在四轮上限之内；子请求不超过 6 次。
+    assert_eq!(provider.chat_requests.get(), 2);
+    assert!((1..=6).contains(&provider.extraction_requests.get()));
+    let result = context
+        .iter()
+        .find(|message| message.role == "tool")
+        .expect("tool result");
+    let value: Value = serde_json::from_str(&result.content).unwrap();
+    // 九块全部读到，没有未读范围。
+    assert_eq!(value["coverage"]["chunks_total"], 9);
+    assert_eq!(value["coverage"]["chunks_read"], 9);
+    assert_eq!(value["coverage"]["unread"], json!([]));
+    assert_eq!(value["coverage"]["failed_batches"], 0);
+    // 八条要求各带页内位置，都是原文；五万字的正文没有进入对话上下文。
+    let mut starts: Vec<u64> = value["evidence"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| {
+            assert_eq!(item["quote"], REQUIREMENT);
+            item["start_char"].as_u64().unwrap()
+        })
+        .collect();
+    starts.sort();
+    assert_eq!(starts, (0..8).map(|k| k * 7000 + 500).collect::<Vec<u64>>());
+    assert!(!result.content.contains("这是一句铺垫的话呀"));
+    // 收尾请求原样放得下。
+    let (headroom, _) = provider
+        .real
+        .input_headroom(&context, None)
+        .unwrap()
+        .unwrap();
+    assert!(headroom > 0, "收尾请求超出输入预算");
+
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}

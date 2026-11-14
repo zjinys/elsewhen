@@ -97,7 +97,7 @@
     }
   },
   "get_wiki_page": {
-    "description": "Read a known page slug, returning complete text or a bounded excerpt; knowledge_reading gives coverage and next_offset. Read the relevant text before answering specific requirements, prohibitions or deliverables. Continue long pages with next_offset as offset and the previous content_hash; restart if the version changes. Excerpt length depends on the context left in this turn, so rely on end_char; wiki_read_budget_exhausted means no more page text fits in this turn: answer from what was read and say which parts remain unread.",
+    "description": "Read a known page slug, returning complete text or a bounded excerpt; knowledge_reading gives coverage and next_offset. Read the relevant text before answering specific requirements, prohibitions or deliverables. Continue long pages with next_offset as offset and the previous content_hash; restart if the version changes. Excerpt length depends on the context left in this turn, so rely on end_char. wiki_read_budget_exhausted means no more page text fits in this turn: use synthesize_knowledge to extract the evidence you need, or answer from what was read and say which parts remain unread.",
     "parameters": {
       "/properties/slug/description": "Required page slug",
       "/properties/offset/description": "Character offset, default 0; use the returned next_offset to continue reading",
@@ -248,11 +248,20 @@
     }
   },
   "search_knowledge_base": {
-    "description": "Search verified knowledge using the question plus up to 3 alternate concept, synonym or translated queries in alternate_queries. Keep all queries about the same need. Retrieved pages are candidates: inspect applicability, negation and limits before answering. When initial wording misses, try meaningful alternate concepts; do not claim that a lexical match proves relevance. Also returns separate knowledge_warnings about historical rejections, solely to compare past reasons with current conditions, never as positive evidence. A generated_summary in knowledge_reading is a generated digest for judging relevance, not source text; to check specific requirements call get_wiki_page, where hit_offset may be passed as offset together with content_hash to start reading at the match.",
+    "description": "Search verified knowledge using the question plus up to 3 alternate concept, synonym or translated queries in alternate_queries. Keep all queries about the same need. Retrieved pages are candidates: inspect applicability, negation and limits before answering. When initial wording misses, try meaningful alternate concepts; do not claim that a lexical match proves relevance. Also returns separate knowledge_warnings about historical rejections, solely to compare past reasons with current conditions, never as positive evidence. A generated_summary in knowledge_reading is a generated digest for judging relevance, not source text; to check specific requirements call get_wiki_page, where hit_offset may be passed as offset together with content_hash to start reading at the match. A suggest value of synthesize_knowledge means the matched pages hold more than can be read in this turn; use that tool when you need to combine several pages or read one through.",
     "parameters": {
       "/properties/limit/description": "Maximum returned results; default 5",
       "/properties/query/description": "Required search keywords",
       "/properties/alternate_queries/description": "Up to 3 paraphrases, concept terms or translated keywords for the same question; verify applicability after retrieval."
+    }
+  },
+  "synthesize_knowledge": {
+    "description": "Use to compare or generalize across several knowledge pages, or to read a long page through: the tool reads source text in batches internally and returns only verbatim evidence (with page and character positions), so source text does not occupy the conversation context. It makes up to 6 extra model requests and is slower; for simple lookups use search_knowledge_base and get_wiki_page. quote is verified source text; kind and note are the extraction model's classification. coverage.unread lists ranges not read; say so when a conclusion depends on them. An error (synthesis_budget_exhausted, synthesis_extraction_failed) means nothing was read, not that no relevant evidence exists.",
+    "parameters": {
+      "/properties/question/description": "Required: the question to answer, restated in full",
+      "/properties/sub_questions/description": "1 to 6 analysis dimensions or sub-questions; evidence is extracted for each, so include the key terms",
+      "/properties/page_slugs/description": "Known page slugs to read, at most 8; listed pages are read through",
+      "/properties/queries/description": "Search terms for finding pages, at most 4; when omitted and no pages are listed, sub_questions are used"
     }
   },
   "update_goal_facets": {

@@ -5,7 +5,7 @@ use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 struct Description {
     description: String,
     parameters: BTreeMap<String, String>,
@@ -14,11 +14,51 @@ struct Description {
 #[derive(Deserialize)]
 pub(super) struct DescriptionCatalog(BTreeMap<String, Description>);
 
+fn has_cjk(text: &str) -> bool {
+    text.chars().any(|c| ('\u{3400}'..='\u{9fff}').contains(&c))
+}
+
+fn builtin_catalog(english: bool) -> Result<DescriptionCatalog> {
+    Ok(serde_json::from_str(if english {
+        include_str!("../../../resources/prompts/tool-descriptions.en.json")
+    } else {
+        include_str!("../../../resources/prompts/tool-descriptions.zh-Hans.json")
+    })?)
+}
+
+/// 历史运行固定的说明早于后来新增的工具：缺的整条取同语言的内置资源补上，
+/// 已有工具的文本保持冻结。当前内置资源里也没有的工具不补，留给后面的
+/// 覆盖校验报错。
+fn fill_missing_tools<'a>(
+    catalog: &mut DescriptionCatalog,
+    names: impl Iterator<Item = &'a str>,
+) -> Result<()> {
+    let missing: Vec<&str> = names
+        .filter(|name| !catalog.0.contains_key(*name))
+        .collect();
+    if missing.is_empty() {
+        return Ok(());
+    }
+    let chinese = catalog
+        .0
+        .values()
+        .filter(|entry| has_cjk(&entry.description))
+        .count();
+    let current = builtin_catalog(chinese * 2 < catalog.0.len())?;
+    for name in missing {
+        if let Some(entry) = current.0.get(name) {
+            catalog.0.insert(name.to_string(), entry.clone());
+        }
+    }
+    Ok(())
+}
+
 impl ToolRegistry {
     pub(crate) fn configure_language(&mut self, store: &crate::storage::Store) -> Result<()> {
         let body = store.prompt_for_run("tool.descriptions.fixed_contract")?;
         let mut catalog: DescriptionCatalog =
             serde_json::from_str(&body).context("tool_locale_resource_invalid")?;
+        fill_missing_tools(&mut catalog, self.tools.iter().map(|tool| tool.name()))?;
         let metadata = crate::storage::prompts::render::TextResources::parse(
             &store.prompt_for_run("tool.metadata.fixed_contract")?,
         )?;
@@ -70,15 +110,7 @@ impl ToolRegistry {
         // their existing text frozen, filling only the newly introduced fields
         // from the same language's built-in resource.
         for (name, translated) in &mut catalog.0 {
-            let english = !translated
-                .description
-                .chars()
-                .any(|c| ('\u{3400}'..='\u{9fff}').contains(&c));
-            let current: DescriptionCatalog = serde_json::from_str(if english {
-                include_str!("../../../resources/prompts/tool-descriptions.en.json")
-            } else {
-                include_str!("../../../resources/prompts/tool-descriptions.zh-Hans.json")
-            })?;
+            let current = builtin_catalog(!has_cjk(&translated.description))?;
             let schema = self
                 .tools
                 .iter()
@@ -169,6 +201,30 @@ fn collect_descriptions(value: &serde_json::Value, path: &str, out: &mut BTreeMa
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bundles_pinned_before_a_tool_existed_gain_it_in_their_own_language() {
+        for english in [false, true] {
+            let mut catalog = builtin_catalog(english).unwrap();
+            let builtin = catalog.0.remove("synthesize_knowledge").unwrap();
+            let frozen = "历史运行固定的说明 frozen text";
+            catalog.0.get_mut("get_wiki_page").unwrap().description = frozen.into();
+            fill_missing_tools(
+                &mut catalog,
+                ["get_wiki_page", "synthesize_knowledge", "not_a_tool"].into_iter(),
+            )
+            .unwrap();
+            // 缺的工具整条补上，语言与这份说明的多数一致。
+            assert_eq!(
+                catalog.0["synthesize_knowledge"].description,
+                builtin.description
+            );
+            assert_eq!(has_cjk(&builtin.description), !english);
+            // 已有工具的文本不动；内置资源里没有的工具不凭空补。
+            assert_eq!(catalog.0["get_wiki_page"].description, frozen);
+            assert!(!catalog.0.contains_key("not_a_tool"));
+        }
+    }
 
     fn strip_descriptions(value: &mut serde_json::Value) {
         match value {
