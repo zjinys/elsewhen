@@ -1,9 +1,12 @@
 //! A single request boundary counts serialized input, tools and output reserve.
-//! Known tokenizer families use local BPE; unknown families use UTF-8 bytes as
-//! a conservative upper estimate. Neither guesses a proxy's real model window.
+//! Known tokenizer families use local BPE; other models use a per-character-class
+//! heuristic that is deliberately high (see `heuristic_tokens`; measured accuracy
+//! in `budget/accuracy.rs`). Neither guesses a proxy's real model window.
 use anyhow::Result;
 use serde_json::Value;
 
+#[cfg(test)]
+mod accuracy;
 #[cfg(test)]
 #[path = "budget/context_overflow_tests.rs"]
 mod context_overflow_tests;
@@ -545,13 +548,22 @@ fn largest_trimmable_tool_result(messages: &[Value]) -> Option<usize> {
 }
 
 /// 内容启发式估算的安全系数：所有比率均在样本基准上加 12% 余量，
-/// 保证估算偏低（宁高不低红线）。
+/// 保证估算不偏低（宁高不低红线）。
 const HEURISTIC_SAFETY: f64 = 1.12;
 /// ASCII（英文/JSON/代码，工具 schema 主体）：约 3.4 bytes/token。
 /// 基准：34,204 字节 Gitea schema → ~11,200 估算（真实 ~9-12K）。
 const ASCII_CHARS_PER_TOKEN: f64 = 3.4;
 /// CJK 每字符 token 系数：真实 deepseek/qwen 中文约 0.6~0.8 token/字，
 /// 取 2.0 保守放大 2.5~3 倍。基准：1000 汉字 → 2240 估算（验收 [1.8K,2.4K]）。
+///
+/// 2026-11-15 实测（`budget/accuracy.rs`，本机 420 次非 tiktoken 请求，deepseek /
+/// glm / kimi / gemini / gpt-oss）：整份请求的「真实 prompt_tokens ÷ 本估算」
+/// 中位 0.41–0.46、p95 不超过 0.52、最大 0.67，没有一次低估——即请求级估算
+/// 约为真实的 2.2–2.4 倍，64K 窗口的输入预算实际只装到约 2 万真实 token。
+/// 请求里没有按字符类别分开记数，哪一项偏高是推断：ASCII 按常见的 3.4–4.5
+/// 字符/token 算，那一项只高 1.1–1.5 倍，其余偏差只能来自这个系数。是否下调
+/// 属于估算口径的决策，见
+/// docs/roadmap/2026-11-14-synthesis-context-supply-roadmap.md 的 P4。
 const CJK_TOKENS_PER_CHAR: f64 = 2.0;
 
 pub fn text_tokens(model: &str, text: &str) -> usize {
