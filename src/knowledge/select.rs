@@ -256,16 +256,30 @@ pub fn select_knowledge(
         .collect())
 }
 
-/// `search` 为真时（只有搜索工具这条路径），已有页级 TL;DR 的长页只带短的
-/// 原文命中片段，摘要作为 `generated_summary` 单独返回并计入预算，一次搜索
-/// 能覆盖更多页。其余调用方始终拿到 1000 字符的原文词窗，不会把生成摘要
-/// 当成原文摘录。
-fn select_hits(store: &Store, query: &str, search: bool, budget: usize) -> Result<Vec<SearchHit>> {
-    let terms = query_terms(query);
-    if terms.is_empty() || budget < 300 {
-        return Ok(vec![]);
+/// 词法索引给出的候选页；索引不可用时是 None。索引出错不算检索失败：只在
+/// 本次运行里提示一次（不带细节——错误文本可能含查询词的编码），细节走
+/// 调试日志。
+fn indexed_candidates(store: &Store, terms: &[String]) -> Option<Vec<WikiPage>> {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    static REPORTED: AtomicBool = AtomicBool::new(false);
+    match store.wiki_search_candidates(terms) {
+        Ok(pages) => pages,
+        Err(error) => {
+            if !REPORTED.swap(true, Ordering::Relaxed) {
+                crate::logging::log_always(
+                    "[wiki-search] 词法索引不可用，检索改用全文扫描（本次运行只提示一次）",
+                );
+            }
+            crate::logging::log_debug(&format!("[wiki-search] 索引查询失败：{error:#}"));
+            None
+        }
     }
-    let budget = budget.min(12000);
+}
+
+/// 候选页的扫描路径：在全部可参与页面的文本上逐词 `instr`，按命中词数排序
+/// （主题文本计 4、正文计 1）取前 80。词法索引（`storage/wiki/search.rs`）给出
+/// 同样的候选；它不可用时走这里。
+pub(crate) fn scan_candidates(store: &Store, terms: &[String]) -> Result<Vec<WikiPage>> {
     let prominent = "lower(title||' '||tags||' '||COALESCE((SELECT applicable_when FROM knowledge_metadata WHERE page_id=wiki_pages.id),''))";
     let predicates=terms.iter().enumerate().map(|(i,_)|format!("instr(lower(title||' '||tags||' '||summary||' '||content_md||' '||COALESCE((SELECT applicable_when FROM knowledge_metadata WHERE page_id=wiki_pages.id),'')),?{})>0",i+1)).collect::<Vec<_>>().join(" OR ");
     let score = terms
@@ -284,14 +298,32 @@ fn select_hits(store: &Store, query: &str, search: bool, budget: usize) -> Resul
         AND ({predicates}) ORDER BY ({score}) DESC,last_seen_at DESC,id LIMIT 80",
         crate::storage::WIKI_PAGE_COLS
     );
-    let pages = store
+    Ok(store
         .connection
         .prepare(&sql)?
         .query_map(
             rusqlite::params_from_iter(terms.iter()),
             crate::storage::map_wiki_page,
         )?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
+        .collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
+/// `search` 为真时（只有搜索工具这条路径），已有页级 TL;DR 的长页只带短的
+/// 原文命中片段，摘要作为 `generated_summary` 单独返回并计入预算，一次搜索
+/// 能覆盖更多页。其余调用方始终拿到 1000 字符的原文词窗，不会把生成摘要
+/// 当成原文摘录。
+fn select_hits(store: &Store, query: &str, search: bool, budget: usize) -> Result<Vec<SearchHit>> {
+    let terms = query_terms(query);
+    if terms.is_empty() || budget < 300 {
+        return Ok(vec![]);
+    }
+    let budget = budget.min(12000);
+    // 候选页优先由词法索引给出（与扫描同语义、同顺序）；索引还没追平、有词项
+    // 无法表达、或索引这一步出了任何错，都回落到在全部正文上扫描。
+    let pages = match indexed_candidates(store, &terms) {
+        Some(pages) => pages,
+        None => scan_candidates(store, &terms)?,
+    };
     let mut ranked = Vec::new();
     for page in pages {
         let metadata = store.knowledge_metadata(&page.slug)?;

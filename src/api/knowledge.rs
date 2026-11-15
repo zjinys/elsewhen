@@ -99,6 +99,11 @@ pub fn tick_knowledge_insights() -> Result<i64> {
     let Some(_sync_guard) = crate::sync::runtime::background_guard(&config, &store)? else {
         return Ok(0);
     };
+    // 词法索引追平：纯本机派生物，不需要模型，所以排在 provider 与后台处理
+    // 许可的检查之前。每拍一批，失败只意味着检索继续走扫描路径。
+    if let Err(error) = store.refresh_wiki_search_batch() {
+        crate::logging::log_debug(&format!("[wiki-search] 索引追平失败：{error:#}"));
+    }
     if !store.background_processing_allowed()? {
         return Ok(0);
     }

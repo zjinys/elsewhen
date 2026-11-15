@@ -1,7 +1,7 @@
 # 合成型问题的上下文供给：分层检索、工具内证据提取与词法索引
 
 - 日期：2026-11-13
-- 状态：**实施中**。P0 `68ad97a`、P1 `4d079d5`、P2 `29ebb32`、P4（测量）已提交；P3 按[实施路线](../../../roadmap/2026-11-14-synthesis-context-supply-roadmap.md)推进，进度与各期落地记录以路线为准（实现与本稿不同处也记在路线里）。P4 的实测结论见 §5.6，是否校准估算待用户决定
+- 状态：**P0–P4 工程完成（2026-11-16）**。P0 `68ad97a`、P1 `4d079d5`、P2 `29ebb32`、P4（测量）`47ac931`、P3（迁移 84）。各期的落地记录、实现与本稿不同的地方、以及还开着的事都在[实施路线](../../../roadmap/2026-11-14-synthesis-context-supply-roadmap.md)里，以路线为准。真实模型验收未做；P4 的实测结论见 §5.6，是否校准估算待用户决定
 - 范围：知识对话的检索、读取与综合链路（`src/knowledge/select.rs`、`src/ai/tool/read_tools.rs`、`src/ai/conversation/agent.rs`、`src/knowledge_background/tldr.rs`、`src/ai/budget.rs`）；新增一个只读合成工具与一套词法索引。不改事件存储、消化管线、审阅契约与同步协议
 - 性质：实测失败驱动的架构设计
 - 输入：仓库根目录的 `local_first_ai_context_engine_recommendations.md`（外部通用建议，未提交）；提交 `e0823de`、`d06dc2a`；工作区未提交的 `ToolContext.provider` 改动

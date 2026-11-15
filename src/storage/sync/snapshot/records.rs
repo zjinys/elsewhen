@@ -225,6 +225,15 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     ("page_tldr", "local-knowledge-pipeline"),
     // TL;DR 回填的退避账本（迁移 83）：本机后台运行状态。
     ("page_tldr_backoff", "local-knowledge-pipeline"),
+    // 知识页词法索引（迁移 84）：FTS5 虚表及其影子表、文档号映射和待重建
+    // 队列。本机派生物，换设备后由页面触发器标脏、在本机重建。
+    ("wiki_fts", "local-search-index"),
+    ("wiki_fts_config", "local-search-index"),
+    ("wiki_fts_data", "local-search-index"),
+    ("wiki_fts_docsize", "local-search-index"),
+    ("wiki_fts_idx", "local-search-index"),
+    ("wiki_search_docs", "local-search-index"),
+    ("wiki_search_dirty", "local-search-index"),
     ("knowledge_page_sources", "local-knowledge-pipeline"),
     ("knowledge_proposals", "local-knowledge-pipeline"),
     ("knowledge_refresh_jobs", "local-knowledge-pipeline"),

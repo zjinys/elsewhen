@@ -130,6 +130,7 @@ fn migrations_are_discovered_from_the_directory() {
             "81-stalled-resnapshot-progress",
             "82-page-tldr",
             "83-page-tldr-repair",
+            "84-wiki-search-index",
         ],
         "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
     );
@@ -161,7 +162,7 @@ fn migration_applies_goals_table() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 83, "全部迁移跑完，user_version 应为 83");
+    assert_eq!(version, 84, "全部迁移跑完，user_version 应为 84");
     assert_eq!(
         latest_version().unwrap(),
         version,

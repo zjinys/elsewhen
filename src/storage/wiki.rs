@@ -18,3 +18,4 @@ mod export;
 mod lifecycle;
 mod modify;
 mod queries;
+pub(crate) mod search;
