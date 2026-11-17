@@ -553,49 +553,115 @@ const HEURISTIC_SAFETY: f64 = 1.12;
 /// ASCII（英文/JSON/代码，工具 schema 主体）：约 3.4 bytes/token。
 /// 基准：34,204 字节 Gitea schema → ~11,200 估算（真实 ~9-12K）。
 const ASCII_CHARS_PER_TOKEN: f64 = 3.4;
-/// CJK 每字符 token 系数：真实 deepseek/qwen 中文约 0.6~0.8 token/字，
-/// 取 2.0 保守放大 2.5~3 倍。基准：1000 汉字 → 2240 估算（验收 [1.8K,2.4K]）。
-///
-/// 2026-11-15 实测（`budget/accuracy.rs`，本机 420 次非 tiktoken 请求，deepseek /
-/// glm / kimi / gemini / gpt-oss）：整份请求的「真实 prompt_tokens ÷ 本估算」
-/// 中位 0.41–0.46、p95 不超过 0.52、最大 0.67，没有一次低估——即请求级估算
-/// 约为真实的 2.2–2.4 倍，64K 窗口的输入预算实际只装到约 2 万真实 token。
-/// 请求里没有按字符类别分开记数，哪一项偏高是推断：ASCII 按常见的 3.4–4.5
-/// 字符/token 算，那一项只高 1.1–1.5 倍，其余偏差只能来自这个系数。是否下调
-/// 属于估算口径的决策，见
-/// docs/roadmap/2026-11-14-synthesis-context-supply-roadmap.md 的 P4。
+/// CJK 每字符 token 系数的保守默认值：没有实测数据的模型（未知中转、本地模型）
+/// 都用它。基准：1000 汉字 → 2240 估算。
 const CJK_TOKENS_PER_CHAR: f64 = 2.0;
+/// 有本机实测数据的模型族用的汉字系数（用户 2026-11-17 决定下调）。
+///
+/// 依据（`budget/accuracy.rs`，2026-11-15，本机 420 次非 tiktoken 请求，deepseek /
+/// glm / kimi / gemini / gpt-oss）：系数为 2.0 时整份请求的「真实 prompt_tokens
+/// ÷ 估算」中位 0.41–0.46、p95 不超过 0.52、最大 0.67，没有一次低估——估算约为
+/// 真实的 2.2–2.4 倍，64K 窗口的输入预算实际只装到约 2 万真实 token。
+///
+/// 请求里没有按字符类别分开记数，「偏高来自汉字这一项」是推断：普通英文和
+/// JSON 按 3.4 字符/token 只高 1.1–1.5 倍（标识符串反而被低估，见
+/// `heuristic_tokens`），其余偏差只能来自汉字。取 1.2（含安全系数后每字
+/// 1.344）后纯中文正文的估算降四成，引用元数据多的工具结果只降约一成。
+/// 它不是测出来的精确值，下调后的请求级偏差也还没有重新测量：依据、本地
+/// 旁证与没有做的测量见
+/// docs/notes/proposed/architecture/2026-11-13-synthesis-context-supply.md §5.6.1。
+/// 低估时仍有两道兜底：usage 锚定收紧预算，上游拒绝后缩窗重试。
+const CALIBRATED_CJK_TOKENS_PER_CHAR: f64 = 1.2;
 
-pub fn text_tokens(model: &str, text: &str) -> usize {
+/// 模型是否属于有实测数据、可以用较低汉字系数的族。按模型名最后一段的前缀
+/// 判断（兼容 `vendor/model` 写法）。`deepseek-r1` 不算：这个名字多是本地跑的
+/// 蒸馏模型，分词器不是 DeepSeek 的。
+fn calibrated_family(model: &str) -> bool {
+    let lowered = model.to_ascii_lowercase();
+    let name = lowered.rsplit('/').next().unwrap_or(&lowered);
+    !name.starts_with("deepseek-r1")
+        && ["deepseek", "glm", "kimi", "moonshot", "gemini", "gpt-oss"]
+            .iter()
+            .any(|family| name.starts_with(family))
+}
+
+/// 本模型用哪种分词器精确计数；None 表示走内容启发式。
+fn tiktoken_family(model: &str) -> Option<&'static tiktoken_rs::CoreBPE> {
     if model.starts_with("gpt-4o")
         || model.starts_with("gpt-5")
         || model.starts_with("o1")
         || model.starts_with("o3")
         || model.starts_with("o4")
     {
-        tiktoken_rs::o200k_base_singleton()
-            .encode_ordinary(text)
-            .len()
+        Some(tiktoken_rs::o200k_base_singleton())
     } else if model.starts_with("gpt-4") {
-        tiktoken_rs::cl100k_base_singleton()
-            .encode_ordinary(text)
-            .len()
+        Some(tiktoken_rs::cl100k_base_singleton())
     } else {
-        heuristic_tokens(text)
+        None
+    }
+}
+
+pub fn text_tokens(model: &str, text: &str) -> usize {
+    match tiktoken_family(model) {
+        Some(bpe) => bpe.encode_ordinary(text).len(),
+        None if calibrated_family(model) => {
+            heuristic_tokens(text, CALIBRATED_CJK_TOKENS_PER_CHAR, true)
+        }
+        None => heuristic_tokens(text, CJK_TOKENS_PER_CHAR, false),
+    }
+}
+
+/// 与模型无关的保守估算（汉字按默认系数）。给不随渠道变化的固定配额用，
+/// 例如 MCP 工具目录的篇幅上限：同一份目录会发给任何渠道。
+pub fn conservative_text_tokens(text: &str) -> usize {
+    heuristic_tokens(text, CJK_TOKENS_PER_CHAR, false)
+}
+
+/// 预算报告里的估算口径标签。实测工具（`budget/accuracy.rs`）按它分组，所以
+/// 估算方法一变标签就得变：下调了汉字系数的族单独一个标签，其余沿用原标签。
+pub(crate) fn counting_label(model: &str) -> &'static str {
+    if tiktoken_family(model).is_none() && calibrated_family(model) {
+        "tiered_estimate(content_heuristic_cjk1.2_idruns_x1.12); segment_counts_are_not_additive"
+    } else {
+        "tiered_estimate(tiktoken|content_heuristic_x1.12); segment_counts_are_not_additive"
     }
 }
 
 /// 非 tiktoken 族的分层估算（L1/L2 合一：族识别已无增量信息，
 /// 内容启发式按字符类别分别计费）：
-/// - CJK 按字符 × 2.0；
+/// - CJK 按字符 × `cjk_tokens_per_char`（默认 2.0，有实测数据的族 1.2）；
 /// - ASCII 按字符 ÷ 3.4（JSON/代码/英文经验 BPE 比率）；
+/// - `id_runs` 为真时，含数字的连续 ASCII 字母数字串（哈希、UUID、时间戳、
+///   编号）按每字符 1 token 计。BPE 对这类串几乎逐字符切分：64 位哈希真实
+///   43 token、UUID 34 token，按 ÷3.4 只估出 22 和 12。汉字系数是 2.0 时这个
+///   低估被汉字的高估盖住；下调汉字系数的族必须同时把它补上，否则带引用
+///   元数据的工具结果（每条引用一个哈希加几个 UUID）会贴着真实值甚至低于它。
 /// - 其余字符（带附加符号拉丁文、emoji 等低频）按 1 字/1 token 保守计；
 /// - 全部乘 `HEURISTIC_SAFETY`。单次 O(n) 扫描。
-fn heuristic_tokens(text: &str) -> usize {
+fn heuristic_tokens(text: &str, cjk_tokens_per_char: f64, id_runs: bool) -> usize {
     let mut ascii = 0usize;
+    let mut dense = 0usize;
     let mut cjk = 0usize;
     let mut other = 0usize;
+    // 当前这段连续 ASCII 字母数字串的长度，以及其中是否出现过数字。
+    let mut run = 0usize;
+    let mut run_has_digit = false;
+    let mut close_run = |run: &mut usize, has_digit: &mut bool, ascii: &mut usize| {
+        if id_runs && *has_digit {
+            dense += *run;
+        } else {
+            *ascii += *run;
+        }
+        *run = 0;
+        *has_digit = false;
+    };
     for ch in text.chars() {
+        if ch.is_ascii_alphanumeric() {
+            run += 1;
+            run_has_digit |= ch.is_ascii_digit();
+            continue;
+        }
+        close_run(&mut run, &mut run_has_digit, &mut ascii);
         if is_cjk(ch) {
             cjk += 1;
         } else if ch.is_ascii() {
@@ -604,8 +670,11 @@ fn heuristic_tokens(text: &str) -> usize {
             other += 1;
         }
     }
-    let estimate =
-        ascii as f64 / ASCII_CHARS_PER_TOKEN + cjk as f64 * CJK_TOKENS_PER_CHAR + other as f64;
+    close_run(&mut run, &mut run_has_digit, &mut ascii);
+    let estimate = ascii as f64 / ASCII_CHARS_PER_TOKEN
+        + dense as f64
+        + cjk as f64 * cjk_tokens_per_char
+        + other as f64;
     (estimate * HEURISTIC_SAFETY).ceil() as usize
 }
 

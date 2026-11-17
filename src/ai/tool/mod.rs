@@ -494,7 +494,8 @@ impl ToolRegistry {
             "mcp_catalog_header",
             "\n第三方 MCP 工具（调用前必须先 enable_tools 登记全名）：\n",
         );
-        let mut used = super::budget::text_tokens("deepseek-flash", &out);
+        // 目录篇幅按与模型无关的保守口径计：同一份目录会发给任何渠道。
+        let mut used = super::budget::conservative_text_tokens(&out);
         let footer = |count: usize| {
             self.meta_render(
                 "mcp_catalog_footer",
@@ -503,10 +504,9 @@ impl ToolRegistry {
             )
         };
         // 分组头、关联意图和省略提示都计入预算，避免大量服务绕过工具行限额。
-        let content_limit = Self::MAX_CATALOG_TOKENS.saturating_sub(super::budget::text_tokens(
-            "deepseek-flash",
-            &footer(self.mcp_tools.len()),
-        ));
+        let content_limit = Self::MAX_CATALOG_TOKENS.saturating_sub(
+            super::budget::conservative_text_tokens(&footer(self.mcp_tools.len())),
+        );
         let mut truncated = 0usize;
         for (server, tools) in &groups {
             let keywords: std::collections::BTreeSet<_> = tools
@@ -534,7 +534,7 @@ impl ToolRegistry {
                     ("intent", intent),
                 ],
             );
-            let header_cost = super::budget::text_tokens("deepseek-flash", &header);
+            let header_cost = super::budget::conservative_text_tokens(&header);
             if used + header_cost > content_limit {
                 truncated += tools.len();
                 continue;
@@ -543,7 +543,7 @@ impl ToolRegistry {
             out.push_str(&header);
             for tool in tools {
                 let line = self.catalog_line(tool);
-                let line_cost = super::budget::text_tokens("deepseek-flash", &line);
+                let line_cost = super::budget::conservative_text_tokens(&line);
                 if used + line_cost > content_limit {
                     truncated += 1;
                     continue;

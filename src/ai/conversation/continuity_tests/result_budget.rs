@@ -204,13 +204,21 @@ fn consecutive_page_reads_leave_a_64k_request_that_still_fits() {
         reads: Default::default(),
         hash: crate::storage::knowledge::content_hash(&body),
     };
-    // 场景成立的前提：三段各 8000 字符按估算口径放不进 64K 的输入预算。
+    // 场景成立的前提：这一轮的提问本身带了一大段粘贴材料，再加三段各 8000
+    // 字符就放不进 64K 的输入预算。（汉字系数下调前，光三段正文就超了；下调后
+    // 三段正文约 3.2 万估算 token，单独放得下，所以前提里要算上已占用的部分。）
     let limit =
         crate::ai::budget::input_limit(crate::ai::budget::default_window(model), output).unwrap();
+    let question = format!(
+        "把长手册读一遍，告诉我要求。下面是我手头的另一份材料，一并参考：{}",
+        "这是随提问粘贴进来的材料。".repeat(1200)
+    );
     let three_full_reads: String = body.chars().take(24_000).collect();
-    assert!(crate::ai::budget::text_tokens(model, &three_full_reads) > limit);
+    let pasted = crate::ai::budget::text_tokens(model, &question);
+    let reads = crate::ai::budget::text_tokens(model, &three_full_reads);
+    assert!(reads < limit && pasted + reads > limit, "{pasted} {reads}");
 
-    let mut context = vec![ContextMessage::new("user", "把长手册读一遍，告诉我要求")];
+    let mut context = vec![ContextMessage::new("user", question)];
     run_agent_loop(
         &provider,
         "test-provider",

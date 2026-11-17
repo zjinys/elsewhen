@@ -235,5 +235,51 @@ mod tests {
         if report.is_empty() {
             println!("没有可配对的请求（需要 request_budget 事件与上游 usage 同时存在）");
         }
+        // 比值最高的请求各是什么构成：工具清单（以 ASCII 的 JSON 为主）占估算的
+        // 多少。占比高说明这类离群请求基本不受汉字系数影响。只取数值字段。
+        println!("\n比值最高的 12 个请求（现行启发式口径）");
+        println!(
+            "{:<34} {:>6} {:>8} {:>8} {:>10}",
+            "model", "ratio", "估算", "真实", "工具占估算"
+        );
+        let mut statement = connection
+            .prepare(
+                "SELECT COALESCE(r.model,''), r.prompt_tokens,
+                        json_extract(b.payload_json,'$.report.input_tokens_after'),
+                        COALESCE(json_extract(b.payload_json,'$.report.tools_tokens'),0)
+                   FROM chat_run_requests r
+                   JOIN chat_run_events b ON b.run_id=r.run_id AND b.sequence=(
+                        SELECT MAX(e.sequence) FROM chat_run_events e
+                         WHERE e.run_id=r.run_id AND e.kind='request_budget'
+                           AND json_extract(e.payload_json,'$.request_id')=r.id)
+                  WHERE r.status='completed' AND r.usage_source='provider' AND r.prompt_tokens>0
+                    AND json_extract(b.payload_json,'$.report.input_tokens_after')>0
+                    AND json_extract(b.payload_json,'$.report.counting') LIKE '%content_heuristic%'
+                    AND r.model NOT LIKE 'gpt-4%' AND r.model NOT LIKE 'gpt-5%'
+                  ORDER BY 1.0*r.prompt_tokens/json_extract(b.payload_json,'$.report.input_tokens_after') DESC
+                  LIMIT 12",
+            )
+            .unwrap();
+        let rows = statement
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, i64>(2)?,
+                    row.get::<_, i64>(3)?,
+                ))
+            })
+            .unwrap();
+        for row in rows {
+            let (model, real, estimate, tools) = row.unwrap();
+            println!(
+                "{:<34} {:>6.2} {:>8} {:>8} {:>9.0}%",
+                model,
+                real as f64 / estimate as f64,
+                estimate,
+                real,
+                100.0 * tools as f64 / estimate as f64
+            );
+        }
     }
 }

@@ -46,8 +46,10 @@ fn large_wiki_directory_allows_second_model_request_near_context_limit() {
     })
     .unwrap();
     let conversation = store.create_conversation(None, None).unwrap();
+    // 3.5 万字的必要上下文：按 deepseek 族现行口径（每字 1.344）约 4.7 万
+    // 估算 token，与事故当时的初始预算相当。汉字系数下调前这里是 2.1 万字。
     let mut context = vec![
-        ContextMessage::new("system", "必要上下文".repeat(4200)),
+        ContextMessage::new("system", "必要上下文".repeat(7000)),
         ContextMessage::new("user", "保留上一轮约束"),
         ContextMessage::new("assistant", "上一轮结果仍待确认"),
         ContextMessage::new(

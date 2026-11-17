@@ -104,8 +104,8 @@ impl RequestPolicies {
                 .get("tools")
                 .map_or(0, |tools| text_tokens(model, &tools.to_string())),
             // R1 起计费口径：gpt 族用 tiktoken 精确分词；其余模型用内容
-            // 启发式（CJK×2.0、ASCII÷3.4，含 1.12 安全系数，宁高不低）。
-            counting: "tiered_estimate(tiktoken|content_heuristic_x1.12); segment_counts_are_not_additive",
+            // 启发式（ASCII÷3.4，汉字按族取 2.0 或 1.2，含 1.12 安全系数）。
+            counting: super::counting_label(model),
             pruned_tool_results: self.pruned_tool_results,
             outcome: if result.is_ok() {
                 "ready"

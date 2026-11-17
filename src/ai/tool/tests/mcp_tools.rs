@@ -59,7 +59,9 @@ fn mcp_catalog_groups_and_budgets() {
         catalog.contains("个工具未列出"),
         "超预算应截断并为模型留计数提示"
     );
-    let catalog_tokens = crate::ai::budget::text_tokens("deepseek-flash", &catalog);
+    // 目录的篇幅上限按与模型无关的保守口径计（同一份目录发给任何渠道），
+    // 这里用同一口径量。
+    let catalog_tokens = crate::ai::budget::conservative_text_tokens(&catalog);
     assert!(
         (1_500..=2_300).contains(&catalog_tokens),
         "实际 {catalog_tokens}"
@@ -68,11 +70,9 @@ fn mcp_catalog_groups_and_budgets() {
     let full: usize = registry
         .mcp_tools()
         .iter()
-        .map(|t| {
-            crate::ai::budget::text_tokens("deepseek-flash", &serde_json::to_string(t).unwrap())
-        })
+        .map(|t| crate::ai::budget::conservative_text_tokens(&serde_json::to_string(t).unwrap()))
         .sum();
-    assert!(crate::ai::budget::text_tokens("deepseek-flash", &catalog) < full / 4);
+    assert!(catalog_tokens < full / 4);
 }
 
 #[test]

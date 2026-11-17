@@ -21,16 +21,139 @@ fn gitea_schema_estimation_falls_in_calibrated_band() {
     );
 }
 
-/// R1 基准：1000 汉字历史消息估算落 [1.8K,2.4K]
-/// （事故实况：字节退化估为 3,000；真实 ~600-800，宁高不低）。
+/// 1000 汉字的估算：没有实测数据的模型保持 R1 基准 [1.8K,2.4K]（字节退化时是
+/// 3,000）；有实测数据的族按下调后的系数落在 [1.2K,1.5K]（2026-11-17）。
 #[test]
 fn chinese_history_estimation_falls_in_calibrated_band() {
     let text = "用户记录了一段关于咖啡豆烘焙曲线的观察，浅烘带出果酸，深烘则厚重回甘。".repeat(28); // ~980 字
-    let estimated = text_tokens("deepseek-flash", &text);
-    assert!(
-        (1_800..=2_400).contains(&estimated),
-        "估算 {estimated} 未落 [1.8K,2.4K]"
+    for model in ["unknown", "llama3-8b", "qwen-max", "deepseek-r1:8b"] {
+        let estimated = text_tokens(model, &text);
+        assert!(
+            (1_800..=2_400).contains(&estimated),
+            "{model} 估算 {estimated} 未落 [1.8K,2.4K]"
+        );
+        assert_eq!(estimated, conservative_text_tokens(&text));
+    }
+    for model in [
+        "deepseek-flash",
+        "deepseek/deepseek-v4.1-flash-1017",
+        "glm-5.3-flash",
+        "zai-org/GLM-5.3-Flash",
+        "nim/nvidia/glm-5.3",
+        "moonshotai/kimi-k3",
+        "moonshot-v1-128k",
+        "gemini-3.8-flash",
+        "gpt-oss:120b",
+    ] {
+        let estimated = text_tokens(model, &text);
+        assert!(
+            (1_200..=1_500).contains(&estimated),
+            "{model} 估算 {estimated} 未落 [1.2K,1.5K]"
+        );
+    }
+    // 不含数字串的 ASCII 文本，估算与模型族无关。
+    let ascii = "Execute repository operation and return structured result. ".repeat(40);
+    assert_eq!(
+        text_tokens("deepseek-flash", &ascii),
+        text_tokens("unknown", &ascii)
     );
+    // 估算方法不同，预算报告里的口径标签也不同（实测工具按它分组）。
+    assert_ne!(counting_label("deepseek-flash"), counting_label("unknown"));
+    assert_eq!(counting_label("gpt-4o"), counting_label("unknown"));
+}
+
+/// 下调汉字系数的族必须同时按真实成本给标识符串计价。BPE 对哈希、UUID、
+/// 时间戳几乎逐字符切分，「每 3.4 字符 1 token」只估出真实值的一半到三分之一；
+/// 汉字系数是 2.0 时这个低估被汉字的高估盖住，降到 1.2 后带引用元数据的工具
+/// 结果会低于真实值。这里用知识检索结果、原文片段、内嵌引用三种实际会发送的
+/// 结构，对照 tiktoken 两套词表。没有实测数据的模型估算不变。
+#[test]
+fn calibrated_estimate_prices_identifier_runs_at_their_real_cost() {
+    let hash = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+    let uuid = "3f2b8c1e-7a4d-4e9b-b1c6-0d5e8f2a9c47";
+    let time = "2026-11-14T06:00:31.684192473+00:00";
+    let excerpt =
+        "用户记录了一段关于咖啡豆烘焙曲线的观察，浅烘带出果酸，深烘则厚重回甘。".repeat(7);
+    let citation = |excerpt: &str| {
+        serde_json::json!({"page_slug":"source-1a2b3c4d","content_hash":hash,"title":"咖啡豆烘焙曲线",
+            "excerpt":excerpt,"reason":"问题与页面主题/正文匹配（2 处主题线索）","applicable_when":"",
+            "strength":"reference","category":"外部材料或基于材料的推断",
+            "sources":[{"snapshot_id":uuid,"title":"咖啡豆烘焙曲线","locator":"https://example.com/notes/roast-curve","version":3}],
+            "event_ids":[uuid,uuid]})
+    };
+    let search = serde_json::json!({"knowledge_candidates":[citation(&excerpt),citation(&excerpt),citation(&excerpt)],
+        "knowledge_reading":{"source-1a2b3c4d":{"coverage":"excerpt","total_chars":5210,"hit_offset":1830}},
+        "knowledge_warnings":[],"events":[{"event_id":uuid,"excerpt":&excerpt[..90],"category":"用户记录"}]}).to_string();
+    let spans = serde_json::json!({"kind":"original_history_spans","parts":(0..4).map(|i| serde_json::json!({
+        "message_id":uuid,"role":"user","created_at":time,"start_char":i*2048,"end_char":(i+1)*2048,
+        "original_text":"好的"})).collect::<Vec<_>>()}).to_string();
+    for (name, text) in [
+        ("hash", hash.to_string()),
+        ("uuid", uuid.to_string()),
+        ("time", time.to_string()),
+        ("search", search),
+        ("spans", spans),
+        (
+            "embedded",
+            serde_json::Value::String(citation("短").to_string()).to_string(),
+        ),
+    ] {
+        let estimated = text_tokens("deepseek-flash", &text);
+        for (vocabulary, bpe) in [
+            ("o200k", tiktoken_rs::o200k_base_singleton()),
+            ("cl100k", tiktoken_rs::cl100k_base_singleton()),
+        ] {
+            let real = bpe.encode_ordinary(&text).len();
+            assert!(
+                estimated >= real,
+                "{name}：估算 {estimated} 低于 {vocabulary} 的真实计数 {real}"
+            );
+        }
+        // 没有实测数据的模型仍是原来的估算，这一项不随本次调整变化。
+        assert_eq!(
+            text_tokens("unknown", &text),
+            conservative_text_tokens(&text)
+        );
+    }
+    // 标识符串的计价只在下调了汉字系数的族生效。
+    assert!(text_tokens("deepseek-flash", hash) > 2 * text_tokens("unknown", hash));
+    // 不含数字的英文单词不算标识符串。
+    let words = "structured repository operation result";
+    assert_eq!(
+        text_tokens("deepseek-flash", words),
+        text_tokens("unknown", words)
+    );
+}
+
+/// 下调后的估算仍不低于两种真实 BPE 分词器的计数。应用自带的中英文提示词
+/// 资源就是请求里实际发送的内容（中文说明、英文说明、JSON 结构都有）。
+/// DeepSeek 等族的分词器不在本地，这里只能拿 tiktoken 的两套词表作旁证：
+/// 它不证明对那些模型不会低估，只保证系数没有低到连通用 BPE 都盖不住。
+#[test]
+fn calibrated_estimate_stays_above_real_bpe_counts_on_shipped_prompts() {
+    let resources = [
+        include_str!("../../../resources/prompts/chat-policy.zh-Hans.txt"),
+        include_str!("../../../resources/prompts/chat-contract.zh-Hans.txt"),
+        include_str!("../../../resources/prompts/chat-context.zh-Hans.json"),
+        include_str!("../../../resources/prompts/chat-context.en.json"),
+        include_str!("../../../resources/prompts/tool-descriptions.zh-Hans.json"),
+        include_str!("../../../resources/prompts/tool-descriptions.en.json"),
+        include_str!("../../../resources/prompts/task-processing.zh-Hans.json"),
+        include_str!("../../../resources/prompts/digest-policy.zh-Hans.txt"),
+    ];
+    for (index, text) in resources.into_iter().enumerate() {
+        let estimated = text_tokens("deepseek-flash", text);
+        for (vocabulary, bpe) in [
+            ("o200k", tiktoken_rs::o200k_base_singleton()),
+            ("cl100k", tiktoken_rs::cl100k_base_singleton()),
+        ] {
+            let real = bpe.encode_ordinary(text).len();
+            assert!(
+                estimated >= real,
+                "第 {index} 份资源：估算 {estimated} 低于 {vocabulary} 的真实计数 {real}"
+            );
+        }
+    }
 }
 
 /// 空文本不炸、非 CJK 非 ASCII 字符 1：1 保守计。
