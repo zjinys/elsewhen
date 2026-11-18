@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import 'app_pressable.dart';
+import 'composer_field.dart';
 import 'glass.dart';
 import 'suggestion_feedback.dart';
 import 'save_topic_dialog.dart';
@@ -26,7 +27,7 @@ import '../bridge/api.dart'
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -39,12 +40,14 @@ import '../providers/state_holder.dart';
 import '../providers/wiki_provider.dart';
 import 'wiki_page_detail_view.dart';
 import '../providers/todo_provider.dart';
+import '../providers/settings_provider.dart';
 import '../providers/goal_provider.dart';
 import '../l10n/notice_messages.dart';
 import '../utils/app_error.dart';
 import 'app_error_notice.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
+import '../theme/chat_type_scale.dart';
 import '../theme/content_font.dart';
 import 'markdown_view.dart';
 import 'knowledge_panel.dart';
@@ -60,6 +63,7 @@ part 'message_area_parts/now_status.dart';
 part 'message_area_parts/message_bubble.dart';
 part 'message_area_parts/habit_nudge_bubble.dart';
 part 'message_area_parts/digest_insight_bubble.dart';
+part 'message_area_parts/scout_brief_bubble.dart';
 part 'message_area_parts/input.dart';
 part 'message_area_parts/input_panels.dart';
 part 'message_area_parts/scroll_search.dart';
@@ -474,61 +478,70 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                 }
               }
 
-              return ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(AppTheme.space4),
-                itemCount: rows.length + (hasMore ? 1 : 0) + tailCount,
-                itemBuilder: (context, index) {
-                  if (hasMore && index == 0) {
-                    return _buildLoadMoreButton(total);
-                  }
-                  final libIndex = index - (hasMore ? 1 : 0);
-                  if (libIndex < rows.length) {
-                    final row = rows[libIndex];
-                    if (row is String) return _DayDivider(label: row);
-                    final message = row as Message;
-                    // 「重新生成」出现在**待回复的那条用户消息**上：会话最后一条
-                    // user 消息（生成失败、或还没生成），或上一轮被记为失败的那条。
-                    // 生成期间不显示（此时以「AI 正在思考…」占位反馈）。
-                    final needsReply =
-                        message.isUser &&
-                        !isAiTyping &&
-                        (!durable ||
-                            (durableRunInput != message.id &&
-                                message.conversationId == selectedId)) &&
-                        ((message.id == latestUserMessageId &&
-                                !latestUserHasReply) ||
-                            (failedReplyId != null &&
-                                message.id == failedReplyId));
-                    if (message.isHabitNudge || message.isHabitNudgeSuggest) {
-                      final base = _habitNudgeBaseRef(message.messageRef);
-                      final latestAsk = base == null
-                          ? 1
-                          : (latestHabitAsk[base] ?? 1);
-                      return HabitNudgeBubble(
+              // 整个消息流包在 ContentFontScope 里：对话流是用户内容区，
+              // 气泡正文/日期线/问候卡/洞察卡全部跟随「内容字体」族；
+              // 按钮类（重新生成/加载更早）由自身主题样式覆盖，不受影响。
+              return ContentFontScope(
+                child: ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(AppTheme.space4),
+                  itemCount: rows.length + (hasMore ? 1 : 0) + tailCount,
+                  itemBuilder: (context, index) {
+                    if (hasMore && index == 0) {
+                      return _buildLoadMoreButton(total);
+                    }
+                    final libIndex = index - (hasMore ? 1 : 0);
+                    if (libIndex < rows.length) {
+                      final row = rows[libIndex];
+                      if (row is String) return _DayDivider(label: row);
+                      final message = row as Message;
+                      // 「重新生成」出现在**待回复的那条用户消息**上：会话最后一条
+                      // user 消息（生成失败、或还没生成），或上一轮被记为失败的那条。
+                      // 生成期间不显示（此时以「AI 正在思考…」占位反馈）。
+                      final needsReply =
+                          message.isUser &&
+                          !isAiTyping &&
+                          (!durable ||
+                              (durableRunInput != message.id &&
+                                  message.conversationId == selectedId)) &&
+                          ((message.id == latestUserMessageId &&
+                                  !latestUserHasReply) ||
+                              (failedReplyId != null &&
+                                  message.id == failedReplyId));
+                      if (message.isHabitNudge || message.isHabitNudgeSuggest) {
+                        final base = _habitNudgeBaseRef(message.messageRef);
+                        final latestAsk = base == null
+                            ? 1
+                            : (latestHabitAsk[base] ?? 1);
+                        return HabitNudgeBubble(
+                          message: message,
+                          checkin: habitCheckins[message.messageRef],
+                          supersededByNewer:
+                              message.messageRef != null &&
+                              latestAsk > _habitNudgeAsk(message.messageRef!),
+                        );
+                      }
+                      if (message.isDigestInsight) {
+                        return DigestInsightBubble(message: message);
+                      }
+                      if (message.isScoutBrief) {
+                        return ScoutBriefBubble(message: message);
+                      }
+                      return _MessageBubble(
                         message: message,
-                        checkin: habitCheckins[message.messageRef],
-                        supersededByNewer:
-                            message.messageRef != null &&
-                            latestAsk > _habitNudgeAsk(message.messageRef!),
+                        showRetry: needsReply,
+                        onRetry: () =>
+                            _retryAiGeneration(selectedId, message.id),
+                        isLastMessage: libIndex == rows.length - 1,
                       );
                     }
-                    if (message.isDigestInsight) {
-                      return DigestInsightBubble(message: message);
+                    final tailIndex = libIndex - rows.length;
+                    if (tailIndex < notices.length) {
+                      return _NoticeBubble(text: notices[tailIndex]);
                     }
-                    return _MessageBubble(
-                      message: message,
-                      showRetry: needsReply,
-                      onRetry: () => _retryAiGeneration(selectedId, message.id),
-                      isLastMessage: libIndex == rows.length - 1,
-                    );
-                  }
-                  final tailIndex = libIndex - rows.length;
-                  if (tailIndex < notices.length) {
-                    return _NoticeBubble(text: notices[tailIndex]);
-                  }
-                  return const _AiTypingBubble();
-                },
+                    return const _AiTypingBubble();
+                  },
+                ),
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),

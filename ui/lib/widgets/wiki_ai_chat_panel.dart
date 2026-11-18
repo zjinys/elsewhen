@@ -7,11 +7,13 @@ import 'suggestion_feedback.dart';
 import 'chat_page_task_scope.dart';
 import 'chat_proposal_review.dart';
 import 'chat_run_status.dart';
+import 'composer_field.dart';
 import 'chat_input_queue.dart';
 import '../providers/chat_run_provider.dart';
+import '../providers/settings_provider.dart';
 import '../bridge/api.dart' as api;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,6 +24,7 @@ import '../models/wiki_page.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../theme/app_theme.dart';
+import '../theme/chat_type_scale.dart';
 import '../theme/content_font.dart';
 import 'markdown_view.dart';
 import 'knowledge_panel.dart';
@@ -431,69 +434,26 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                   AppTheme.space3,
                   AppTheme.space3,
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _inputController,
-                        focusNode: _inputFocus,
-                        enabled: _ready && !_inputBusy,
-                        // 与主对话输入框一致：默认 1 行、最多 4 行；
-                        // Enter 发送、Shift+Enter 换行（onKeyEvent 拦截）。
-                        maxLines: 4,
-                        minLines: 1,
-                        decoration: InputDecoration(
-                          hintText: context.l10n.askPageHint,
-                          hintStyle: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textTertiary,
-                          ),
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                          filled: true,
-                          fillColor: AppTheme.surface2,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              AppTheme.radiusMedium,
-                            ),
-                            borderSide: BorderSide(color: AppTheme.surface3),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              AppTheme.radiusMedium,
-                            ),
-                            borderSide: BorderSide(color: AppTheme.surface3),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              AppTheme.radiusMedium,
-                            ),
-                            borderSide: BorderSide(
-                              color: AppTheme.accentPrimary,
-                              width: 1.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppTheme.space2),
-                    IconButton.filled(
-                      onPressed: (_ready && !_inputBusy)
-                          ? () => _send(_inputController.text)
-                          : null,
-                      style: IconButton.styleFrom(
-                        backgroundColor: AppTheme.accentPrimary,
-                        disabledBackgroundColor: AppTheme.surface3,
-                      ),
-                      icon: const Icon(Icons.arrow_upward, size: 16),
-                      tooltip: _busy
-                          ? context.l10n.queueNext
-                          : context.l10n.send,
-                    ),
-                  ],
+                child: ComposerField(
+                  controller: _inputController,
+                  focusNode: _inputFocus,
+                  enabled: _ready && !_inputBusy,
+                  // 与主对话输入框一致：默认 1 行、最多 4 行；
+                  // Enter 发送、Shift+Enter 换行（onKeyEvent 拦截）。
+                  hintText: context.l10n.askPageHint,
+                  hintStyle: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textTertiary,
+                  ),
+                  textStyle: const TextStyle(fontSize: 13),
+                  onSubmit: () => _send(_inputController.text),
+                  canSend: _ready && !_inputBusy,
+                  // 该面板没有菊花态：生成中按钮只是禁用，图标保持箭头
+                  // （旧实现也只有箭头），避免「生成中找不到发送键」。
+                  spinning: false,
+                  sendTooltip: _busy
+                      ? context.l10n.queueNext
+                      : context.l10n.send,
                 ),
               ),
             ],

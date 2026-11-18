@@ -319,6 +319,10 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
 
   @override
   Widget build(BuildContext context) {
+    // 输入框文字跟随对话流字号阶梯（原 14），并合入内容字体族
+    // （TextField 不走 DefaultTextStyle 继承，需显式 merge）。
+    final scale = ref.watch(settingsProvider.select(chatTypeScaleOf));
+    final contentFontStyle = ContentFont.styleOf(context);
     final selectedId = ref.watch(selectedConversationIdProvider);
     // 「存为主题」预填：AI 气泡悬浮按钮写入 provider，这里填进输入框并聚焦。
     // 填一次即清空 provider（置 null），避免切会话/重建时重复填入。
@@ -404,120 +408,74 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
                   )
                 : const SizedBox.shrink(),
           ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  maxLines: 4,
-                  minLines: 1,
-                  enabled: !_isSubmitting,
-                  style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
-                  decoration: InputDecoration(
-                    hintText: isGenerating
-                        ? context.l10n.thinkingNext
-                        : context.l10n.inputMessage,
-                    prefixIcon: _showInputGuide
-                        ? IconButton(
-                            tooltip: context.l10n.closeInputFormat,
-                            icon: const Icon(Icons.close, size: 20),
-                            color: AppTheme.textSecondary,
-                            onPressed: () =>
-                                setState(() => _showInputGuide = false),
-                          )
-                        : PopupMenuButton<String>(
-                            tooltip: context.l10n.addContent,
-                            icon: const Icon(
-                              Icons.add_circle_outline,
-                              size: 20,
-                            ),
-                            onSelected: (value) {
-                              if (value == 'directory') {
-                                _pickDirectoryForImport();
-                              } else {
-                                setState(() => _showInputGuide = true);
-                              }
-                            },
-                            itemBuilder: (_) => [
-                              PopupMenuItem(
-                                value: 'directory',
-                                child: ListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  leading: Icon(
-                                    Icons.folder_open_outlined,
-                                    size: 18,
-                                  ),
-                                  title: Text(context.l10n.selectDirectory),
-                                ),
-                              ),
-                              PopupMenuItem(
-                                value: 'guide',
-                                child: ListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  leading: Icon(Icons.help_outline, size: 18),
-                                  title: Text(context.l10n.viewInputFormat),
-                                ),
-                              ),
-                            ],
-                          ),
-                    hintStyle: TextStyle(color: AppTheme.textTertiary),
-                    filled: true,
-                    fillColor: AppTheme.surface2,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppTheme.radiusMedium,
-                      ),
-                      borderSide: BorderSide(color: AppTheme.surface3),
+          // 统一输入条组件（主对话 / 知识页 / 目标讨论共用同一套几何）。
+          ComposerField(
+            controller: _controller,
+            focusNode: _focusNode,
+            enabled: !_isSubmitting,
+            hintText: isGenerating
+                ? context.l10n.thinkingNext
+                : context.l10n.inputMessage,
+            hintStyle: TextStyle(
+              color: AppTheme.textTertiary,
+              fontSize: scale.input,
+            ),
+            textStyle: (contentFontStyle ?? const TextStyle()).copyWith(
+              color: AppTheme.textPrimary,
+              fontSize: scale.input,
+            ),
+            onSubmit: _handleSubmit,
+            canSend: !busy,
+            spinning: busy || (_isSubmitting && _controller.text.isEmpty),
+            sendTooltip: isGenerating && queueEnabled
+                ? context.l10n.queueNext
+                : context.l10n.send,
+            leading: _showInputGuide
+                ? IconButton(
+                    tooltip: context.l10n.closeInputFormat,
+                    icon: const Icon(Icons.close, size: 20),
+                    color: AppTheme.textSecondary,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 44,
+                      minHeight: 44,
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppTheme.radiusMedium,
+                    onPressed: () => setState(() => _showInputGuide = false),
+                  )
+                : PopupMenuButton<String>(
+                    tooltip: context.l10n.addContent,
+                    icon: const Icon(Icons.add_circle_outline, size: 20),
+                    // 图标默认继承 onSurface（近白），比提示文字亮一截，会和
+                    // 胶囊右端的发送键抢焦点；压到次级文字色，「＋」退回成
+                    // 语境图标，输入区只剩一个重心。
+                    iconColor: AppTheme.textSecondary,
+                    padding: EdgeInsets.zero,
+                    onSelected: (value) {
+                      if (value == 'directory') {
+                        _pickDirectoryForImport();
+                      } else {
+                        setState(() => _showInputGuide = true);
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      PopupMenuItem(
+                        value: 'directory',
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.folder_open_outlined, size: 18),
+                          title: Text(context.l10n.selectDirectory),
+                        ),
                       ),
-                      borderSide: BorderSide(color: AppTheme.surface3),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppTheme.radiusMedium,
+                      PopupMenuItem(
+                        value: 'guide',
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.help_outline, size: 18),
+                          title: Text(context.l10n.viewInputFormat),
+                        ),
                       ),
-                      borderSide: BorderSide(
-                        color: AppTheme.accentPrimary,
-                        width: 2,
-                      ),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.space3,
-                      vertical: AppTheme.space3,
-                    ),
+                    ],
                   ),
-                  onSubmitted: (_) => _handleSubmit(),
-                ),
-              ),
-              const SizedBox(width: AppTheme.space3),
-              AppPressable(
-                scaleOnPress: 0.92,
-                duration: const Duration(milliseconds: 120),
-                enabled: !busy,
-                child: IconButton.filled(
-                  onPressed: busy ? null : _handleSubmit,
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppTheme.accentPrimary,
-                    disabledBackgroundColor: AppTheme.surface3,
-                  ),
-                  icon: busy
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.arrow_upward, size: 16),
-                  tooltip: isGenerating && queueEnabled
-                      ? context.l10n.queueNext
-                      : context.l10n.send,
-                ),
-              ),
-            ],
           ),
         ],
       ),

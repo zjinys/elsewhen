@@ -3,7 +3,7 @@ import 'app_error_notice.dart';
 
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,6 +17,8 @@ import '../theme/app_theme.dart';
 import 'chat_input_queue.dart';
 import 'chat_proposal_review.dart';
 import 'chat_run_status.dart';
+import 'composer_field.dart';
+import 'goal_view.dart' show refreshGoalProviders;
 import 'goal_chat_ui_blocks.dart';
 import 'wiki_ai_chat_panel.dart';
 import '../l10n/localization.dart';
@@ -350,10 +352,18 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
       ],
     );
     return Container(
+      // 对话面板用「下沉」质感与详情白卡区分：surface0 底 + 上浮阴影，
+      // 无边框——避免三栏同一套「白卡+细边」长得一样。
       decoration: BoxDecoration(
-        color: AppTheme.surface1,
+        color: AppTheme.surface0,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        border: Border.all(color: AppTheme.surface3),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.textPrimary.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -401,8 +411,10 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
                       conversationId: _conversationId,
                       compact: true,
                       onChanged: () {
-                        // 提议执行后目标阶段可能变化，交由宿主刷新。
-                        // 这里保守刷新目标相关 provider。
+                        // 提议执行后目标阶段可能变化：刷新目标相关
+                        // provider（含计划看板），否则左栏清单仍显示
+                        // 启动时的空结果缓存，新目标「看不见」。
+                        refreshGoalProviders(ref);
                         ref.invalidate(conversationsProvider);
                       },
                     ),
@@ -442,70 +454,28 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
               AppTheme.space3,
               AppTheme.space3,
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    key: const ValueKey('goal-panel-input'),
-                    controller: _inputController,
-                    focusNode: _inputFocus,
-                    enabled: _ready && !_inputBusy,
-                    // 与主对话输入框一致：默认 1 行、最多 4 行；
-                    // Enter 发送、Shift+Enter 换行（onKeyEvent 拦截）。
-                    maxLines: 4,
-                    minLines: 1,
-                    decoration: InputDecoration(
-                      hintText: widget.studio
-                          ? context.l10n.goalStudioInputHint
-                          : context.l10n.goalChatInputHint,
-                      hintStyle: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textTertiary,
-                      ),
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                      filled: true,
-                      fillColor: AppTheme.surface2,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusMedium,
-                        ),
-                        borderSide: BorderSide(color: AppTheme.surface3),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusMedium,
-                        ),
-                        borderSide: BorderSide(color: AppTheme.surface3),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusMedium,
-                        ),
-                        borderSide: BorderSide(
-                          color: AppTheme.accentPrimary,
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppTheme.space2),
-                IconButton.filled(
-                  onPressed: (_ready && !_inputBusy)
-                      ? () => _send(_inputController.text)
-                      : null,
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppTheme.accentPrimary,
-                    disabledBackgroundColor: AppTheme.surface3,
-                  ),
-                  icon: const Icon(Icons.arrow_upward, size: 16),
-                  tooltip: _busy ? context.l10n.queueNext : context.l10n.send,
-                ),
-              ],
+            child: ComposerField(
+              fieldKey: const ValueKey('goal-panel-input'),
+              controller: _inputController,
+              focusNode: _inputFocus,
+              enabled: _ready && !_inputBusy,
+              // 与主对话输入框一致：默认 1 行、最多 4 行；
+              // Enter 发送、Shift+Enter 换行（onKeyEvent 拦截）。
+              hintText: widget.studio
+                  ? context.l10n.goalStudioInputHint
+                  : context.l10n.goalChatInputHint,
+              hintStyle: TextStyle(
+                fontSize: 12,
+                color: AppTheme.textTertiary,
+              ),
+              textStyle: const TextStyle(fontSize: 13),
+              onSubmit: () => _send(_inputController.text),
+              canSend: _ready && !_inputBusy,
+              // 同知识页面板：生成中只禁用，不换成菊花。
+              spinning: false,
+              sendTooltip: _busy
+                  ? context.l10n.queueNext
+                  : context.l10n.send,
             ),
           ),
         ],
