@@ -1,10 +1,11 @@
+import 'support/localizations.dart';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:elsewhen_ui/l10n/app_locale.dart';
 import 'package:elsewhen_ui/l10n/app_localizations.dart';
 import 'package:elsewhen_ui/models/settings.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -61,7 +62,7 @@ void main() {
           MaterialApp(
             locale: locale,
             supportedLocales: AppLocalizations.supportedLocales,
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            localizationsDelegates: appTestLocalizationDelegates,
             home: Builder(
               builder: (context) => Column(
                 children: [

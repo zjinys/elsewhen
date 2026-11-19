@@ -363,7 +363,7 @@ impl Store {
                         .execute("DELETE FROM conversations WHERE id=?1", [&conversation.id])?;
                 } else if self.sync_conversation_record(&conversation.id)?.is_some() {
                     ensure!(head.is_some(), "sync_existing_conversation_has_no_base");
-                    self.connection.execute("UPDATE conversations SET title=?2,tag=?3,archived=?4,updated_at=?5 WHERE id=?1",params![conversation.id,conversation.title,conversation.tag,conversation.archived,conversation.updated_at])?;
+                    self.connection.execute("UPDATE conversations SET title=?2,tag=?3,archived=?4,goal_id=?6,updated_at=?5 WHERE id=?1",params![conversation.id,conversation.title,conversation.tag,conversation.archived,conversation.updated_at,conversation.goal_id])?;
                 } else {
                     ensure!(base_revision.is_none(), "sync_conversation_base_missing");
                     if let Some(slug) = &conversation.wiki_page_slug {

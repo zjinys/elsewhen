@@ -3,7 +3,7 @@ import '../l10n/localization.dart';
 
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
 import '../bridge/rust_bridge_repository.dart';

@@ -224,6 +224,7 @@
   "secretManagement": "Secret management",
   "appPassword": "App password",
   "openNavigation": "Open navigation",
+  "closeNavigation": "Hide navigation",
   "createTopic": "Create topic",
   "importUrl": "Import URL",
   "hideSearch": "Hide search",
@@ -1104,6 +1105,7 @@
   "wikiAddTags": "Add tags",
   "wikiContactRelations": "Contact relationships",
   "wikiTagsUpdated": "Tags updated",
+  "wikiTagsExisting": "Existing tags, tap to insert",
   "wikiImmersive": "Immersive reading",
   "wikiImmersiveHelp": "Immersive reading (Esc to exit)",
   "wikiExitImmersive": "Exit immersive reading (Esc)",
@@ -3324,5 +3326,280 @@
       }
     }
   },
-  "datasetCleanupFailed": "Cleanup is incomplete. Lock sync, close other app processes using this copy, then refresh and retry. Unfinished file or key cleanup remains pending."
+  "datasetCleanupFailed": "Cleanup is incomplete. Lock sync, close other app processes using this copy, then refresh and retry. Unfinished file or key cleanup remains pending.",
+  "scoutTab": "Intel",
+  "scoutTabDesc": "External signals",
+  "scoutTitle": "Intel brief",
+  "scoutOpenFindings": "Open findings →",
+  "scoutDashboard": "Overview",
+  "scoutFindings": "Findings",
+  "scoutNotConfigured": "Scout service URL not configured",
+  "scoutGoConfigure": "Configure Scout connection in Settings",
+  "scoutAllRead": "Mark all read",
+  "scoutMarkRead": "Mark read",
+  "scoutKindNew": "First seen",
+  "scoutKindChanged": "Changed",
+  "scoutKindGone": "No longer seen",
+  "scoutFilterAll": "All",
+  "scoutFilterUnread": "Unread",
+  "scoutLoadMore": "Load more",
+  "scoutEmpty": "No findings yet",
+  "scoutSyncNow": "Sync now",
+  "scoutSyncOk": "Synced: fetched {fetched}, {newCount} new",
+  "scoutLastPolled": "Last poll: {time}",
+  "scoutSourceLastRun": "Last run: {time}",
+  "scoutSourceNeverRun": "Never run",
+  "scoutFindingDetailFailed": "Failed to load detail",
+  "scoutRecordAsEvent": "Record as event",
+  "scoutRecordedAsEvent": "Recorded as event",
+  "scoutSaveAsMaterial": "Save as material",
+  "scoutSavedAsMaterial": "Saved as material",
+  "scoutToWikiDraft": "To wiki draft",
+  "scoutDraftCreated": "Wiki draft created",
+  "scoutActionFailed": "Action failed",
+  "@scoutSyncOk": {
+    "placeholders": {
+      "fetched": {
+        "type": "int"
+      },
+      "newCount": {
+        "type": "int"
+      }
+    }
+  },
+  "@scoutLastPolled": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@scoutSourceLastRun": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "scoutYesterday": "Yesterday",
+  "scoutNoUnread": "No unread findings. New signals will show up here",
+  "scoutUnreadBadge": "unread",
+  "scoutSettingsTitle": "Scout intelligence service",
+  "scoutSettingsDesc": "Connect the standalone scout collector; mirror external market signals locally",
+  "scoutSettingsBaseUrl": "Service URL",
+  "scoutSettingsToken": "API token (leave empty to keep existing)",
+  "scoutSettingsInterval": "Auto poll interval (minutes, min 5)",
+  "scoutSettingsEnabled": "Enable auto polling",
+  "scoutSettingsTest": "Test connection",
+  "scoutSettingsClear": "Clear local mirror",
+  "scoutSettingsSaved": "Saved",
+  "scoutTestOk": "Connection ok",
+  "scoutUnreadSummary": "{count} new findings to review",
+  "@scoutUnreadSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scoutAllReadShort": "All read",
+  "scoutNoFindings": "No findings",
+  "scoutSourceOffline": "Server status unavailable",
+  "scoutAllReadConfirmTitle": "Mark all as read?",
+  "scoutAllReadConfirmBody": "{count} unread findings will be marked read.",
+  "@scoutAllReadConfirmBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scoutActivity": "All activity",
+  "scoutSources": "Sources",
+  "scoutLatest": "Latest activity",
+  "scoutReadVisible": "Mark loaded as read",
+  "scoutReadVisibleHelp": "Only unread entries in the loaded list will be marked.",
+  "scoutSelectItem": "Select an entry to explore its changes",
+  "scoutChanges": "Changes",
+  "scoutFullData": "Collected data",
+  "scoutHistory": "Collection history",
+  "scoutHistoryHelp": "Retained server snapshots, dated by collection time.",
+  "scoutHistoryOffline": "History is unavailable. Collected data remains readable.",
+  "scoutNoHistory": "No historical snapshots",
+  "scoutOpenSource": "Open source link",
+  "scoutNewHelp": "First seen by this monitor; it may have been published earlier.",
+  "scoutGoneHelp": "Absent from this collection; it may have left the ranking or search results.",
+  "scoutChangedHelp": "Compared with the previous collection",
+  "scoutNoDelta": "No field comparison is available for this entry.",
+  "scoutDetected": "Detected at",
+  "scoutBefore": "Before",
+  "scoutAfter": "After",
+  "scoutRecordNote": "My observation (editable)",
+  "scoutDataSaved": "Saved",
+  "scoutRetry": "Retry",
+  "scoutConnection": "Connection settings",
+  "scoutAutoPaused": "Automatic updates paused",
+  "scoutNoLink": "This entry has no source link",
+  "scoutSourceUnavailable": "Source status unavailable",
+  "scoutField": "Field",
+  "scoutRawData": "View raw data",
+  "scoutDailyProducts": "Daily launches",
+  "scoutNotionTemplates": "Notion templates",
+  "scoutDigitalPlanners": "Digital planners",
+  "scoutExtensionWatchlist": "Extension watchlist",
+  "scoutUsTopFree": "US top free",
+  "scoutDiscover": "Discover leads",
+  "scoutStudies": "Research",
+  "scoutActivityLog": "Activity log",
+  "scoutSearchProducts": "Search products or keywords",
+  "scoutNoProducts": "No product observations yet. Trends accumulate after successful collections.",
+  "scoutStudy": "Start research",
+  "scoutEditStudy": "Edit research",
+  "scoutEvidenceGaps": "Evidence gaps",
+  "scoutGapsHelp": "Buyer unverified · Sales unknown · Review text not analyzed",
+  "scoutHistoryIncomplete": "Incomplete or discontinuous observations",
+  "scoutWindow": "Trends and coverage",
+  "scoutPriceUnknown": "Pricing unverified",
+  "scoutWhyNow": "Why look now",
+  "scoutNoSignal": "No verified window signal yet. Observe this product for now.",
+  "scoutStale": "Offline cache; data may be stale",
+  "scoutQuestion": "Key uncertainty / research question",
+  "scoutBuyer": "Target buyer and use case (my hypothesis)",
+  "scoutOffer": "Pricing hypothesis and alternatives",
+  "scoutExperiment": "Next experiment",
+  "scoutCriteria": "Observation window, success and stop criteria",
+  "scoutFeedback": "Observed feedback and counterevidence",
+  "scoutStudyReason": "Reason for interest / opportunity hypothesis",
+  "scoutState": "Research stage",
+  "scoutStateResearch": "To research",
+  "scoutStateValidating": "Validating",
+  "scoutStateWatching": "Watching",
+  "scoutStatePaused": "Paused",
+  "scoutStateRejected": "Rejected / irrelevant",
+  "scoutResearchHelp": "Research is stored in a synchronized notebook. Clearing the Scout cache preserves it.",
+  "scoutStudyEmpty": "Choose a product from Discover to start research.",
+  "scoutSaveResearch": "Save research",
+  "scoutMyHypothesis": "My hypothesis and validation",
+  "scoutObservedAt": "Observed through",
+  "scoutRecent": "Recent observation",
+  "scoutCoverage": "Samples",
+  "scoutKnownPrice": "Listed price (not proof of sales)",
+  "scoutResearchSaved": "Research saved",
+  "scoutSourceMaterial": "Add demand, review and pricing evidence",
+  "scoutSourceMaterialHelp": "Record the source URL, exact excerpt, date and counterevidence. Keep unverified claims in hypotheses.",
+  "scoutEvidence": "Evidence excerpts and sources",
+  "scoutAllProducts": "All products",
+  "promptScoutContract": "Scout research contract",
+  "scoutAddEvidence": "Add evidence",
+  "scoutEvidenceUrl": "Source URL",
+  "scoutEvidenceBody": "Exact source excerpt",
+  "scoutFetchEvidence": "Read webpage",
+  "scoutEvidenceType": "Evidence type",
+  "scoutEvidenceReview": "User review",
+  "scoutEvidencePricing": "Pricing / seller claim",
+  "scoutEvidenceOther": "Other material / counterevidence",
+  "scoutEvidenceProvenance": "An excerpt represents that source, not all users.",
+  "scoutAnalysisEnabled": "Allow background AI to suggest hypotheses from these excerpts",
+  "scoutAnalysisHelp": "Each evidence version is analyzed successfully at most once, using your configured AI provider. Review its output.",
+  "scoutAnalysisCandidate": "AI analysis (review required)",
+  "scoutAnalysisStale": "Evidence has changed. Recheck this candidate.",
+  "scoutAnalysisWaiting": "Waiting for background analysis; requires evidence and an AI provider.",
+  "scoutAcceptCandidate": "Use as a hypothesis",
+  "scoutRejectCandidate": "Reject candidate",
+  "scoutTheme": "Demand themes (one per line, confirmed by you)",
+  "scoutFit": "Fit with my skills, time and access to buyers",
+  "scoutResearchSearch": "Search research, themes or stages",
+  "scoutResearchSourceChanged": "New observation: review your research basis",
+  "scoutKeepDraft": "Keep draft and close",
+  "scoutAlternatives": "Alternatives / current workaround",
+  "scoutDeadline": "Observation deadline / review date",
+  "scoutEvidenceTruncated": "Only the first 8,000 characters were imported. Review and keep the relevant original excerpts.",
+  "scoutUpgradeRequired": "Upgrade Scout to enable product observations. Activity remains available in compatibility mode (up to 1,000 items).",
+  "scoutNewScope": "New to this monitoring scope (not a launch date)",
+  "scoutMetricReviews": "Reviews",
+  "scoutMetricRating": "Rating",
+  "scoutMetricRank": "Rank",
+  "scoutMetricPrice": "Price (minor currency units)",
+  "scoutMetricStars": "Stars",
+  "scoutMetricForks": "Forks",
+  "scoutGrowthSignals": "Growth / rank",
+  "scoutPriceSignals": "Price changes",
+  "scoutPreparingSignals": "New observations are being evaluated. All products are available now.",
+  "scoutValidationPlan": "Experiment and feedback",
+  "scoutResearchContext": "Demand theme and personal fit",
+  "scoutPreferences": "Research preferences",
+  "scoutPreferencesHelp": "Only information you enter is used. Empty criteria stay neutral; clear and save to withdraw. Preferences sync with personal knowledge.",
+  "scoutPreferenceAudience": "People I focus on",
+  "scoutPreferenceInterests": "Directions and tasks I focus on",
+  "scoutPreferenceCapabilities": "My capabilities and resources",
+  "scoutPreferenceConstraints": "Time and cost limits",
+  "scoutPreferenceBuyers": "Buyers I can reach",
+  "scoutWithdrawPreferences": "Clear criteria",
+  "scoutPreferencesNeutral": "No research preferences set. Assess fit using your own criteria.",
+  "scoutRecordPreferenceBasis": "Record these criteria for this decision",
+  "scoutPreferenceBasisRecorded": "Criteria recorded; withdrawing preferences later preserves this research.",
+  "scoutMisfit": "Reasons against fit and counterevidence",
+  "scoutComparisonScope": "Comparing {products} products across {sources} monitored sources. Theme confirmed by you; missing fields need evidence.",
+  "@scoutComparisonScope": {
+    "placeholders": {
+      "products": {
+        "type": "int"
+      },
+      "sources": {
+        "type": "int"
+      }
+    }
+  },
+  "scoutSupportingEvidence": "Supporting evidence: {ids}",
+  "@scoutSupportingEvidence": {
+    "placeholders": {
+      "ids": {
+        "type": "String"
+      }
+    }
+  },
+  "scoutCounterEvidence": "Counterevidence: {ids}",
+  "@scoutCounterEvidence": {
+    "placeholders": {
+      "ids": {
+        "type": "String"
+      }
+    }
+  },
+  "scoutRankUp": "Up {places} places",
+  "scoutRankDown": "Down {places} places",
+  "@scoutRankUp": {
+    "placeholders": {
+      "places": {
+        "type": "int"
+      }
+    }
+  },
+  "@scoutRankDown": {
+    "placeholders": {
+      "places": {
+        "type": "int"
+      }
+    }
+  },
+  "scoutRemoveEvidence": "Remove evidence from this research",
+  "scoutEvidenceMetadata": "Original source details (optional)",
+  "scoutEvidenceAuthor": "Original author or platform ID",
+  "scoutEvidenceLanguage": "Original language",
+  "scoutEvidencePublished": "Publication date (as stated by source)",
+  "scoutEvidenceInvalidUrl": "Enter an HTTP or HTTPS URL without credentials",
+  "scoutDrafts": "Research drafts",
+  "scoutDraftCount": "Local drafts · {count}",
+  "scoutLocalDraft": "Saved on this device; not submitted as research",
+  "scoutDiscardDraft": "Delete local draft",
+  "scoutDraftWriteFailed": "Draft could not be saved to disk. Retry keeping the draft or save the research before closing.",
+  "@scoutDraftCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scoutNotRelevant": "Not relevant",
+  "scoutBriefHighlights": "Worth a closer look"
 }

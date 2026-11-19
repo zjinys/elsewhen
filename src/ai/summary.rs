@@ -199,9 +199,7 @@ impl Builder<'_> {
         // 一逻辑节点建出的正文落同一行（INSERT OR IGNORE 去重），换渠道
         // 不再冷启动重建整套树。渠道细节保留在 provider_basis/model 溶源。
         let node = SummaryNode {
-            id: content_hash(
-                &json!([self.conversation, basis_hash, strategy]).to_string(),
-            ),
+            id: content_hash(&json!([self.conversation, basis_hash, strategy]).to_string()),
             conversation_id: self.conversation.into(),
             basis_hash,
             spans,

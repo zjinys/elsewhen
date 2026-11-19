@@ -135,12 +135,7 @@ impl Store {
         )?;
         let members: Vec<(String, i64, bool, bool)> = stmt
             .query_map([&identity.device_id], |r| {
-                Ok((
-                    r.get(0)?,
-                    r.get(1)?,
-                    r.get::<_, i64>(2)? != 0,
-                    r.get(3)?,
-                ))
+                Ok((r.get(0)?, r.get(1)?, r.get::<_, i64>(2)? != 0, r.get(3)?))
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;
 
@@ -187,13 +182,11 @@ impl Store {
         // 同一个事实的两面：不能修剪它们还没收到的历史，但也不该标它们。
         let min_member = members
             .iter()
-            .map(|(_, confirmed, _, never_confirmed)| {
-                if *never_confirmed {
-                    0
-                } else {
-                    *confirmed
-                }
-            })
+            .map(
+                |(_, confirmed, _, never_confirmed)| {
+                    if *never_confirmed { 0 } else { *confirmed }
+                },
+            )
             .min()
             .unwrap_or(i64::MAX);
         // Retention: never trim the newest SYNC_GC_MIN_RETAINED_OPERATIONS ops.

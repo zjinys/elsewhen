@@ -31,9 +31,11 @@ fn state_of(db: &Database, id: &str) -> String {
 fn blob_of(db: &Database, id: &str) -> Option<String> {
     db.store
         .connection
-        .query_row("SELECT blob_id FROM sync_snapshots WHERE id=?1", [id], |r| {
-            r.get(0)
-        })
+        .query_row(
+            "SELECT blob_id FROM sync_snapshots WHERE id=?1",
+            [id],
+            |r| r.get(0),
+        )
         .unwrap()
 }
 
@@ -58,11 +60,18 @@ fn start_reannounce_after_publish_is_idempotent() {
     local
         .store
         .connection
-        .execute("UPDATE sync_snapshots SET state='applied' WHERE id='snap'", [])
+        .execute(
+            "UPDATE sync_snapshots SET state='applied' WHERE id='snap'",
+            [],
+        )
         .unwrap();
 
     begin(&local, "snap", BLOB_A).expect("已发布的快照再收到 start 必须当成功");
-    assert_eq!(state_of(&local, "snap"), "applied", "不得把已发布改回 staging");
+    assert_eq!(
+        state_of(&local, "snap"),
+        "applied",
+        "不得把已发布改回 staging"
+    );
     assert_eq!(blob_of(&local, "snap").as_deref(), Some(BLOB_A));
 }
 
@@ -77,7 +86,10 @@ fn start_reannounce_after_abort_is_idempotent() {
     local
         .store
         .connection
-        .execute("UPDATE sync_snapshots SET state='aborted' WHERE id='snap'", [])
+        .execute(
+            "UPDATE sync_snapshots SET state='aborted' WHERE id='snap'",
+            [],
+        )
         .unwrap();
 
     begin(&local, "snap", BLOB_A).expect("已作废的快照再收到 start 必须当成功");
@@ -111,7 +123,10 @@ fn start_with_different_blob_id_still_conflicts() {
     local
         .store
         .connection
-        .execute("UPDATE sync_snapshots SET state='applied' WHERE id='snap'", [])
+        .execute(
+            "UPDATE sync_snapshots SET state='applied' WHERE id='snap'",
+            [],
+        )
         .unwrap();
     let err = begin(&local, "snap", BLOB_B).unwrap_err().to_string();
     assert!(err.contains("sync_snapshot_blob_conflict"), "实际 {err}");
@@ -125,7 +140,10 @@ fn start_from_non_member_is_rejected() {
     local
         .store
         .connection
-        .execute("UPDATE sync_snapshots SET state='applied' WHERE id='snap'", [])
+        .execute(
+            "UPDATE sync_snapshots SET state='applied' WHERE id='snap'",
+            [],
+        )
         .unwrap();
 
     let err = local
@@ -145,7 +163,10 @@ fn start_from_non_member_is_rejected() {
         .begin_blob_snapshot_import("snap", "b", 9, BLOB_A)
         .unwrap_err()
         .to_string();
-    assert!(err.contains("sync_snapshot_identity_conflict"), "实际 {err}");
+    assert!(
+        err.contains("sync_snapshot_identity_conflict"),
+        "实际 {err}"
+    );
 }
 
 /// 回执真的能退掉 start 行 —— 这是 B1 的收口动作。

@@ -144,10 +144,7 @@ pub fn get_local_sync_state() -> Result<LocalSyncStateDto> {
 
 /// 状态判定的唯一实现。`get_local_sync_state` 与「清除本机同步身份」必须用同一份，
 /// 否则出口的准入条件会和 UI 显示的状态漂移（UI 显示 `requires_repair` 却拒绝执行）。
-pub(crate) fn local_sync_state_for(
-    config: &AppConfig,
-    store: &Store,
-) -> Result<LocalSyncStateDto> {
+pub(crate) fn local_sync_state_for(config: &AppConfig, store: &Store) -> Result<LocalSyncStateDto> {
     let vault: Option<(String, i64)> = store
         .connection
         .query_row(

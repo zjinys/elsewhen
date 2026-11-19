@@ -9,7 +9,7 @@ import 'package:elsewhen_ui/providers/wiki_provider.dart';
 import 'package:elsewhen_ui/widgets/goal_chat_panel.dart';
 import 'package:elsewhen_ui/widgets/goal_view.dart';
 import 'package:elsewhen_ui/widgets/left_sidebar.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -121,7 +121,7 @@ Widget _goalDomain({
 }
 
 void main() {
-  // 视口 640：完整宽侧栏（桌面 ≥700 会折叠成窄轨，清单退回主区）。
+  // 视口 640：主区不带内嵌清单（桌面 700~1024 时清单会退回主区左侧）。
   void useWideSidebar(WidgetTester tester) {
     tester.view.physicalSize = const Size(640, 1000);
     tester.view.devicePixelRatio = 1.0;
@@ -157,7 +157,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // 左栏：标题「目标」/计数/右上「新建」/清单（原主区中列整体搬到左栏；
-      // 「目标」同时是 footer 导航项名，用计数徽章与「新建」按钮定位面板）
+      // 「目标」同时是导航抽屉的入口名，用计数徽章与「新建」按钮定位面板）
       expect(find.text('2 / 3'), findsOneWidget);
       expect(find.text('新建'), findsOneWidget);
       expect(find.text('发布 Elsewhen 1.0'), findsWidgets);

@@ -1,9 +1,10 @@
+import 'support/localizations.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/models/wiki_page.dart';
 import 'package:elsewhen_ui/l10n/app_localizations.dart';
 import 'package:elsewhen_ui/theme/app_theme.dart';
 import 'package:elsewhen_ui/widgets/habit_nudge_settings.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -104,7 +105,7 @@ void main() {
           ],
           child: MaterialApp(
             locale: const Locale('en'),
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            localizationsDelegates: appTestLocalizationDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const Scaffold(
               body: SingleChildScrollView(

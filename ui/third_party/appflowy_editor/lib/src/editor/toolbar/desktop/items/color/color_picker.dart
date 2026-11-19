@@ -1,6 +1,6 @@
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_editor/src/editor/toolbar/desktop/items/utils/overlay_util.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 class ColorPicker extends StatefulWidget {
   const ColorPicker({

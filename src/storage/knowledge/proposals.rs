@@ -586,7 +586,11 @@ impl Store {
                 if Some(&base.id) != proposal.page_id.as_ref()
                     || Some(content_hash(&base.content_md)) != proposal.base_hash
                 {
-                    return Err(crate::user_error::UserError::new("wiki_page_changed", serde_json::json!({})).into());
+                    return Err(crate::user_error::UserError::new(
+                        "wiki_page_changed",
+                        serde_json::json!({}),
+                    )
+                    .into());
                 }
             } else if base.is_some() {
                 bail!("同名页面已存在，请重新生成修订建议");
@@ -609,7 +613,11 @@ impl Store {
                     || snap.opinion.as_deref() == Some("reject")
                     || !source_active
                 {
-                    return Err(crate::user_error::UserError::new("knowledge_source_changed", serde_json::json!({})).into());
+                    return Err(crate::user_error::UserError::new(
+                        "knowledge_source_changed",
+                        serde_json::json!({}),
+                    )
+                    .into());
                 }
             }
             for id in &proposal.event_ids {

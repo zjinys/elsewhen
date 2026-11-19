@@ -96,7 +96,10 @@ impl Drop for Fixture {
 #[test]
 fn wiki_support_long_page_reading_reaches_tail_without_mixing_versions() {
     let f = Fixture::new();
-    let body = format!("{}结尾要求：不带手，不切镜头。", "编织🧵过程。".repeat(1500));
+    let body = format!(
+        "{}结尾要求：不带手，不切镜头。",
+        "编织🧵过程。".repeat(1500)
+    );
     let page = f.page("method/long-embroidery", "编织视频要求", &body);
     let hash = crate::storage::knowledge::content_hash(&body);
     let mut offset = 0;

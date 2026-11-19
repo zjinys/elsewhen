@@ -1,6 +1,6 @@
 import '../l10n/localization.dart';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// 配对进度步骤条：owner/joiner 两个视角共用（用户要求绑定页面能看出
 /// 「现在执行到哪一步」，而不是只有终态成功/失败文案）。

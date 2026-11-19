@@ -1,6 +1,6 @@
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_editor/src/editor/inline_comment/comment_utils.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 const _kCommentItemId = 'editor.comment';
 

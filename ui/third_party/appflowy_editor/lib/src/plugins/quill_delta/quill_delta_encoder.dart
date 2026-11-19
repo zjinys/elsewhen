@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:appflowy_editor/appflowy_editor.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 final QuillDeltaEncoder quillDeltaEncoder = QuillDeltaEncoder();
 

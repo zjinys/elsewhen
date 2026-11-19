@@ -3,7 +3,7 @@ import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/providers/review_provider.dart';
 import 'package:elsewhen_ui/theme/app_theme.dart';
 import 'package:elsewhen_ui/widgets/review_view.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 

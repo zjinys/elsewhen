@@ -1,7 +1,7 @@
 import 'app_error_notice.dart';
 import '../l10n/localization.dart';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/events_provider.dart';

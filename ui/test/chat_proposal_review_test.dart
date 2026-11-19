@@ -1,3 +1,4 @@
+import 'support/localizations.dart';
 import 'dart:convert';
 
 import 'package:elsewhen_ui/bridge/api.dart' as api;
@@ -5,7 +6,7 @@ import 'package:elsewhen_ui/l10n/app_localizations.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/providers/conversation_provider.dart';
 import 'package:elsewhen_ui/widgets/chat_proposal_review.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -108,7 +109,7 @@ Future<void> mount(
       child: MaterialApp(
         locale: locale,
         supportedLocales: AppLocalizations.supportedLocales,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        localizationsDelegates: appTestLocalizationDelegates,
         home: Scaffold(body: child),
       ),
     ),

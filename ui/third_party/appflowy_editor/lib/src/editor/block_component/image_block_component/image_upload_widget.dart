@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:file_picker/file_picker.dart' as fp;
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:string_validator/string_validator.dart';
 
 import '../../util/file_picker/file_picker_impl.dart';

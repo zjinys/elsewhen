@@ -60,5 +60,6 @@ mod entities;
 mod events;
 mod habit_nudges;
 mod infra;
+mod scout_brief;
 mod todos_misc;
 mod wiki_pages;

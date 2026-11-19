@@ -381,10 +381,13 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
               .toList();
 
     return Container(
-      padding: const EdgeInsets.all(AppTheme.space4),
-      decoration: BoxDecoration(
-        color: AppTheme.surface1,
-        border: Border(top: BorderSide(color: AppTheme.surface3, width: 1)),
+      // 输入胶囊已经承担了边界和层级；外层保持透明，避免底部出现一整块
+      // 厚重的深色面板。上方多留一点空间，让生成状态和输入动作分成两层。
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.space4,
+        AppTheme.space3,
+        AppTheme.space4,
+        AppTheme.space4,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

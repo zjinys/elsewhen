@@ -294,3 +294,97 @@ fn personal_profile_collects_explicit_fields_and_preserves_others() {
             .is_empty()
     );
 }
+
+/// 出生即带身份：工作室（未绑定的 goal_mentor 会话）里确认 create_plan 后，
+/// 会话被认领为第一步 goal 的专属讨论会话——立项历史无缝延续，不搬消息。
+/// 已绑定的会话（目标讨论）或普通对话不受影响。
+#[test]
+fn create_plan_confirmation_binds_idle_goal_mentor_conversation() {
+    let (store, path) = temp_db();
+    let registry = ToolRegistry::default();
+    let conv = store.ensure_goal_studio_conversation().unwrap();
+    // 发一条用户消息模拟真实立项对话。
+    store
+        .send_message(&conv, "user", "我想一周内跑通商业闭环", None)
+        .unwrap();
+
+    let call = ToolCall::new(
+        "create_plan",
+        json!({
+            "intent_text": "一周内跑通商业闭环",
+            "steps": [
+                {"content": "锁定标的物跑通自测", "phase": "near", "done_criteria": "自测通过"},
+                {"content": "上线触达", "phase": "near"}
+            ]
+        }),
+    );
+    let result = dispatch(&call, &registry, &store, &conv);
+    assert!(result.success, "{}", result.content);
+    let pendings = store.pending_actions_for_conversation(&conv).unwrap();
+    execute_pending_action(&store, &pendings[0]).unwrap();
+
+    // 会话已认领：goal_id = 第一步 goal。
+    let bound = store.get_conversation(&conv).unwrap().unwrap();
+    let steps = store
+        .list_plan_steps(&store.list_plans().unwrap()[0].id)
+        .unwrap();
+    assert_eq!(bound.goal_id.as_deref(), Some(steps[0].id.as_str()));
+
+    // find_goal_chat_conversation 直接命中原会话：目标讨论面板打开即见立项历史。
+    assert_eq!(
+        store
+            .find_goal_chat_conversation(&steps[0].id)
+            .unwrap()
+            .as_deref(),
+        Some(conv.as_str())
+    );
+    let messages = store.list_messages(&conv).unwrap();
+    assert_eq!(messages.len(), 1, "消息留在原会话，零搬移");
+
+    // 工作室入口：已认领的会话不再当工作室复用（目标仍存在），开新会话。
+    let next_studio = store.ensure_goal_studio_conversation().unwrap();
+    assert_ne!(next_studio, conv, "已认领的会话不再当工作室复用");
+    assert_eq!(
+        store
+            .get_conversation(&next_studio)
+            .unwrap()
+            .unwrap()
+            .goal_id,
+        None,
+        "新工作室会话不绑定目标"
+    );
+
+    // 普通对话里确认 create_plan 不绑定（assistant_mode 不是 goal_mentor）。
+    let plain = store.create_conversation(Some("普通"), None).unwrap();
+    let result = dispatch(&call, &registry, &store, &plain);
+    assert!(result.success, "{}", result.content);
+    let pendings = store.pending_actions_for_conversation(&plain).unwrap();
+    execute_pending_action(&store, &pendings[0]).unwrap();
+    assert_eq!(
+        store.get_conversation(&plain).unwrap().unwrap().goal_id,
+        None,
+        "普通对话不认领"
+    );
+
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}
+
+/// create_goal（单步目标）同样触发认领。
+#[test]
+fn create_goal_confirmation_binds_idle_goal_mentor_conversation() {
+    let (store, path) = temp_db();
+    let registry = ToolRegistry::default();
+    let conv = store.ensure_goal_studio_conversation().unwrap();
+    let call = ToolCall::new(
+        "create_goal",
+        json!({"content": "完成一次线上售卖", "phase": "near", "done_criteria": "首单成交"}),
+    );
+    assert!(dispatch(&call, &registry, &store, &conv).success);
+    let pendings = store.pending_actions_for_conversation(&conv).unwrap();
+    execute_pending_action(&store, &pendings[0]).unwrap();
+    let bound = store.get_conversation(&conv).unwrap().unwrap();
+    assert!(bound.goal_id.is_some(), "单步目标也认领会话");
+    drop(store);
+    let _ = std::fs::remove_file(path);
+}

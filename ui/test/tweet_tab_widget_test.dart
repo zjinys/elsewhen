@@ -1,7 +1,8 @@
+import 'support/localizations.dart';
 import 'dart:async';
 
 import 'package:appflowy_editor/appflowy_editor.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
@@ -328,7 +329,7 @@ Future<ValueNotifier<Locale>> _pumpLocalizedPreview(
           locale: value,
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: const [
-            ...AppLocalizations.localizationsDelegates,
+            ...appTestLocalizationDelegates,
             AppFlowyEditorLocalizations.delegate,
           ],
           home: const Scaffold(body: WikiPageDetailView()),

@@ -35,6 +35,7 @@ import 'api/review_flow.dart';
 import 'api/review_report/detect.dart';
 import 'api/review_report/store.dart';
 import 'api/rules.dart';
+import 'api/scout.dart';
 import 'api/sync/conflicts.dart';
 import 'api/sync/datasets.dart';
 import 'api/sync/invite.dart';
@@ -184,6 +185,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ProcessingYieldProofDto dco_decode_box_autoadd_processing_yield_proof_dto(
     dynamic raw,
   );
+
+  @protected
+  ScoutSettingsDto dco_decode_box_autoadd_scout_settings_dto(dynamic raw);
 
   @protected
   SourceSnapshot dco_decode_box_autoadd_source_snapshot(dynamic raw);
@@ -676,6 +680,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RuleHitDto> dco_decode_list_rule_hit_dto(dynamic raw);
 
   @protected
+  List<ScoutFindingDto> dco_decode_list_scout_finding_dto(dynamic raw);
+
+  @protected
+  List<ScoutSourceDto> dco_decode_list_scout_source_dto(dynamic raw);
+
+  @protected
+  List<ScoutSourceSummaryDto> dco_decode_list_scout_source_summary_dto(
+    dynamic raw,
+  );
+
+  @protected
+  List<ScoutSourceUnreadDto> dco_decode_list_scout_source_unread_dto(
+    dynamic raw,
+  );
+
+  @protected
   List<SourceReference> dco_decode_list_source_reference(dynamic raw);
 
   @protected
@@ -835,6 +855,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlanDto? dco_decode_opt_box_autoadd_plan_dto(dynamic raw);
 
   @protected
+  ScoutSettingsDto? dco_decode_opt_box_autoadd_scout_settings_dto(dynamic raw);
+
+  @protected
   SourceSnapshot? dco_decode_opt_box_autoadd_source_snapshot(dynamic raw);
 
   @protected
@@ -935,6 +958,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RuleHitDto dco_decode_rule_hit_dto(dynamic raw);
+
+  @protected
+  ScoutFindingDto dco_decode_scout_finding_dto(dynamic raw);
+
+  @protected
+  ScoutPollResultDto dco_decode_scout_poll_result_dto(dynamic raw);
+
+  @protected
+  ScoutSettingsDto dco_decode_scout_settings_dto(dynamic raw);
+
+  @protected
+  ScoutSourceDto dco_decode_scout_source_dto(dynamic raw);
+
+  @protected
+  ScoutSourceSummaryDto dco_decode_scout_source_summary_dto(dynamic raw);
+
+  @protected
+  ScoutSourceUnreadDto dco_decode_scout_source_unread_dto(dynamic raw);
 
   @protected
   SourceReference dco_decode_source_reference(dynamic raw);
@@ -1183,6 +1224,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ProcessingYieldProofDto sse_decode_box_autoadd_processing_yield_proof_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ScoutSettingsDto sse_decode_box_autoadd_scout_settings_dto(
     SseDeserializer deserializer,
   );
 
@@ -1837,6 +1883,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RuleHitDto> sse_decode_list_rule_hit_dto(SseDeserializer deserializer);
 
   @protected
+  List<ScoutFindingDto> sse_decode_list_scout_finding_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ScoutSourceDto> sse_decode_list_scout_source_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ScoutSourceSummaryDto> sse_decode_list_scout_source_summary_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ScoutSourceUnreadDto> sse_decode_list_scout_source_unread_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SourceReference> sse_decode_list_source_reference(
     SseDeserializer deserializer,
   );
@@ -2036,6 +2102,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlanDto? sse_decode_opt_box_autoadd_plan_dto(SseDeserializer deserializer);
 
   @protected
+  ScoutSettingsDto? sse_decode_opt_box_autoadd_scout_settings_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SourceSnapshot? sse_decode_opt_box_autoadd_source_snapshot(
     SseDeserializer deserializer,
   );
@@ -2168,6 +2239,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RuleHitDto sse_decode_rule_hit_dto(SseDeserializer deserializer);
+
+  @protected
+  ScoutFindingDto sse_decode_scout_finding_dto(SseDeserializer deserializer);
+
+  @protected
+  ScoutPollResultDto sse_decode_scout_poll_result_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ScoutSettingsDto sse_decode_scout_settings_dto(SseDeserializer deserializer);
+
+  @protected
+  ScoutSourceDto sse_decode_scout_source_dto(SseDeserializer deserializer);
+
+  @protected
+  ScoutSourceSummaryDto sse_decode_scout_source_summary_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ScoutSourceUnreadDto sse_decode_scout_source_unread_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SourceReference sse_decode_source_reference(SseDeserializer deserializer);
@@ -2540,6 +2635,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     // Codec=Cst (C-struct based), see doc to use other codecs
     final ptr = wire.cst_new_box_autoadd_processing_yield_proof_dto();
     cst_api_fill_to_wire_processing_yield_proof_dto(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_scout_settings_dto>
+  cst_encode_box_autoadd_scout_settings_dto(ScoutSettingsDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_scout_settings_dto();
+    cst_api_fill_to_wire_scout_settings_dto(raw, ptr.ref);
     return ptr;
   }
 
@@ -3410,6 +3514,51 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_scout_finding_dto>
+  cst_encode_list_scout_finding_dto(List<ScoutFindingDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_scout_finding_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_scout_finding_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_scout_source_dto> cst_encode_list_scout_source_dto(
+    List<ScoutSourceDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_scout_source_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_scout_source_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_scout_source_summary_dto>
+  cst_encode_list_scout_source_summary_dto(List<ScoutSourceSummaryDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_scout_source_summary_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_scout_source_summary_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_scout_source_unread_dto>
+  cst_encode_list_scout_source_unread_dto(List<ScoutSourceUnreadDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_scout_source_unread_dto(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_scout_source_unread_dto(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_source_reference> cst_encode_list_source_reference(
     List<SourceReference> raw,
   ) {
@@ -3763,6 +3912,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_scout_settings_dto>
+  cst_encode_opt_box_autoadd_scout_settings_dto(ScoutSettingsDto? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? ffi.nullptr
+        : cst_encode_box_autoadd_scout_settings_dto(raw);
+  }
+
+  @protected
   ffi.Pointer<wire_cst_source_snapshot>
   cst_encode_opt_box_autoadd_source_snapshot(SourceSnapshot? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
@@ -4084,6 +4242,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_processing_yield_proof_dto> wireObj,
   ) {
     cst_api_fill_to_wire_processing_yield_proof_dto(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_scout_settings_dto(
+    ScoutSettingsDto apiObj,
+    ffi.Pointer<wire_cst_scout_settings_dto> wireObj,
+  ) {
+    cst_api_fill_to_wire_scout_settings_dto(apiObj, wireObj.ref);
   }
 
   @protected
@@ -5766,6 +5932,80 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_scout_finding_dto(
+    ScoutFindingDto apiObj,
+    wire_cst_scout_finding_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_i_64(apiObj.id);
+    wireObj.source_id = cst_encode_String(apiObj.sourceId);
+    wireObj.snapshot_id = cst_encode_i_64(apiObj.snapshotId);
+    wireObj.kind = cst_encode_String(apiObj.kind);
+    wireObj.item_key = cst_encode_String(apiObj.itemKey);
+    wireObj.payload_json = cst_encode_String(apiObj.payloadJson);
+    wireObj.delta_json = cst_encode_opt_String(apiObj.deltaJson);
+    wireObj.detected_at = cst_encode_String(apiObj.detectedAt);
+    wireObj.read_at = cst_encode_opt_String(apiObj.readAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_scout_poll_result_dto(
+    ScoutPollResultDto apiObj,
+    wire_cst_scout_poll_result_dto wireObj,
+  ) {
+    wireObj.fetched = cst_encode_i_64(apiObj.fetched);
+    wireObj.new_count = cst_encode_i_64(apiObj.newCount);
+    wireObj.unread_total = cst_encode_i_64(apiObj.unreadTotal);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_scout_settings_dto(
+    ScoutSettingsDto apiObj,
+    wire_cst_scout_settings_dto wireObj,
+  ) {
+    wireObj.base_url = cst_encode_String(apiObj.baseUrl);
+    wireObj.poll_interval_minutes = cst_encode_i_64(apiObj.pollIntervalMinutes);
+    wireObj.enabled = cst_encode_bool(apiObj.enabled);
+    wireObj.has_token = cst_encode_bool(apiObj.hasToken);
+    wireObj.last_polled_at = cst_encode_opt_String(apiObj.lastPolledAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_scout_source_dto(
+    ScoutSourceDto apiObj,
+    wire_cst_scout_source_dto wireObj,
+  ) {
+    wireObj.id = cst_encode_String(apiObj.id);
+    wireObj.name = cst_encode_String(apiObj.name);
+    wireObj.interval_minutes = cst_encode_i_64(apiObj.intervalMinutes);
+    wireObj.enabled = cst_encode_bool(apiObj.enabled);
+    wireObj.last_status = cst_encode_opt_String(apiObj.lastStatus);
+    wireObj.last_run_at = cst_encode_opt_String(apiObj.lastRunAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_scout_source_summary_dto(
+    ScoutSourceSummaryDto apiObj,
+    wire_cst_scout_source_summary_dto wireObj,
+  ) {
+    wireObj.source_id = cst_encode_String(apiObj.sourceId);
+    wireObj.unread = cst_encode_i_64(apiObj.unread);
+    wireObj.new_count = cst_encode_i_64(apiObj.newCount);
+    wireObj.changed_count = cst_encode_i_64(apiObj.changedCount);
+    wireObj.gone_count = cst_encode_i_64(apiObj.goneCount);
+    wireObj.total = cst_encode_i_64(apiObj.total);
+    wireObj.latest_detected_at = cst_encode_opt_String(apiObj.latestDetectedAt);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_scout_source_unread_dto(
+    ScoutSourceUnreadDto apiObj,
+    wire_cst_scout_source_unread_dto wireObj,
+  ) {
+    wireObj.source_id = cst_encode_String(apiObj.sourceId);
+    wireObj.count = cst_encode_i_64(apiObj.count);
+  }
+
+  @protected
   void cst_api_fill_to_wire_source_reference(
     SourceReference apiObj,
     wire_cst_source_reference wireObj,
@@ -6425,6 +6665,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_processing_yield_proof_dto(
     ProcessingYieldProofDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_scout_settings_dto(
+    ScoutSettingsDto self,
     SseSerializer serializer,
   );
 
@@ -7269,6 +7515,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_scout_finding_dto(
+    List<ScoutFindingDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_scout_source_dto(
+    List<ScoutSourceDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_scout_source_summary_dto(
+    List<ScoutSourceSummaryDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_scout_source_unread_dto(
+    List<ScoutSourceUnreadDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_source_reference(
     List<SourceReference> self,
     SseSerializer serializer,
@@ -7512,6 +7782,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_scout_settings_dto(
+    ScoutSettingsDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_source_snapshot(
     SourceSnapshot? self,
     SseSerializer serializer,
@@ -7678,6 +7954,42 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_rule_hit_dto(RuleHitDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_scout_finding_dto(
+    ScoutFindingDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_scout_poll_result_dto(
+    ScoutPollResultDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_scout_settings_dto(
+    ScoutSettingsDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_scout_source_dto(
+    ScoutSourceDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_scout_source_summary_dto(
+    ScoutSourceSummaryDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_scout_source_unread_dto(
+    ScoutSourceUnreadDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_source_reference(
@@ -8246,6 +8558,19 @@ class RustLibWire implements BaseWire {
           .asFunction<
             ffi.Pointer<wire_cst_processing_yield_proof_dto> Function()
           >();
+
+  ffi.Pointer<wire_cst_scout_settings_dto>
+  cst_new_box_autoadd_scout_settings_dto() {
+    return _cst_new_box_autoadd_scout_settings_dto();
+  }
+
+  late final _cst_new_box_autoadd_scout_settings_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Pointer<wire_cst_scout_settings_dto> Function()>
+      >('frbgen_elsewhen_ui_cst_new_box_autoadd_scout_settings_dto');
+  late final _cst_new_box_autoadd_scout_settings_dto =
+      _cst_new_box_autoadd_scout_settings_dtoPtr
+          .asFunction<ffi.Pointer<wire_cst_scout_settings_dto> Function()>();
 
   ffi.Pointer<wire_cst_source_snapshot> cst_new_box_autoadd_source_snapshot() {
     return _cst_new_box_autoadd_source_snapshot();
@@ -9466,6 +9791,75 @@ class RustLibWire implements BaseWire {
       >('frbgen_elsewhen_ui_cst_new_list_rule_hit_dto');
   late final _cst_new_list_rule_hit_dto = _cst_new_list_rule_hit_dtoPtr
       .asFunction<ffi.Pointer<wire_cst_list_rule_hit_dto> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_scout_finding_dto> cst_new_list_scout_finding_dto(
+    int len,
+  ) {
+    return _cst_new_list_scout_finding_dto(len);
+  }
+
+  late final _cst_new_list_scout_finding_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_scout_finding_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_scout_finding_dto');
+  late final _cst_new_list_scout_finding_dto =
+      _cst_new_list_scout_finding_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_scout_finding_dto> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_scout_source_dto> cst_new_list_scout_source_dto(
+    int len,
+  ) {
+    return _cst_new_list_scout_source_dto(len);
+  }
+
+  late final _cst_new_list_scout_source_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_scout_source_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_scout_source_dto');
+  late final _cst_new_list_scout_source_dto = _cst_new_list_scout_source_dtoPtr
+      .asFunction<ffi.Pointer<wire_cst_list_scout_source_dto> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_scout_source_summary_dto>
+  cst_new_list_scout_source_summary_dto(int len) {
+    return _cst_new_list_scout_source_summary_dto(len);
+  }
+
+  late final _cst_new_list_scout_source_summary_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_scout_source_summary_dto> Function(
+            ffi.Int32,
+          )
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_scout_source_summary_dto');
+  late final _cst_new_list_scout_source_summary_dto =
+      _cst_new_list_scout_source_summary_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_scout_source_summary_dto> Function(int)
+          >();
+
+  ffi.Pointer<wire_cst_list_scout_source_unread_dto>
+  cst_new_list_scout_source_unread_dto(int len) {
+    return _cst_new_list_scout_source_unread_dto(len);
+  }
+
+  late final _cst_new_list_scout_source_unread_dtoPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_scout_source_unread_dto> Function(ffi.Int32)
+        >
+      >('frbgen_elsewhen_ui_cst_new_list_scout_source_unread_dto');
+  late final _cst_new_list_scout_source_unread_dto =
+      _cst_new_list_scout_source_unread_dtoPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_scout_source_unread_dto> Function(int)
+          >();
 
   ffi.Pointer<wire_cst_list_source_reference> cst_new_list_source_reference(
     int len,
@@ -15993,6 +16387,523 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             )
           >();
+
+  void wire__crate__api__scout__clear_scout_mirror(int port_) {
+    return _wire__crate__api__scout__clear_scout_mirror(port_);
+  }
+
+  late final _wire__crate__api__scout__clear_scout_mirrorPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__scout__clear_scout_mirror',
+      );
+  late final _wire__crate__api__scout__clear_scout_mirror =
+      _wire__crate__api__scout__clear_scout_mirrorPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__scout__delete_scout_research_draft(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> instance_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> product_id,
+  ) {
+    return _wire__crate__api__scout__delete_scout_research_draft(
+      port_,
+      instance_id,
+      product_id,
+    );
+  }
+
+  late final _wire__crate__api__scout__delete_scout_research_draftPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__scout__delete_scout_research_draft',
+      );
+  late final _wire__crate__api__scout__delete_scout_research_draft =
+      _wire__crate__api__scout__delete_scout_research_draftPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__scout__get_scout_settings(int port_) {
+    return _wire__crate__api__scout__get_scout_settings(port_);
+  }
+
+  late final _wire__crate__api__scout__get_scout_settingsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__scout__get_scout_settings',
+      );
+  late final _wire__crate__api__scout__get_scout_settings =
+      _wire__crate__api__scout__get_scout_settingsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__scout__list_scout_findings(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> source_id,
+    bool unread_only,
+    int limit,
+    int offset,
+  ) {
+    return _wire__crate__api__scout__list_scout_findings(
+      port_,
+      kind,
+      source_id,
+      unread_only,
+      limit,
+      offset,
+    );
+  }
+
+  late final _wire__crate__api__scout__list_scout_findingsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+            ffi.Int64,
+            ffi.Int64,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__scout__list_scout_findings');
+  late final _wire__crate__api__scout__list_scout_findings =
+      _wire__crate__api__scout__list_scout_findingsPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
+              int,
+              int,
+            )
+          >();
+
+  void wire__crate__api__scout__list_scout_research(int port_) {
+    return _wire__crate__api__scout__list_scout_research(port_);
+  }
+
+  late final _wire__crate__api__scout__list_scout_researchPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__scout__list_scout_research',
+      );
+  late final _wire__crate__api__scout__list_scout_research =
+      _wire__crate__api__scout__list_scout_researchPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__scout__list_scout_sources(int port_) {
+    return _wire__crate__api__scout__list_scout_sources(port_);
+  }
+
+  late final _wire__crate__api__scout__list_scout_sourcesPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__scout__list_scout_sources',
+      );
+  late final _wire__crate__api__scout__list_scout_sources =
+      _wire__crate__api__scout__list_scout_sourcesPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__scout__mark_scout_findings_read(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_i_64_strict> ids,
+  ) {
+    return _wire__crate__api__scout__mark_scout_findings_read(port_, ids);
+  }
+
+  late final _wire__crate__api__scout__mark_scout_findings_readPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_i_64_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__scout__mark_scout_findings_read');
+  late final _wire__crate__api__scout__mark_scout_findings_read =
+      _wire__crate__api__scout__mark_scout_findings_readPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_i_64_strict>)
+          >();
+
+  void wire__crate__api__scout__poll_scout_now(int port_) {
+    return _wire__crate__api__scout__poll_scout_now(port_);
+  }
+
+  late final _wire__crate__api__scout__poll_scout_nowPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__scout__poll_scout_now',
+      );
+  late final _wire__crate__api__scout__poll_scout_now =
+      _wire__crate__api__scout__poll_scout_nowPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__scout__save_scout_preferences(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> document_json,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> expected_token,
+  ) {
+    return _wire__crate__api__scout__save_scout_preferences(
+      port_,
+      document_json,
+      expected_token,
+    );
+  }
+
+  late final _wire__crate__api__scout__save_scout_preferencesPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__scout__save_scout_preferences');
+  late final _wire__crate__api__scout__save_scout_preferences =
+      _wire__crate__api__scout__save_scout_preferencesPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__scout__save_scout_research(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> document_json,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> expected_token,
+  ) {
+    return _wire__crate__api__scout__save_scout_research(
+      port_,
+      document_json,
+      expected_token,
+    );
+  }
+
+  late final _wire__crate__api__scout__save_scout_researchPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__scout__save_scout_research');
+  late final _wire__crate__api__scout__save_scout_research =
+      _wire__crate__api__scout__save_scout_researchPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__scout__save_scout_research_draft(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> document_json,
+  ) {
+    return _wire__crate__api__scout__save_scout_research_draft(
+      port_,
+      document_json,
+    );
+  }
+
+  late final _wire__crate__api__scout__save_scout_research_draftPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_elsewhen_ui_wire__crate__api__scout__save_scout_research_draft',
+      );
+  late final _wire__crate__api__scout__save_scout_research_draft =
+      _wire__crate__api__scout__save_scout_research_draftPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__scout__save_scout_settings(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> base_url,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> token,
+    int poll_interval_minutes,
+    bool enabled,
+  ) {
+    return _wire__crate__api__scout__save_scout_settings(
+      port_,
+      base_url,
+      token,
+      poll_interval_minutes,
+      enabled,
+    );
+  }
+
+  late final _wire__crate__api__scout__save_scout_settingsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Int64,
+            ffi.Bool,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__scout__save_scout_settings');
+  late final _wire__crate__api__scout__save_scout_settings =
+      _wire__crate__api__scout__save_scout_settingsPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+              bool,
+            )
+          >();
+
+  void wire__crate__api__scout__scout_finding_detail(int port_, int id) {
+    return _wire__crate__api__scout__scout_finding_detail(port_, id);
+  }
+
+  late final _wire__crate__api__scout__scout_finding_detailPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__scout__scout_finding_detail',
+      );
+  late final _wire__crate__api__scout__scout_finding_detail =
+      _wire__crate__api__scout__scout_finding_detailPtr
+          .asFunction<void Function(int, int)>();
+
+  void wire__crate__api__scout__scout_preferences(int port_) {
+    return _wire__crate__api__scout__scout_preferences(port_);
+  }
+
+  late final _wire__crate__api__scout__scout_preferencesPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__scout__scout_preferences',
+      );
+  late final _wire__crate__api__scout__scout_preferences =
+      _wire__crate__api__scout__scout_preferencesPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__scout__scout_product_detail(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> product_id,
+    ffi.Pointer<ffi.Int64> before,
+  ) {
+    return _wire__crate__api__scout__scout_product_detail(
+      port_,
+      product_id,
+      before,
+    );
+  }
+
+  late final _wire__crate__api__scout__scout_product_detailPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<ffi.Int64>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__scout__scout_product_detail');
+  late final _wire__crate__api__scout__scout_product_detail =
+      _wire__crate__api__scout__scout_product_detailPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<ffi.Int64>,
+            )
+          >();
+
+  void wire__crate__api__scout__scout_products(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> query,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> source,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> cursor,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> as_of,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> view,
+  ) {
+    return _wire__crate__api__scout__scout_products(
+      port_,
+      query,
+      source,
+      cursor,
+      as_of,
+      view,
+    );
+  }
+
+  late final _wire__crate__api__scout__scout_productsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__scout__scout_products');
+  late final _wire__crate__api__scout__scout_products =
+      _wire__crate__api__scout__scout_productsPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__scout__scout_research_analysis(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> study_slug,
+  ) {
+    return _wire__crate__api__scout__scout_research_analysis(port_, study_slug);
+  }
+
+  late final _wire__crate__api__scout__scout_research_analysisPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__scout__scout_research_analysis');
+  late final _wire__crate__api__scout__scout_research_analysis =
+      _wire__crate__api__scout__scout_research_analysisPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__scout__scout_research_draft(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> instance_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> product_id,
+  ) {
+    return _wire__crate__api__scout__scout_research_draft(
+      port_,
+      instance_id,
+      product_id,
+    );
+  }
+
+  late final _wire__crate__api__scout__scout_research_draftPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >('frbgen_elsewhen_ui_wire__crate__api__scout__scout_research_draft');
+  late final _wire__crate__api__scout__scout_research_draft =
+      _wire__crate__api__scout__scout_research_draftPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
+  void wire__crate__api__scout__scout_research_drafts(int port_) {
+    return _wire__crate__api__scout__scout_research_drafts(port_);
+  }
+
+  late final _wire__crate__api__scout__scout_research_draftsPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__scout__scout_research_drafts',
+      );
+  late final _wire__crate__api__scout__scout_research_drafts =
+      _wire__crate__api__scout__scout_research_draftsPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__scout__scout_source_summaries(int port_) {
+    return _wire__crate__api__scout__scout_source_summaries(port_);
+  }
+
+  late final _wire__crate__api__scout__scout_source_summariesPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__scout__scout_source_summaries',
+      );
+  late final _wire__crate__api__scout__scout_source_summaries =
+      _wire__crate__api__scout__scout_source_summariesPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__scout__scout_unread_by_source(int port_) {
+    return _wire__crate__api__scout__scout_unread_by_source(port_);
+  }
+
+  late final _wire__crate__api__scout__scout_unread_by_sourcePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__scout__scout_unread_by_source',
+      );
+  late final _wire__crate__api__scout__scout_unread_by_source =
+      _wire__crate__api__scout__scout_unread_by_sourcePtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__scout__scout_unread_count(int port_) {
+    return _wire__crate__api__scout__scout_unread_count(port_);
+  }
+
+  late final _wire__crate__api__scout__scout_unread_countPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__scout__scout_unread_count',
+      );
+  late final _wire__crate__api__scout__scout_unread_count =
+      _wire__crate__api__scout__scout_unread_countPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__scout__test_scout_connection(int port_) {
+    return _wire__crate__api__scout__test_scout_connection(port_);
+  }
+
+  late final _wire__crate__api__scout__test_scout_connectionPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__scout__test_scout_connection',
+      );
+  late final _wire__crate__api__scout__test_scout_connection =
+      _wire__crate__api__scout__test_scout_connectionPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__scout__tick_scout_research(int port_) {
+    return _wire__crate__api__scout__tick_scout_research(port_);
+  }
+
+  late final _wire__crate__api__scout__tick_scout_researchPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_elsewhen_ui_wire__crate__api__scout__tick_scout_research',
+      );
+  late final _wire__crate__api__scout__tick_scout_research =
+      _wire__crate__api__scout__tick_scout_researchPtr
+          .asFunction<void Function(int)>();
 
   void wire__crate__api__sync__conflicts__list_object_conflicts(int port_) {
     return _wire__crate__api__sync__conflicts__list_object_conflicts(port_);
@@ -22774,6 +23685,66 @@ final class wire_cst_list_rule_hit_dto extends ffi.Struct {
     ..ref.len = len;
 }
 
+final class wire_cst_list_scout_finding_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_scout_finding_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_scout_finding_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_scout_finding_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_scout_finding_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_scout_source_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_scout_source_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_scout_source_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_scout_source_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_scout_source_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_scout_source_summary_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_scout_source_summary_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_scout_source_summary_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_scout_source_summary_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_scout_source_summary_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
+final class wire_cst_list_scout_source_unread_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_scout_source_unread_dto> ptr;
+
+  @ffi.Int32()
+  external int len;
+
+  static ffi.Pointer<wire_cst_list_scout_source_unread_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_scout_source_unread_dto> ptr,
+    required int len,
+  }) => $allocator<wire_cst_list_scout_source_unread_dto>()
+    ..ref.ptr = ptr
+    ..ref.len = len;
+}
+
 final class wire_cst_list_source_reference extends ffi.Struct {
   external ffi.Pointer<wire_cst_source_reference> ptr;
 
@@ -24204,6 +25175,186 @@ final class wire_cst_rule_hit_dto extends ffi.Struct {
     ..ref.status = status
     ..ref.created_at = created_at
     ..ref.feedback = feedback;
+}
+
+final class wire_cst_scout_finding_dto extends ffi.Struct {
+  @ffi.Int64()
+  external int id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> source_id;
+
+  @ffi.Int64()
+  external int snapshot_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> item_key;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> payload_json;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> delta_json;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> detected_at;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> read_at;
+
+  static ffi.Pointer<wire_cst_scout_finding_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required int id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> source_id,
+    required int snapshot_id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> kind,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> item_key,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> payload_json,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> delta_json,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> detected_at,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> read_at,
+  }) => $allocator<wire_cst_scout_finding_dto>()
+    ..ref.id = id
+    ..ref.source_id = source_id
+    ..ref.snapshot_id = snapshot_id
+    ..ref.kind = kind
+    ..ref.item_key = item_key
+    ..ref.payload_json = payload_json
+    ..ref.delta_json = delta_json
+    ..ref.detected_at = detected_at
+    ..ref.read_at = read_at;
+}
+
+final class wire_cst_scout_poll_result_dto extends ffi.Struct {
+  @ffi.Int64()
+  external int fetched;
+
+  @ffi.Int64()
+  external int new_count;
+
+  @ffi.Int64()
+  external int unread_total;
+
+  static ffi.Pointer<wire_cst_scout_poll_result_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required int fetched,
+    required int new_count,
+    required int unread_total,
+  }) => $allocator<wire_cst_scout_poll_result_dto>()
+    ..ref.fetched = fetched
+    ..ref.new_count = new_count
+    ..ref.unread_total = unread_total;
+}
+
+final class wire_cst_scout_settings_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> base_url;
+
+  @ffi.Int64()
+  external int poll_interval_minutes;
+
+  @ffi.Bool()
+  external bool enabled;
+
+  @ffi.Bool()
+  external bool has_token;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> last_polled_at;
+
+  static ffi.Pointer<wire_cst_scout_settings_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> base_url,
+    required int poll_interval_minutes,
+    required bool enabled,
+    required bool has_token,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> last_polled_at,
+  }) => $allocator<wire_cst_scout_settings_dto>()
+    ..ref.base_url = base_url
+    ..ref.poll_interval_minutes = poll_interval_minutes
+    ..ref.enabled = enabled
+    ..ref.has_token = has_token
+    ..ref.last_polled_at = last_polled_at;
+}
+
+final class wire_cst_scout_source_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> name;
+
+  @ffi.Int64()
+  external int interval_minutes;
+
+  @ffi.Bool()
+  external bool enabled;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> last_status;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> last_run_at;
+
+  static ffi.Pointer<wire_cst_scout_source_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> id,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> name,
+    required int interval_minutes,
+    required bool enabled,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> last_status,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> last_run_at,
+  }) => $allocator<wire_cst_scout_source_dto>()
+    ..ref.id = id
+    ..ref.name = name
+    ..ref.interval_minutes = interval_minutes
+    ..ref.enabled = enabled
+    ..ref.last_status = last_status
+    ..ref.last_run_at = last_run_at;
+}
+
+final class wire_cst_scout_source_summary_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> source_id;
+
+  @ffi.Int64()
+  external int unread;
+
+  @ffi.Int64()
+  external int new_count;
+
+  @ffi.Int64()
+  external int changed_count;
+
+  @ffi.Int64()
+  external int gone_count;
+
+  @ffi.Int64()
+  external int total;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> latest_detected_at;
+
+  static ffi.Pointer<wire_cst_scout_source_summary_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> source_id,
+    required int unread,
+    required int new_count,
+    required int changed_count,
+    required int gone_count,
+    required int total,
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> latest_detected_at,
+  }) => $allocator<wire_cst_scout_source_summary_dto>()
+    ..ref.source_id = source_id
+    ..ref.unread = unread
+    ..ref.new_count = new_count
+    ..ref.changed_count = changed_count
+    ..ref.gone_count = gone_count
+    ..ref.total = total
+    ..ref.latest_detected_at = latest_detected_at;
+}
+
+final class wire_cst_scout_source_unread_dto extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> source_id;
+
+  @ffi.Int64()
+  external int count;
+
+  static ffi.Pointer<wire_cst_scout_source_unread_dto> $allocate(
+    ffi.Allocator $allocator, {
+    required ffi.Pointer<wire_cst_list_prim_u_8_strict> source_id,
+    required int count,
+  }) => $allocator<wire_cst_scout_source_unread_dto>()
+    ..ref.source_id = source_id
+    ..ref.count = count;
 }
 
 final class wire_cst_source_reference extends ffi.Struct {

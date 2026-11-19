@@ -1,5 +1,5 @@
 import 'package:appflowy_editor/src/editor/editor_component/service/scroll/auto_scroller.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// [AppFlowyScrollService] is responsible for processing document scrolling.
 ///

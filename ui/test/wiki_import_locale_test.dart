@@ -1,10 +1,11 @@
+import 'support/localizations.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/l10n/localization.dart';
 import 'package:elsewhen_ui/models/wiki_page.dart';
 import 'package:elsewhen_ui/widgets/wiki_page_detail_view.dart';
 import 'package:elsewhen_ui/wiki/wiki_content_editor.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -50,7 +51,7 @@ Future<ValueNotifier<Locale>> _pump(
           locale: value,
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: const [
-            ...AppLocalizations.localizationsDelegates,
+            ...appTestLocalizationDelegates,
             AppFlowyEditorLocalizations.delegate,
           ],
           home: Scaffold(

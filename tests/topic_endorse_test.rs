@@ -25,10 +25,8 @@ fn save_topic_page_should_not_fail_on_endorse() {
 
 #[test]
 fn save_note_page_still_endorses() {
-    let db = std::env::temp_dir().join(format!(
-        "elsewhen-note-endorse-{}.db",
-        uuid::Uuid::new_v4()
-    ));
+    let db =
+        std::env::temp_dir().join(format!("elsewhen-note-endorse-{}.db", uuid::Uuid::new_v4()));
     let store = Store::open(&db).unwrap();
     let result = wiki::save_text_page("随手记正文", Some("测试笔记"), &[], &store);
     let _ = std::fs::remove_file(&db);

@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'support/localizations.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/l10n/app_localizations.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
@@ -153,7 +154,7 @@ void main() {
     final controller=SyncObjectConflictsController(bridge:bridge);
     addTearDown(controller.dispose);
     await tester.pumpWidget(MaterialApp(locale:const Locale('en'),
-      localizationsDelegates:AppLocalizations.localizationsDelegates,supportedLocales:AppLocalizations.supportedLocales,
+      localizationsDelegates:appTestLocalizationDelegates,supportedLocales:AppLocalizations.supportedLocales,
       home:Scaffold(body:ListView(children:[SyncObjectConflictsSettings(controller:controller)]))));
     await tester.pumpAndSettle();
     expect(find.text('Knowledge language · Changes from 设备 b'),findsOneWidget);

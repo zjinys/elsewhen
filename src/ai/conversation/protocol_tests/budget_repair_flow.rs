@@ -115,9 +115,8 @@ fn large_wiki_directory_allows_second_model_request_near_context_limit() {
     // 把最大的近期工具结果带披露地截断到预算内（永不拒绝）。目录分页仍是
     // 首选：上面的完整 10 页列表语义完整，而这里模型只拿到被截断的目录
     // 头部与「重新分页」提示，需要再次读取。
-    let fitted =
-        crate::ai::budget::fit_request("deepseek-flash", &mut unbounded, 131072, 8192)
-            .expect("带披露截断后应回到预算内");
+    let fitted = crate::ai::budget::fit_request("deepseek-flash", &mut unbounded, 131072, 8192)
+        .expect("带披露截断后应回到预算内");
     assert!(fitted <= 116327);
     let fitted_directory = unbounded["messages"]
         .as_array()

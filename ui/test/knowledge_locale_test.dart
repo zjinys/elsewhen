@@ -1,8 +1,9 @@
+import 'support/localizations.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/l10n/localization.dart';
 import 'package:elsewhen_ui/providers/knowledge_provider.dart';
 import 'package:elsewhen_ui/widgets/knowledge_workflows.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -69,7 +70,7 @@ Future<ValueNotifier<Locale>> _pump(
         valueListenable: locale,
         builder: (_, value, _) => MaterialApp(
           locale: value,
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          localizationsDelegates: appTestLocalizationDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(body: child),
         ),

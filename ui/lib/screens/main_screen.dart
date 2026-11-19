@@ -1,10 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../theme/app_theme.dart';
+import '../theme/design_tokens.dart';
+import '../providers/state_holder.dart';
 import '../providers/wiki_provider.dart';
 import '../providers/app_provider.dart';
 import '../providers/conversation_provider.dart';
@@ -23,8 +25,18 @@ import '../widgets/review_view.dart';
 import '../widgets/goal_view.dart';
 import '../widgets/chat_proposal_review.dart';
 import '../widgets/sync_workspace.dart';
+import '../widgets/scout_view.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../l10n/localization.dart';
+
+/// 导航抽屉停靠在内容左侧时是否展开；顶栏的菜单按钮切换它。只在本次运行内
+/// 保留，重启后回到展开。模态抽屉（窄屏、桌面小窗）不看这个状态。
+final _navigationDockedOpenProvider = NotifierProvider<StateHolder<bool>, bool>(
+  () => StateHolder(true),
+);
+
+/// 导航抽屉停靠时的宽度。模态时用 Material 抽屉的标准宽度。
+const double _kDockedNavigationWidth = 280;
 
 class MainScreen extends ConsumerWidget {
   const MainScreen({super.key});
@@ -32,9 +44,19 @@ class MainScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tab = ref.watch(sidebarTabProvider);
+    // 切到知识库时强制刷新页面列表：对话里 AI 可能刚导入过页面（含用户确认后
+    // 落库），沿用缓存会看不到最新数据。挂在这里而不是导航抽屉里：抽屉收起
+    // 时不在树上，而入口也会被别处的代码直接切换。
+    ref.listen(sidebarTabProvider, (prev, next) {
+      if (prev != next && next == SidebarTab.wiki) {
+        ref.invalidate(wikiPagesProvider);
+      }
+    });
     // 平台判定：移动端（Android/iOS）一律走 app 风格布局；桌面端按宽度。
     // 用平台而不是宽度断点决定，避免手机横屏/小窗误判回桌面布局。
     final isMobilePlatform = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+    final isDesktopPlatform =
+        !kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
     // 平板解锁双栏：此前按平台一刀切（Android/iOS 永远抽屉），pad 侧栏
     // 无从展现。以最短边 ≥600 判定平板（含横竖屏），pad 走桌面式双栏，
     // 分屏窄栏（<700）自动退回抽屉；手机（最短边小，含横屏/分屏/小窗）
@@ -42,6 +64,15 @@ class MainScreen extends ConsumerWidget {
     final size = MediaQuery.sizeOf(context);
     final isTablet = size.shortestSide >= 600;
     final compact = size.width < 700 || (isMobilePlatform && !isTablet);
+    // 导航抽屉的两种形态。
+    // 模态（盖在内容上，带遮罩）：窄屏，以及桌面的小窗（<1024）——主区本来
+    // 就挤，不再让导航常占一栏，窗口拖宽即恢复停靠。桌面上用菜单按钮开，
+    // Esc 或点遮罩关（框架在桌面端不启用边缘拖拽）。
+    // 停靠（与内容并排）：其余情况，菜单按钮收起/展开。平板没法拖宽窗口，
+    // 所以只要不是 compact 就停靠。
+    final modalNavigation = compact || (isDesktopPlatform && size.width < 1024);
+    final navigationDocked =
+        !modalNavigation && ref.watch(_navigationDockedOpenProvider);
     // 移动端：状态栏被隐藏时（main.dart 只留 bottom overlay）不需要再补
     // 安全区；仍显示时（如系统强制显示）把 padding 加进标题栏，
     // 否则内容会被状态栏裁掉。
@@ -53,26 +84,30 @@ class MainScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppTheme.surface0,
-      drawer: compact ? const Drawer(child: LeftSidebar()) : null,
+      // 模态抽屉一直挂着，只在模态形态下能打开（菜单按钮，或触屏的边缘拖拽）。
+      // 不按形态切成 null：抽屉开着时把窗口拖宽，Scaffold 会一直记着「抽屉
+      // 开着」，窗口再缩回来它就自己弹出来。关着的抽屉不构建内容。
+      drawer: const LeftSidebar(),
+      drawerEnableOpenDragGesture: modalNavigation,
       // 氛围渐变底：为玻璃层提供可透出的层次，纯色底上玻璃看不出模糊。
       body: AmbientBackground(
         child: Column(
           children: [
-            // 移动端 app 风格：菜单按钮在左（抽屉），logo+「今天」操作行居中，
-            // 设置收进导航抽屉 footer，标题栏不再出现设置图标。
+            // 最左侧是导航抽屉的菜单按钮（所有形态都有）。
+            // 移动端 app 风格：「今天」操作行居右，设置收进导航抽屉底部，
+            // 标题栏不再出现设置图标。
             // 桌面端保留窗口 chrome 风格：标题在左，设置图标 + 窗口按钮在右。
             CustomTitleBar(
               title: title,
               topInset: topInset,
-              leading: compact
-                  ? Builder(
-                      builder: (context) => IconButton(
-                        icon: const Icon(Icons.menu_outlined),
-                        tooltip: context.l10n.openNavigation,
-                        onPressed: () => Scaffold.of(context).openDrawer(),
-                      ),
-                    )
-                  : null,
+              leading: _NavigationMenuButton(
+                modal: modalNavigation,
+                dockedOpen: navigationDocked,
+                desktop: isDesktopPlatform,
+                onToggleDocked: () => ref
+                    .read(_navigationDockedOpenProvider.notifier)
+                    .update((open) => !open),
+              ),
               middleActions: compact
                   ? (tab == SidebarTab.conversation
                         // 对话：高频「今天」操作行（目标/待办/创建主题/搜索）。
@@ -127,8 +162,51 @@ class MainScreen extends ConsumerWidget {
             Expanded(
               child: Row(
                 children: [
-                  // Left: sidebar（对话 / 知识库 + 设置入口）
-                  if (!compact) const LeftSidebar(),
+                  // 左：停靠的导航抽屉（一级入口 + 当前入口的上下文面板 + 设置）。
+                  // 收起/展开时抽屉保持自身宽度滑入滑出，内容区跟着让位。
+                  // 收起后不完全消失：降级成同宽度的图标栏（一级入口图标），
+                  // 点图标切入口并重新展开抽屉；模态形态（窄屏/小窗）不占位，
+                  // 仍是空操作。
+                  AnimatedSwitcher(
+                    duration: MotionTokens.effective(
+                      context,
+                      MotionTokens.panel,
+                    ),
+                    switchInCurve: MotionTokens.standard,
+                    switchOutCurve: MotionTokens.standard,
+                    transitionBuilder: (child, animation) => SizeTransition(
+                      sizeFactor: animation,
+                      axis: Axis.horizontal,
+                      // 抽屉贴着内容一侧：宽度从 0 展开时像抽屉一样从左滑入。
+                      alignment: AlignmentDirectional.topEnd,
+                      child: child,
+                    ),
+                    child: navigationDocked
+                        ? SizedBox(
+                            key: const ValueKey('docked-navigation'),
+                            width: _kDockedNavigationWidth,
+                            // 顶部安全区已经由标题栏垫过，抽屉里不再垫一次。
+                            child: MediaQuery.removePadding(
+                              context: context,
+                              removeTop: true,
+                              child: const LeftSidebar(),
+                            ),
+                          )
+                        : modalNavigation
+                        ? const SizedBox.shrink()
+                        : SizedBox(
+                            key: const ValueKey('collapsed-navigation'),
+                            width: LeftSidebarRail.width,
+                            // 顶部安全区同上：标题栏已垫过。
+                            child: MediaQuery.removePadding(
+                              context: context,
+                              removeTop: true,
+                              // 收起态点击图标只切入口，不重新展开：
+                              // 展开/收起只由顶栏菜单按钮控制。
+                              child: const LeftSidebarRail(),
+                            ),
+                          ),
+                  ),
 
                   // Right: 按当前 Tab 切换内容区
                   // 背景色放在 Material 上而非外层 Container：右侧内容区里的裸
@@ -177,9 +255,11 @@ class MainScreen extends ConsumerWidget {
                               },
                             ),
                           ),
-                          // 目标（一级入口）：主区为「详情 | AI 讨论」并排，
-                          // master 清单与新建入口在左栏 GoalWorkbenchPanel。
+                          // 目标（一级入口）：主区为「工作台清单 | 详情 | AI 讨论」，
+                          // master 清单与新建入口直接在主区左侧。
                           SidebarTab.goal => const GoalListView(),
+                          // 情报（一级入口）：scout 镜像读面（总览/发现/数据源）。
+                          SidebarTab.scout => const ScoutView(),
                         },
                       ),
                     ),
@@ -194,8 +274,62 @@ class MainScreen extends ConsumerWidget {
   }
 }
 
+/// 标题栏最左侧的菜单按钮：导航抽屉的开关。模态形态下打开抽屉；停靠形态下
+/// 收起/展开停靠的抽屉。
+class _NavigationMenuButton extends StatefulWidget {
+  const _NavigationMenuButton({
+    required this.modal,
+    required this.dockedOpen,
+    required this.desktop,
+    required this.onToggleDocked,
+  });
+
+  /// 导航抽屉当前是否是模态的。
+  final bool modal;
+
+  /// 停靠的抽屉当前是否展开（模态时恒为 false）。
+  final bool dockedOpen;
+
+  /// 桌面平台：标题栏的图标都是小号，菜单按钮跟着收一档。
+  final bool desktop;
+
+  final VoidCallback onToggleDocked;
+
+  @override
+  State<_NavigationMenuButton> createState() => _NavigationMenuButtonState();
+}
+
+class _NavigationMenuButtonState extends State<_NavigationMenuButton> {
+  @override
+  void didUpdateWidget(_NavigationMenuButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.modal && !widget.modal) {
+      // 窗口被拖宽、导航改为停靠：还开着的模态抽屉要收起来，否则它连同遮罩
+      // 一起盖在已经停靠的导航上。收起会让 Scaffold 重建，放到这一帧之后。
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Scaffold.maybeOf(context)?.closeDrawer();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.menu_outlined),
+      iconSize: widget.desktop ? 18 : null,
+      color: widget.desktop ? AppTheme.textSecondary : null,
+      tooltip: widget.dockedOpen
+          ? context.l10n.closeNavigation
+          : context.l10n.openNavigation,
+      onPressed: widget.modal
+          ? () => Scaffold.of(context).openDrawer()
+          : widget.onToggleDocked,
+    );
+  }
+}
+
 /// 移动端知识库 tab 顶栏动作：创建主题 / 网址导入（本页高频入口）。
-/// 设置不进顶栏，统一收在抽屉 footer（移动端唯一设置入口）。
+/// 设置不进顶栏，统一收在导航抽屉底部（移动端唯一设置入口）。
 class _WikiTabTitleBarActions extends StatelessWidget {
   const _WikiTabTitleBarActions();
 
@@ -220,7 +354,7 @@ class _WikiTabTitleBarActions extends StatelessWidget {
 }
 
 /// 移动端回顾/同步 tab 顶栏动作：对话 / 知识 两个快速导航按钮（语义与
-/// 抽屉 footer 一致，知识按钮先复位知识库 tab 再切）。
+/// 导航抽屉里的同名入口一致，知识按钮先复位知识库 tab 再切）。
 class _TabNavTitleBarActions extends ConsumerWidget {
   const _TabNavTitleBarActions();
 
@@ -336,7 +470,7 @@ class TodayTitleBarActions extends ConsumerWidget {
                     .read(messageSearchVisibleProvider(conversationId).notifier)
                     .set(!searchVisible),
         ),
-        // 设置不进顶栏，统一收在抽屉 footer（移动端唯一设置入口）。
+        // 设置不进顶栏，统一收在导航抽屉底部（移动端唯一设置入口）。
       ],
     );
   }

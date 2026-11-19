@@ -5,7 +5,7 @@ import 'package:elsewhen_ui/theme/app_theme.dart';
 import 'package:elsewhen_ui/theme/content_font.dart';
 import 'package:elsewhen_ui/utils/system_fonts.dart';
 import 'package:elsewhen_ui/widgets/markdown_view.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 在独立 zone 中运行主题测试，避免异步异常污染其它测试。

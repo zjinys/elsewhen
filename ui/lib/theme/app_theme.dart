@@ -1,5 +1,5 @@
 import 'package:flex_color_scheme/flex_color_scheme.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../models/settings.dart' show AppFonts, AppThemePreset;
 import 'design_tokens.dart';
@@ -232,10 +232,24 @@ class AppTheme {
         ),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: palette.surface3,
-        contentTextStyle: TextStyle(color: palette.textPrimary, fontSize: 13),
+        // 全局 toast 化：右上角惯例通知位——离主操作区（底部输入条/
+        // 按钮）最远，不盖操作区，也不和底部手势条打架。胶囊 + 高饱和
+        // 描边，深浅模式都可读。语义色边与图标由 feedback_toast.dart
+        // 给；直接 new SnackBar 的旧调用点也吃到定位与胶囊质感。
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: palette.surface2.withValues(alpha: 0.98),
+        contentTextStyle: TextStyle(
+          color: palette.textPrimary,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+        elevation: 8,
+        insetPadding: EdgeInsets.fromLTRB(120, 12, 16, 0),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusMedium),
+          borderRadius: BorderRadius.circular(radiusFull),
+          side: BorderSide(
+            color: palette.accentPrimary.withValues(alpha: 0.45),
+          ),
         ),
       ),
       // 触控目标底线（Apple HIG 44pt）：按钮最小高度统一 44。桌面仍显紧凑

@@ -4,7 +4,7 @@ import 'package:appflowy_editor/src/editor/editor_component/service/selection/mo
 import 'package:appflowy_editor/src/render/selection/cursor.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 final _deepEqual = const DeepCollectionEquality().equals;

@@ -1,6 +1,6 @@
 import '../l10n/localization.dart';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 /// 扫码读取已有设备出示的邀请二维码。只读取邀请码文本本身，画面不存储。

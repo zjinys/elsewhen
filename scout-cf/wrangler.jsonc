@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "elsewhen-scout",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "observability": { "enabled": true },
+  "triggers": {
+    "crons": ["*/10 * * * *"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "elsewhen-scout",
+      "database_id": "5001ff7b-4f7e-453a-941c-b63b81ac6718"
+    }
+  ],
+  "vars": {
+    // 每源间隔（分钟）覆盖：JSON 对象 {"github-dart":720, "ph-feed":1440}
+    "INTERVAL_OVERRIDES": "{}"
+  }
+  // Secrets (wrangler secret put):
+  //   SCOUT_TOKEN        — API bearer token（必设，否则 API 裸奔）
+  //   GH_TOKEN           — GitHub PAT（可选，提高 search API 配额）
+}

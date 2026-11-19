@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 0.7.2+72
 
 environment:
-  sdk: ^3.13.3
+  sdk: ^3.14.0
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -80,9 +80,11 @@ dependencies:
   # Icons
   cupertino_icons: ^1.0.8
   freezed_annotation: ^3.1.0
-  # 9.x 基于 material_ui 包重构（FlexThemeData 返回 material_ui.ThemeData，
-  # 与 Flutter 3.47 自带 material 的 ThemeData 不兼容），等生态稳定后再升。
-  flex_color_scheme: ^8.4.0
+  # 9.x 基于 material_ui 包重构（FlexThemeData 返回 material_ui.ThemeData），
+  # 与 Flutter 3.47 自带 material 的 ThemeData 不兼容——所以同时升到 9.x 并
+  # 迁移到独立 material_ui 包（Flutter 3.50 正式废弃框架内 material 库）。
+  material_ui: ^1.11.0
+  flex_color_scheme: ^9.0.0
   flutter_svg: ^2.2.1
   file_picker: ^13.1.0
   url_launcher: ^6.3.2
@@ -137,6 +139,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/scout/
     - assets/brand/elsewhen-icon-v2.svg
     - assets/brand/elsewhen-tray-v2.png
     - assets/brand/elsewhen-tray-v2.ico

@@ -258,10 +258,7 @@ impl Store {
                     .context("摘要子节点不存在")?;
                 // 策略（提示词版本 + 语言）必须一致；渠道可以不同——缓存
                 // 键不绑定渠道后，混编树（换渠道续建）是合法形态。
-                ensure!(
-                    child.strategy == node.strategy,
-                    "摘要子节点策略不一致"
-                );
+                ensure!(child.strategy == node.strategy, "摘要子节点策略不一致");
                 coverage.extend(child.spans);
             }
             ensure!(coverage == node.spans, "摘要归并覆盖范围与子节点不一致");

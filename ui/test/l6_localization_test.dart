@@ -1,3 +1,4 @@
+import 'support/localizations.dart';
 import 'dart:convert';
 
 import 'package:elsewhen_ui/bridge/api.dart' as api;
@@ -11,7 +12,7 @@ import 'package:elsewhen_ui/widgets/app_error_notice.dart';
 import 'package:elsewhen_ui/widgets/knowledge_maintenance_sections.dart';
 import 'package:elsewhen_ui/widgets/local_sync_settings.dart';
 import 'package:elsewhen_ui/widgets/sync_provider_conflicts_settings.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -38,7 +39,7 @@ void main() {
         ],
         child: MaterialApp(
           locale: locale,
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          localizationsDelegates: appTestLocalizationDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(body: SingleChildScrollView(child: child)),
         ),

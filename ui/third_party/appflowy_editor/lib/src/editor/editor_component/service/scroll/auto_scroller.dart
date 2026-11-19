@@ -1,5 +1,5 @@
 import 'package:appflowy_editor/src/flutter/scrollable_helpers.dart';
-import 'package:flutter/material.dart' hide EdgeDraggingAutoScroller;
+import 'package:material_ui/material_ui.dart' hide EdgeDraggingAutoScroller;
 
 abstract class AutoScrollerService {
   void startAutoScroll(

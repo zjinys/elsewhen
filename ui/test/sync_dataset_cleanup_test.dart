@@ -1,9 +1,10 @@
+import 'support/localizations.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/l10n/app_localizations.dart';
 import 'package:elsewhen_ui/sync/sync_dataset_cleanup_api.dart';
 import 'package:elsewhen_ui/sync/sync_key_store.dart';
 import 'package:elsewhen_ui/widgets/dataset_cleanup_card.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -97,7 +98,7 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             locale: Locale(locale),
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            localizationsDelegates: appTestLocalizationDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: SingleChildScrollView(child: DatasetCleanupCard(api: fake)),
@@ -137,7 +138,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           locale: const Locale('en'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          localizationsDelegates: appTestLocalizationDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: DatasetCleanupCard(

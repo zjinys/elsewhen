@@ -3,7 +3,7 @@ import 'package:appflowy_editor/src/editor/block_component/base_component/select
 import 'package:appflowy_editor/src/render/selection/cursor.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 final _deepEqual = const DeepCollectionEquality().equals;
 

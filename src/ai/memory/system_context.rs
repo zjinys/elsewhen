@@ -102,10 +102,16 @@ pub(crate) fn build_system_context(
                 }
             }
         }
-        // 目标工作室（保留 id）：AI 是拆解幕僚，不是主对话秘书。用户来这里把
-        // 一句意图（例：「3 年内月入 10 万」）拆成长程计划——现实性评估 +
-        // 假设清单 + create_plan 草案；全部落库走确认制，未确认零落库。
-        if conversation.id == crate::storage::GOAL_STUDIO_CONVERSATION_ID {
+        // 目标工作室：goal_mentor 且目标尚不存在的空闲会话（可能带保留 id
+        // `goal-studio`，也可能已是认领前的普通工作室会话）。AI 是拆解幕僯；
+        // create_plan / create_goal 确认后由 bind_goal_chat_conversation
+        // 认领，下方 goal 分支自动接管，同一会话变身目标专属讨论。
+        if conversation.assistant_mode == "goal_mentor"
+            && conversation
+                .goal_id
+                .as_ref()
+                .map_or(true, |gid| store.get_goal(gid).ok().flatten().is_none())
+        {
             is_studio = true;
             prompt.push_str(strings.literal("studio")?);
         }

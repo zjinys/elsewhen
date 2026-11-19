@@ -1,5 +1,5 @@
 import 'package:appflowy_editor/appflowy_editor.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// If you want to customize the logic of how to convert a color string to a
 ///   [Color], you can set this variable.

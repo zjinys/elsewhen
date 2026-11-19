@@ -66,6 +66,12 @@ extension _Integrations on _SettingsScreenState {
             icon: Icons.travel_explore_outlined,
             child: const WebSearchSettings(),
           ),
+          const SizedBox(height: AppTheme.space6),
+          _buildSection(
+            title: context.l10n.scoutSettingsTitle,
+            icon: Icons.radar_outlined,
+            child: const ScoutSettings(),
+          ),
         ],
       ),
     );

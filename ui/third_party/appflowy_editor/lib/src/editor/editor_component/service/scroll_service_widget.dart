@@ -3,7 +3,7 @@ import 'package:appflowy_editor/src/editor/editor_component/service/scroll/deskt
 import 'package:appflowy_editor/src/editor/editor_component/service/scroll/mobile_scroll_service.dart';
 import 'package:appflowy_editor/src/editor/toolbar/mobile/utils/keyboard_height_observer.dart';
 import 'package:appflowy_editor/src/editor/util/platform_extension.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 class ScrollServiceWidget extends StatefulWidget {

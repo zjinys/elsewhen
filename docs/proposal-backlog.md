@@ -1,12 +1,12 @@
 # Proposal Backlog（未完成提案总索引）
 
-更新：2026-11-16；最近实现提交：`15d3487`。本文件只记录当前缺口与归属；逐批进度、旧测试数字和历史方案见[历史快照](reference/proposal-backlog-history-2026-11-08.md)，实现依据见各条链接。
+更新：2026-11-17；最近实现提交：`15d3487`。本文件只记录当前缺口与归属；逐批进度、旧测试数字和历史方案见[历史快照](reference/proposal-backlog-history-2026-11-08.md)，实现依据见各条链接。
 
-当前共 **3 项工程待办、15 项验收事项、3 项后置增量、2 项方向讨论、1 项搁置**。工程完成不等于真实模型或真人设备验收通过。超长事件分块消化已交付，真实验收范围及限制见实现记录；多语言 Goal 按用户要求暂停，L7只保留验收。
+当前共 **5 项工程待办、15 项验收事项、3 项后置增量、3 项方向讨论、1 项搁置**。工程完成不等于真实模型或真人设备验收通过。超长事件分块消化已交付，真实验收范围及限制见实现记录；多语言 Goal 按用户要求暂停，L7只保留验收。
 
 维护规则：新增缺口先查已有归属，避免同一工作重复排期；推进时同步具体提案或路线，记录证据；已交付能力从工程待办移除，验收缺口单列。本文分类描述当前进度，历史提案的 `proposed` 状态不等于其全部内容尚未实现。
 
-## 工程待办（3 项）
+## 工程待办（5 项）
 
 按建议优先顺序排列，尚未开始的新项明确标注；不把人工验收算作工程开发。
 
@@ -15,6 +15,8 @@
 | [个人规模同步简化](notes/proposed/architecture/2026-11-12-personal-scale-sync-simplification.md) | **设计提案，未排期**：2026-11-12 现场互锁（GC 重快照标记 × 配对 request id 校验）暴露同步子系统约 44,500 行、711 处失败关闭点、9 张 `sync_*` 状态表远超个人场景需要。提案三条主张：用“快照永远可用”替代增量追赶+GC、名册恒等于实际设备数、单 owner 降级处理器移交。P0 修复（GC 不标记配对中设备、卡死 building 导出可接管，迁移 v81）已交付并合入本条；P1 按 §3.1→§3.2→§3.3 推进 | 高 |
 | [待办讨论与 Wiki 结果](notes/proposed/architecture/2026-11-10-work-item-discussion-and-wiki-outcomes.md) | **设计草案，未实施/排期**：建议 A 先分离专属讨论与参考知识、修实时状态及旧关联，覆盖同步与过程页隔离；B 后置可选执行结果录入与已有消化/依据回链。保留 todos，不再默认推进[旧提案](notes/proposed/architecture/2026-09-22-work-items-as-first-class-pages.md)的全量页面化/导航重构 | 中 |
 | [Wayland 窗口恢复](notes/proposed/bug-fix/2026-10-10-window-geometry-wayland.md) | 关闭时补存已实现。恢复侧仍需 compositor 实机取证后决定尺寸/位置策略，不以重复 `setBounds` 认定修复 | 中 |
+| [数据监控与情报采集](notes/proposed/product/2026-11-15-watcher-data-collection-and-analysis.md) | **商机研究工程推进中（2026-11-19）**：主对话速览已收敛为最多三条产品信号，无可靠新证据保持安静；：[O0–O7 路线](roadmap/2026-11-17-scout-opportunity-research-roadmap.md)已接通成功观察/续传、产品归并与窗口趋势、发现/个人研究、人工证据/可选 AI 候选、手动主题和主动偏好；O0.2/O0.3/O1.3/O3.4/O6.2 工程项完成，其余缺口逐项保留。专项 Workers 58、Rust Scout 17 + 同步 2、Flutter 36 通过，1 万产品/100 万观察本地查询已测；全量仍有失败。三源单轮通过，不代替连续 7/30 天、20 真实模型审阅、真人/用户实验与正式发布；见[验收记录](testing/2026-11-17-scout-research-acceptance.md)。自动评价/主题建议、草稿重启恢复与部分研究回链待补；多 token/多服务器及未批准方向讨论仍按原案后置。 | 中 |
+| [按需翻译：知识页与情报条目共用](notes/proposed/architecture/2026-11-17-on-demand-translation.md) | **设计提案，未排期（2026-11-17）**：知识页译文落派生产物（`area=derivative`、`content_type='译文'`、`based_on=原页`）而不进正文修订，避开 `escalate_page_task` 的「翻译→改写」误升级；情报条目**实际只有 GitHub `description` 与 Product Hunt `summary` 两个源有可翻文本（631/994 条）**，CWS / Gumroad / App Store 的 payload 只有专名、数值、日期与 URL，不为它们写分支；产品名一律不译。，块级缓存按 `(source_hash, target_locale, prompt_dependency)` 命中，迁移 88。**评价正文当前未采集**（库里只有 `ratings_average` / `ratings_count`），故翻译评价目前是空操作；若将来采也只翻正文且不得进 `fields`（会造假 changed）。首版用现有 LLM provider，不引入专用翻译引擎，判断依据与四条重估条件见提案 §11。尚未开始实现；前置是先做真实材料质量基线 | 中 |
 
 ## 工程完成，待验收（15 项）
 
@@ -46,10 +48,11 @@
 | [提醒的系统通知](notes/proposed/architecture/2026-10-19-timed-reminders.md) | 应用内提醒已实现；系统通知通道、后台送达及平台权限另行设计与验收，不与 Android 同步保活通知混为一项 |
 | [记事本的系统通知入口](notes/proposed/product/2026-10-19-notepad-memo-pages.md) | 旧提案保留的后续增量，未排期；Capture 模式及快捷落点已删除，不借此恢复旧架构 |
 
-## 方向讨论（2 项）
+## 方向讨论（3 项）
 
 | 项目 | 当前结论 |
 |---|---|
+| [Scout 方向调整：发现→周报→按需下钻](notes/proposed/product/2026-11-17-scout-discovery-direction.md) | **2026-11-17 讨论定稿，待用户批准轻路径**：用户三需求（每天打开/赛道升温判断/创作者研究）暴露现有 7 源三层结构问题——采集端代码预设绑死、GitHub 查询是错的发现形态（史前巨兽榜）、缺综合层。四条调整：①源设置化（Gumroad 分类/CWS 清单进 /admin，不再写死代码）；②GitHub 去语言化改「90 天内新星仓库」发现型查询；③周报综合层（确定性分桶 + AI 归纳三档升温判断 + 证据回链，复用 digest 管线）；④人物层定位为**社媒创作者按需研究**（出海平台 TikTok/YouTube/X，小红书否决；seller 索引否决为无信号价值），监测是研究输出不是输入。轻路径先验证周报再投入 O1–O3 重工程；Glasser 定位为下钻工具不进采集。O0 工程缺口不推翻但优先级被改写 |
 | [规则生命周期后续设计](notes/proposed/product/2026-10-19-rule-lifecycle-decoupling-discussion.md) | 核心解耦已交付；规则字段、影子判定纠正、适用结果消费与成本上限尚未定案，不直接生成开发任务 |
 | [Elsewhen 作为 Agent Harness](notes/proposed/2026-10-02-elsewhen-as-agent-harness.md) | 现状对照与方向清单，不是已批准实施路线 |
 

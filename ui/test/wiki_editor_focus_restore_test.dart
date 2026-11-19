@@ -1,7 +1,7 @@
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:elsewhen_ui/theme/app_theme.dart';
 import 'package:elsewhen_ui/wiki/wiki_content_editor.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 窗口焦点恢复：桌面端切走再切回，编辑器要自动拿回光标与键盘，

@@ -1,9 +1,6 @@
 import 'app_error_notice.dart';
 
-import 'dart:io' show Platform;
-
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/rust_bridge_repository.dart';
@@ -48,25 +45,27 @@ void showGoalCoAuthorToast(BuildContext context) {
   );
 }
 
-/// 目标写操作后的统一刷新（活跃/暂停/已达成三态清单 + 航向校准提醒）。
-/// 左栏工作台、主区详情与「新建目标」底部表单共用。
+/// 目标写操作后的统一刷新（活跃/暂停/已达成三态清单 + 航向校准提醒 +
+/// 计划看板）。左栏工作台、主区详情与「新建目标」底部表单共用。
+/// planBoard 内部 watch 了三态清单会随之重算，但计划本身（listPlans）
+/// 不会——新建计划后看板需要显式失效。
 void refreshGoalProviders(WidgetRef ref) {
   ref.invalidate(activeGoalsProvider);
   ref.invalidate(archivedGoalsProvider);
   ref.invalidate(pausedGoalsProvider);
   ref.invalidate(completedGoalsProvider);
   ref.invalidate(activeCompassNudgeProvider);
+  ref.invalidate(planBoardProvider);
 }
 
 /// 目标页主区（FR-PES-005-01 / Roadmap Phase G3）：选中目标的详情与
 /// AI 讨论。
 ///
 /// 目标 tab 的布局（[quickGlance] = false）：
-/// - 主区是「详情卡 | AI 讨论面板」左右并排（宽度不足时上下堆叠回退）；
-/// - master 清单、状态过滤与「新建目标」入口在左栏
-///   [GoalWorkbenchPanel]，选中经 [selectedGoalIdProvider] 跨栏共享；
-/// - 桌面窄轨形态（700~1024 窗口，左栏只剩图标导航）时清单退回主区
-///   左侧渲染，保证该宽度下依然可选目标。
+/// - 主区是「工作台清单 | 详情卡 + AI 讨论面板」左右并排（主区宽度
+///   不足 700 时上下退化为顶部入口 + 详情，清单弹底部面板）；
+/// - master 清单、状态过滤与「新建目标」入口在 [GoalWorkbenchPanel]，
+///   选中经 [selectedGoalIdProvider] 跨栏共享；
 ///
 /// 对话界面「目标」弹窗（[quickGlance] = true）：只读速览——仅活跃
 /// 目标阶段，零写操作、零 AI 入口、无历史归档。对话中瞄一眼目标
@@ -89,15 +88,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
   /// 主区直接落到第一条活跃目标，之后跟随左栏清单的选择变化）。
   bool _chatAutoSelected = false;
 
-  /// 左栏在此宽度下是否退化为窄轨（只有图标导航、无内容区）。
-  /// 与 [LeftSidebar] 的 rail 判定保持一致：桌面平台 700~1024 窗口。
-  /// 窄轨时目标清单退回主区左侧渲染，避免无处可选目标。
-  static bool _sidebarRailMode(BuildContext context) {
-    if (kIsWeb) return false;
-    final desktop = Platform.isLinux || Platform.isMacOS || Platform.isWindows;
-    final width = MediaQuery.maybeSizeOf(context)?.width ?? 1024;
-    return desktop && width >= 700 && width < 1024;
-  }
+  /// 导航抽屉不再承载目标清单（已搬进主区），无需按抽屉形态切换布局。
 
   void _toast(String message) {
     if (!mounted) return;
@@ -301,13 +292,50 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final detail = _buildDetailRegion(nudge, selectedId);
-        if (!_sidebarRailMode(context)) return detail;
-        // 窄轨侧栏（桌面 700~1024）：左栏只剩图标导航、没有内容区，
-        // 工作台清单退回主区左侧渲染（旧中列形态），保证依然可选目标。
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        // 主区放得下（≥700）：工作台清单固定左侧，详情与讨论在右侧。
+        if (constraints.maxWidth >= 700) {
+          // 三栏质感分层（解决「三栏都是白卡连成一片」）：
+          // 左栏 = 稍深的轨道色 + 右分割线；中栏 = surface0 画布上的白卡；
+          // 右栏 = 带阴影的全高对话面板。同色边框不再贯穿三栏。
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: 320,
+                decoration: BoxDecoration(
+                  color: AppTheme.surface2.withValues(alpha: 0.45),
+                  border: Border(
+                    right: BorderSide(
+                      color: AppTheme.surface3.withValues(alpha: 0.9),
+                    ),
+                  ),
+                ),
+                child: const GoalWorkbenchPanel(),
+              ),
+              Expanded(child: detail),
+            ],
+          );
+        }
+        // 窄屏：顶部给清单入口，弹底部面板（抽屉不再承载目标清单）。
+        return Column(
           children: [
-            const SizedBox(width: 320, child: GoalWorkbenchPanel()),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => showPanelSheet(
+                    context,
+                    sheet: (_) => AdaptivePanelSheet(
+                      title: context.l10n.goals,
+                      builder: (_) => const GoalWorkbenchPanel(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.checklist, size: 16),
+                  label: Text(context.l10n.goals),
+                ),
+              ),
+            ),
             Expanded(child: detail),
           ],
         );
@@ -383,7 +411,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
                 flex: 5,
                 child: SingleChildScrollView(child: detailContent),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
                 flex: 6,
                 child: GoalChatPanel(
@@ -540,11 +568,9 @@ class GoalWorkbenchPanel extends ConsumerWidget {
 
     void select(String id) {
       ref.read(selectedGoalIdProvider.notifier).set(id);
-      // 移动端抽屉形态：选完目标即收抽屉，让主区的详情与讨论可见。
-      final scaffold = Scaffold.maybeOf(context);
-      if (scaffold?.isDrawerOpen ?? false) {
-        Navigator.of(context).pop();
-      }
+      // 模态抽屉里选完目标即收抽屉，让主区的详情与讨论可见；抽屉停靠时、
+      // 或清单在主区内嵌渲染时是空操作。
+      Scaffold.maybeOf(context)?.closeDrawer();
     }
 
     return SingleChildScrollView(

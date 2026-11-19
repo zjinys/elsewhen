@@ -114,6 +114,13 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     // 的「本机行」定位——卡片消息随 messages 同步，副设备按消息正文就重建
     // 本机台账，台账本身不进快照。
     ("digest_insight_surfacings", "local-digest-insight-ledger"),
+    // Scout 情报镜像（迁移 85）：本机派生物——镜像表 + 设置（含本机水位）
+    // 整体不进快照；新设备在本机自行配置拉取重建。
+    ("scout_findings_mirror", "local-scout-mirror"),
+    ("scout_settings", "local-scout-mirror"),
+    ("scout_sync_cursor", "local-scout-mirror"),
+    ("scout_analysis_jobs", "local-scout-analysis"),
+    ("scout_research_drafts", "local-scout-drafts"),
     // 成员授权与密钥材料：经 enrollment/signed roster 渠道走，不夹带。
     ("sync_authority", "enrollment-channel"),
     ("sync_authority_versions", "enrollment-channel"),

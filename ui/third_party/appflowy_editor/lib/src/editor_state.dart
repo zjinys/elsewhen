@@ -6,7 +6,7 @@ import 'package:appflowy_editor/src/editor/editor_component/service/scroll/auto_
 import 'package:appflowy_editor/src/editor/util/platform_extension.dart';
 import 'package:appflowy_editor/src/history/undo_manager.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 typedef EditorTransactionValue = (
   TransactionTime time,

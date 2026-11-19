@@ -4,7 +4,7 @@ import 'dart:math';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_editor/src/flutter/scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:appflowy_editor/src/flutter/scrollable_positioned_list/src/item_positions_notifier.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// This class controls the scroll behavior of the editor.
 ///

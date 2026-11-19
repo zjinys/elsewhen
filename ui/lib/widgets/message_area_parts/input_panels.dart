@@ -245,7 +245,7 @@ String _formatConversationForCopy(
         final time = DateFormat.Md(context.l10n.localeName)
             .add_Hm()
             .format(m.createdAt);
-        return '$role ($time)\n${m.content}';
+        return '$role ($time)\n${_messageDisplayContent(m.content)}';
       })
       .join('\n\n');
 }

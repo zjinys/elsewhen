@@ -46,9 +46,7 @@ fn a_half_configured_local_identity_has_no_exit_back_to_not_configured() {
     let vault = store
         .create_sync_vault("installation", &master, "device", "test")
         .unwrap();
-    store
-        .initialize_sync_replica(&replica(&vault))
-        .unwrap();
+    store.initialize_sync_replica(&replica(&vault)).unwrap();
 
     // 前提：正是 `invite.rs:144-160` 判成 `requires_repair` 的形状。
     assert_eq!(
@@ -116,9 +114,7 @@ fn half_configured_store(tag: &str) -> (std::path::PathBuf, Store) {
     let vault = store
         .create_sync_vault("installation", &master, "device", "test")
         .unwrap();
-    store
-        .initialize_sync_replica(&replica(&vault))
-        .unwrap();
+    store.initialize_sync_replica(&replica(&vault)).unwrap();
     (dir, store)
 }
 
@@ -149,9 +145,7 @@ fn clearing_is_refused_while_the_local_identity_is_healthy() {
     let vault = store
         .create_sync_vault("installation", &master, "device", "test")
         .unwrap();
-    store
-        .initialize_sync_replica(&replica(&vault))
-        .unwrap();
+    store.initialize_sync_replica(&replica(&vault)).unwrap();
     store
         .connection
         .execute(
@@ -255,14 +249,18 @@ fn provider_keys_survive_an_identity_reset_when_the_old_master_is_available() {
             .connection
             .execute("INSERT INTO provider_key_policy(singleton) VALUES(1)", [])
             .unwrap();
-        writer.write_provider_key_on("p1", Some("sk-live-abc123")).unwrap();
+        writer
+            .write_provider_key_on("p1", Some("sk-live-abc123"))
+            .unwrap();
         if let Some(transaction) = transaction {
             transaction.commit().unwrap();
         }
     }
     let sealed_count: i64 = store
         .connection
-        .query_row("SELECT COUNT(*) FROM provider_key_secrets", [], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM provider_key_secrets", [], |r| {
+            r.get(0)
+        })
         .unwrap();
     assert_eq!(sealed_count, 1, "前提：密文应已密封落库");
 
@@ -272,7 +270,9 @@ fn provider_keys_survive_an_identity_reset_when_the_old_master_is_available() {
         .unwrap();
     let after_exit: i64 = store
         .connection
-        .query_row("SELECT COUNT(*) FROM provider_key_secrets", [], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM provider_key_secrets", [], |r| {
+            r.get(0)
+        })
         .unwrap();
     assert_eq!(after_exit, 0, "出口后库里不留旧密文");
 
@@ -346,7 +346,9 @@ fn provider_keys_stay_dropped_when_the_old_master_is_unavailable() {
     );
     let count: i64 = store
         .connection
-        .query_row("SELECT COUNT(*) FROM provider_key_secrets", [], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM provider_key_secrets", [], |r| {
+            r.get(0)
+        })
         .unwrap();
     assert_eq!(count, 0, "解不开的密文必须清掉");
     drop(store);

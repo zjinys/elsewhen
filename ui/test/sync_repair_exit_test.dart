@@ -3,7 +3,7 @@ import 'package:elsewhen_ui/sync/sync_key_store.dart';
 import 'package:elsewhen_ui/sync/sync_repair_api.dart';
 import 'package:elsewhen_ui/sync/sync_setup_controller.dart';
 import 'package:elsewhen_ui/widgets/local_sync_settings.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/sync_setup.dart';

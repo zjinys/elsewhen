@@ -1,7 +1,7 @@
 import 'app_error_notice.dart';
 import '../l10n/notice_messages.dart';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../bridge/api.dart' as api;
 import '../l10n/localization.dart';

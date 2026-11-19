@@ -4,7 +4,7 @@ import 'package:appflowy_editor/src/core/document/attributes.dart';
 import 'package:appflowy_editor/src/core/document/path.dart';
 import 'package:appflowy_editor/src/core/document/text_delta.dart';
 import 'package:appflowy_editor/src/core/legacy/built_in_attribute_keys.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 ///
 /// ⚠️ THIS FILE HAS BEEN DEPRECATED.

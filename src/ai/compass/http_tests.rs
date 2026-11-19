@@ -90,16 +90,8 @@ fn exact_payload_and_failover_keep_the_same_snapshot_and_candidate_reserve() {
     let (good, good_worker) = server(false);
     let id = uuid::Uuid::new_v4().to_string();
     let chain = FailoverProvider::new(vec![
-        FailoverEntry::new(
-            format!("bad-{id}"),
-            "bad",
-            Box::new(model(bad, 32768)),
-        ),
-        FailoverEntry::new(
-            format!("good-{id}"),
-            "good",
-            Box::new(model(good, 32768)),
-        ),
+        FailoverEntry::new(format!("bad-{id}"), "bad", Box::new(model(bad, 32768))),
+        FailoverEntry::new(format!("good-{id}"), "good", Box::new(model(good, 32768))),
     ]);
     let card = tick_with_provider(&f.store, &chain).unwrap().unwrap();
     let bad = bad_worker.join().unwrap();

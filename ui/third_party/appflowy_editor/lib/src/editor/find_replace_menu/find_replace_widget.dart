@@ -1,5 +1,5 @@
 import 'package:appflowy_editor/appflowy_editor.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'find_replace_menu_icon_button.dart';
 

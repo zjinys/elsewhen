@@ -66,6 +66,8 @@ class _DigestInsightBubbleState extends ConsumerState<DigestInsightBubble> {
 
   @override
   Widget build(BuildContext context) {
+    // 洞察卡正文与对话气泡同基准推算字号（原 15.5/13.5/11/12）。
+    final scale = ref.watch(settingsProvider.select(chatTypeScaleOf));
     final surfacings =
         ref.watch(digestInsightSurfacingsProvider).value ?? const [];
     DigestInsightSurfacingDto? surfacing;
@@ -132,7 +134,7 @@ class _DigestInsightBubbleState extends ConsumerState<DigestInsightBubble> {
                         Text(
                           context.l10n.cognitiveInsight,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: scale.meta,
                             fontWeight: FontWeight.w600,
                             color: AppTheme.accentPrimary,
                           ),
@@ -140,7 +142,7 @@ class _DigestInsightBubbleState extends ConsumerState<DigestInsightBubble> {
                         Text(
                           ' • ${DateFormat.Hm(context.l10n.localeName).format(widget.message.createdAt)}',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: scale.meta,
                             color: AppTheme.textTertiary,
                           ),
                         ),
@@ -150,7 +152,7 @@ class _DigestInsightBubbleState extends ConsumerState<DigestInsightBubble> {
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: 15.5,
+                        fontSize: scale.bubble,
                         fontWeight: FontWeight.w600,
                         height: 1.45,
                         color: AppTheme.textPrimary,
@@ -161,7 +163,7 @@ class _DigestInsightBubbleState extends ConsumerState<DigestInsightBubble> {
                       Text(
                         observation,
                         style: TextStyle(
-                          fontSize: 13.5,
+                          fontSize: scale.bubbleSecondary,
                           height: 1.55,
                           color: AppTheme.textSecondary,
                         ),
@@ -172,7 +174,7 @@ class _DigestInsightBubbleState extends ConsumerState<DigestInsightBubble> {
                       Text(
                         context.l10n.insightSuggestion(action),
                         style: TextStyle(
-                          fontSize: 13.5,
+                          fontSize: scale.bubbleSecondary,
                           height: 1.5,
                           color: AppTheme.textPrimary,
                         ),
@@ -189,7 +191,7 @@ class _DigestInsightBubbleState extends ConsumerState<DigestInsightBubble> {
                           child: Text(
                             context.l10n.insightSource(pageSlug),
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: scale.button,
                               color: AppTheme.accentPrimary,
                               decoration: TextDecoration.underline,
                               decorationColor: AppTheme.accentMuted,

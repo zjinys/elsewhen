@@ -1442,6 +1442,12 @@ abstract class AppLocalizations {
   /// **'打开导航'**
   String get openNavigation;
 
+  /// No description provided for @closeNavigation.
+  ///
+  /// In zh, this message translates to:
+  /// **'收起导航'**
+  String get closeNavigation;
+
   /// No description provided for @createTopic.
   ///
   /// In zh, this message translates to:
@@ -6025,6 +6031,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'标签已更新'**
   String get wikiTagsUpdated;
+
+  /// No description provided for @wikiTagsExisting.
+  ///
+  /// In zh, this message translates to:
+  /// **'已有标签，点击填入'**
+  String get wikiTagsExisting;
 
   /// No description provided for @wikiImmersive.
   ///
@@ -12489,6 +12501,1158 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'清理未完成。请先锁定同步、关闭使用此副本的其他应用进程，再刷新列表重试；未完成的文件或密钥清理会保留待办。'**
   String get datasetCleanupFailed;
+
+  /// No description provided for @scoutTab.
+  ///
+  /// In zh, this message translates to:
+  /// **'情报'**
+  String get scoutTab;
+
+  /// No description provided for @scoutTabDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'外部信号'**
+  String get scoutTabDesc;
+
+  /// No description provided for @scoutTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'情报速览'**
+  String get scoutTitle;
+
+  /// No description provided for @scoutOpenFindings.
+  ///
+  /// In zh, this message translates to:
+  /// **'打开情报页查看 →'**
+  String get scoutOpenFindings;
+
+  /// No description provided for @scoutDashboard.
+  ///
+  /// In zh, this message translates to:
+  /// **'总览'**
+  String get scoutDashboard;
+
+  /// No description provided for @scoutFindings.
+  ///
+  /// In zh, this message translates to:
+  /// **'发现'**
+  String get scoutFindings;
+
+  /// No description provided for @scoutNotConfigured.
+  ///
+  /// In zh, this message translates to:
+  /// **'尚未配置 scout 服务地址'**
+  String get scoutNotConfigured;
+
+  /// No description provided for @scoutGoConfigure.
+  ///
+  /// In zh, this message translates to:
+  /// **'去设置页配置 Scout 连接'**
+  String get scoutGoConfigure;
+
+  /// No description provided for @scoutAllRead.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部已读'**
+  String get scoutAllRead;
+
+  /// No description provided for @scoutMarkRead.
+  ///
+  /// In zh, this message translates to:
+  /// **'标为已读'**
+  String get scoutMarkRead;
+
+  /// No description provided for @scoutKindNew.
+  ///
+  /// In zh, this message translates to:
+  /// **'首次发现'**
+  String get scoutKindNew;
+
+  /// No description provided for @scoutKindChanged.
+  ///
+  /// In zh, this message translates to:
+  /// **'有变化'**
+  String get scoutKindChanged;
+
+  /// No description provided for @scoutKindGone.
+  ///
+  /// In zh, this message translates to:
+  /// **'未再出现'**
+  String get scoutKindGone;
+
+  /// No description provided for @scoutFilterAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部'**
+  String get scoutFilterAll;
+
+  /// No description provided for @scoutFilterUnread.
+  ///
+  /// In zh, this message translates to:
+  /// **'未读'**
+  String get scoutFilterUnread;
+
+  /// No description provided for @scoutLoadMore.
+  ///
+  /// In zh, this message translates to:
+  /// **'加载更多'**
+  String get scoutLoadMore;
+
+  /// No description provided for @scoutEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无情报发现'**
+  String get scoutEmpty;
+
+  /// No description provided for @scoutSyncNow.
+  ///
+  /// In zh, this message translates to:
+  /// **'立即同步'**
+  String get scoutSyncNow;
+
+  /// No description provided for @scoutSyncOk.
+  ///
+  /// In zh, this message translates to:
+  /// **'已同步：拉取 {fetched} 条，新增 {newCount} 条'**
+  String scoutSyncOk(int fetched, int newCount);
+
+  /// No description provided for @scoutLastPolled.
+  ///
+  /// In zh, this message translates to:
+  /// **'上次拉取：{time}'**
+  String scoutLastPolled(String time);
+
+  /// No description provided for @scoutSourceLastRun.
+  ///
+  /// In zh, this message translates to:
+  /// **'上次运行：{time}'**
+  String scoutSourceLastRun(String time);
+
+  /// No description provided for @scoutSourceNeverRun.
+  ///
+  /// In zh, this message translates to:
+  /// **'从未运行'**
+  String get scoutSourceNeverRun;
+
+  /// No description provided for @scoutFindingDetailFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'详情加载失败'**
+  String get scoutFindingDetailFailed;
+
+  /// No description provided for @scoutRecordAsEvent.
+  ///
+  /// In zh, this message translates to:
+  /// **'记为事件'**
+  String get scoutRecordAsEvent;
+
+  /// No description provided for @scoutRecordedAsEvent.
+  ///
+  /// In zh, this message translates to:
+  /// **'已记为事件'**
+  String get scoutRecordedAsEvent;
+
+  /// No description provided for @scoutSaveAsMaterial.
+  ///
+  /// In zh, this message translates to:
+  /// **'存为素材'**
+  String get scoutSaveAsMaterial;
+
+  /// No description provided for @scoutSavedAsMaterial.
+  ///
+  /// In zh, this message translates to:
+  /// **'已存为素材'**
+  String get scoutSavedAsMaterial;
+
+  /// No description provided for @scoutToWikiDraft.
+  ///
+  /// In zh, this message translates to:
+  /// **'转知识页草稿'**
+  String get scoutToWikiDraft;
+
+  /// No description provided for @scoutDraftCreated.
+  ///
+  /// In zh, this message translates to:
+  /// **'知识页草稿已创建'**
+  String get scoutDraftCreated;
+
+  /// No description provided for @scoutActionFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'操作失败'**
+  String get scoutActionFailed;
+
+  /// No description provided for @scoutYesterday.
+  ///
+  /// In zh, this message translates to:
+  /// **'昨天'**
+  String get scoutYesterday;
+
+  /// No description provided for @scoutNoUnread.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有未读情报，稍后再来看新信号'**
+  String get scoutNoUnread;
+
+  /// No description provided for @scoutUnreadBadge.
+  ///
+  /// In zh, this message translates to:
+  /// **'未读'**
+  String get scoutUnreadBadge;
+
+  /// No description provided for @scoutSettingsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'Scout 情报服务'**
+  String get scoutSettingsTitle;
+
+  /// No description provided for @scoutSettingsDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接独立采集服务（scout），把外部市场信号镜像进本地'**
+  String get scoutSettingsDesc;
+
+  /// No description provided for @scoutSettingsBaseUrl.
+  ///
+  /// In zh, this message translates to:
+  /// **'服务地址'**
+  String get scoutSettingsBaseUrl;
+
+  /// No description provided for @scoutSettingsToken.
+  ///
+  /// In zh, this message translates to:
+  /// **'API Token（留空保留已存值）'**
+  String get scoutSettingsToken;
+
+  /// No description provided for @scoutSettingsInterval.
+  ///
+  /// In zh, this message translates to:
+  /// **'自动拉取间隔（分钟，最少 5）'**
+  String get scoutSettingsInterval;
+
+  /// No description provided for @scoutSettingsEnabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'启用自动拉取'**
+  String get scoutSettingsEnabled;
+
+  /// No description provided for @scoutSettingsTest.
+  ///
+  /// In zh, this message translates to:
+  /// **'测试连接'**
+  String get scoutSettingsTest;
+
+  /// No description provided for @scoutSettingsClear.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空本地镜像'**
+  String get scoutSettingsClear;
+
+  /// No description provided for @scoutSettingsSaved.
+  ///
+  /// In zh, this message translates to:
+  /// **'已保存'**
+  String get scoutSettingsSaved;
+
+  /// No description provided for @scoutTestOk.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接正常'**
+  String get scoutTestOk;
+
+  /// No description provided for @scoutUnreadSummary.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count} 条新情报待看'**
+  String scoutUnreadSummary(int count);
+
+  /// No description provided for @scoutAllReadShort.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部已读'**
+  String get scoutAllReadShort;
+
+  /// No description provided for @scoutNoFindings.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无发现'**
+  String get scoutNoFindings;
+
+  /// No description provided for @scoutSourceOffline.
+  ///
+  /// In zh, this message translates to:
+  /// **'服务端状态不可用'**
+  String get scoutSourceOffline;
+
+  /// No description provided for @scoutAllReadConfirmTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部标为已读？'**
+  String get scoutAllReadConfirmTitle;
+
+  /// No description provided for @scoutAllReadConfirmBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前有 {count} 条未读，标记后全部变为已读。'**
+  String scoutAllReadConfirmBody(int count);
+
+  /// No description provided for @scoutActivity.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部动态'**
+  String get scoutActivity;
+
+  /// No description provided for @scoutSources.
+  ///
+  /// In zh, this message translates to:
+  /// **'来源'**
+  String get scoutSources;
+
+  /// No description provided for @scoutLatest.
+  ///
+  /// In zh, this message translates to:
+  /// **'最新动态'**
+  String get scoutLatest;
+
+  /// No description provided for @scoutReadVisible.
+  ///
+  /// In zh, this message translates to:
+  /// **'本页标为已读'**
+  String get scoutReadVisible;
+
+  /// No description provided for @scoutReadVisibleHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'仅标记当前已加载列表中的未读条目。'**
+  String get scoutReadVisibleHelp;
+
+  /// No description provided for @scoutSelectItem.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择一条动态，查看变化与详情'**
+  String get scoutSelectItem;
+
+  /// No description provided for @scoutChanges.
+  ///
+  /// In zh, this message translates to:
+  /// **'本次变化'**
+  String get scoutChanges;
+
+  /// No description provided for @scoutFullData.
+  ///
+  /// In zh, this message translates to:
+  /// **'采集数据'**
+  String get scoutFullData;
+
+  /// No description provided for @scoutHistory.
+  ///
+  /// In zh, this message translates to:
+  /// **'采集历史'**
+  String get scoutHistory;
+
+  /// No description provided for @scoutHistoryHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'展示服务端保留的采集快照，时间为采集时间。'**
+  String get scoutHistoryHelp;
+
+  /// No description provided for @scoutHistoryOffline.
+  ///
+  /// In zh, this message translates to:
+  /// **'历史暂不可用，当前采集数据仍可阅读。'**
+  String get scoutHistoryOffline;
+
+  /// No description provided for @scoutNoHistory.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无历史快照'**
+  String get scoutNoHistory;
+
+  /// No description provided for @scoutOpenSource.
+  ///
+  /// In zh, this message translates to:
+  /// **'打开原始链接'**
+  String get scoutOpenSource;
+
+  /// No description provided for @scoutNewHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'本监控首次发现，不代表刚刚发布。'**
+  String get scoutNewHelp;
+
+  /// No description provided for @scoutGoneHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'本次采集未再出现，可能只是离开榜单或搜索结果。'**
+  String get scoutGoneHelp;
+
+  /// No description provided for @scoutChangedHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'与上一次采集对比'**
+  String get scoutChangedHelp;
+
+  /// No description provided for @scoutNoDelta.
+  ///
+  /// In zh, this message translates to:
+  /// **'这条记录没有字段对比明细。'**
+  String get scoutNoDelta;
+
+  /// No description provided for @scoutDetected.
+  ///
+  /// In zh, this message translates to:
+  /// **'检测时间'**
+  String get scoutDetected;
+
+  /// No description provided for @scoutBefore.
+  ///
+  /// In zh, this message translates to:
+  /// **'上次'**
+  String get scoutBefore;
+
+  /// No description provided for @scoutAfter.
+  ///
+  /// In zh, this message translates to:
+  /// **'本次'**
+  String get scoutAfter;
+
+  /// No description provided for @scoutRecordNote.
+  ///
+  /// In zh, this message translates to:
+  /// **'我的判断（可编辑）'**
+  String get scoutRecordNote;
+
+  /// No description provided for @scoutDataSaved.
+  ///
+  /// In zh, this message translates to:
+  /// **'已保存'**
+  String get scoutDataSaved;
+
+  /// No description provided for @scoutRetry.
+  ///
+  /// In zh, this message translates to:
+  /// **'重试'**
+  String get scoutRetry;
+
+  /// No description provided for @scoutConnection.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接设置'**
+  String get scoutConnection;
+
+  /// No description provided for @scoutAutoPaused.
+  ///
+  /// In zh, this message translates to:
+  /// **'自动更新已暂停'**
+  String get scoutAutoPaused;
+
+  /// No description provided for @scoutNoLink.
+  ///
+  /// In zh, this message translates to:
+  /// **'此条目没有原始链接'**
+  String get scoutNoLink;
+
+  /// No description provided for @scoutSourceUnavailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'来源状态暂不可用'**
+  String get scoutSourceUnavailable;
+
+  /// No description provided for @scoutField.
+  ///
+  /// In zh, this message translates to:
+  /// **'字段'**
+  String get scoutField;
+
+  /// No description provided for @scoutRawData.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看原始数据'**
+  String get scoutRawData;
+
+  /// No description provided for @scoutDailyProducts.
+  ///
+  /// In zh, this message translates to:
+  /// **'每日新品'**
+  String get scoutDailyProducts;
+
+  /// No description provided for @scoutNotionTemplates.
+  ///
+  /// In zh, this message translates to:
+  /// **'Notion 模板'**
+  String get scoutNotionTemplates;
+
+  /// No description provided for @scoutDigitalPlanners.
+  ///
+  /// In zh, this message translates to:
+  /// **'数字计划本'**
+  String get scoutDigitalPlanners;
+
+  /// No description provided for @scoutExtensionWatchlist.
+  ///
+  /// In zh, this message translates to:
+  /// **'扩展关注清单'**
+  String get scoutExtensionWatchlist;
+
+  /// No description provided for @scoutUsTopFree.
+  ///
+  /// In zh, this message translates to:
+  /// **'美国免费榜'**
+  String get scoutUsTopFree;
+
+  /// No description provided for @scoutDiscover.
+  ///
+  /// In zh, this message translates to:
+  /// **'发现线索'**
+  String get scoutDiscover;
+
+  /// No description provided for @scoutStudies.
+  ///
+  /// In zh, this message translates to:
+  /// **'跟进研究'**
+  String get scoutStudies;
+
+  /// No description provided for @scoutActivityLog.
+  ///
+  /// In zh, this message translates to:
+  /// **'原始动态'**
+  String get scoutActivityLog;
+
+  /// No description provided for @scoutSearchProducts.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索产品、用途或关键词'**
+  String get scoutSearchProducts;
+
+  /// No description provided for @scoutNoProducts.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无产品观察，下一轮成功采集后开始积累趋势。'**
+  String get scoutNoProducts;
+
+  /// No description provided for @scoutStudy.
+  ///
+  /// In zh, this message translates to:
+  /// **'加入研究'**
+  String get scoutStudy;
+
+  /// No description provided for @scoutEditStudy.
+  ///
+  /// In zh, this message translates to:
+  /// **'编辑研究'**
+  String get scoutEditStudy;
+
+  /// No description provided for @scoutEvidenceGaps.
+  ///
+  /// In zh, this message translates to:
+  /// **'证据缺口'**
+  String get scoutEvidenceGaps;
+
+  /// No description provided for @scoutGapsHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'目标买方待核实 · 销量未知 · 尚未分析评价正文'**
+  String get scoutGapsHelp;
+
+  /// No description provided for @scoutHistoryIncomplete.
+  ///
+  /// In zh, this message translates to:
+  /// **'历史不足或采样不连续'**
+  String get scoutHistoryIncomplete;
+
+  /// No description provided for @scoutWindow.
+  ///
+  /// In zh, this message translates to:
+  /// **'趋势与采样'**
+  String get scoutWindow;
+
+  /// No description provided for @scoutPriceUnknown.
+  ///
+  /// In zh, this message translates to:
+  /// **'收费信息待核实'**
+  String get scoutPriceUnknown;
+
+  /// No description provided for @scoutWhyNow.
+  ///
+  /// In zh, this message translates to:
+  /// **'为什么现在看'**
+  String get scoutWhyNow;
+
+  /// No description provided for @scoutNoSignal.
+  ///
+  /// In zh, this message translates to:
+  /// **'尚无可核实的窗口异动，先作为产品资料观察。'**
+  String get scoutNoSignal;
+
+  /// No description provided for @scoutStale.
+  ///
+  /// In zh, this message translates to:
+  /// **'离线缓存，数据可能已过时'**
+  String get scoutStale;
+
+  /// No description provided for @scoutQuestion.
+  ///
+  /// In zh, this message translates to:
+  /// **'关键未知 / 我要验证的问题'**
+  String get scoutQuestion;
+
+  /// No description provided for @scoutBuyer.
+  ///
+  /// In zh, this message translates to:
+  /// **'目标人群与使用场景（我的假设）'**
+  String get scoutBuyer;
+
+  /// No description provided for @scoutOffer.
+  ///
+  /// In zh, this message translates to:
+  /// **'收费假设与现有替代方案'**
+  String get scoutOffer;
+
+  /// No description provided for @scoutExperiment.
+  ///
+  /// In zh, this message translates to:
+  /// **'下一步小实验'**
+  String get scoutExperiment;
+
+  /// No description provided for @scoutCriteria.
+  ///
+  /// In zh, this message translates to:
+  /// **'观察期限、成功与停止条件'**
+  String get scoutCriteria;
+
+  /// No description provided for @scoutFeedback.
+  ///
+  /// In zh, this message translates to:
+  /// **'实际反馈与反面证据'**
+  String get scoutFeedback;
+
+  /// No description provided for @scoutStudyReason.
+  ///
+  /// In zh, this message translates to:
+  /// **'为什么关注 / 切入假设'**
+  String get scoutStudyReason;
+
+  /// No description provided for @scoutState.
+  ///
+  /// In zh, this message translates to:
+  /// **'研究阶段'**
+  String get scoutState;
+
+  /// No description provided for @scoutStateResearch.
+  ///
+  /// In zh, this message translates to:
+  /// **'待研究'**
+  String get scoutStateResearch;
+
+  /// No description provided for @scoutStateValidating.
+  ///
+  /// In zh, this message translates to:
+  /// **'验证中'**
+  String get scoutStateValidating;
+
+  /// No description provided for @scoutStateWatching.
+  ///
+  /// In zh, this message translates to:
+  /// **'继续观察'**
+  String get scoutStateWatching;
+
+  /// No description provided for @scoutStatePaused.
+  ///
+  /// In zh, this message translates to:
+  /// **'搁置'**
+  String get scoutStatePaused;
+
+  /// No description provided for @scoutStateRejected.
+  ///
+  /// In zh, this message translates to:
+  /// **'放弃 / 不相关'**
+  String get scoutStateRejected;
+
+  /// No description provided for @scoutResearchHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'研究记录保存在可同步的记事本中。清空情报镜像不会删除它。'**
+  String get scoutResearchHelp;
+
+  /// No description provided for @scoutStudyEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'从发现线索中选一个产品加入研究。'**
+  String get scoutStudyEmpty;
+
+  /// No description provided for @scoutSaveResearch.
+  ///
+  /// In zh, this message translates to:
+  /// **'保存研究'**
+  String get scoutSaveResearch;
+
+  /// No description provided for @scoutMyHypothesis.
+  ///
+  /// In zh, this message translates to:
+  /// **'我的判断与验证'**
+  String get scoutMyHypothesis;
+
+  /// No description provided for @scoutObservedAt.
+  ///
+  /// In zh, this message translates to:
+  /// **'观察截至'**
+  String get scoutObservedAt;
+
+  /// No description provided for @scoutRecent.
+  ///
+  /// In zh, this message translates to:
+  /// **'最近观察'**
+  String get scoutRecent;
+
+  /// No description provided for @scoutCoverage.
+  ///
+  /// In zh, this message translates to:
+  /// **'采样点'**
+  String get scoutCoverage;
+
+  /// No description provided for @scoutKnownPrice.
+  ///
+  /// In zh, this message translates to:
+  /// **'标价（不代表成交）'**
+  String get scoutKnownPrice;
+
+  /// No description provided for @scoutResearchSaved.
+  ///
+  /// In zh, this message translates to:
+  /// **'研究已保存'**
+  String get scoutResearchSaved;
+
+  /// No description provided for @scoutSourceMaterial.
+  ///
+  /// In zh, this message translates to:
+  /// **'手动补充需求、评价与定价证据'**
+  String get scoutSourceMaterial;
+
+  /// No description provided for @scoutSourceMaterialHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'记录来源链接、原文摘录、时间与反证；未核实的判断请放在假设中。'**
+  String get scoutSourceMaterialHelp;
+
+  /// No description provided for @scoutEvidence.
+  ///
+  /// In zh, this message translates to:
+  /// **'证据原文与来源'**
+  String get scoutEvidence;
+
+  /// No description provided for @scoutAllProducts.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部产品'**
+  String get scoutAllProducts;
+
+  /// No description provided for @promptScoutContract.
+  ///
+  /// In zh, this message translates to:
+  /// **'情报研究固定契约'**
+  String get promptScoutContract;
+
+  /// No description provided for @scoutAddEvidence.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加证据'**
+  String get scoutAddEvidence;
+
+  /// No description provided for @scoutEvidenceUrl.
+  ///
+  /// In zh, this message translates to:
+  /// **'来源链接'**
+  String get scoutEvidenceUrl;
+
+  /// No description provided for @scoutEvidenceBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'原文摘录（保留准确措辞）'**
+  String get scoutEvidenceBody;
+
+  /// No description provided for @scoutFetchEvidence.
+  ///
+  /// In zh, this message translates to:
+  /// **'读取网页正文'**
+  String get scoutFetchEvidence;
+
+  /// No description provided for @scoutEvidenceType.
+  ///
+  /// In zh, this message translates to:
+  /// **'证据类型'**
+  String get scoutEvidenceType;
+
+  /// No description provided for @scoutEvidenceReview.
+  ///
+  /// In zh, this message translates to:
+  /// **'用户评价'**
+  String get scoutEvidenceReview;
+
+  /// No description provided for @scoutEvidencePricing.
+  ///
+  /// In zh, this message translates to:
+  /// **'定价 / 卖家陈述'**
+  String get scoutEvidencePricing;
+
+  /// No description provided for @scoutEvidenceOther.
+  ///
+  /// In zh, this message translates to:
+  /// **'其他材料 / 反证'**
+  String get scoutEvidenceOther;
+
+  /// No description provided for @scoutEvidenceProvenance.
+  ///
+  /// In zh, this message translates to:
+  /// **'摘录仅代表该来源的陈述，不代表全体用户。'**
+  String get scoutEvidenceProvenance;
+
+  /// No description provided for @scoutAnalysisEnabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'允许后台 AI 基于这些摘录提出候选假设'**
+  String get scoutAnalysisEnabled;
+
+  /// No description provided for @scoutAnalysisHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'每个证据版本最多成功分析一次，使用已配置的 AI 渠道；结果需人工审阅。'**
+  String get scoutAnalysisHelp;
+
+  /// No description provided for @scoutAnalysisCandidate.
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 候选分析（待审阅）'**
+  String get scoutAnalysisCandidate;
+
+  /// No description provided for @scoutAnalysisStale.
+  ///
+  /// In zh, this message translates to:
+  /// **'依据已变化，旧候选需要重新核实。'**
+  String get scoutAnalysisStale;
+
+  /// No description provided for @scoutAnalysisWaiting.
+  ///
+  /// In zh, this message translates to:
+  /// **'等待后台分析；需至少一条证据和可用 AI 渠道。'**
+  String get scoutAnalysisWaiting;
+
+  /// No description provided for @scoutAcceptCandidate.
+  ///
+  /// In zh, this message translates to:
+  /// **'采用为待验证假设'**
+  String get scoutAcceptCandidate;
+
+  /// No description provided for @scoutRejectCandidate.
+  ///
+  /// In zh, this message translates to:
+  /// **'拒绝该候选'**
+  String get scoutRejectCandidate;
+
+  /// No description provided for @scoutTheme.
+  ///
+  /// In zh, this message translates to:
+  /// **'需求主题（每行一个，手动确认）'**
+  String get scoutTheme;
+
+  /// No description provided for @scoutFit.
+  ///
+  /// In zh, this message translates to:
+  /// **'与我能力、时间及可接触买方的关系'**
+  String get scoutFit;
+
+  /// No description provided for @scoutResearchSearch.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索研究、需求主题或阶段'**
+  String get scoutResearchSearch;
+
+  /// No description provided for @scoutResearchSourceChanged.
+  ///
+  /// In zh, this message translates to:
+  /// **'有新观察：核对研究依据'**
+  String get scoutResearchSourceChanged;
+
+  /// No description provided for @scoutKeepDraft.
+  ///
+  /// In zh, this message translates to:
+  /// **'保留草稿并关闭'**
+  String get scoutKeepDraft;
+
+  /// No description provided for @scoutAlternatives.
+  ///
+  /// In zh, this message translates to:
+  /// **'替代方案 / 当前怎么解决'**
+  String get scoutAlternatives;
+
+  /// No description provided for @scoutDeadline.
+  ///
+  /// In zh, this message translates to:
+  /// **'观察期限 / 复查时间'**
+  String get scoutDeadline;
+
+  /// No description provided for @scoutEvidenceTruncated.
+  ///
+  /// In zh, this message translates to:
+  /// **'已截取前 8000 字，请检查并保留与判断有关的原文。'**
+  String get scoutEvidenceTruncated;
+
+  /// No description provided for @scoutUpgradeRequired.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前 Scout 尚不支持产品观察，请升级服务。仍可读取原始动态（兼容模式最多 1000 条）。'**
+  String get scoutUpgradeRequired;
+
+  /// No description provided for @scoutNewScope.
+  ///
+  /// In zh, this message translates to:
+  /// **'新进入监控范围（不代表刚发布）'**
+  String get scoutNewScope;
+
+  /// No description provided for @scoutMetricReviews.
+  ///
+  /// In zh, this message translates to:
+  /// **'评价数'**
+  String get scoutMetricReviews;
+
+  /// No description provided for @scoutMetricRating.
+  ///
+  /// In zh, this message translates to:
+  /// **'评分'**
+  String get scoutMetricRating;
+
+  /// No description provided for @scoutMetricRank.
+  ///
+  /// In zh, this message translates to:
+  /// **'榜位'**
+  String get scoutMetricRank;
+
+  /// No description provided for @scoutMetricPrice.
+  ///
+  /// In zh, this message translates to:
+  /// **'标价（最小货币单位）'**
+  String get scoutMetricPrice;
+
+  /// No description provided for @scoutMetricStars.
+  ///
+  /// In zh, this message translates to:
+  /// **'Star'**
+  String get scoutMetricStars;
+
+  /// No description provided for @scoutMetricForks.
+  ///
+  /// In zh, this message translates to:
+  /// **'Fork'**
+  String get scoutMetricForks;
+
+  /// No description provided for @scoutGrowthSignals.
+  ///
+  /// In zh, this message translates to:
+  /// **'增长 / 排名'**
+  String get scoutGrowthSignals;
+
+  /// No description provided for @scoutPriceSignals.
+  ///
+  /// In zh, this message translates to:
+  /// **'定价变化'**
+  String get scoutPriceSignals;
+
+  /// No description provided for @scoutPreparingSignals.
+  ///
+  /// In zh, this message translates to:
+  /// **'新观察正在整理为线索，可先查看全部产品。'**
+  String get scoutPreparingSignals;
+
+  /// No description provided for @scoutValidationPlan.
+  ///
+  /// In zh, this message translates to:
+  /// **'实验与反馈'**
+  String get scoutValidationPlan;
+
+  /// No description provided for @scoutResearchContext.
+  ///
+  /// In zh, this message translates to:
+  /// **'需求主题与个人适配'**
+  String get scoutResearchContext;
+
+  /// No description provided for @scoutPreferences.
+  ///
+  /// In zh, this message translates to:
+  /// **'研究偏好'**
+  String get scoutPreferences;
+
+  /// No description provided for @scoutPreferencesHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'仅使用你主动填写的信息。留空保持中性；清空后保存可撤回。偏好随个人知识同步。'**
+  String get scoutPreferencesHelp;
+
+  /// No description provided for @scoutPreferenceAudience.
+  ///
+  /// In zh, this message translates to:
+  /// **'我关注的人群'**
+  String get scoutPreferenceAudience;
+
+  /// No description provided for @scoutPreferenceInterests.
+  ///
+  /// In zh, this message translates to:
+  /// **'我关注的方向与任务'**
+  String get scoutPreferenceInterests;
+
+  /// No description provided for @scoutPreferenceCapabilities.
+  ///
+  /// In zh, this message translates to:
+  /// **'我已有的能力和资源'**
+  String get scoutPreferenceCapabilities;
+
+  /// No description provided for @scoutPreferenceConstraints.
+  ///
+  /// In zh, this message translates to:
+  /// **'时间和成本边界'**
+  String get scoutPreferenceConstraints;
+
+  /// No description provided for @scoutPreferenceBuyers.
+  ///
+  /// In zh, this message translates to:
+  /// **'我能接触的买方'**
+  String get scoutPreferenceBuyers;
+
+  /// No description provided for @scoutWithdrawPreferences.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空偏好'**
+  String get scoutWithdrawPreferences;
+
+  /// No description provided for @scoutPreferencesNeutral.
+  ///
+  /// In zh, this message translates to:
+  /// **'尚未设置研究偏好，当前保持中性。'**
+  String get scoutPreferencesNeutral;
+
+  /// No description provided for @scoutRecordPreferenceBasis.
+  ///
+  /// In zh, this message translates to:
+  /// **'将这些偏好记为本次判断依据'**
+  String get scoutRecordPreferenceBasis;
+
+  /// No description provided for @scoutPreferenceBasisRecorded.
+  ///
+  /// In zh, this message translates to:
+  /// **'已记录判断依据；之后撤回偏好不改写本次研究。'**
+  String get scoutPreferenceBasisRecorded;
+
+  /// No description provided for @scoutMisfit.
+  ///
+  /// In zh, this message translates to:
+  /// **'不适配原因与反证'**
+  String get scoutMisfit;
+
+  /// No description provided for @scoutComparisonScope.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前对比 {products} 个产品 · {sources} 个监控源。共同主题由你确认，缺失项需补证据。'**
+  String scoutComparisonScope(int products, int sources);
+
+  /// No description provided for @scoutSupportingEvidence.
+  ///
+  /// In zh, this message translates to:
+  /// **'支持证据：{ids}'**
+  String scoutSupportingEvidence(String ids);
+
+  /// No description provided for @scoutCounterEvidence.
+  ///
+  /// In zh, this message translates to:
+  /// **'反对证据：{ids}'**
+  String scoutCounterEvidence(String ids);
+
+  /// No description provided for @scoutRankUp.
+  ///
+  /// In zh, this message translates to:
+  /// **'上升 {places} 位'**
+  String scoutRankUp(int places);
+
+  /// No description provided for @scoutRankDown.
+  ///
+  /// In zh, this message translates to:
+  /// **'下降 {places} 位'**
+  String scoutRankDown(int places);
+
+  /// No description provided for @scoutRemoveEvidence.
+  ///
+  /// In zh, this message translates to:
+  /// **'移除本次研究的证据'**
+  String get scoutRemoveEvidence;
+
+  /// No description provided for @scoutEvidenceMetadata.
+  ///
+  /// In zh, this message translates to:
+  /// **'补充原文信息（可选）'**
+  String get scoutEvidenceMetadata;
+
+  /// No description provided for @scoutEvidenceAuthor.
+  ///
+  /// In zh, this message translates to:
+  /// **'原作者或平台 ID'**
+  String get scoutEvidenceAuthor;
+
+  /// No description provided for @scoutEvidenceLanguage.
+  ///
+  /// In zh, this message translates to:
+  /// **'原文语言'**
+  String get scoutEvidenceLanguage;
+
+  /// No description provided for @scoutEvidencePublished.
+  ///
+  /// In zh, this message translates to:
+  /// **'原文发表时间（来源声明）'**
+  String get scoutEvidencePublished;
+
+  /// No description provided for @scoutEvidenceInvalidUrl.
+  ///
+  /// In zh, this message translates to:
+  /// **'请填写不含账号信息的 HTTP 或 HTTPS 链接'**
+  String get scoutEvidenceInvalidUrl;
+
+  /// No description provided for @scoutDrafts.
+  ///
+  /// In zh, this message translates to:
+  /// **'研究草稿'**
+  String get scoutDrafts;
+
+  /// No description provided for @scoutDraftCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'本机草稿 · {count}'**
+  String scoutDraftCount(int count);
+
+  /// No description provided for @scoutLocalDraft.
+  ///
+  /// In zh, this message translates to:
+  /// **'仅保存在本机，尚未提交为研究'**
+  String get scoutLocalDraft;
+
+  /// No description provided for @scoutDiscardDraft.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除本机草稿'**
+  String get scoutDiscardDraft;
+
+  /// No description provided for @scoutDraftWriteFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'草稿未能写入磁盘，请重试保留草稿或保存研究后再关闭。'**
+  String get scoutDraftWriteFailed;
+
+  /// No description provided for @scoutNotRelevant.
+  ///
+  /// In zh, this message translates to:
+  /// **'不相关'**
+  String get scoutNotRelevant;
+
+  /// No description provided for @scoutBriefHighlights.
+  ///
+  /// In zh, this message translates to:
+  /// **'值得关注'**
+  String get scoutBriefHighlights;
 }
 
 class _AppLocalizationsDelegate

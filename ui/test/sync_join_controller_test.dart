@@ -2,7 +2,7 @@ import 'package:elsewhen_ui/l10n/notice_messages.dart';
 import 'package:elsewhen_ui/l10n/app_localizations_zh.dart';
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/sync/sync_join_controller.dart';
 import 'package:elsewhen_ui/sync/sync_key_store.dart';

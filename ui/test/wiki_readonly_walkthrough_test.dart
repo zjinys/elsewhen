@@ -3,7 +3,7 @@
 // 判定 code 块当前的展示降级（vendor 无 code 块组件 → 30px placeholder 占位，见 §11）；
 // 只读下仍可点选正文（复制场景）。
 import 'package:appflowy_editor/appflowy_editor.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:elsewhen_ui/theme/app_theme.dart';

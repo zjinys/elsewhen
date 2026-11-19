@@ -6,7 +6,7 @@ use anyhow::{Context, Result, ensure};
 use rusqlite::{OptionalExtension, params};
 
 pub(crate) const LOCALE: &str = "zh-Hans";
-const CATALOG: &str = "prompts-v17";
+const CATALOG: &str = "prompts-v18";
 const MAX_BODY: usize = 8192;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -69,6 +69,13 @@ pub(crate) struct Definition {
 }
 pub(crate) fn catalog() -> Vec<Definition> {
     vec![
+        Definition {
+            key: "scout.fixed_contract",
+            title: "promptScoutContract",
+            body: include_str!("../../resources/prompts/scout-contract.zh-Hans.txt"),
+            english_body: include_str!("../../resources/prompts/scout-contract.en.txt"),
+            editable: false,
+        },
         Definition {
             key: "chat.personal.policy",
             title: "promptPersonalPolicy",

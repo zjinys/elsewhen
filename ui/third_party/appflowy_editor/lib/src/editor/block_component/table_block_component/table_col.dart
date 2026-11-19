@@ -2,7 +2,7 @@ import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_editor/src/editor/block_component/table_block_component/table_action_handler.dart';
 import 'package:appflowy_editor/src/editor/block_component/table_block_component/table_col_border.dart';
 import 'package:appflowy_editor/src/editor/block_component/table_block_component/util.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 class TableCol extends StatefulWidget {

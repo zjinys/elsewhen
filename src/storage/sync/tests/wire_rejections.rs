@@ -94,7 +94,10 @@ fn attempts_accumulate_across_reopen_and_dropping_keeps_the_audit_row() {
     store
         .forget_wire_rejection("mb-owner", "0000000000000042")
         .unwrap();
-    assert_eq!(rejection_count(&store, "mb-owner", "0000000000000042"), None);
+    assert_eq!(
+        rejection_count(&store, "mb-owner", "0000000000000042"),
+        None
+    );
     drop(store);
     let _ = std::fs::remove_dir_all(&dir);
 }

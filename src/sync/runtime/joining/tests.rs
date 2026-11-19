@@ -220,12 +220,18 @@ fn a_join_is_complete_on_local_facts_not_on_a_confirmation_frame() {
         terminal_phase(Phase::EnrollmentConfirmation, true),
         Phase::Joined
     );
-    assert_eq!(terminal_phase(Phase::AwaitingMembership, true), Phase::Joined);
+    assert_eq!(
+        terminal_phase(Phase::AwaitingMembership, true),
+        Phase::Joined
+    );
     // 幂等：再推导一次不会把终态推回去。
     assert_eq!(terminal_phase(Phase::Joined, true), Phase::Joined);
     // 中间相位之外一律不动：如实现在 `Ready` 就宣布完成，就等于跳过了批准与安装。
     assert_eq!(terminal_phase(Phase::Ready, true), Phase::Ready);
-    assert_eq!(terminal_phase(Phase::AwaitingApproval, true), Phase::AwaitingApproval);
+    assert_eq!(
+        terminal_phase(Phase::AwaitingApproval, true),
+        Phase::AwaitingApproval
+    );
     assert_eq!(
         terminal_phase(Phase::InstallationConfirmation, true),
         Phase::InstallationConfirmation

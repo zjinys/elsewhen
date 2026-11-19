@@ -1,4 +1,3 @@
-import 'package:appflowy_editor/appflowy_editor.dart';
 
 /// 归一化剪贴板/存量 markdown 里的「表格块内空行」。
 ///

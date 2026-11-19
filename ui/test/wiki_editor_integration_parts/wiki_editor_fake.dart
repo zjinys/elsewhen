@@ -115,7 +115,7 @@ Future<void> pumpDetail(
           locale: value,
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: const [
-            ...AppLocalizations.localizationsDelegates,
+            ...appTestLocalizationDelegates,
             AppFlowyEditorLocalizations.delegate,
           ],
           home: const Scaffold(body: WikiPageDetailView()),

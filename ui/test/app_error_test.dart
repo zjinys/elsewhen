@@ -1,7 +1,8 @@
+import 'support/localizations.dart';
 import 'package:elsewhen_ui/l10n/localization.dart';
 import 'package:elsewhen_ui/utils/app_error.dart';
 import 'package:elsewhen_ui/widgets/app_error_notice.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -68,7 +69,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           locale: const Locale('en'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          localizationsDelegates: appTestLocalizationDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: Builder(

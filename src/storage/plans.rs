@@ -9,9 +9,9 @@ use anyhow::Result;
 use rusqlite::{Error as SqliteError, OptionalExtension, params};
 use uuid::Uuid;
 
-use super::{Goal, GoalPhase, GoalStatus, MAX_ACTIVE_GOALS};
 use super::Store;
 use super::goals::{SELECT_COLUMNS, row_to_goal};
+use super::{Goal, GoalPhase, GoalStatus, MAX_ACTIVE_GOALS};
 
 /// 计划状态机。`proposed` 由审阅卡（确认制）承载，落行即从 `active` 起步。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,8 +76,7 @@ pub struct PlanStepDraft {
     pub done_criteria: Option<String>,
 }
 
-const PLAN_COLUMNS: &str =
-    "id, intent_text, vision, assumptions, status, created_at, updated_at";
+const PLAN_COLUMNS: &str = "id, intent_text, vision, assumptions, status, created_at, updated_at";
 
 fn row_to_plan(row: &rusqlite::Row<'_>) -> rusqlite::Result<GoalPlan> {
     let status: String = row.get(4)?;
@@ -159,12 +158,7 @@ impl Store {
     }
 
     /// 更新计划的愿景与假设清单（拆解纠错路径：用户改假设即改这里）。
-    pub fn update_plan_meta(
-        &self,
-        id: &str,
-        vision: &str,
-        assumptions_json: &str,
-    ) -> Result<()> {
+    pub fn update_plan_meta(&self, id: &str, vision: &str, assumptions_json: &str) -> Result<()> {
         let parsed: serde_json::Value = serde_json::from_str(assumptions_json)
             .map_err(|_| anyhow::anyhow!("假设清单必须是合法 JSON"))?;
         if !parsed.is_array() {
@@ -564,10 +558,12 @@ mod tests {
             .unwrap();
         let b2 = store.store.get_plan(&b.id).unwrap().unwrap();
         assert_eq!(b2.status, PlanStatus::Paused);
-        assert!(store
-            .store
-            .set_plan_status("nope", PlanStatus::Completed)
-            .is_err());
+        assert!(
+            store
+                .store
+                .set_plan_status("nope", PlanStatus::Completed)
+                .is_err()
+        );
         assert!(store.store.get_plan("nope").unwrap().is_none());
     }
 
@@ -581,10 +577,12 @@ mod tests {
             "假设清单必须是 JSON 数组"
         );
         let plan = store.store.create_plan("意图", "", "[]").unwrap();
-        assert!(store
-            .store
-            .update_plan_meta(&plan.id, "v", r#"{"a":1}"#)
-            .is_err());
+        assert!(
+            store
+                .store
+                .update_plan_meta(&plan.id, "v", r#"{"a":1}"#)
+                .is_err()
+        );
     }
 
     #[test]
@@ -627,12 +625,14 @@ mod tests {
             .store
             .create_goal("散装目标", GoalPhase::Long)
             .unwrap();
-        assert!(!store
-            .store
-            .list_plan_steps(&plan.id)
-            .unwrap()
-            .iter()
-            .any(|g| g.id == lone.id));
+        assert!(
+            !store
+                .store
+                .list_plan_steps(&plan.id)
+                .unwrap()
+                .iter()
+                .any(|g| g.id == lone.id)
+        );
     }
 
     #[test]
@@ -640,14 +640,18 @@ mod tests {
         let store = store();
         let plan = store.store.create_plan("计划", "", "[]").unwrap();
         let goal = store.store.create_goal("目标", GoalPhase::Near).unwrap();
-        assert!(store
-            .store
-            .attach_goal_to_plan(&goal.id, "no-plan", Some(1))
-            .is_err());
-        assert!(store
-            .store
-            .attach_goal_to_plan("no-goal", &plan.id, Some(1))
-            .is_err());
+        assert!(
+            store
+                .store
+                .attach_goal_to_plan(&goal.id, "no-plan", Some(1))
+                .is_err()
+        );
+        assert!(
+            store
+                .store
+                .attach_goal_to_plan("no-goal", &plan.id, Some(1))
+                .is_err()
+        );
     }
 
     #[test]
@@ -751,7 +755,14 @@ mod tests {
             blocker: None,
             done_criteria: None,
         }];
-        assert_eq!(store.store.append_plan_steps(&plan.id, &more).unwrap().len(), 1);
+        assert_eq!(
+            store
+                .store
+                .append_plan_steps(&plan.id, &more)
+                .unwrap()
+                .len(),
+            1
+        );
         let listed = store.store.list_plan_steps(&plan.id).unwrap();
         assert_eq!(listed.len(), 4);
         assert_eq!(listed[3].step_index, Some(4));
@@ -813,14 +824,7 @@ mod tests {
         store.store.create_goal("占位 B", GoalPhase::Near).unwrap();
         let (_, queued) = store
             .store
-            .create_goal_as_single_step_plan(
-                "满额后的目标",
-                GoalPhase::Mid,
-                None,
-                None,
-                None,
-                None,
-            )
+            .create_goal_as_single_step_plan("满额后的目标", GoalPhase::Mid, None, None, None, None)
             .unwrap();
         assert_eq!(queued.status, crate::storage::GoalStatus::Paused);
     }

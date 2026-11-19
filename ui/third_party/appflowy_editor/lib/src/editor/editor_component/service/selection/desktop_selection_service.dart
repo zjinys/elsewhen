@@ -3,7 +3,7 @@ import 'package:appflowy_editor/src/editor/editor_component/service/selection/mo
 import 'package:appflowy_editor/src/editor/editor_component/service/selection/shared.dart';
 import 'package:appflowy_editor/src/service/selection/selection_gesture.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 

@@ -139,4 +139,3 @@ pub fn resolve_object_conflict(
     let store = Store::open(&config.database_path)?;
     store.resolve_object_conflict(&op_id, expected_local_updated_at.as_deref(), accept_remote)
 }
-

@@ -18,7 +18,11 @@ fn stage_pending(db: &Database, peer: &str, message_id: &str) {
         .unwrap();
 }
 
-fn state_of(db: &Database, peer: &str, now_ms: i64) -> Option<crate::sync::engine::deliver::DeliverState> {
+fn state_of(
+    db: &Database,
+    peer: &str,
+    now_ms: i64,
+) -> Option<crate::sync::engine::deliver::DeliverState> {
     db.store
         .deliver_statuses(now_ms)
         .unwrap()
@@ -201,7 +205,13 @@ fn quota_then_transport_shows_transport_not_quota() {
 
     // 15 秒后真去试，这次撞的是 5xx：新事实覆盖旧原因。
     db.store
-        .record_sync_wire_attempt("b", "delta-1", now + 15_001, None, Some(DeliveryFailure::Transport))
+        .record_sync_wire_attempt(
+            "b",
+            "delta-1",
+            now + 15_001,
+            None,
+            Some(DeliveryFailure::Transport),
+        )
         .unwrap();
     match state_of(&db, "b", now + 15_002) {
         Some(DeliverState::Backoff { reason, .. }) => assert_eq!(reason, "transport"),

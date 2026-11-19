@@ -1,7 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -31,7 +31,7 @@ class CustomTitleBar extends ConsumerWidget {
   /// 移动端平台的 app bar 顶部安全区高度（状态栏仍在时由 MainScreen 传入）。
   final double topInset;
 
-  /// 最左侧的 leading（移动端为抽屉菜单按钮）。
+  /// 最左侧的 leading（主界面是导航抽屉的菜单按钮，二级页是返回键）。
   final Widget? leading;
 
   const CustomTitleBar({

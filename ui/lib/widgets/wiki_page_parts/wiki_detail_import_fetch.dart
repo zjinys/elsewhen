@@ -153,42 +153,11 @@ class _ImportFetchTabBodyState extends ConsumerState<_ImportFetchTabBody> {
                 ],
               ),
               const SizedBox(height: AppTheme.space3),
-              TextField(
+              WikiTagInput(
                 controller: _tagsController,
                 enabled: !_saving && !_saved,
+                hintText: context.l10n.wikiImportTagsHint,
                 style: TextStyle(fontSize: 13, color: AppTheme.textPrimary),
-                cursorColor: AppTheme.accentPrimary,
-                decoration: InputDecoration(
-                  hintText: context.l10n.wikiImportTagsHint,
-                  hintStyle: TextStyle(
-                    fontSize: 12.5,
-                    color: AppTheme.textTertiary,
-                  ),
-                  prefixIcon: Icon(Icons.sell_outlined, size: 15),
-                  prefixIconConstraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
-                  ),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                  filled: true,
-                  fillColor: AppTheme.surface2,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppTheme.surface3),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(color: AppTheme.surface3),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide(
-                      color: AppTheme.accentPrimary,
-                      width: 1.5,
-                    ),
-                  ),
-                ),
               ),
               const SizedBox(height: AppTheme.space2),
               Row(

@@ -419,6 +419,12 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
             } else {
                 ""
             };
+            // 出生即带身份：同 create_plan，工作室会话认领为新目标讨论。
+            if let Err(error) = store.bind_goal_chat_conversation(&pa.conversation_id, &goal.id) {
+                crate::logging::log_debug(&format!(
+                    "bind_goal_chat_conversation failed: {error:#}"
+                ));
+            }
             Ok(format!(
                 "已成功设立目标「{}」[{}]{focus_desc}{status_desc}（已自动包成单步计划，可随时用 add_plan_steps 追加后续步骤）。",
                 goal.content,
@@ -437,6 +443,7 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
             let plan =
                 store.create_plan_with_steps(&intent_text, &vision, &assumptions_json, &steps)?;
             let created = store.list_plan_steps(&plan.id)?;
+            let first_step_id = created.first().map(|g| g.id.clone()).unwrap_or_default();
             let active = created
                 .iter()
                 .filter(|g| g.status == crate::storage::GoalStatus::Active)
@@ -446,6 +453,16 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
                 .first()
                 .map(|g| g.content.clone())
                 .unwrap_or_default();
+            // 出生即带身份：当前会话若是未绑定的 goal_mentor（工作室），
+            // 认领为第一步 goal 的专属讨论会话，立项历史无缝延续。
+            // 绑定失败不影响计划结果。
+            if let Err(error) =
+                store.bind_goal_chat_conversation(&pa.conversation_id, &first_step_id)
+            {
+                crate::logging::log_debug(&format!(
+                    "bind_goal_chat_conversation failed: {error:#}"
+                ));
+            }
             let first_note = if active == 0 {
                 "第一步也已排队（活跃名额已满，随时可唤醒）"
             } else {

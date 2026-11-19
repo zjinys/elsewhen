@@ -1,9 +1,10 @@
+import 'support/localizations.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:elsewhen_ui/theme/app_theme.dart';
 import 'package:elsewhen_ui/utils/editor_localization.dart';
 import 'package:elsewhen_ui/l10n/app_localizations.dart';
 import 'package:elsewhen_ui/wiki/wiki_content_editor.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 
@@ -37,7 +38,7 @@ void main() {
         locale: const Locale('en'),
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: const [
-          ...AppLocalizations.localizationsDelegates,
+          ...appTestLocalizationDelegates,
           AppEditorLocalizationsDelegate(),
         ],
         home: const SizedBox.shrink(),
@@ -53,7 +54,7 @@ void main() {
         locale: const Locale('zh'),
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: const [
-          ...AppLocalizations.localizationsDelegates,
+          ...appTestLocalizationDelegates,
           AppEditorLocalizationsDelegate(),
         ],
         home: const SizedBox.shrink(),
@@ -73,7 +74,7 @@ void main() {
         supportedLocales: AppLocalizations.supportedLocales,
         theme: AppTheme.darkTheme,
         localizationsDelegates: const [
-          ...AppLocalizations.localizationsDelegates,
+          ...appTestLocalizationDelegates,
           AppEditorLocalizationsDelegate(),
         ],
         home: Scaffold(

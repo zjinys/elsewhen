@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart' as ui;
+import 'package:material_ui/material_ui.dart' as ui;
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:tray_manager/tray_manager.dart' as tray;
 import 'package:window_manager/window_manager.dart';

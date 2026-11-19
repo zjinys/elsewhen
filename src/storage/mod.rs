@@ -27,6 +27,7 @@ mod plans;
 pub(crate) mod prompts;
 mod provider;
 mod provider_keys;
+pub(crate) mod scout_card;
 pub use mcp_servers::McpServerConfig;
 pub(crate) use page_marks::PageMark;
 

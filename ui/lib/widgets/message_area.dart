@@ -24,7 +24,6 @@ import '../bridge/api.dart'
         HabitNudgeInputDto,
         HabitNudgeStateDto;
 
-import 'dart:convert';
 import 'dart:math';
 
 import 'package:material_ui/material_ui.dart';
@@ -41,6 +40,11 @@ import '../providers/wiki_provider.dart';
 import 'wiki_page_detail_view.dart';
 import '../providers/todo_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/scout_research_provider.dart';
+import '../providers/scout_provider.dart';
+
+import 'dart:convert';
+
 import '../providers/goal_provider.dart';
 import '../l10n/notice_messages.dart';
 import '../utils/app_error.dart';

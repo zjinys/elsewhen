@@ -2,7 +2,7 @@ import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:elsewhen_ui/widgets/wiki_page_detail_view.dart';
 import 'package:elsewhen_ui/wiki/wiki_content_editor.dart';
 import 'package:elsewhen_ui/wiki/wiki_markdown_codec.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 

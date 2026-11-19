@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_editor/src/editor/toolbar/mobile/utils/keyboard_height_observer.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 const String selectionExtraInfoDisableMobileToolbarKey = 'disableMobileToolbar';
 

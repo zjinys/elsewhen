@@ -97,7 +97,11 @@ pub fn list_plan_steps(plan_id: String) -> Result<Vec<GoalDto>> {
 }
 
 /// 把一条目标挂接为计划的步骤（`step_index` 为展示排序键；缺省排末尾）。
-pub fn attach_goal_to_plan(goal_id: String, plan_id: String, step_index: Option<i64>) -> Result<()> {
+pub fn attach_goal_to_plan(
+    goal_id: String,
+    plan_id: String,
+    step_index: Option<i64>,
+) -> Result<()> {
     let config = crate::config::AppConfig::load()?;
     let store = Store::open(&config.database_path)?;
     store.attach_goal_to_plan(&goal_id, &plan_id, step_index)

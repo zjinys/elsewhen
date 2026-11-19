@@ -1,7 +1,7 @@
 import 'dart:math';
 
 import 'package:collection/collection.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 class AnimatedSelectionAreaPaint extends StatefulWidget {
   const AnimatedSelectionAreaPaint({

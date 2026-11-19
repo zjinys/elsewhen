@@ -67,8 +67,14 @@ fn every_singleton_accessor_reads_the_real_row_once_configured() {
     );
     let next_sequence = store.replica_next_sequence().unwrap();
     let logical_clock = store.replica_logical_clock().unwrap();
-    assert!(next_sequence >= 1, "next_sequence 从 1 起，实际 {next_sequence}");
-    assert!(logical_clock >= 0, "logical_clock 不得为负，实际 {logical_clock}");
+    assert!(
+        next_sequence >= 1,
+        "next_sequence 从 1 起，实际 {next_sequence}"
+    );
+    assert!(
+        logical_clock >= 0,
+        "logical_clock 不得为负，实际 {logical_clock}"
+    );
 
     drop(store);
     let _ = std::fs::remove_dir_all(&dir);

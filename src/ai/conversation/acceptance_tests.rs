@@ -97,7 +97,6 @@ fn real_model_chat_time_acceptance() {
             id: run.id.clone(),
             owner: owner.clone(),
             started_at: std::time::Instant::now(),
-            
         });
         let mut runtime = store
             .list_ai_provider_configs_for_runtime()

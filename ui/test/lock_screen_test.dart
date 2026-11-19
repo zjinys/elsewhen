@@ -1,6 +1,7 @@
 // 锁屏交互契约：4 格输满即自动校验（无按钮）；输错清空并提示；
 // 非 4 位旧密码走兜底入口按回车解锁。使用注入的假服务，无真实安全存储。
-import "package:flutter/material.dart";
+import 'support/localizations.dart';
+import "package:material_ui/material_ui.dart";
 import "package:flutter_secure_storage/flutter_secure_storage.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:elsewhen_ui/screens/lock_screen.dart";
@@ -56,7 +57,7 @@ void main() {
     Widget app(Locale locale) => MaterialApp(
       locale: locale,
       supportedLocales: AppLocalizations.supportedLocales,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      localizationsDelegates: appTestLocalizationDelegates,
       home: const _Host(password: '9999'),
     );
     await tester.pumpWidget(app(const Locale('en')));

@@ -516,7 +516,10 @@ fn identical_content_on_forked_chain_applies_without_manual_review() {
     let key = ContentKey::generate().unwrap();
     // b 先正常接受一份，再在本地做一次显式激活（推进 head，制造分叉 base），
     // 但激活项与远端一致 → 内容不变。
-    let bundle = a.store.export_provider_bundle("remote-rev-1", None).unwrap();
+    let bundle = a
+        .store
+        .export_provider_bundle("remote-rev-1", None)
+        .unwrap();
     let (header, bytes) = encode(&bundle, &signer, &key);
     assert_eq!(
         b.store

@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+import 'support/localizations.dart';
+
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -34,7 +36,7 @@ void main() {
           conversationId: 'conv-1',
           parentMessageId: 'm1',
           role: MessageRole.assistant,
-          content: '要点如下：\n1. 配置 AI\n2. 保存生效',
+          content: '〔系统标注：本轮背景摘要不可用，请让模型说明旧事依据。〕\n\n要点如下：\n1. 配置 AI\n2. 保存生效',
           createdAt: DateTime(2026, 9, 15, 10, 1),
         ),
       ];
@@ -63,7 +65,7 @@ void main() {
           child: MaterialApp(
             locale: locale,
             supportedLocales: AppLocalizations.supportedLocales,
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            localizationsDelegates: appTestLocalizationDelegates,
             home: const Scaffold(body: MessageArea()),
           ),
         ),
@@ -81,6 +83,7 @@ void main() {
         findsOneWidget,
         reason: 'AI 气泡经 MarkdownView 渲染',
       );
+      expect(find.byIcon(Icons.info_outline), findsOneWidget);
       expect(find.byIcon(Icons.copy_rounded), findsNWidgets(2));
       expect(find.byIcon(Icons.copy_all_rounded), findsOneWidget);
 
@@ -90,7 +93,7 @@ void main() {
       expect(clipboardCalls, isNotEmpty);
       final singleText =
           (clipboardCalls.last.arguments as Map)['text'] as String;
-      expect(singleText, messages[1].content, reason: '复制的是该条消息原文');
+      expect(singleText, '要点如下：\n1. 配置 AI\n2. 保存生效', reason: '复制内容不包含内部系统标注');
       expect(
         find.textContaining(strings.copiedItem(strings.message)),
         findsOneWidget,
@@ -101,6 +104,7 @@ void main() {
       await tester.tap(find.byIcon(Icons.copy_all_rounded));
       await tester.pump();
       final allText = (clipboardCalls.last.arguments as Map)['text'] as String;
+      expect(allText, isNot(contains('系统标注')));
       expect(
         allText,
         contains(
@@ -114,7 +118,7 @@ void main() {
           'AI (${DateFormat.Md(locale.languageCode).add_Hm().format(messages[1].createdAt)})',
         ),
       );
-      expect(allText, contains(messages[1].content));
+      expect(allText, contains('要点如下：\n1. 配置 AI\n2. 保存生效'));
       expect(
         find.textContaining(strings.copiedItem(strings.conversation)),
         findsOneWidget,

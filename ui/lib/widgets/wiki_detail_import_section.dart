@@ -329,20 +329,10 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
           ),
         ),
         const SizedBox(height: AppTheme.space2),
-        TextField(
+        WikiTagInput(
           controller: _tagsController,
           enabled: !_busy,
-          textAlignVertical: TextAlignVertical.top,
-          style: TextStyle(fontSize: 13.5, color: AppTheme.textPrimary),
-          cursorColor: AppTheme.accentPrimary,
-          decoration: AppTheme.fieldDecoration(
-            hintText: context.l10n.wikiTagsHint,
-            prefixIcon: Icon(
-              Icons.sell_outlined,
-              size: 16,
-              color: AppTheme.textTertiary,
-            ),
-          ),
+          hintText: context.l10n.wikiTagsHint,
         ),
       ],
     );

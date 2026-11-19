@@ -1,6 +1,6 @@
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:collection/collection.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 class HeadingBlockKeys {

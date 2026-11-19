@@ -8,7 +8,7 @@ import 'package:appflowy_editor/src/render/selection/mobile_basic_handle.dart';
 import 'package:appflowy_editor/src/render/selection/mobile_collapsed_handle.dart';
 import 'package:appflowy_editor/src/render/selection/mobile_selection_handle.dart';
 import 'package:appflowy_editor/src/service/selection/mobile_selection_gesture.dart';
-import 'package:flutter/material.dart' hide Overlay, OverlayEntry;
+import 'package:material_ui/material_ui.dart' hide Overlay, OverlayEntry;
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 

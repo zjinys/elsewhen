@@ -1,13 +1,11 @@
-import 'package:intl/intl.dart';
+import 'dart:math' as math;
 
-import 'dart:io' show Platform;
-
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../utils/pretty_time.dart';
 
+import 'adaptive.dart';
 import 'app_pressable.dart';
 
 import '../models/wiki_page.dart';
@@ -16,19 +14,17 @@ import '../providers/app_provider.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/knowledge_provider.dart';
 import '../providers/wiki_provider.dart';
-import '../providers/review_provider.dart';
+import '../providers/scout_provider.dart';
 import '../screens/settings_screen.dart';
 import '../theme/app_theme.dart';
-import 'sync_workspace.dart';
-import 'goal_view.dart' show GoalWorkbenchPanel;
 import '../bridge/rust_bridge_repository.dart';
 import '../l10n/localization.dart';
 
-part 'left_sidebar_parts/sidebar_rail.dart';
+part 'left_sidebar_parts/sidebar_destinations.dart';
 part 'left_sidebar_parts/sidebar_wiki_tab.dart';
 part 'left_sidebar_parts/sidebar_misc.dart';
 
-// ── 左侧栏按 rail/最近页面/杂项拆分（纯类段平移，零行为变化）──
+// ── 左侧导航按 一级入口/最近页面/杂项 拆分 ──
 
 /// 「最近使用」最多显示的页面数。
 ///
@@ -65,70 +61,130 @@ bool _isSidebarVisiblePage(WikiPageMeta page) {
   return true;
 }
 
-/// 主界面左侧栏：主对话 + 最近页面 + 工作区快捷入口。
+/// 主界面左侧导航：标准的 Material 3 导航抽屉（[NavigationDrawer]）。
+///
+/// 自上而下：一级入口（[NavigationDrawerDestination]，当前入口由标准指示器
+/// 高亮）→ 当前入口的上下文面板（仅对话/知识：最近页面 / 知识库导航；
+/// 目标/回顾/同步/情报的内容与主工作区重复，已整体搬到右侧主区，
+/// 抽屉里不再渲染）→ 底部固定的设置入口。
+///
+/// 同一个组件有两种挂法，由 MainScreen 决定：放进 `Scaffold.drawer` 做模态
+/// 抽屉（窄屏与桌面小窗），或停靠在内容左侧（空间够时）。宽度由外层约束
+/// 给出，收起抽屉的调用在停靠时是空操作。
 class LeftSidebar extends ConsumerWidget {
   const LeftSidebar({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tab = ref.watch(sidebarTabProvider);
+    final destinations = _navigationDestinations(context, ref);
+    final insets = MediaQuery.paddingOf(context);
+    final navigationTheme = NavigationDrawerTheme.of(context);
+    // 入口行高：触屏平台用 Material 3 的默认值；桌面按框架的平台密度惯例
+    // （VisualDensity.adaptivePlatformDensity 在桌面是 compact）收一档。
+    // 抽屉下半部分还要放上下文面板，桌面窗口不高时每一行都要省。
+    final tileHeight =
+        navigationTheme.tileHeight ??
+        (AdaptiveContext.isDesktopPlatform
+            ? _kCompactDestinationHeight
+            : _kDestinationHeight);
 
-    // 切到知识库 / 待办时强制刷新列表：
-    // 对话里 AI 可能刚导入过页面 / 建过待办（含用户确认后落库），
-    // 若沿用缓存，切换到对应 tab 会看不到最新数据。
-    ref.listen(sidebarTabProvider, (prev, next) {
-      if (prev == next) return;
-      if (next == SidebarTab.wiki) {
-        ref.invalidate(wikiPagesProvider);
-      }
-    });
-
-    // 窄窗口（700–1024）：主区被挤，侧栏收成 64px 图标轨；
-    // 图标按钮与抽屉 footer 用同一套 _FooterAction（iconOnly），
-    // 三个域的切换语义完全一致，只是换了密度。
-    // 图标轨只给桌面平台：窄窗是暂态，「拖宽即可见完整侧栏」成立。
-    // 平板横屏逻辑宽也常落在 700–1024 且无法拖宽，恒定图标轨会把
-    // 「最近页面 / 回顾摘要 / 同步仪表」永远藏起来，触屏也不适合
-    // 小图标——所以触屏设备一律给完整宽侧栏。
-    // 注：抽屉形态（compact，<700）总是用宽侧栏，由 Drawer 约束决定。
-    final width = MediaQuery.maybeSizeOf(context)?.width ?? 1024;
-    final isDesktop =
-        !kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
-    final rail = isDesktop && width >= 700 && width < 1024;
-    if (rail) return const _SidebarRail();
-
-    return Container(
-      width: 280,
-      // 底色交给 Material：ListTile 的 selectedTileColor / ink 画在最近的
-      // Material 上，若底色留在外层 DecoratedBox 里会被盖住（debug 下报
-      // "ListTile background color or ink splashes may be invisible"）。
-      decoration: BoxDecoration(
-        border: Border(right: BorderSide(color: AppTheme.surface3, width: 1)),
-      ),
-      child: Material(
-        color: AppTheme.surface1,
-        child: Column(
-          children: [
-            Expanded(
-              child: switch (tab) {
-                SidebarTab.conversation => _buildConversationTab(context, ref),
-                SidebarTab.wiki => const _WikiTab(),
-                // 回顾页左栏：近 7 天入口，点击切换日期与日粒度
-                SidebarTab.review => const _ReviewNavSummary(),
-                // 同步左栏：健康度仪表（成员/心跳），操作在右侧工作区
-                SidebarTab.sync => SyncNavSummary(
-                  repository: ref.watch(storageRepositoryProvider),
-                ),
-                // 目标左栏：长程目标与航向工作台（标题/过滤/清单/新建入口）；
-                // 选中目标后主区展示「详情 | AI 讨论」并排。
-                SidebarTab.goal => const GoalWorkbenchPanel(),
-              },
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 上下文面板各自带滚动区，必须拿到一个确定的高度。窗口够高时它正好
+        // 填满一级入口与设置之间的空间；不够高时保底 [_kMinPanelHeight]，
+        // 抽屉像标准抽屉那样整体滚动，入口不会被挤出屏幕。
+        // 上下文面板只服务对话/知识两个入口。目标/回顾/同步/情报的面板
+        // 内容（工作台清单/日期导航/健康仪表/来源筛选）已整体搬进右侧主
+        // 工作区，抽屉里只留一级入口，避免同一份导航两处维护。
+        final showPanel =
+            tab == SidebarTab.conversation || tab == SidebarTab.wiki;
+        final fixed =
+            insets.top +
+            _kDestinationsTopGap +
+            destinations.length * tileHeight +
+            _kSectionDividerHeight +
+            _SettingsEntry.heightFor(tileHeight) +
+            insets.bottom;
+        final panelHeight = !showPanel
+            ? 0.0
+            : constraints.hasBoundedHeight
+            ? math.max(_kMinPanelHeight, constraints.maxHeight - fixed)
+            : _kMinPanelHeight;
+        // 底部安全区由设置入口自己垫：留在 MediaQuery 里的话，NavigationDrawer
+        // 内部的列表会在末尾再垫一次，上面的高度就算不准了。
+        return MediaQuery.removePadding(
+          context: context,
+          removeBottom: true,
+          child: NavigationDrawerTheme(
+            data: navigationTheme.copyWith(
+              tileHeight: tileHeight,
+              indicatorSize: Size(
+                navigationTheme.indicatorSize?.width ?? _kIndicatorWidth,
+                tileHeight,
+              ),
             ),
-            _buildFooter(context, ref),
-          ],
-        ),
-      ),
+            child: NavigationDrawer(
+              selectedIndex: destinations.indexWhere((d) => d.tab == tab),
+              onDestinationSelected: (index) {
+                destinations[index].onSelected();
+                _closeModalDrawer(context);
+              },
+              footer: _SettingsEntry(
+                tileHeight: tileHeight,
+                bottomInset: insets.bottom,
+              ),
+              children: [
+                const SizedBox(height: _kDestinationsTopGap),
+                for (final destination in destinations)
+                  NavigationDrawerDestination(
+                    icon: _DestinationIcon(
+                      destination.icon,
+                      showDot: destination.showDot,
+                    ),
+                    selectedIcon: _DestinationIcon(
+                      destination.selectedIcon,
+                      showDot: destination.showDot,
+                    ),
+                    label: Text(destination.label),
+                  ),
+                if (showPanel) ...[
+                  const Divider(
+                    height: _kSectionDividerHeight,
+                    indent: 28,
+                    endIndent: 28,
+                  ),
+                  SizedBox(
+                    height: panelHeight,
+                    child: _contextPanel(context, ref, tab),
+                  ),
+                ] else ...[
+                  // 无上下文面板时（目标/回顾/同步/情报）：导航组收尾给一条
+                  // 淡分割线，让入口列与下方的大片空白有视觉边界，不再像
+                  // 入口清单意外断在半空。
+                  const Divider(
+                    height: _kSectionDividerHeight,
+                    indent: 28,
+                    endIndent: 28,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
+  }
+
+  /// 当前入口的上下文面板（仅对话/知识；其余入口的内容已搬进主工作区）。
+  Widget _contextPanel(BuildContext context, WidgetRef ref, SidebarTab tab) {
+    return switch (tab) {
+      SidebarTab.conversation => _buildConversationTab(context, ref),
+      SidebarTab.wiki => const _WikiTab(),
+      // 目标/回顾/同步/情报：面板已移除，主区直接承载。不会走到这里
+      // （showPanel 为 false 时面板整体不渲染），兜底空面板。
+      _ => const SizedBox.shrink(),
+    };
   }
 
   Widget _buildConversationTab(BuildContext context, WidgetRef ref) {
@@ -217,6 +273,7 @@ class LeftSidebar extends ConsumerWidget {
                                   .read(sidebarTabProvider.notifier)
                                   .set(SidebarTab.wiki);
                               openWikiPageTab(ref, page);
+                              _closeModalDrawer(context);
                             },
                           ),
                         );
@@ -228,125 +285,122 @@ class LeftSidebar extends ConsumerWidget {
       },
     );
   }
+}
 
-  Widget _buildFooter(BuildContext context, WidgetRef ref) {
-    final activeTab = ref.watch(sidebarTabProvider);
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.space2),
-      decoration: BoxDecoration(
-        color: AppTheme.surface0,
-        border: Border(top: BorderSide(color: AppTheme.surface3, width: 1)),
-      ),
+/// 收起态的导航图标栏：停靠抽屉收起时不完全消失，留一列一级入口图标。
+///
+/// 视觉是 [LeftSidebar] 一级入口的纵向压缩版：只保留图标（含未读点）与
+/// 选中指示胶囊，不放文字与上下文面板。点击图标切到对应入口并**保持收
+/// 起**——展开/收起只由顶栏菜单按钮控制，图标栏不做双向开关。
+class LeftSidebarRail extends ConsumerWidget {
+  const LeftSidebarRail({super.key});
+
+  /// 图标栏的固定宽度：图标 24 + 胶囊内边距，单列竖排够用。
+  static const double width = 56;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tab = ref.watch(sidebarTabProvider);
+    final destinations = _navigationDestinations(context, ref);
+    return Material(
+      color: AppTheme.surface0,
       child: Column(
         children: [
-          for (final (i, action) in _footerActions(
-            context,
-            ref,
-            activeTab,
-          ).indexed) ...[if (i > 0) const SizedBox(height: 2), action],
+          // 与抽屉一致的第一入口上方留白。
+          const SizedBox(height: _kDestinationsTopGap),
+          for (final destination in destinations)
+            _RailIcon(
+              icon: destination.tab == tab
+                  ? destination.selectedIcon
+                  : destination.icon,
+              tooltip: destination.label,
+              selected: destination.tab == tab,
+              showDot: destination.showDot,
+              onTap: destination.onSelected,
+            ),
+          // 剩余空间全部让给顶部入口群，设置入口钉在底部——与抽屉里
+          // 「设置固定在底部」的位置语义一致；入口群与下方空白之间给一条
+          // 淡分割线，与抽屉的无面板形态对齐。
+          const Spacer(),
+          const Divider(height: 1, indent: 12, endIndent: 12),
+          const SizedBox(height: 6),
+          _RailIcon(
+            icon: Icons.settings_outlined,
+            tooltip: context.l10n.settings,
+            selected: false,
+            onTap: () => _openSettingsFromRail(context),
+          ),
+          const SizedBox(height: 4),
         ],
       ),
     );
   }
+
+  /// 与抽屉底部 [_SettingsEntry] 相同的打开流程：关抽屉在这里是空操作
+  /// （停靠态），从设置页返回后刷新首次运行探测。
+  Future<void> _openSettingsFromRail(BuildContext context) async {
+    final navigator = Navigator.of(context);
+    final container = ProviderScope.containerOf(context, listen: false);
+    await navigator.push(
+      MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+    );
+    if (!navigator.mounted) return;
+    container.invalidate(aiProviderConfiguredProvider);
+  }
 }
 
-/// 底部导航动作清单：宽侧栏（带文字）与窄轨（纯图标）共用，
-/// 保证两种密度下的切换语义、设置入口、抽屉关闭逻辑一致。
-List<_FooterAction> _footerActions(
-  BuildContext context,
-  WidgetRef ref,
-  SidebarTab activeTab, {
-  bool iconOnly = false,
-}) {
-  final hasUnreadHabit = ref.watch(pendingHabitNudgesProvider) > 0;
-  final selectedConversation = ref.watch(selectedConversationIdProvider);
-  final mainConversation = ref.watch(mainConversationProvider).value;
-  // 只有「正停在主对话流」时不算未读；停在别的会话/别的页都提示。
-  final viewingMain =
-      activeTab == SidebarTab.conversation &&
-      mainConversation != null &&
-      selectedConversation == mainConversation.id;
-  return [
-    _FooterAction(
-      icon: Icons.chat_bubble_outline,
-      label: context.l10n.conversation,
-      isActive: activeTab == SidebarTab.conversation,
-      iconOnly: iconOnly,
-      showDot: hasUnreadHabit && !viewingMain,
-      onTap: () async {
-        ref.read(sidebarTabProvider.notifier).set(SidebarTab.conversation);
-        if (hasUnreadHabit) {
-          final main = ref.read(mainConversationProvider).value;
-          if (main != null) {
-            ref.read(selectedConversationIdProvider.notifier).set(main.id);
-          }
-        }
-      },
-    ),
-    _FooterAction(
-      icon: Icons.menu_book_outlined,
-      label: context.l10n.knowledge,
-      isActive: activeTab == SidebarTab.wiki,
-      iconOnly: iconOnly,
-      onTap: () {
-        ref.read(wikiActiveTabIdProvider.notifier).set('import');
-        ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
-      },
-    ),
-    // 目标一级入口（Roadmap G3+）：左栏是完整工作台（清单/过滤/新建
-    // 入口），主区是选中目标的详情与 AI 讨论。
-    _FooterAction(
-      icon: Icons.flag_outlined,
-      label: context.l10n.goals,
-      isActive: activeTab == SidebarTab.goal,
-      iconOnly: iconOnly,
-      onTap: () {
-        ref.read(sidebarTabProvider.notifier).set(SidebarTab.goal);
-      },
-    ),
-    // 回顾入口（R1）：原「事件」域并入回顾——日视图承载当天
-    // 事件明细，周/月为实时统计拼装。见
-    // docs/roadmap/2026-10-15-review-and-goal-deviation-roadmap.md。
-    _FooterAction(
-      icon: Icons.auto_awesome_outlined,
-      label: context.l10n.review,
-      isActive: activeTab == SidebarTab.review,
-      iconOnly: iconOnly,
-      onTap: () {
-        ref.read(sidebarTabProvider.notifier).set(SidebarTab.review);
-      },
-    ),
-    // 同步一级入口：配对完成后的持续状态仪表（设备/心跳），不该沉在设置里。
-    // 单入口：主区放完整 LocalSyncSettings 工作区，设置页的同步 tab 已删。
-    _FooterAction(
-      icon: Icons.devices_outlined,
-      label: context.l10n.sync,
-      isActive: activeTab == SidebarTab.sync,
-      iconOnly: iconOnly,
-      onTap: () {
-        ref.read(sidebarTabProvider.notifier).set(SidebarTab.sync);
-      },
-    ),
-    // 移动端唯一设置入口（标题栏不再放设置图标）；桌面端点开与
-    // 标题栏右上角按钮等价。抽屉里打开时先关抽屉再进设置页。
-    _FooterAction(
-      icon: Icons.settings_outlined,
-      label: context.l10n.settings,
-      isActive: false,
-      iconOnly: iconOnly,
-      onTap: () async {
-        final scaffold = Scaffold.maybeOf(context);
-        if (scaffold?.isDrawerOpen ?? false) {
-          Navigator.of(context).pop();
-        }
-        await Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
-        // 从设置页返回后刷新首次运行探测（横幅是否该消失）。
-        // 等待期间侧栏可能已随布局切换卸载（手机↔双栏），此时用 ref
-        // 会抛 "unmounted is unsafe"——守卫后静默跳过，下次挂载自会重取。
-        if (!context.mounted) return;
-        ref.invalidate(aiProviderConfiguredProvider);
-      },
-    ),
-  ];
+/// 图标栏的单个入口：胶囊指示器 + 图标（可带未读点），无文字。
+class _RailIcon extends StatelessWidget {
+  const _RailIcon({
+    required this.icon,
+    required this.tooltip,
+    required this.selected,
+    required this.onTap,
+    this.showDot = false,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final bool selected;
+  final bool showDot;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Material(
+        color: selected
+            ? AppTheme.accentPrimary.withValues(alpha: 0.14)
+            : Colors.transparent,
+        shape: const StadiumBorder(),
+        child: Tooltip(
+          message: tooltip,
+          child: InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: onTap,
+            child: SizedBox(
+              width: 40,
+              height: 40,
+              child: Center(
+                child: Badge(
+                  isLabelVisible: showDot,
+                  // 未读用主题强调色：Badge 默认的错误红在这里会被读成
+                  // 「出错了」，与抽屉里 [_DestinationIcon] 同一形态。
+                  backgroundColor: AppTheme.accentPrimary,
+                  child: Icon(
+                    icon,
+                    size: 24,
+                    color: selected
+                        ? AppTheme.accentPrimary
+                        : AppTheme.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

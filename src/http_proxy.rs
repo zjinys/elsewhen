@@ -103,6 +103,18 @@ fn current_policy() -> (String, String) {
         .unwrap_or(("auto".to_string(), String::new()))
 }
 
+/// 当前出站是否挂了代理（off/custom 非空/白名单 env 命中任一）。
+/// 给「IPv6 失败 → 仅 IPv4 重试」这类直连层兑底判断用：走了代理时
+/// 目标地址选择发生在代理端，本机双栈排序不再参与，兑底无意义。
+pub(crate) fn proxy_in_use() -> bool {
+    let (mode, custom_url) = current_policy();
+    match mode.as_str() {
+        "off" => false,
+        "custom" => !custom_url.is_empty(),
+        _ => env_proxy().is_some(),
+    }
+}
+
 /// 环境变量代理（历史行为：auto 模式)。只认 HTTPS 语义的变量；`http_proxy`
 /// 特意不读：本项目出站几乎全是 HTTPS，eh 语义混淆不如少猜。
 /// 环境变量代理（auto 模式）。只认 HTTPS 语义的变量；`http_proxy` 特意不读：

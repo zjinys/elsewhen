@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'support/localizations.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/models/import_fetch.dart';
@@ -21,7 +22,7 @@ Future<void> pumpImport(
       overrides: [knowledgeRepositoryProvider.overrideWithValue(repo)],
       child: MaterialApp(
         locale: locale,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        localizationsDelegates: appTestLocalizationDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: Consumer(

@@ -1,3 +1,4 @@
+import 'support/localizations.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
@@ -10,7 +11,7 @@ import 'package:elsewhen_ui/providers/todo_provider.dart';
 import 'package:elsewhen_ui/providers/wiki_provider.dart';
 import 'package:elsewhen_ui/widgets/artifact_versions.dart';
 import 'package:elsewhen_ui/widgets/wiki_page_detail_view.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -178,7 +179,7 @@ Future<ValueNotifier<Locale>> _host(
         builder: (_, value, _) => MaterialApp(
           locale: value,
           localizationsDelegates: const [
-            ...AppLocalizations.localizationsDelegates,
+            ...appTestLocalizationDelegates,
             AppFlowyEditorLocalizations.delegate,
           ],
           supportedLocales: AppLocalizations.supportedLocales,

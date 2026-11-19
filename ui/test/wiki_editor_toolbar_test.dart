@@ -1,7 +1,7 @@
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:elsewhen_ui/theme/app_theme.dart';
 import 'package:elsewhen_ui/wiki/wiki_content_editor.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 编辑态格式工具栏：只读不显示，编辑态可对选区应用格式。

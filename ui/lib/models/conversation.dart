@@ -125,6 +125,7 @@ class Message {
   bool get isHabitNudgeSuggest => kind == 'habit_nudge_suggest';
   bool get isHabitCheckin => kind == 'habit_checkin';
   bool get isDigestInsight => kind == 'digest_insight';
+  bool get isScoutBrief => kind == 'scout_brief';
 
   /// 展示序比较器：assistant 回复锚定到其输入消息（inputMessageId），
   /// 队列连发场景保证一问一答交错；锚条缺失时退回自身时间。

@@ -1,8 +1,9 @@
+import 'support/localizations.dart';
 import 'package:elsewhen_ui/l10n/app_localizations.dart';
 
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/api.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
@@ -106,7 +107,7 @@ void main() {
           MaterialApp(
             locale: locale,
             supportedLocales: AppLocalizations.supportedLocales,
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            localizationsDelegates: appTestLocalizationDelegates,
             home: Scaffold(
               body: ChatPageTaskScope(
                 repository: repo,

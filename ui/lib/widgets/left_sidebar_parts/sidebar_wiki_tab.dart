@@ -118,6 +118,7 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
                               isSelected: page.slug == selectedSlug,
                               onTap: () {
                                 openWikiPageTab(ref, page);
+                                _closeModalDrawer(context);
                               },
                             ),
                           const _RejectedSourcesTile(),
@@ -129,6 +130,7 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
                             isSelected: page.slug == selectedSlug,
                             onTap: () {
                               openWikiPageTab(ref, page);
+                              _closeModalDrawer(context);
                             },
                           ),
                       ],

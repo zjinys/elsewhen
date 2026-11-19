@@ -300,7 +300,10 @@ fn missing_watermark_row_counts_as_unconfirmed_not_excluded() {
         .member_state("b")
         .map(|(_, flagged)| flagged)
         .unwrap_or(false);
-    assert!(!b_flagged, "pairing member must not be flagged needs_resnapshot");
+    assert!(
+        !b_flagged,
+        "pairing member must not be flagged needs_resnapshot"
+    );
     assert_eq!(
         a.count("sync_operations"),
         before,

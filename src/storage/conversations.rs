@@ -129,13 +129,65 @@ impl Store {
         Ok(id)
     }
 
+    /// 把一个 goal_mentor 会话认领为某目标的专属讨论会话（出生即带身份）。
+    ///
+    /// 工作室里 create_plan / create_goal 提议确认落库后调用：把当前会话的
+    /// `goal_id` 绑定为第一步 goal，此后 `find_goal_chat_conversation` 直接
+    /// 命中本会话，立项历史无缝延续，不需要搬移消息。调用方保证 goal
+    /// 刚在本事务创建；绑定与目标创建同事务提交，同步随
+    /// ConversationChanged 捕获。
+    pub fn bind_goal_chat_conversation(&self, conversation_id: &str, goal_id: &str) -> Result<()> {
+        let tx = self.begin_write_transaction()?;
+        let now = chrono::Utc::now().to_rfc3339();
+        let changed = self.connection.execute(
+            "UPDATE conversations SET goal_id = ?2, updated_at = ?3
+             WHERE id = ?1 AND assistant_mode = 'goal_mentor'
+               AND (goal_id IS NULL OR NOT EXISTS(
+                   SELECT 1 FROM goals g WHERE g.id = conversations.goal_id))",
+            params![conversation_id, goal_id, now],
+        )?;
+        anyhow::ensure!(changed == 1, "会话不存在或已绑定其他目标");
+        self.sync_record_conversation(conversation_id, false)?;
+        if let Some(tx) = tx {
+            tx.commit()?;
+        }
+        Ok(())
+    }
+
     /// 获取（不存在则创建）目标工作室会话：AI 立项/拆解专用，保留 id。
     ///
     /// 不绑定 goal_id（意图尚未成为目标），提示词由 system_context 的
     /// 「目标工作室」分支注入；不进普通对话清单（见 `list_conversations`）。
     /// 保留 id 让多端收敛到同一行，不会出现多个工作室。
+    ///
+    /// 复用语义（出生即带身份）：工作室 = 「goal_mentor 且目标尚不存在」
+    /// 的空闲会话。计划确认落库后由 `bind_goal_chat_conversation` 认领，
+    /// 之后同会话自动变为目标专属讨论——立项历史无缝延续。这里按同样
+    /// 条件找最近的空闲会话（含保留 id `goal-studio`）；没有才新建。
     pub fn ensure_goal_studio_conversation(&self) -> Result<String> {
         let id = super::GOAL_STUDIO_CONVERSATION_ID;
+        // 空闲会话：goal_mentor 且 goal_id 为空或指向已不存在的目标，
+        // 未归档；保留 id 优先，其次最近更新的。
+        let idle: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT c.id FROM conversations c
+             WHERE c.assistant_mode = 'goal_mentor' AND c.archived = 0
+               AND c.wiki_page_slug IS NULL
+               AND (c.goal_id IS NULL OR NOT EXISTS(
+                   SELECT 1 FROM goals g WHERE g.id = c.goal_id))
+             ORDER BY (c.id = ?1) DESC, c.updated_at DESC LIMIT 1",
+                params![id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if let Some(idle_id) = idle {
+            if idle_id != id {
+                return Ok(idle_id);
+            }
+            // 命中保留 id：仅处理归档兑底，直接返回。
+            return Ok(id.to_string());
+        }
         let archived: Option<bool> = self
             .connection
             .query_row(
@@ -147,6 +199,7 @@ impl Store {
         if let Some(archived) = archived {
             if archived {
                 // 兜底：工作室是目标页固定入口，被归档过就静默取回。
+                // 归档兑底后重新走空闲判定（可能已绑定目标，不再复用）。
                 let now = chrono::Utc::now().to_rfc3339();
                 let tx = self.begin_write_transaction()?;
                 self.connection.execute(
@@ -157,8 +210,23 @@ impl Store {
                 if let Some(tx) = tx {
                     tx.commit()?;
                 }
+                return self.ensure_goal_studio_conversation();
             }
-            return Ok(id.to_string());
+            // 未归档但被认领（goal_id 指向存活的 goal）：不再当工作室，
+            // 新建一个空闲会话。
+            let now = chrono::Utc::now().to_rfc3339();
+            let fresh = Uuid::new_v4().to_string();
+            let tx = self.begin_write_transaction()?;
+            self.connection.execute(
+                "INSERT INTO conversations (id, title, tag, goal_id, assistant_mode, created_at, updated_at)
+                 VALUES (?1, '目标工作室', 'idea', NULL, 'goal_mentor', ?2, ?2)",
+                params![fresh, now],
+            )?;
+            self.sync_record_conversation(&fresh, false)?;
+            if let Some(tx) = tx {
+                tx.commit()?;
+            }
+            return Ok(fresh);
         }
         let now = chrono::Utc::now().to_rfc3339();
         let tx = self.begin_write_transaction()?;

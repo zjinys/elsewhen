@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/models/wiki_page.dart';
 import 'package:elsewhen_ui/widgets/event_input.dart';

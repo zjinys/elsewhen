@@ -331,7 +331,12 @@ fn chat_output_is_lower_than_generation_reserve() {
     // 未知模型生成档 16384 → 聊天档 8192（仍高于实测聊天输出 ≤2.5K）
     assert_eq!(chat_output("llama3-8b"), 8192);
     // 不变量：聊天档永远 ≤ 生成档
-    for m in ["deepseek-chat", "deepseek-v4.1-flash", "gpt-4o", "llama3-8b"] {
+    for m in [
+        "deepseek-chat",
+        "deepseek-v4.1-flash",
+        "gpt-4o",
+        "llama3-8b",
+    ] {
         assert!(chat_output(m) <= default_output(m));
     }
 }

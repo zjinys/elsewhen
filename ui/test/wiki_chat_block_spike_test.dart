@@ -5,7 +5,7 @@
 //  3. 只读模式下正文展示、聊天块仍可交互；
 //  4. 聊天块不进 markdown 往返（编码器静默跳过）。
 import 'package:appflowy_editor/appflowy_editor.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 

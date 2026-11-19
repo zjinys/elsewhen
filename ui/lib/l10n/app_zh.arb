@@ -354,6 +354,7 @@
   "secretManagement": "密钥管理",
   "appPassword": "打开密码",
   "openNavigation": "打开导航",
+  "closeNavigation": "收起导航",
   "createTopic": "创建主题",
   "importUrl": "网址导入",
   "hideSearch": "隐藏搜索",
@@ -1907,6 +1908,7 @@
   "wikiAddTags": "添加标签",
   "wikiContactRelations": "联系人关系",
   "wikiTagsUpdated": "标签已更新",
+  "wikiTagsExisting": "已有标签，点击填入",
   "wikiImmersive": "沉浸阅读",
   "wikiImmersiveHelp": "沉浸阅读（Esc 退出）",
   "wikiExitImmersive": "退出沉浸阅读（Esc）",
@@ -4127,5 +4129,280 @@
       }
     }
   },
-  "datasetCleanupFailed": "清理未完成。请先锁定同步、关闭使用此副本的其他应用进程，再刷新列表重试；未完成的文件或密钥清理会保留待办。"
+  "datasetCleanupFailed": "清理未完成。请先锁定同步、关闭使用此副本的其他应用进程，再刷新列表重试；未完成的文件或密钥清理会保留待办。",
+  "scoutTab": "情报",
+  "scoutTabDesc": "外部信号",
+  "scoutTitle": "情报速览",
+  "scoutOpenFindings": "打开情报页查看 →",
+  "scoutDashboard": "总览",
+  "scoutFindings": "发现",
+  "scoutNotConfigured": "尚未配置 scout 服务地址",
+  "scoutGoConfigure": "去设置页配置 Scout 连接",
+  "scoutAllRead": "全部已读",
+  "scoutMarkRead": "标为已读",
+  "scoutKindNew": "首次发现",
+  "scoutKindChanged": "有变化",
+  "scoutKindGone": "未再出现",
+  "scoutFilterAll": "全部",
+  "scoutFilterUnread": "未读",
+  "scoutLoadMore": "加载更多",
+  "scoutEmpty": "暂无情报发现",
+  "scoutSyncNow": "立即同步",
+  "scoutSyncOk": "已同步：拉取 {fetched} 条，新增 {newCount} 条",
+  "scoutLastPolled": "上次拉取：{time}",
+  "scoutSourceLastRun": "上次运行：{time}",
+  "scoutSourceNeverRun": "从未运行",
+  "scoutFindingDetailFailed": "详情加载失败",
+  "scoutRecordAsEvent": "记为事件",
+  "scoutRecordedAsEvent": "已记为事件",
+  "scoutSaveAsMaterial": "存为素材",
+  "scoutSavedAsMaterial": "已存为素材",
+  "scoutToWikiDraft": "转知识页草稿",
+  "scoutDraftCreated": "知识页草稿已创建",
+  "scoutActionFailed": "操作失败",
+  "@scoutSyncOk": {
+    "placeholders": {
+      "fetched": {
+        "type": "int"
+      },
+      "newCount": {
+        "type": "int"
+      }
+    }
+  },
+  "@scoutLastPolled": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@scoutSourceLastRun": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "scoutYesterday": "昨天",
+  "scoutNoUnread": "没有未读情报，稍后再来看新信号",
+  "scoutUnreadBadge": "未读",
+  "scoutSettingsTitle": "Scout 情报服务",
+  "scoutSettingsDesc": "连接独立采集服务（scout），把外部市场信号镜像进本地",
+  "scoutSettingsBaseUrl": "服务地址",
+  "scoutSettingsToken": "API Token（留空保留已存值）",
+  "scoutSettingsInterval": "自动拉取间隔（分钟，最少 5）",
+  "scoutSettingsEnabled": "启用自动拉取",
+  "scoutSettingsTest": "测试连接",
+  "scoutSettingsClear": "清空本地镜像",
+  "scoutSettingsSaved": "已保存",
+  "scoutTestOk": "连接正常",
+  "scoutUnreadSummary": "{count} 条新情报待看",
+  "@scoutUnreadSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scoutAllReadShort": "全部已读",
+  "scoutNoFindings": "暂无发现",
+  "scoutSourceOffline": "服务端状态不可用",
+  "scoutAllReadConfirmTitle": "全部标为已读？",
+  "scoutAllReadConfirmBody": "当前有 {count} 条未读，标记后全部变为已读。",
+  "@scoutAllReadConfirmBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scoutActivity": "全部动态",
+  "scoutSources": "来源",
+  "scoutLatest": "最新动态",
+  "scoutReadVisible": "本页标为已读",
+  "scoutReadVisibleHelp": "仅标记当前已加载列表中的未读条目。",
+  "scoutSelectItem": "选择一条动态，查看变化与详情",
+  "scoutChanges": "本次变化",
+  "scoutFullData": "采集数据",
+  "scoutHistory": "采集历史",
+  "scoutHistoryHelp": "展示服务端保留的采集快照，时间为采集时间。",
+  "scoutHistoryOffline": "历史暂不可用，当前采集数据仍可阅读。",
+  "scoutNoHistory": "暂无历史快照",
+  "scoutOpenSource": "打开原始链接",
+  "scoutNewHelp": "本监控首次发现，不代表刚刚发布。",
+  "scoutGoneHelp": "本次采集未再出现，可能只是离开榜单或搜索结果。",
+  "scoutChangedHelp": "与上一次采集对比",
+  "scoutNoDelta": "这条记录没有字段对比明细。",
+  "scoutDetected": "检测时间",
+  "scoutBefore": "上次",
+  "scoutAfter": "本次",
+  "scoutRecordNote": "我的判断（可编辑）",
+  "scoutDataSaved": "已保存",
+  "scoutRetry": "重试",
+  "scoutConnection": "连接设置",
+  "scoutAutoPaused": "自动更新已暂停",
+  "scoutNoLink": "此条目没有原始链接",
+  "scoutSourceUnavailable": "来源状态暂不可用",
+  "scoutField": "字段",
+  "scoutRawData": "查看原始数据",
+  "scoutDailyProducts": "每日新品",
+  "scoutNotionTemplates": "Notion 模板",
+  "scoutDigitalPlanners": "数字计划本",
+  "scoutExtensionWatchlist": "扩展关注清单",
+  "scoutUsTopFree": "美国免费榜",
+  "scoutDiscover": "发现线索",
+  "scoutStudies": "跟进研究",
+  "scoutActivityLog": "原始动态",
+  "scoutSearchProducts": "搜索产品、用途或关键词",
+  "scoutNoProducts": "暂无产品观察，下一轮成功采集后开始积累趋势。",
+  "scoutStudy": "加入研究",
+  "scoutEditStudy": "编辑研究",
+  "scoutEvidenceGaps": "证据缺口",
+  "scoutGapsHelp": "目标买方待核实 · 销量未知 · 尚未分析评价正文",
+  "scoutHistoryIncomplete": "历史不足或采样不连续",
+  "scoutWindow": "趋势与采样",
+  "scoutPriceUnknown": "收费信息待核实",
+  "scoutWhyNow": "为什么现在看",
+  "scoutNoSignal": "尚无可核实的窗口异动，先作为产品资料观察。",
+  "scoutStale": "离线缓存，数据可能已过时",
+  "scoutQuestion": "关键未知 / 我要验证的问题",
+  "scoutBuyer": "目标人群与使用场景（我的假设）",
+  "scoutOffer": "收费假设与现有替代方案",
+  "scoutExperiment": "下一步小实验",
+  "scoutCriteria": "观察期限、成功与停止条件",
+  "scoutFeedback": "实际反馈与反面证据",
+  "scoutStudyReason": "为什么关注 / 切入假设",
+  "scoutState": "研究阶段",
+  "scoutStateResearch": "待研究",
+  "scoutStateValidating": "验证中",
+  "scoutStateWatching": "继续观察",
+  "scoutStatePaused": "搁置",
+  "scoutStateRejected": "放弃 / 不相关",
+  "scoutResearchHelp": "研究记录保存在可同步的记事本中。清空情报镜像不会删除它。",
+  "scoutStudyEmpty": "从发现线索中选一个产品加入研究。",
+  "scoutSaveResearch": "保存研究",
+  "scoutMyHypothesis": "我的判断与验证",
+  "scoutObservedAt": "观察截至",
+  "scoutRecent": "最近观察",
+  "scoutCoverage": "采样点",
+  "scoutKnownPrice": "标价（不代表成交）",
+  "scoutResearchSaved": "研究已保存",
+  "scoutSourceMaterial": "手动补充需求、评价与定价证据",
+  "scoutSourceMaterialHelp": "记录来源链接、原文摘录、时间与反证；未核实的判断请放在假设中。",
+  "scoutEvidence": "证据原文与来源",
+  "scoutAllProducts": "全部产品",
+  "promptScoutContract": "情报研究固定契约",
+  "scoutAddEvidence": "添加证据",
+  "scoutEvidenceUrl": "来源链接",
+  "scoutEvidenceBody": "原文摘录（保留准确措辞）",
+  "scoutFetchEvidence": "读取网页正文",
+  "scoutEvidenceType": "证据类型",
+  "scoutEvidenceReview": "用户评价",
+  "scoutEvidencePricing": "定价 / 卖家陈述",
+  "scoutEvidenceOther": "其他材料 / 反证",
+  "scoutEvidenceProvenance": "摘录仅代表该来源的陈述，不代表全体用户。",
+  "scoutAnalysisEnabled": "允许后台 AI 基于这些摘录提出候选假设",
+  "scoutAnalysisHelp": "每个证据版本最多成功分析一次，使用已配置的 AI 渠道；结果需人工审阅。",
+  "scoutAnalysisCandidate": "AI 候选分析（待审阅）",
+  "scoutAnalysisStale": "依据已变化，旧候选需要重新核实。",
+  "scoutAnalysisWaiting": "等待后台分析；需至少一条证据和可用 AI 渠道。",
+  "scoutAcceptCandidate": "采用为待验证假设",
+  "scoutRejectCandidate": "拒绝该候选",
+  "scoutTheme": "需求主题（每行一个，手动确认）",
+  "scoutFit": "与我能力、时间及可接触买方的关系",
+  "scoutResearchSearch": "搜索研究、需求主题或阶段",
+  "scoutResearchSourceChanged": "有新观察：核对研究依据",
+  "scoutKeepDraft": "保留草稿并关闭",
+  "scoutAlternatives": "替代方案 / 当前怎么解决",
+  "scoutDeadline": "观察期限 / 复查时间",
+  "scoutEvidenceTruncated": "已截取前 8000 字，请检查并保留与判断有关的原文。",
+  "scoutUpgradeRequired": "当前 Scout 尚不支持产品观察，请升级服务。仍可读取原始动态（兼容模式最多 1000 条）。",
+  "scoutNewScope": "新进入监控范围（不代表刚发布）",
+  "scoutMetricReviews": "评价数",
+  "scoutMetricRating": "评分",
+  "scoutMetricRank": "榜位",
+  "scoutMetricPrice": "标价（最小货币单位）",
+  "scoutMetricStars": "Star",
+  "scoutMetricForks": "Fork",
+  "scoutGrowthSignals": "增长 / 排名",
+  "scoutPriceSignals": "定价变化",
+  "scoutPreparingSignals": "新观察正在整理为线索，可先查看全部产品。",
+  "scoutValidationPlan": "实验与反馈",
+  "scoutResearchContext": "需求主题与个人适配",
+  "scoutPreferences": "研究偏好",
+  "scoutPreferencesHelp": "仅使用你主动填写的信息。留空保持中性；清空后保存可撤回。偏好随个人知识同步。",
+  "scoutPreferenceAudience": "我关注的人群",
+  "scoutPreferenceInterests": "我关注的方向与任务",
+  "scoutPreferenceCapabilities": "我已有的能力和资源",
+  "scoutPreferenceConstraints": "时间和成本边界",
+  "scoutPreferenceBuyers": "我能接触的买方",
+  "scoutWithdrawPreferences": "清空偏好",
+  "scoutPreferencesNeutral": "尚未设置研究偏好，当前保持中性。",
+  "scoutRecordPreferenceBasis": "将这些偏好记为本次判断依据",
+  "scoutPreferenceBasisRecorded": "已记录判断依据；之后撤回偏好不改写本次研究。",
+  "scoutMisfit": "不适配原因与反证",
+  "scoutComparisonScope": "当前对比 {products} 个产品 · {sources} 个监控源。共同主题由你确认，缺失项需补证据。",
+  "@scoutComparisonScope": {
+    "placeholders": {
+      "products": {
+        "type": "int"
+      },
+      "sources": {
+        "type": "int"
+      }
+    }
+  },
+  "scoutSupportingEvidence": "支持证据：{ids}",
+  "@scoutSupportingEvidence": {
+    "placeholders": {
+      "ids": {
+        "type": "String"
+      }
+    }
+  },
+  "scoutCounterEvidence": "反对证据：{ids}",
+  "@scoutCounterEvidence": {
+    "placeholders": {
+      "ids": {
+        "type": "String"
+      }
+    }
+  },
+  "scoutRankUp": "上升 {places} 位",
+  "scoutRankDown": "下降 {places} 位",
+  "@scoutRankUp": {
+    "placeholders": {
+      "places": {
+        "type": "int"
+      }
+    }
+  },
+  "@scoutRankDown": {
+    "placeholders": {
+      "places": {
+        "type": "int"
+      }
+    }
+  },
+  "scoutRemoveEvidence": "移除本次研究的证据",
+  "scoutEvidenceMetadata": "补充原文信息（可选）",
+  "scoutEvidenceAuthor": "原作者或平台 ID",
+  "scoutEvidenceLanguage": "原文语言",
+  "scoutEvidencePublished": "原文发表时间（来源声明）",
+  "scoutEvidenceInvalidUrl": "请填写不含账号信息的 HTTP 或 HTTPS 链接",
+  "scoutDrafts": "研究草稿",
+  "scoutDraftCount": "本机草稿 · {count}",
+  "scoutLocalDraft": "仅保存在本机，尚未提交为研究",
+  "scoutDiscardDraft": "删除本机草稿",
+  "scoutDraftWriteFailed": "草稿未能写入磁盘，请重试保留草稿或保存研究后再关闭。",
+  "@scoutDraftCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scoutNotRelevant": "不相关",
+  "scoutBriefHighlights": "值得关注"
 }

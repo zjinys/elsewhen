@@ -3,7 +3,7 @@ import 'package:elsewhen_ui/models/settings.dart';
 import 'package:elsewhen_ui/theme/app_theme.dart';
 import 'package:elsewhen_ui/utils/system_fonts.dart';
 import 'package:elsewhen_ui/wiki/wiki_content_editor.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 

@@ -2,7 +2,7 @@ part of '../wiki_ai_chat_panel.dart';
 
 //! 对话气泡组件（公共 WikiChatBubble/AiMessageBody）
 /// 聊天气泡：页面 AI 对话与导入预览共用
-class WikiChatBubble extends StatelessWidget {
+class WikiChatBubble extends ConsumerWidget {
   final ContentChatMessage message;
   final bool pending;
   final VoidCallback? onExpand;
@@ -16,7 +16,12 @@ class WikiChatBubble extends StatelessWidget {
       onExpand = null;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 副面板气泡跟随对话流字号阶梯（panel 档，原固定 13），
+    // 主对话调字号时这里同步缩放。
+    final fontSize = ref.watch(
+      settingsProvider.select((s) => chatTypeScaleOf(s).panel),
+    );
     final isUser = message.role == 'user';
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTheme.space3),
@@ -69,7 +74,7 @@ class WikiChatBubble extends StatelessWidget {
                         child: SelectableText(
                           message.content,
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: fontSize,
                             height: 1.55,
                             color: AppTheme.textPrimary,
                           ),
@@ -108,13 +113,16 @@ class WikiChatBubble extends StatelessWidget {
 
 /// AI 消息正文：Markdown 渲染 + 右上角复制按钮。
 /// 复制整条原始 markdown（与主对话「复制这条消息」一致），点击后给轻量反馈。
-class _AiMessageBody extends StatelessWidget {
+class _AiMessageBody extends ConsumerWidget {
   final String content;
 
   const _AiMessageBody({required this.content});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final fontSize = ref.watch(
+      settingsProvider.select((s) => chatTypeScaleOf(s).panel),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
@@ -124,7 +132,7 @@ class _AiMessageBody extends StatelessWidget {
           child: MarkdownView(
             markdown: content,
             baseStyle: TextStyle(
-              fontSize: 13,
+              fontSize: fontSize,
               height: 1.55,
               color: AppTheme.textPrimary,
             ),

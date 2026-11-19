@@ -1,5 +1,6 @@
+import 'support/localizations.dart';
 import 'package:elsewhen_ui/l10n/app_localizations.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/models/wiki_page.dart';
@@ -51,7 +52,7 @@ void main() {
             child: MaterialApp(
               locale: locale,
               supportedLocales: AppLocalizations.supportedLocales,
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              localizationsDelegates: appTestLocalizationDelegates,
               home: Scaffold(
                 body: KnowledgePageDialog(slug: 'kb-Elsewhen-5ae954d0'),
               ),
@@ -103,7 +104,7 @@ void main() {
             child: MaterialApp(
               locale: locale,
               supportedLocales: AppLocalizations.supportedLocales,
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              localizationsDelegates: appTestLocalizationDelegates,
               home: Scaffold(
                 body: KnowledgePageDialog(
                   slug: 'kb-missing-slug',
@@ -140,7 +141,7 @@ void main() {
             child: MaterialApp(
               locale: locale,
               supportedLocales: AppLocalizations.supportedLocales,
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              localizationsDelegates: appTestLocalizationDelegates,
               home: Scaffold(
                 body: Builder(
                   builder: (context) => ElevatedButton(

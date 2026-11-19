@@ -469,3 +469,51 @@ fn memo_empty_content_creation_syncs_and_append_follows() {
         "买牛奶"
     );
 }
+
+#[test]
+fn scout_research_syncs_and_concurrent_decisions_keep_explicit_conflicts() {
+    let a = Database::new("a");
+    let b = Database::new("b");
+    pair(&a, &b);
+    let draft = serde_json::json!({"instance_id":"fixture","product_id":"p","title":"Product","state":"research","question":"Who pays?","materials":[{"id":"e1","url":"https://example.test/review","body":"I would pay for collaboration."}]});
+    let saved = a.store.save_scout_research(draft, None).unwrap();
+    a.store
+        .save_scout_preferences(
+            serde_json::json!({"audience":"Designers","constraints":"2 hours/week"}),
+            None,
+        )
+        .unwrap();
+    deliver(&a, &b);
+    assert_eq!(
+        b.store.scout_preferences().unwrap()["audience"],
+        "Designers"
+    );
+    let b_saved = b.store.scout_research_list().unwrap()[0].clone();
+    assert_eq!(
+        b_saved["materials"][0]["body"],
+        "I would pay for collaboration."
+    );
+    let mut left = saved.clone();
+    left["state"] = serde_json::json!("rejected");
+    a.store
+        .save_scout_research(left, saved["token"].as_str())
+        .unwrap();
+    let mut right = b_saved.clone();
+    right["state"] = serde_json::json!("validating");
+    b.store
+        .save_scout_research(right, b_saved["token"].as_str())
+        .unwrap();
+    deliver(&b, &a);
+    deliver(&a, &b);
+    assert!(a.count("sync_conflicts") >= 1);
+    assert!(b.count("sync_conflicts") >= 1);
+    assert_eq!(
+        a.store.scout_research_list().unwrap()[0]["state"],
+        "rejected"
+    );
+    b.store.clear_scout_mirror().unwrap();
+    assert_eq!(
+        b.store.scout_research_list().unwrap()[0]["state"],
+        "validating"
+    );
+}

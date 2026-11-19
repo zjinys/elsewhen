@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
+    show Int64List;
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart'
     show ExternalLibrary;
 import 'package:path_provider/path_provider.dart';
@@ -30,6 +32,7 @@ import 'generated.dart/frb_generated.dart';
 // ── 仓储无多态需求的便捷薄委托按功能域拆为 part extension（被测试 Fake 覆写
 //  及其调用链的方法保留在类内保证虚分派语义，行为零变化）──
 part 'rust_bridge_parts/worker_reminders.dart';
+part 'rust_bridge_parts/worker_scout.dart';
 part 'rust_bridge_parts/conversations.dart';
 part 'rust_bridge_parts/chat_and_misc.dart';
 part 'rust_bridge_parts/plans.dart';
@@ -110,6 +113,11 @@ class RustBridgeRepository implements StorageRepository {
   int _compassTickCounter = 0;
   bool _compassRunning = false;
   static const int _compassTickEvery = 12;
+
+  /// scout 情报轮询：挂同一分钟级节拍，到期与否由本地水位判定；
+  /// tick 本身只读设置行（无网络）。
+  int _scoutTickCounter = 0;
+  bool _scoutPollRunning = false;
 
   /// 后台 worker 的失败分类与退避（终态不重试，见 [BackgroundFailurePolicy]）。
   final BackgroundFailurePolicy _failurePolicy = BackgroundFailurePolicy();
@@ -235,6 +243,11 @@ class RustBridgeRepository implements StorageRepository {
           if (_compassTickCounter % _compassTickEvery == 0) {
             unawaited(_tickGoalCompass());
           }
+          // scout 轮询同节奏挂拍（tick 只读设置行，到期才走网络）。
+          _scoutTickCounter++;
+          if (_scoutTickCounter % _compassTickEvery == 0) {
+            unawaited(_tickScoutPoll());
+          }
         } finally {
           _housekeepingRunning = false;
         }
@@ -253,6 +266,7 @@ class RustBridgeRepository implements StorageRepository {
     await _tickHabitNudges();
     await _tickDigestInsights();
     unawaited(_tickGoalCompass());
+    unawaited(_tickScoutPoll());
     _wakeAnalysisWorker();
   }
 
@@ -490,6 +504,11 @@ class RustBridgeRepository implements StorageRepository {
   /// 航向偏离校准提醒（Compass Nudge，FR-PES-005-04）。
   final ValueNotifier<GoalCompassNudge?> activeCompassNudge =
       ValueNotifier<GoalCompassNudge?>(null);
+
+  /// scout 情报：未读计数（侧栏徽标 + 今天栏卡片）与镜像变更 revision
+  /// （发现列表页订阅刷新）。
+  final ValueNotifier<int> scoutUnreadCount = ValueNotifier(0);
+  final ValueNotifier<int> scoutRevision = ValueNotifier(0);
 
   final ValueNotifier<List<api.DueReminderDto>> dueReminders =
       ValueNotifier<List<api.DueReminderDto>>(const []);

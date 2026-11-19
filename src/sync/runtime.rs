@@ -247,9 +247,7 @@ pub(crate) fn provider_keys_migratable(config: &AppConfig) -> bool {
         .unwrap_or_else(|p| p.into_inner())
         .get(&config.data_dir)
         .is_some_and(|s| {
-            s.joining.is_none()
-                && s.database == config.database_path
-                && s.master.is_some()
+            s.joining.is_none() && s.database == config.database_path && s.master.is_some()
         })
 }
 
@@ -267,10 +265,7 @@ pub(crate) fn provider_keys_source_master(config: &AppConfig) -> Option<[u8; 32]
 
 /// 把解出的明文暂存进迁移槽（出口侧调用）。空列表 = 清除条目（多次出口
 /// 只保留最后一次的真实状态，避免陈旧明文被误重封）。
-pub(crate) fn stage_provider_keys_for_resealing(
-    database: &Path,
-    keys: Vec<(String, String)>,
-) {
+pub(crate) fn stage_provider_keys_for_resealing(database: &Path, keys: Vec<(String, String)>) {
     let mut slots = provider_key_migration()
         .lock()
         .unwrap_or_else(|p| p.into_inner());
@@ -707,8 +702,7 @@ fn confirm_key_inner(
     } else {
         // C12：本机若是刚走完 C3 出口后重建的新 vault，先把迁移槽里的旧明文
         // 重封到新 master 下。失败不阻断确认（槽被还原，回退由后续路径决定）。
-        let _ = store
-            .reseal_staged_provider_keys(session.master.as_ref().unwrap());
+        let _ = store.reseal_staged_provider_keys(session.master.as_ref().unwrap());
         store.enable_provider_key_sealing()?;
         store.recover_interrupted_analysis_jobs()?;
         store.recover_interrupted_digest_jobs()?;

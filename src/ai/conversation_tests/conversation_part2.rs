@@ -172,7 +172,8 @@ fn knowledge_tool_round_returns_only_supplied_bounded_citations() {
             .iter()
             .map(|m| m.content.chars().count())
             .sum::<usize>()
-            <= 24000    );
+            <= 24000
+    );
     assert_eq!(
         store
             .source_snapshot(&cited[0].sources[0].snapshot_id)

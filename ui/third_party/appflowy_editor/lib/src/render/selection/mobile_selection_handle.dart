@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:appflowy_editor/src/editor/util/platform_extension.dart';
 import 'package:appflowy_editor/src/render/selection/mobile_basic_handle.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 // Apple HIG / Material minimum recommended touch target. Used to grow the
 // handle's hit area without changing the visible ball position, so users can

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A tactile pressable container that adds subtle active scale feedback (0.97)
 /// with a 130ms ease-out curve, making buttons, cards and chips feel responsive

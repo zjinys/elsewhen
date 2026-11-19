@@ -2,7 +2,7 @@ import 'app_error_notice.dart';
 
 import 'dart:math';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/chat_run_provider.dart';
@@ -52,7 +52,7 @@ class ChatRunStatus extends ConsumerWidget {
           };
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 10),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(
         color: AppTheme.surface2,

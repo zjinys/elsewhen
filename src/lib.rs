@@ -14,6 +14,7 @@ pub(crate) mod language;
 pub mod local_sources;
 pub mod logging;
 pub mod net_doh;
+pub mod scout;
 pub mod storage;
 pub mod sync;
 pub(crate) mod user_error;

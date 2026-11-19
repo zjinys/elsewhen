@@ -720,3 +720,40 @@ fn knowledge_language_snapshot_carries_policy_but_not_local_prompts_or_capabilit
     assert_eq!(b.count("prompt_bundles"), 0);
     assert_eq!(b.store.prompt_language_preferences().unwrap().generation, 0);
 }
+
+#[test]
+fn scout_research_and_frozen_evidence_survive_snapshot_import() {
+    let a = Database::new();
+    let b = Database::new();
+    a.enable("a");
+    b.enable("b");
+    pair(&a, &b);
+    let saved=a.store.save_scout_research(serde_json::json!({"instance_id":"fixture","product_id":"p","title":"P","state":"watching","question":"Who pays?","evidence":{"payload":{"price_cents":2900},"as_of":"2026-11-17"}}),None).unwrap();
+    a.store
+        .save_scout_preferences(serde_json::json!({"audience":"Designers"}), None)
+        .unwrap();
+    let key = ContentKey::generate().unwrap();
+    let signer = DeviceIdentity::generate().unwrap();
+    let id = Uuid::new_v4().to_string();
+    let (chunks, manifest) = export(&a.store, "b", &id, &key, &signer);
+    b.store.begin_snapshot_import(&id, "a", 1).unwrap();
+    stage(&b.store, &id, "a", &chunks, &key, &signer.public_key());
+    assert!(
+        b.store
+            .publish_snapshot(&id, "a", 1, &manifest, &key, &signer.public_key())
+            .unwrap()
+    );
+    b.store.clear_scout_mirror().unwrap();
+    assert_eq!(
+        b.store.scout_preferences().unwrap()["audience"],
+        "Designers"
+    );
+    assert_eq!(
+        b.store.scout_research_list().unwrap()[0]["evidence"]["payload"]["price_cents"],
+        2900
+    );
+    assert_eq!(
+        b.store.scout_research_list().unwrap()[0]["slug"],
+        saved["slug"]
+    );
+}

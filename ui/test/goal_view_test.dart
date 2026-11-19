@@ -1,3 +1,4 @@
+import 'support/localizations.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/l10n/app_localizations.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
@@ -10,7 +11,7 @@ import 'package:elsewhen_ui/providers/state_holder.dart';
 import 'package:elsewhen_ui/widgets/goal_chat_panel.dart';
 import 'package:elsewhen_ui/widgets/goal_view.dart';
 import 'package:elsewhen_ui/widgets/message_area.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -111,7 +112,7 @@ Widget _workbench({
     child: MaterialApp(
       locale: locale,
       supportedLocales: AppLocalizations.supportedLocales,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      localizationsDelegates: appTestLocalizationDelegates,
       home: const Scaffold(body: GoalWorkbenchPanel()),
     ),
   );

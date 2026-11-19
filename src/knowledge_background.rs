@@ -6,7 +6,6 @@ pub(crate) use reconsolidation::run_knowledge_reconsolidation;
 pub(crate) use refresh::run_knowledge_refresh;
 mod sources;
 mod tldr;
-pub(crate) use tldr::run_page_tldr_backfill;
 use crate::ai::{insight::parse_insights, memory::ContextMessage, provider::AiProvider};
 use crate::knowledge::{record_usage, select_knowledge};
 use crate::storage::{ContentPolicy, Store, WikiPageDraft};
@@ -15,6 +14,7 @@ pub(crate) use integration::run_automatic_integration;
 use rusqlite::{Transaction, TransactionBehavior, params};
 pub(crate) use sources::run_automatic_source_compilation;
 use std::sync::Mutex;
+pub(crate) use tldr::run_page_tldr_backfill;
 
 static RUNNING: Mutex<()> = Mutex::new(());
 
@@ -173,7 +173,11 @@ fn generate(
     let history = store.list_insights()?;
     // 提示词只挂最近 20 条既有标题约束生成；去重窗口放宽到 300 条——
     // 换措辞复述同一主题的洞察完全可能落在 20 条之外。
-    let past = history.iter().take(20).map(|i| i.title.clone()).collect::<Vec<_>>();
+    let past = history
+        .iter()
+        .take(20)
+        .map(|i| i.title.clone())
+        .collect::<Vec<_>>();
     let mut seen_titles = history
         .iter()
         .take(300)

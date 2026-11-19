@@ -1,5 +1,5 @@
 import 'package:appflowy_editor/appflowy_editor.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 // Add your custom block keys if it supports auto complete
 final autoCompletableBlockTypes = {

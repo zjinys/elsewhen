@@ -1,6 +1,6 @@
 import '../l10n/localization.dart';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../sync/sync_backlog_notice.dart';
 import '../sync/sync_setup_controller.dart';

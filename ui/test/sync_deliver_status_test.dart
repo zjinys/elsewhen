@@ -1,7 +1,6 @@
 import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/widgets/sync_tick_status.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // R6-2 的面板口径：状态由 Rust 推导，Dart 只负责把分类码翻成人话。

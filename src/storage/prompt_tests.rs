@@ -241,8 +241,8 @@ fn bilingual_catalog_registers_append_only_and_restores_matching_builtin() {
             |r| r.get(0),
         )
         .unwrap();
-    // Nineteen built-in definitions, each registered in both locales.
-    assert_eq!(count, 38);
+    // Each built-in definition is registered in both locales.
+    assert_eq!(count, (catalog().len() * 2) as i64);
     let compass = catalog()
         .into_iter()
         .find(|d| d.key == "compass.fixed_contract")

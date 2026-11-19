@@ -256,65 +256,62 @@ pub(crate) fn generate_with_provider_configs(
         })
         .collect();
     // 3) 创建 AI provider
-    let ai_providers: Vec<(Option<String>, String, Box<dyn AiProvider>)> =
-        match config.provider_type {
-            ProviderType::OpenAiCompatible => {
-                let configs = providers;
-                if configs.is_empty() {
-                    anyhow::bail!("No active AI provider configuration");
-                }
-                configs
-                    .into_iter()
-                    .map(|ai_config| {
-                        let id = ai_config.id.clone();
-                        let chat_output = crate::ai::budget::chat_output(&ai_config.model);
-                        let provider_config = super::provider::OpenAiCompatibleConfig {
-                            base_url: ai_config.base_url,
-                            api_key: ai_config.api_key,
-                            model: ai_config.model,
-                            temperature: ai_config.temperature as f32,
-                            max_tokens: None,
-                            context_window: None,
-                        };
-                        Ok((
-                            Some(id),
-                            ai_config.name,
-                            // 聊天会话用低预留档：32K 生成预留会把 64K 窗口的
-                            // 输入预算砍半，多轮工具结果直接撞本地拒绝
-                            //（run 8fd94ade）。max_tokens 仍不低于实测聊天输出量级。
-                            Box::new(
-                                OpenAiCompatibleProvider::new(provider_config)?
-                                    .with_output_reserve(chat_output),
-                            )
-                                as Box<dyn AiProvider>,
-                        ))
-                    })
-                    .collect::<Result<Vec<_>>>()?
+    let ai_providers: Vec<(Option<String>, String, Box<dyn AiProvider>)> = match config
+        .provider_type
+    {
+        ProviderType::OpenAiCompatible => {
+            let configs = providers;
+            if configs.is_empty() {
+                anyhow::bail!("No active AI provider configuration");
             }
-            ProviderType::Ollama => {
-                // For Ollama, use environment variables or defaults
-                let base_url = std::env::var("OLLAMA_BASE_URL")
-                    .unwrap_or_else(|_| "http://localhost:11434".to_string());
-                let model = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "llama2".to_string());
-                let chat_output = crate::ai::budget::chat_output(&model);
+            configs
+                .into_iter()
+                .map(|ai_config| {
+                    let id = ai_config.id.clone();
+                    let chat_output = crate::ai::budget::chat_output(&ai_config.model);
+                    let provider_config = super::provider::OpenAiCompatibleConfig {
+                        base_url: ai_config.base_url,
+                        api_key: ai_config.api_key,
+                        model: ai_config.model,
+                        temperature: ai_config.temperature as f32,
+                        max_tokens: None,
+                        context_window: None,
+                    };
+                    Ok((
+                        Some(id),
+                        ai_config.name,
+                        // 聊天会话用低预留档：32K 生成预留会把 64K 窗口的
+                        // 输入预算砍半，多轮工具结果直接撞本地拒绝
+                        //（run 8fd94ade）。max_tokens 仍不低于实测聊天输出量级。
+                        Box::new(
+                            OpenAiCompatibleProvider::new(provider_config)?
+                                .with_output_reserve(chat_output),
+                        ) as Box<dyn AiProvider>,
+                    ))
+                })
+                .collect::<Result<Vec<_>>>()?
+        }
+        ProviderType::Ollama => {
+            // For Ollama, use environment variables or defaults
+            let base_url = std::env::var("OLLAMA_BASE_URL")
+                .unwrap_or_else(|_| "http://localhost:11434".to_string());
+            let model = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "llama2".to_string());
+            let chat_output = crate::ai::budget::chat_output(&model);
 
-                let provider_config = super::provider::OllamaConfig {
-                    context_window: None,
-                    max_tokens: None,
-                    base_url,
-                    model,
-                    temperature: 0.7,
-                };
-                vec![(
-                    None,
-                    "Ollama".to_string(),
-                    Box::new(
-                        OllamaProvider::new(provider_config)?
-                            .with_output_reserve(chat_output),
-                    ),
-                )]
-            }
-        };
+            let provider_config = super::provider::OllamaConfig {
+                context_window: None,
+                max_tokens: None,
+                base_url,
+                model,
+                temperature: 0.7,
+            };
+            vec![(
+                None,
+                "Ollama".to_string(),
+                Box::new(OllamaProvider::new(provider_config)?.with_output_reserve(chat_output)),
+            )]
+        }
+    };
 
     // 4) Agent 循环（可调工具）
     let mut errors = Vec::new();

@@ -53,8 +53,13 @@ jobs:
             echo "tag=$tag_ver 与 ui/pubspec.yaml=$pub_ver 不一致，请先对齐版本号"; exit 1; }
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - name: Read pinned Flutter version
+        id: sdk
+        shell: bash
+        run: echo "version=$(python3 -c 'import json; print(json.load(open("ui/.fvmrc"))["flutter"])')" >> "$GITHUB_OUTPUT"
       - uses: subosito/flutter-action@v2
         with:
+          flutter-version: ${{ steps.sdk.outputs.version }}
           channel: stable
           cache: true
       # Flutter Linux 桌面构建链（runner 未预装 GTK 开发头）
@@ -158,8 +163,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - name: Read pinned Flutter version
+        id: sdk
+        shell: bash
+        run: echo "version=$(python3 -c 'import json; print(json.load(open("ui/.fvmrc"))["flutter"])')" >> "$GITHUB_OUTPUT"
       - uses: subosito/flutter-action@v2
         with:
+          flutter-version: ${{ steps.sdk.outputs.version }}
           channel: stable
           cache: true
       - name: dmg
@@ -178,8 +188,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - name: Read pinned Flutter version
+        id: sdk
+        shell: bash
+        run: echo "version=$(python3 -c 'import json; print(json.load(open("ui/.fvmrc"))["flutter"])')" >> "$GITHUB_OUTPUT"
       - uses: subosito/flutter-action@v2
         with:
+          flutter-version: ${{ steps.sdk.outputs.version }}
           channel: stable
           cache: true
       - name: 安装 WiX Toolset 并打 MSI
@@ -213,8 +228,13 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      - name: Read pinned Flutter version
+        id: sdk
+        shell: bash
+        run: echo "version=$(python3 -c 'import json; print(json.load(open("ui/.fvmrc"))["flutter"])')" >> "$GITHUB_OUTPUT"
       - uses: subosito/flutter-action@v2
         with:
+          flutter-version: ${{ steps.sdk.outputs.version }}
           channel: stable
           cache: true
       # ubuntu runner 预装 Android SDK；NDK 若缺则装一份（脚找最新已装版本）

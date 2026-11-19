@@ -1,5 +1,5 @@
 import 'package:appflowy_editor/src/editor_state.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 typedef ShortcutEventHandler = KeyEventResult Function(
   EditorState editorState,

@@ -35,6 +35,7 @@ import 'api/review_flow.dart';
 import 'api/review_report/detect.dart';
 import 'api/review_report/store.dart';
 import 'api/rules.dart';
+import 'api/scout.dart';
 import 'api/sync/conflicts.dart';
 import 'api/sync/datasets.dart';
 import 'api/sync/invite.dart';
@@ -119,7 +120,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => -510745108;
+  int get rustContentHash => 1282260005;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -253,6 +254,8 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<LocalSyncStateDto> crateApiSyncRepairClearLocalSyncIdentity();
+
+  Future<void> crateApiScoutClearScoutMirror();
 
   Future<void> crateApiGoalsCompleteGoal({required String id});
 
@@ -414,6 +417,11 @@ abstract class RustLibApi extends BaseApi {
   Future<bool> crateApiRelationsDeleteRelation({required String id});
 
   Future<void> crateApiRulesDeleteRule({required String ruleId});
+
+  Future<void> crateApiScoutDeleteScoutResearchDraft({
+    required String instanceId,
+    required String productId,
+  });
 
   Future<bool> crateApiTodosDeleteTodo({required String id});
 
@@ -645,6 +653,8 @@ abstract class RustLibApi extends BaseApi {
   crateApiLanguageGetPromptLanguagePreferences();
 
   Future<String> crateApiRulesGetRuleTriggerMode();
+
+  Future<ScoutSettingsDto?> crateApiScoutGetScoutSettings();
 
   Future<SuggestionFeedback?> crateApiKnowledgeWorkflowsGetSuggestionFeedback({
     required String messageId,
@@ -906,6 +916,18 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<RuleDto>> crateApiRulesListRulesMissingEssence();
 
+  Future<List<ScoutFindingDto>> crateApiScoutListScoutFindings({
+    String? kind,
+    String? sourceId,
+    required bool unreadOnly,
+    required PlatformInt64 limit,
+    required PlatformInt64 offset,
+  });
+
+  Future<String> crateApiScoutListScoutResearch();
+
+  Future<List<ScoutSourceDto>> crateApiScoutListScoutSources();
+
   Future<List<SyncDatasetCleanupDto>>
   crateApiSyncDatasetsListSyncDatasetCleanup();
 
@@ -957,6 +979,10 @@ abstract class RustLibApi extends BaseApi {
     required String id,
   });
 
+  Future<PlatformInt64> crateApiScoutMarkScoutFindingsRead({
+    required Int64List ids,
+  });
+
   Future<bool> crateApiEntitiesMergeEntity({
     required String entityKind,
     required String sourceSlug,
@@ -976,6 +1002,8 @@ abstract class RustLibApi extends BaseApi {
   Future<int> crateApiDigestInsightsPendingDigestInsightCount();
 
   Future<int> crateApiHabitNudgesPendingHabitNudgeCount();
+
+  Future<ScoutPollResultDto> crateApiScoutPollScoutNow();
 
   Future<List<DueReminderDto>> crateApiTodosPopDueReminders({
     required String deviceId,
@@ -1187,6 +1215,27 @@ abstract class RustLibApi extends BaseApi {
     required String note,
   });
 
+  Future<String> crateApiScoutSaveScoutPreferences({
+    required String documentJson,
+    String? expectedToken,
+  });
+
+  Future<String> crateApiScoutSaveScoutResearch({
+    required String documentJson,
+    String? expectedToken,
+  });
+
+  Future<void> crateApiScoutSaveScoutResearchDraft({
+    required String documentJson,
+  });
+
+  Future<void> crateApiScoutSaveScoutSettings({
+    required String baseUrl,
+    required String token,
+    required PlatformInt64 pollIntervalMinutes,
+    required bool enabled,
+  });
+
   Future<void> crateApiKnowledgeWorkflowsSaveSuggestionFeedback({
     required String messageId,
     required String decision,
@@ -1233,6 +1282,40 @@ abstract class RustLibApi extends BaseApi {
     required String conversationId,
     required String inputMessageId,
   });
+
+  Future<String> crateApiScoutScoutFindingDetail({required PlatformInt64 id});
+
+  Future<String> crateApiScoutScoutPreferences();
+
+  Future<String> crateApiScoutScoutProductDetail({
+    required String productId,
+    PlatformInt64? before,
+  });
+
+  Future<String> crateApiScoutScoutProducts({
+    required String query,
+    String? source,
+    String? cursor,
+    String? asOf,
+    String? view,
+  });
+
+  Future<String> crateApiScoutScoutResearchAnalysis({
+    required String studySlug,
+  });
+
+  Future<String> crateApiScoutScoutResearchDraft({
+    required String instanceId,
+    required String productId,
+  });
+
+  Future<String> crateApiScoutScoutResearchDrafts();
+
+  Future<List<ScoutSourceSummaryDto>> crateApiScoutScoutSourceSummaries();
+
+  Future<List<ScoutSourceUnreadDto>> crateApiScoutScoutUnreadBySource();
+
+  Future<PlatformInt64> crateApiScoutScoutUnreadCount();
 
   Future<void> crateApiSyncDatasetsSelectDefaultSyncDataset({
     required PlatformInt64 expectedCatalogRevision,
@@ -1404,6 +1487,8 @@ abstract class RustLibApi extends BaseApi {
     required String proxyUrl,
   });
 
+  Future<String> crateApiScoutTestScoutConnection();
+
   Future<DigestInsightTickDto> crateApiDigestInsightsTickDigestInsights();
 
   Future<GoalCompassNudgeDto?> crateApiGoalsTickGoalCompass();
@@ -1414,6 +1499,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<PeriodReportTickResult>
   crateApiReviewReportDetectTickPeriodicReports();
+
+  Future<bool> crateApiScoutTickScoutResearch();
 
   Future<List<TopicOrganizationPreview>>
   crateApiKnowledgeWorkflowsTopicOrganizationHistory({
@@ -2396,6 +2483,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSyncRepairClearLocalSyncIdentityConstMeta =>
       const TaskConstMeta(debugName: "clear_local_sync_identity", argNames: []);
+
+  @override
+  Future<void> crateApiScoutClearScoutMirror() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__scout__clear_scout_mirror(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutClearScoutMirrorConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutClearScoutMirrorConstMeta =>
+      const TaskConstMeta(debugName: "clear_scout_mirror", argNames: []);
 
   @override
   Future<void> crateApiGoalsCompleteGoal({required String id}) {
@@ -3514,6 +3622,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiRulesDeleteRuleConstMeta =>
       const TaskConstMeta(debugName: "delete_rule", argNames: ["ruleId"]);
+
+  @override
+  Future<void> crateApiScoutDeleteScoutResearchDraft({
+    required String instanceId,
+    required String productId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(instanceId);
+          var arg1 = cst_encode_String(productId);
+          return wire.wire__crate__api__scout__delete_scout_research_draft(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutDeleteScoutResearchDraftConstMeta,
+        argValues: [instanceId, productId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutDeleteScoutResearchDraftConstMeta =>
+      const TaskConstMeta(
+        debugName: "delete_scout_research_draft",
+        argNames: ["instanceId", "productId"],
+      );
 
   @override
   Future<bool> crateApiTodosDeleteTodo({required String id}) {
@@ -5363,6 +5504,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiRulesGetRuleTriggerModeConstMeta =>
       const TaskConstMeta(debugName: "get_rule_trigger_mode", argNames: []);
+
+  @override
+  Future<ScoutSettingsDto?> crateApiScoutGetScoutSettings() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__scout__get_scout_settings(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_opt_box_autoadd_scout_settings_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutGetScoutSettingsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutGetScoutSettingsConstMeta =>
+      const TaskConstMeta(debugName: "get_scout_settings", argNames: []);
 
   @override
   Future<SuggestionFeedback?> crateApiKnowledgeWorkflowsGetSuggestionFeedback({
@@ -7448,6 +7610,90 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<ScoutFindingDto>> crateApiScoutListScoutFindings({
+    String? kind,
+    String? sourceId,
+    required bool unreadOnly,
+    required PlatformInt64 limit,
+    required PlatformInt64 offset,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_opt_String(kind);
+          var arg1 = cst_encode_opt_String(sourceId);
+          var arg2 = cst_encode_bool(unreadOnly);
+          var arg3 = cst_encode_i_64(limit);
+          var arg4 = cst_encode_i_64(offset);
+          return wire.wire__crate__api__scout__list_scout_findings(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+            arg4,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_scout_finding_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutListScoutFindingsConstMeta,
+        argValues: [kind, sourceId, unreadOnly, limit, offset],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutListScoutFindingsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_scout_findings",
+        argNames: ["kind", "sourceId", "unreadOnly", "limit", "offset"],
+      );
+
+  @override
+  Future<String> crateApiScoutListScoutResearch() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__scout__list_scout_research(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutListScoutResearchConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutListScoutResearchConstMeta =>
+      const TaskConstMeta(debugName: "list_scout_research", argNames: []);
+
+  @override
+  Future<List<ScoutSourceDto>> crateApiScoutListScoutSources() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__scout__list_scout_sources(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_scout_source_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutListScoutSourcesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutListScoutSourcesConstMeta =>
+      const TaskConstMeta(debugName: "list_scout_sources", argNames: []);
+
+  @override
   Future<List<SyncDatasetCleanupDto>>
   crateApiSyncDatasetsListSyncDatasetCleanup() {
     return handler.executeNormal(
@@ -7872,6 +8118,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<PlatformInt64> crateApiScoutMarkScoutFindingsRead({
+    required Int64List ids,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_list_prim_i_64_strict(ids);
+          return wire.wire__crate__api__scout__mark_scout_findings_read(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_i_64,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutMarkScoutFindingsReadConstMeta,
+        argValues: [ids],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutMarkScoutFindingsReadConstMeta =>
+      const TaskConstMeta(
+        debugName: "mark_scout_findings_read",
+        argNames: ["ids"],
+      );
+
+  @override
   Future<bool> crateApiEntitiesMergeEntity({
     required String entityKind,
     required String sourceSlug,
@@ -8052,6 +8328,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiHabitNudgesPendingHabitNudgeCountConstMeta =>
       const TaskConstMeta(debugName: "pending_habit_nudge_count", argNames: []);
+
+  @override
+  Future<ScoutPollResultDto> crateApiScoutPollScoutNow() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__scout__poll_scout_now(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_scout_poll_result_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutPollScoutNowConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutPollScoutNowConstMeta =>
+      const TaskConstMeta(debugName: "poll_scout_now", argNames: []);
 
   @override
   Future<List<DueReminderDto>> crateApiTodosPopDueReminders({
@@ -9505,6 +9802,141 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<String> crateApiScoutSaveScoutPreferences({
+    required String documentJson,
+    String? expectedToken,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(documentJson);
+          var arg1 = cst_encode_opt_String(expectedToken);
+          return wire.wire__crate__api__scout__save_scout_preferences(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutSaveScoutPreferencesConstMeta,
+        argValues: [documentJson, expectedToken],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutSaveScoutPreferencesConstMeta =>
+      const TaskConstMeta(
+        debugName: "save_scout_preferences",
+        argNames: ["documentJson", "expectedToken"],
+      );
+
+  @override
+  Future<String> crateApiScoutSaveScoutResearch({
+    required String documentJson,
+    String? expectedToken,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(documentJson);
+          var arg1 = cst_encode_opt_String(expectedToken);
+          return wire.wire__crate__api__scout__save_scout_research(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutSaveScoutResearchConstMeta,
+        argValues: [documentJson, expectedToken],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutSaveScoutResearchConstMeta =>
+      const TaskConstMeta(
+        debugName: "save_scout_research",
+        argNames: ["documentJson", "expectedToken"],
+      );
+
+  @override
+  Future<void> crateApiScoutSaveScoutResearchDraft({
+    required String documentJson,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(documentJson);
+          return wire.wire__crate__api__scout__save_scout_research_draft(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutSaveScoutResearchDraftConstMeta,
+        argValues: [documentJson],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutSaveScoutResearchDraftConstMeta =>
+      const TaskConstMeta(
+        debugName: "save_scout_research_draft",
+        argNames: ["documentJson"],
+      );
+
+  @override
+  Future<void> crateApiScoutSaveScoutSettings({
+    required String baseUrl,
+    required String token,
+    required PlatformInt64 pollIntervalMinutes,
+    required bool enabled,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(baseUrl);
+          var arg1 = cst_encode_String(token);
+          var arg2 = cst_encode_i_64(pollIntervalMinutes);
+          var arg3 = cst_encode_bool(enabled);
+          return wire.wire__crate__api__scout__save_scout_settings(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutSaveScoutSettingsConstMeta,
+        argValues: [baseUrl, token, pollIntervalMinutes, enabled],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutSaveScoutSettingsConstMeta =>
+      const TaskConstMeta(
+        debugName: "save_scout_settings",
+        argNames: ["baseUrl", "token", "pollIntervalMinutes", "enabled"],
+      );
+
+  @override
   Future<void> crateApiKnowledgeWorkflowsSaveSuggestionFeedback({
     required String messageId,
     required String decision,
@@ -9769,6 +10201,273 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "schedule_chat_input",
         argNames: ["conversationId", "inputMessageId"],
       );
+
+  @override
+  Future<String> crateApiScoutScoutFindingDetail({required PlatformInt64 id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_i_64(id);
+          return wire.wire__crate__api__scout__scout_finding_detail(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutScoutFindingDetailConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutScoutFindingDetailConstMeta =>
+      const TaskConstMeta(debugName: "scout_finding_detail", argNames: ["id"]);
+
+  @override
+  Future<String> crateApiScoutScoutPreferences() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__scout__scout_preferences(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutScoutPreferencesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutScoutPreferencesConstMeta =>
+      const TaskConstMeta(debugName: "scout_preferences", argNames: []);
+
+  @override
+  Future<String> crateApiScoutScoutProductDetail({
+    required String productId,
+    PlatformInt64? before,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(productId);
+          var arg1 = cst_encode_opt_box_autoadd_i_64(before);
+          return wire.wire__crate__api__scout__scout_product_detail(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutScoutProductDetailConstMeta,
+        argValues: [productId, before],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutScoutProductDetailConstMeta =>
+      const TaskConstMeta(
+        debugName: "scout_product_detail",
+        argNames: ["productId", "before"],
+      );
+
+  @override
+  Future<String> crateApiScoutScoutProducts({
+    required String query,
+    String? source,
+    String? cursor,
+    String? asOf,
+    String? view,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(query);
+          var arg1 = cst_encode_opt_String(source);
+          var arg2 = cst_encode_opt_String(cursor);
+          var arg3 = cst_encode_opt_String(asOf);
+          var arg4 = cst_encode_opt_String(view);
+          return wire.wire__crate__api__scout__scout_products(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+            arg4,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutScoutProductsConstMeta,
+        argValues: [query, source, cursor, asOf, view],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutScoutProductsConstMeta => const TaskConstMeta(
+    debugName: "scout_products",
+    argNames: ["query", "source", "cursor", "asOf", "view"],
+  );
+
+  @override
+  Future<String> crateApiScoutScoutResearchAnalysis({
+    required String studySlug,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(studySlug);
+          return wire.wire__crate__api__scout__scout_research_analysis(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutScoutResearchAnalysisConstMeta,
+        argValues: [studySlug],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutScoutResearchAnalysisConstMeta =>
+      const TaskConstMeta(
+        debugName: "scout_research_analysis",
+        argNames: ["studySlug"],
+      );
+
+  @override
+  Future<String> crateApiScoutScoutResearchDraft({
+    required String instanceId,
+    required String productId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(instanceId);
+          var arg1 = cst_encode_String(productId);
+          return wire.wire__crate__api__scout__scout_research_draft(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutScoutResearchDraftConstMeta,
+        argValues: [instanceId, productId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutScoutResearchDraftConstMeta =>
+      const TaskConstMeta(
+        debugName: "scout_research_draft",
+        argNames: ["instanceId", "productId"],
+      );
+
+  @override
+  Future<String> crateApiScoutScoutResearchDrafts() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__scout__scout_research_drafts(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutScoutResearchDraftsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutScoutResearchDraftsConstMeta =>
+      const TaskConstMeta(debugName: "scout_research_drafts", argNames: []);
+
+  @override
+  Future<List<ScoutSourceSummaryDto>> crateApiScoutScoutSourceSummaries() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__scout__scout_source_summaries(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_scout_source_summary_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutScoutSourceSummariesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutScoutSourceSummariesConstMeta =>
+      const TaskConstMeta(debugName: "scout_source_summaries", argNames: []);
+
+  @override
+  Future<List<ScoutSourceUnreadDto>> crateApiScoutScoutUnreadBySource() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__scout__scout_unread_by_source(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_scout_source_unread_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutScoutUnreadBySourceConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutScoutUnreadBySourceConstMeta =>
+      const TaskConstMeta(debugName: "scout_unread_by_source", argNames: []);
+
+  @override
+  Future<PlatformInt64> crateApiScoutScoutUnreadCount() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__scout__scout_unread_count(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_i_64,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutScoutUnreadCountConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutScoutUnreadCountConstMeta =>
+      const TaskConstMeta(debugName: "scout_unread_count", argNames: []);
 
   @override
   Future<void> crateApiSyncDatasetsSelectDefaultSyncDataset({
@@ -10961,6 +11660,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<String> crateApiScoutTestScoutConnection() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__scout__test_scout_connection(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutTestScoutConnectionConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutTestScoutConnectionConstMeta =>
+      const TaskConstMeta(debugName: "test_scout_connection", argNames: []);
+
+  @override
   Future<DigestInsightTickDto> crateApiDigestInsightsTickDigestInsights() {
     return handler.executeNormal(
       NormalTask(
@@ -11072,6 +11792,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiReviewReportDetectTickPeriodicReportsConstMeta =>
       const TaskConstMeta(debugName: "tick_periodic_reports", argNames: []);
+
+  @override
+  Future<bool> crateApiScoutTickScoutResearch() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__scout__tick_scout_research(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiScoutTickScoutResearchConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiScoutTickScoutResearchConstMeta =>
+      const TaskConstMeta(debugName: "tick_scout_research", argNames: []);
 
   @override
   Future<List<TopicOrganizationPreview>>
@@ -12360,6 +13101,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_processing_yield_proof_dto(raw);
+  }
+
+  @protected
+  ScoutSettingsDto dco_decode_box_autoadd_scout_settings_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_scout_settings_dto(raw);
   }
 
   @protected
@@ -14143,6 +14890,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<ScoutFindingDto> dco_decode_list_scout_finding_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_scout_finding_dto).toList();
+  }
+
+  @protected
+  List<ScoutSourceDto> dco_decode_list_scout_source_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_scout_source_dto).toList();
+  }
+
+  @protected
+  List<ScoutSourceSummaryDto> dco_decode_list_scout_source_summary_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_scout_source_summary_dto).toList();
+  }
+
+  @protected
+  List<ScoutSourceUnreadDto> dco_decode_list_scout_source_unread_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_scout_source_unread_dto).toList();
+  }
+
+  @protected
   List<SourceReference> dco_decode_list_source_reference(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeList(raw).map(dco_decode_source_reference).toList();
@@ -14576,6 +15351,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlanDto? dco_decode_opt_box_autoadd_plan_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_plan_dto(raw);
+  }
+
+  @protected
+  ScoutSettingsDto? dco_decode_opt_box_autoadd_scout_settings_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_scout_settings_dto(raw);
   }
 
   @protected
@@ -15053,6 +15834,98 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       status: dco_decode_String(arr[3]),
       createdAt: dco_decode_String(arr[4]),
       feedback: dco_decode_opt_String(arr[5]),
+    );
+  }
+
+  @protected
+  ScoutFindingDto dco_decode_scout_finding_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return ScoutFindingDto(
+      id: dco_decode_i_64(arr[0]),
+      sourceId: dco_decode_String(arr[1]),
+      snapshotId: dco_decode_i_64(arr[2]),
+      kind: dco_decode_String(arr[3]),
+      itemKey: dco_decode_String(arr[4]),
+      payloadJson: dco_decode_String(arr[5]),
+      deltaJson: dco_decode_opt_String(arr[6]),
+      detectedAt: dco_decode_String(arr[7]),
+      readAt: dco_decode_opt_String(arr[8]),
+    );
+  }
+
+  @protected
+  ScoutPollResultDto dco_decode_scout_poll_result_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return ScoutPollResultDto(
+      fetched: dco_decode_i_64(arr[0]),
+      newCount: dco_decode_i_64(arr[1]),
+      unreadTotal: dco_decode_i_64(arr[2]),
+    );
+  }
+
+  @protected
+  ScoutSettingsDto dco_decode_scout_settings_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return ScoutSettingsDto(
+      baseUrl: dco_decode_String(arr[0]),
+      pollIntervalMinutes: dco_decode_i_64(arr[1]),
+      enabled: dco_decode_bool(arr[2]),
+      hasToken: dco_decode_bool(arr[3]),
+      lastPolledAt: dco_decode_opt_String(arr[4]),
+    );
+  }
+
+  @protected
+  ScoutSourceDto dco_decode_scout_source_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return ScoutSourceDto(
+      id: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      intervalMinutes: dco_decode_i_64(arr[2]),
+      enabled: dco_decode_bool(arr[3]),
+      lastStatus: dco_decode_opt_String(arr[4]),
+      lastRunAt: dco_decode_opt_String(arr[5]),
+    );
+  }
+
+  @protected
+  ScoutSourceSummaryDto dco_decode_scout_source_summary_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return ScoutSourceSummaryDto(
+      sourceId: dco_decode_String(arr[0]),
+      unread: dco_decode_i_64(arr[1]),
+      newCount: dco_decode_i_64(arr[2]),
+      changedCount: dco_decode_i_64(arr[3]),
+      goneCount: dco_decode_i_64(arr[4]),
+      total: dco_decode_i_64(arr[5]),
+      latestDetectedAt: dco_decode_opt_String(arr[6]),
+    );
+  }
+
+  @protected
+  ScoutSourceUnreadDto dco_decode_scout_source_unread_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return ScoutSourceUnreadDto(
+      sourceId: dco_decode_String(arr[0]),
+      count: dco_decode_i_64(arr[1]),
     );
   }
 
@@ -15956,6 +16829,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_processing_yield_proof_dto(deserializer));
+  }
+
+  @protected
+  ScoutSettingsDto sse_decode_box_autoadd_scout_settings_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_scout_settings_dto(deserializer));
   }
 
   @protected
@@ -18603,6 +19484,62 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<ScoutFindingDto> sse_decode_list_scout_finding_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ScoutFindingDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_scout_finding_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ScoutSourceDto> sse_decode_list_scout_source_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ScoutSourceDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_scout_source_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ScoutSourceSummaryDto> sse_decode_list_scout_source_summary_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ScoutSourceSummaryDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_scout_source_summary_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ScoutSourceUnreadDto> sse_decode_list_scout_source_unread_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ScoutSourceUnreadDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_scout_source_unread_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<SourceReference> sse_decode_list_source_reference(
     SseDeserializer deserializer,
   ) {
@@ -19287,6 +20224,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ScoutSettingsDto? sse_decode_opt_box_autoadd_scout_settings_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_scout_settings_dto(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   SourceSnapshot? sse_decode_opt_box_autoadd_source_snapshot(
     SseDeserializer deserializer,
   ) {
@@ -19923,6 +20873,115 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       createdAt: var_createdAt,
       feedback: var_feedback,
     );
+  }
+
+  @protected
+  ScoutFindingDto sse_decode_scout_finding_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_i_64(deserializer);
+    var var_sourceId = sse_decode_String(deserializer);
+    var var_snapshotId = sse_decode_i_64(deserializer);
+    var var_kind = sse_decode_String(deserializer);
+    var var_itemKey = sse_decode_String(deserializer);
+    var var_payloadJson = sse_decode_String(deserializer);
+    var var_deltaJson = sse_decode_opt_String(deserializer);
+    var var_detectedAt = sse_decode_String(deserializer);
+    var var_readAt = sse_decode_opt_String(deserializer);
+    return ScoutFindingDto(
+      id: var_id,
+      sourceId: var_sourceId,
+      snapshotId: var_snapshotId,
+      kind: var_kind,
+      itemKey: var_itemKey,
+      payloadJson: var_payloadJson,
+      deltaJson: var_deltaJson,
+      detectedAt: var_detectedAt,
+      readAt: var_readAt,
+    );
+  }
+
+  @protected
+  ScoutPollResultDto sse_decode_scout_poll_result_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_fetched = sse_decode_i_64(deserializer);
+    var var_newCount = sse_decode_i_64(deserializer);
+    var var_unreadTotal = sse_decode_i_64(deserializer);
+    return ScoutPollResultDto(
+      fetched: var_fetched,
+      newCount: var_newCount,
+      unreadTotal: var_unreadTotal,
+    );
+  }
+
+  @protected
+  ScoutSettingsDto sse_decode_scout_settings_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_baseUrl = sse_decode_String(deserializer);
+    var var_pollIntervalMinutes = sse_decode_i_64(deserializer);
+    var var_enabled = sse_decode_bool(deserializer);
+    var var_hasToken = sse_decode_bool(deserializer);
+    var var_lastPolledAt = sse_decode_opt_String(deserializer);
+    return ScoutSettingsDto(
+      baseUrl: var_baseUrl,
+      pollIntervalMinutes: var_pollIntervalMinutes,
+      enabled: var_enabled,
+      hasToken: var_hasToken,
+      lastPolledAt: var_lastPolledAt,
+    );
+  }
+
+  @protected
+  ScoutSourceDto sse_decode_scout_source_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_intervalMinutes = sse_decode_i_64(deserializer);
+    var var_enabled = sse_decode_bool(deserializer);
+    var var_lastStatus = sse_decode_opt_String(deserializer);
+    var var_lastRunAt = sse_decode_opt_String(deserializer);
+    return ScoutSourceDto(
+      id: var_id,
+      name: var_name,
+      intervalMinutes: var_intervalMinutes,
+      enabled: var_enabled,
+      lastStatus: var_lastStatus,
+      lastRunAt: var_lastRunAt,
+    );
+  }
+
+  @protected
+  ScoutSourceSummaryDto sse_decode_scout_source_summary_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_sourceId = sse_decode_String(deserializer);
+    var var_unread = sse_decode_i_64(deserializer);
+    var var_newCount = sse_decode_i_64(deserializer);
+    var var_changedCount = sse_decode_i_64(deserializer);
+    var var_goneCount = sse_decode_i_64(deserializer);
+    var var_total = sse_decode_i_64(deserializer);
+    var var_latestDetectedAt = sse_decode_opt_String(deserializer);
+    return ScoutSourceSummaryDto(
+      sourceId: var_sourceId,
+      unread: var_unread,
+      newCount: var_newCount,
+      changedCount: var_changedCount,
+      goneCount: var_goneCount,
+      total: var_total,
+      latestDetectedAt: var_latestDetectedAt,
+    );
+  }
+
+  @protected
+  ScoutSourceUnreadDto sse_decode_scout_source_unread_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_sourceId = sse_decode_String(deserializer);
+    var var_count = sse_decode_i_64(deserializer);
+    return ScoutSourceUnreadDto(sourceId: var_sourceId, count: var_count);
   }
 
   @protected
@@ -21005,6 +22064,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_processing_yield_proof_dto(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_scout_settings_dto(
+    ScoutSettingsDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_scout_settings_dto(self, serializer);
   }
 
   @protected
@@ -23008,6 +24076,54 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_scout_finding_dto(
+    List<ScoutFindingDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_scout_finding_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_scout_source_dto(
+    List<ScoutSourceDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_scout_source_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_scout_source_summary_dto(
+    List<ScoutSourceSummaryDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_scout_source_summary_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_scout_source_unread_dto(
+    List<ScoutSourceUnreadDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_scout_source_unread_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_source_reference(
     List<SourceReference> self,
     SseSerializer serializer,
@@ -23580,6 +24696,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_scout_settings_dto(
+    ScoutSettingsDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_scout_settings_dto(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_source_snapshot(
     SourceSnapshot? self,
     SseSerializer serializer,
@@ -24038,6 +25167,86 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.status, serializer);
     sse_encode_String(self.createdAt, serializer);
     sse_encode_opt_String(self.feedback, serializer);
+  }
+
+  @protected
+  void sse_encode_scout_finding_dto(
+    ScoutFindingDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self.id, serializer);
+    sse_encode_String(self.sourceId, serializer);
+    sse_encode_i_64(self.snapshotId, serializer);
+    sse_encode_String(self.kind, serializer);
+    sse_encode_String(self.itemKey, serializer);
+    sse_encode_String(self.payloadJson, serializer);
+    sse_encode_opt_String(self.deltaJson, serializer);
+    sse_encode_String(self.detectedAt, serializer);
+    sse_encode_opt_String(self.readAt, serializer);
+  }
+
+  @protected
+  void sse_encode_scout_poll_result_dto(
+    ScoutPollResultDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self.fetched, serializer);
+    sse_encode_i_64(self.newCount, serializer);
+    sse_encode_i_64(self.unreadTotal, serializer);
+  }
+
+  @protected
+  void sse_encode_scout_settings_dto(
+    ScoutSettingsDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.baseUrl, serializer);
+    sse_encode_i_64(self.pollIntervalMinutes, serializer);
+    sse_encode_bool(self.enabled, serializer);
+    sse_encode_bool(self.hasToken, serializer);
+    sse_encode_opt_String(self.lastPolledAt, serializer);
+  }
+
+  @protected
+  void sse_encode_scout_source_dto(
+    ScoutSourceDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_i_64(self.intervalMinutes, serializer);
+    sse_encode_bool(self.enabled, serializer);
+    sse_encode_opt_String(self.lastStatus, serializer);
+    sse_encode_opt_String(self.lastRunAt, serializer);
+  }
+
+  @protected
+  void sse_encode_scout_source_summary_dto(
+    ScoutSourceSummaryDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.sourceId, serializer);
+    sse_encode_i_64(self.unread, serializer);
+    sse_encode_i_64(self.newCount, serializer);
+    sse_encode_i_64(self.changedCount, serializer);
+    sse_encode_i_64(self.goneCount, serializer);
+    sse_encode_i_64(self.total, serializer);
+    sse_encode_opt_String(self.latestDetectedAt, serializer);
+  }
+
+  @protected
+  void sse_encode_scout_source_unread_dto(
+    ScoutSourceUnreadDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.sourceId, serializer);
+    sse_encode_i_64(self.count, serializer);
   }
 
   @protected

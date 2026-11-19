@@ -1,0 +1,25 @@
+# Scout 源定义。每个 [[source]] 一个监控源；改动后 scheduler 每分钟 tick
+# 自动检测 mtime 变更并重载（无需重启进程）。
+#
+# 字段：
+#   name             必填，人类可读名；id 缺省取 name（须匹配 [A-Za-z0-9_-]+）
+#   executor         缺省 httpx；curl_cffi/playwright/scrapy 为预留位
+#   interval_minutes 缺省 720（每日 2 次），最小 15
+#   enabled          缺省 true
+#   url/params/headers/token_env — 交给执行器
+#   parse            json: {format, items_path, item_id, fields}
+#                    html: {format, row_selector, item_id, fields{out:{selector,attr}}}
+# token_env 引用环境变量（如 SCOUT_GITHUB_TOKEN），token 不落本文件。
+
+[[source]]
+name = "github-dart"
+interval_minutes = 720
+url = "https://api.github.com/search/repositories"
+params = { q = "language:dart stars:>100 sort:stars", per_page = 30 }
+token_env = "SCOUT_GITHUB_TOKEN"
+
+[source.parse]
+format = "json"
+items_path = "items"
+item_id = "full_name"
+fields = ["full_name", "html_url", "stargazers_count", "description"]

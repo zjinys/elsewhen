@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Style for the Drop target which is rendered in the [AppFlowyEditor]
 /// using the [DesktopSelectionService] specifically the [renderDropTargetForOffset] method.

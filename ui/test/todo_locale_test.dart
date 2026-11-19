@@ -1,8 +1,9 @@
+import 'support/localizations.dart';
 import 'package:elsewhen_ui/l10n/app_localizations.dart';
 import 'package:elsewhen_ui/models/todo.dart';
 import 'package:elsewhen_ui/providers/todo_provider.dart';
 import 'package:elsewhen_ui/widgets/todo_view.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -34,7 +35,7 @@ void main() {
             ],
             child: MaterialApp(
               locale: Locale(locale),
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              localizationsDelegates: appTestLocalizationDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
               home: const Scaffold(body: TodoListView()),
             ),
@@ -76,7 +77,7 @@ void main() {
               update = setState;
               return MaterialApp(
                 locale: locale,
-                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                localizationsDelegates: appTestLocalizationDelegates,
                 supportedLocales: AppLocalizations.supportedLocales,
                 home: const Scaffold(body: TodoListView()),
               );

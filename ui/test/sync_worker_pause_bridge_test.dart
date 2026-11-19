@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
-import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/sync/sync_key_store.dart';
 import 'package:elsewhen_ui/sync/sync_setup_controller.dart';
 

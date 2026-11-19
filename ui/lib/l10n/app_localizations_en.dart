@@ -771,6 +771,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get openNavigation => 'Open navigation';
 
   @override
+  String get closeNavigation => 'Hide navigation';
+
+  @override
   String get createTopic => 'Create topic';
 
   @override
@@ -3511,6 +3514,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get wikiTagsUpdated => 'Tags updated';
+
+  @override
+  String get wikiTagsExisting => 'Existing tags, tap to insert';
 
   @override
   String get wikiImmersive => 'Immersive reading';
@@ -7466,4 +7472,633 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get datasetCleanupFailed =>
       'Cleanup is incomplete. Lock sync, close other app processes using this copy, then refresh and retry. Unfinished file or key cleanup remains pending.';
+
+  @override
+  String get scoutTab => 'Intel';
+
+  @override
+  String get scoutTabDesc => 'External signals';
+
+  @override
+  String get scoutTitle => 'Intel brief';
+
+  @override
+  String get scoutOpenFindings => 'Open findings →';
+
+  @override
+  String get scoutDashboard => 'Overview';
+
+  @override
+  String get scoutFindings => 'Findings';
+
+  @override
+  String get scoutNotConfigured => 'Scout service URL not configured';
+
+  @override
+  String get scoutGoConfigure => 'Configure Scout connection in Settings';
+
+  @override
+  String get scoutAllRead => 'Mark all read';
+
+  @override
+  String get scoutMarkRead => 'Mark read';
+
+  @override
+  String get scoutKindNew => 'First seen';
+
+  @override
+  String get scoutKindChanged => 'Changed';
+
+  @override
+  String get scoutKindGone => 'No longer seen';
+
+  @override
+  String get scoutFilterAll => 'All';
+
+  @override
+  String get scoutFilterUnread => 'Unread';
+
+  @override
+  String get scoutLoadMore => 'Load more';
+
+  @override
+  String get scoutEmpty => 'No findings yet';
+
+  @override
+  String get scoutSyncNow => 'Sync now';
+
+  @override
+  String scoutSyncOk(int fetched, int newCount) {
+    return 'Synced: fetched $fetched, $newCount new';
+  }
+
+  @override
+  String scoutLastPolled(String time) {
+    return 'Last poll: $time';
+  }
+
+  @override
+  String scoutSourceLastRun(String time) {
+    return 'Last run: $time';
+  }
+
+  @override
+  String get scoutSourceNeverRun => 'Never run';
+
+  @override
+  String get scoutFindingDetailFailed => 'Failed to load detail';
+
+  @override
+  String get scoutRecordAsEvent => 'Record as event';
+
+  @override
+  String get scoutRecordedAsEvent => 'Recorded as event';
+
+  @override
+  String get scoutSaveAsMaterial => 'Save as material';
+
+  @override
+  String get scoutSavedAsMaterial => 'Saved as material';
+
+  @override
+  String get scoutToWikiDraft => 'To wiki draft';
+
+  @override
+  String get scoutDraftCreated => 'Wiki draft created';
+
+  @override
+  String get scoutActionFailed => 'Action failed';
+
+  @override
+  String get scoutYesterday => 'Yesterday';
+
+  @override
+  String get scoutNoUnread =>
+      'No unread findings. New signals will show up here';
+
+  @override
+  String get scoutUnreadBadge => 'unread';
+
+  @override
+  String get scoutSettingsTitle => 'Scout intelligence service';
+
+  @override
+  String get scoutSettingsDesc =>
+      'Connect the standalone scout collector; mirror external market signals locally';
+
+  @override
+  String get scoutSettingsBaseUrl => 'Service URL';
+
+  @override
+  String get scoutSettingsToken => 'API token (leave empty to keep existing)';
+
+  @override
+  String get scoutSettingsInterval => 'Auto poll interval (minutes, min 5)';
+
+  @override
+  String get scoutSettingsEnabled => 'Enable auto polling';
+
+  @override
+  String get scoutSettingsTest => 'Test connection';
+
+  @override
+  String get scoutSettingsClear => 'Clear local mirror';
+
+  @override
+  String get scoutSettingsSaved => 'Saved';
+
+  @override
+  String get scoutTestOk => 'Connection ok';
+
+  @override
+  String scoutUnreadSummary(int count) {
+    return '$count new findings to review';
+  }
+
+  @override
+  String get scoutAllReadShort => 'All read';
+
+  @override
+  String get scoutNoFindings => 'No findings';
+
+  @override
+  String get scoutSourceOffline => 'Server status unavailable';
+
+  @override
+  String get scoutAllReadConfirmTitle => 'Mark all as read?';
+
+  @override
+  String scoutAllReadConfirmBody(int count) {
+    return '$count unread findings will be marked read.';
+  }
+
+  @override
+  String get scoutActivity => 'All activity';
+
+  @override
+  String get scoutSources => 'Sources';
+
+  @override
+  String get scoutLatest => 'Latest activity';
+
+  @override
+  String get scoutReadVisible => 'Mark loaded as read';
+
+  @override
+  String get scoutReadVisibleHelp =>
+      'Only unread entries in the loaded list will be marked.';
+
+  @override
+  String get scoutSelectItem => 'Select an entry to explore its changes';
+
+  @override
+  String get scoutChanges => 'Changes';
+
+  @override
+  String get scoutFullData => 'Collected data';
+
+  @override
+  String get scoutHistory => 'Collection history';
+
+  @override
+  String get scoutHistoryHelp =>
+      'Retained server snapshots, dated by collection time.';
+
+  @override
+  String get scoutHistoryOffline =>
+      'History is unavailable. Collected data remains readable.';
+
+  @override
+  String get scoutNoHistory => 'No historical snapshots';
+
+  @override
+  String get scoutOpenSource => 'Open source link';
+
+  @override
+  String get scoutNewHelp =>
+      'First seen by this monitor; it may have been published earlier.';
+
+  @override
+  String get scoutGoneHelp =>
+      'Absent from this collection; it may have left the ranking or search results.';
+
+  @override
+  String get scoutChangedHelp => 'Compared with the previous collection';
+
+  @override
+  String get scoutNoDelta => 'No field comparison is available for this entry.';
+
+  @override
+  String get scoutDetected => 'Detected at';
+
+  @override
+  String get scoutBefore => 'Before';
+
+  @override
+  String get scoutAfter => 'After';
+
+  @override
+  String get scoutRecordNote => 'My observation (editable)';
+
+  @override
+  String get scoutDataSaved => 'Saved';
+
+  @override
+  String get scoutRetry => 'Retry';
+
+  @override
+  String get scoutConnection => 'Connection settings';
+
+  @override
+  String get scoutAutoPaused => 'Automatic updates paused';
+
+  @override
+  String get scoutNoLink => 'This entry has no source link';
+
+  @override
+  String get scoutSourceUnavailable => 'Source status unavailable';
+
+  @override
+  String get scoutField => 'Field';
+
+  @override
+  String get scoutRawData => 'View raw data';
+
+  @override
+  String get scoutDailyProducts => 'Daily launches';
+
+  @override
+  String get scoutNotionTemplates => 'Notion templates';
+
+  @override
+  String get scoutDigitalPlanners => 'Digital planners';
+
+  @override
+  String get scoutExtensionWatchlist => 'Extension watchlist';
+
+  @override
+  String get scoutUsTopFree => 'US top free';
+
+  @override
+  String get scoutDiscover => 'Discover leads';
+
+  @override
+  String get scoutStudies => 'Research';
+
+  @override
+  String get scoutActivityLog => 'Activity log';
+
+  @override
+  String get scoutSearchProducts => 'Search products or keywords';
+
+  @override
+  String get scoutNoProducts =>
+      'No product observations yet. Trends accumulate after successful collections.';
+
+  @override
+  String get scoutStudy => 'Start research';
+
+  @override
+  String get scoutEditStudy => 'Edit research';
+
+  @override
+  String get scoutEvidenceGaps => 'Evidence gaps';
+
+  @override
+  String get scoutGapsHelp =>
+      'Buyer unverified · Sales unknown · Review text not analyzed';
+
+  @override
+  String get scoutHistoryIncomplete =>
+      'Incomplete or discontinuous observations';
+
+  @override
+  String get scoutWindow => 'Trends and coverage';
+
+  @override
+  String get scoutPriceUnknown => 'Pricing unverified';
+
+  @override
+  String get scoutWhyNow => 'Why look now';
+
+  @override
+  String get scoutNoSignal =>
+      'No verified window signal yet. Observe this product for now.';
+
+  @override
+  String get scoutStale => 'Offline cache; data may be stale';
+
+  @override
+  String get scoutQuestion => 'Key uncertainty / research question';
+
+  @override
+  String get scoutBuyer => 'Target buyer and use case (my hypothesis)';
+
+  @override
+  String get scoutOffer => 'Pricing hypothesis and alternatives';
+
+  @override
+  String get scoutExperiment => 'Next experiment';
+
+  @override
+  String get scoutCriteria => 'Observation window, success and stop criteria';
+
+  @override
+  String get scoutFeedback => 'Observed feedback and counterevidence';
+
+  @override
+  String get scoutStudyReason => 'Reason for interest / opportunity hypothesis';
+
+  @override
+  String get scoutState => 'Research stage';
+
+  @override
+  String get scoutStateResearch => 'To research';
+
+  @override
+  String get scoutStateValidating => 'Validating';
+
+  @override
+  String get scoutStateWatching => 'Watching';
+
+  @override
+  String get scoutStatePaused => 'Paused';
+
+  @override
+  String get scoutStateRejected => 'Rejected / irrelevant';
+
+  @override
+  String get scoutResearchHelp =>
+      'Research is stored in a synchronized notebook. Clearing the Scout cache preserves it.';
+
+  @override
+  String get scoutStudyEmpty =>
+      'Choose a product from Discover to start research.';
+
+  @override
+  String get scoutSaveResearch => 'Save research';
+
+  @override
+  String get scoutMyHypothesis => 'My hypothesis and validation';
+
+  @override
+  String get scoutObservedAt => 'Observed through';
+
+  @override
+  String get scoutRecent => 'Recent observation';
+
+  @override
+  String get scoutCoverage => 'Samples';
+
+  @override
+  String get scoutKnownPrice => 'Listed price (not proof of sales)';
+
+  @override
+  String get scoutResearchSaved => 'Research saved';
+
+  @override
+  String get scoutSourceMaterial => 'Add demand, review and pricing evidence';
+
+  @override
+  String get scoutSourceMaterialHelp =>
+      'Record the source URL, exact excerpt, date and counterevidence. Keep unverified claims in hypotheses.';
+
+  @override
+  String get scoutEvidence => 'Evidence excerpts and sources';
+
+  @override
+  String get scoutAllProducts => 'All products';
+
+  @override
+  String get promptScoutContract => 'Scout research contract';
+
+  @override
+  String get scoutAddEvidence => 'Add evidence';
+
+  @override
+  String get scoutEvidenceUrl => 'Source URL';
+
+  @override
+  String get scoutEvidenceBody => 'Exact source excerpt';
+
+  @override
+  String get scoutFetchEvidence => 'Read webpage';
+
+  @override
+  String get scoutEvidenceType => 'Evidence type';
+
+  @override
+  String get scoutEvidenceReview => 'User review';
+
+  @override
+  String get scoutEvidencePricing => 'Pricing / seller claim';
+
+  @override
+  String get scoutEvidenceOther => 'Other material / counterevidence';
+
+  @override
+  String get scoutEvidenceProvenance =>
+      'An excerpt represents that source, not all users.';
+
+  @override
+  String get scoutAnalysisEnabled =>
+      'Allow background AI to suggest hypotheses from these excerpts';
+
+  @override
+  String get scoutAnalysisHelp =>
+      'Each evidence version is analyzed successfully at most once, using your configured AI provider. Review its output.';
+
+  @override
+  String get scoutAnalysisCandidate => 'AI analysis (review required)';
+
+  @override
+  String get scoutAnalysisStale =>
+      'Evidence has changed. Recheck this candidate.';
+
+  @override
+  String get scoutAnalysisWaiting =>
+      'Waiting for background analysis; requires evidence and an AI provider.';
+
+  @override
+  String get scoutAcceptCandidate => 'Use as a hypothesis';
+
+  @override
+  String get scoutRejectCandidate => 'Reject candidate';
+
+  @override
+  String get scoutTheme => 'Demand themes (one per line, confirmed by you)';
+
+  @override
+  String get scoutFit => 'Fit with my skills, time and access to buyers';
+
+  @override
+  String get scoutResearchSearch => 'Search research, themes or stages';
+
+  @override
+  String get scoutResearchSourceChanged =>
+      'New observation: review your research basis';
+
+  @override
+  String get scoutKeepDraft => 'Keep draft and close';
+
+  @override
+  String get scoutAlternatives => 'Alternatives / current workaround';
+
+  @override
+  String get scoutDeadline => 'Observation deadline / review date';
+
+  @override
+  String get scoutEvidenceTruncated =>
+      'Only the first 8,000 characters were imported. Review and keep the relevant original excerpts.';
+
+  @override
+  String get scoutUpgradeRequired =>
+      'Upgrade Scout to enable product observations. Activity remains available in compatibility mode (up to 1,000 items).';
+
+  @override
+  String get scoutNewScope =>
+      'New to this monitoring scope (not a launch date)';
+
+  @override
+  String get scoutMetricReviews => 'Reviews';
+
+  @override
+  String get scoutMetricRating => 'Rating';
+
+  @override
+  String get scoutMetricRank => 'Rank';
+
+  @override
+  String get scoutMetricPrice => 'Price (minor currency units)';
+
+  @override
+  String get scoutMetricStars => 'Stars';
+
+  @override
+  String get scoutMetricForks => 'Forks';
+
+  @override
+  String get scoutGrowthSignals => 'Growth / rank';
+
+  @override
+  String get scoutPriceSignals => 'Price changes';
+
+  @override
+  String get scoutPreparingSignals =>
+      'New observations are being evaluated. All products are available now.';
+
+  @override
+  String get scoutValidationPlan => 'Experiment and feedback';
+
+  @override
+  String get scoutResearchContext => 'Demand theme and personal fit';
+
+  @override
+  String get scoutPreferences => 'Research preferences';
+
+  @override
+  String get scoutPreferencesHelp =>
+      'Only information you enter is used. Empty criteria stay neutral; clear and save to withdraw. Preferences sync with personal knowledge.';
+
+  @override
+  String get scoutPreferenceAudience => 'People I focus on';
+
+  @override
+  String get scoutPreferenceInterests => 'Directions and tasks I focus on';
+
+  @override
+  String get scoutPreferenceCapabilities => 'My capabilities and resources';
+
+  @override
+  String get scoutPreferenceConstraints => 'Time and cost limits';
+
+  @override
+  String get scoutPreferenceBuyers => 'Buyers I can reach';
+
+  @override
+  String get scoutWithdrawPreferences => 'Clear criteria';
+
+  @override
+  String get scoutPreferencesNeutral =>
+      'No research preferences set. Assess fit using your own criteria.';
+
+  @override
+  String get scoutRecordPreferenceBasis =>
+      'Record these criteria for this decision';
+
+  @override
+  String get scoutPreferenceBasisRecorded =>
+      'Criteria recorded; withdrawing preferences later preserves this research.';
+
+  @override
+  String get scoutMisfit => 'Reasons against fit and counterevidence';
+
+  @override
+  String scoutComparisonScope(int products, int sources) {
+    return 'Comparing $products products across $sources monitored sources. Theme confirmed by you; missing fields need evidence.';
+  }
+
+  @override
+  String scoutSupportingEvidence(String ids) {
+    return 'Supporting evidence: $ids';
+  }
+
+  @override
+  String scoutCounterEvidence(String ids) {
+    return 'Counterevidence: $ids';
+  }
+
+  @override
+  String scoutRankUp(int places) {
+    return 'Up $places places';
+  }
+
+  @override
+  String scoutRankDown(int places) {
+    return 'Down $places places';
+  }
+
+  @override
+  String get scoutRemoveEvidence => 'Remove evidence from this research';
+
+  @override
+  String get scoutEvidenceMetadata => 'Original source details (optional)';
+
+  @override
+  String get scoutEvidenceAuthor => 'Original author or platform ID';
+
+  @override
+  String get scoutEvidenceLanguage => 'Original language';
+
+  @override
+  String get scoutEvidencePublished => 'Publication date (as stated by source)';
+
+  @override
+  String get scoutEvidenceInvalidUrl =>
+      'Enter an HTTP or HTTPS URL without credentials';
+
+  @override
+  String get scoutDrafts => 'Research drafts';
+
+  @override
+  String scoutDraftCount(int count) {
+    return 'Local drafts · $count';
+  }
+
+  @override
+  String get scoutLocalDraft =>
+      'Saved on this device; not submitted as research';
+
+  @override
+  String get scoutDiscardDraft => 'Delete local draft';
+
+  @override
+  String get scoutDraftWriteFailed =>
+      'Draft could not be saved to disk. Retry keeping the draft or save the research before closing.';
+
+  @override
+  String get scoutNotRelevant => 'Not relevant';
+
+  @override
+  String get scoutBriefHighlights => 'Worth a closer look';
 }

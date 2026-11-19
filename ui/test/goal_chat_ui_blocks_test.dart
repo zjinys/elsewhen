@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:ai_ui_render/ai_ui_render.dart';
 import 'package:elsewhen_ui/theme/app_theme.dart';
 import 'package:elsewhen_ui/widgets/goal_chat_ui_blocks.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

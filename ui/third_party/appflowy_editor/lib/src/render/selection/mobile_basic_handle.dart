@@ -4,7 +4,7 @@ import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_editor/src/editor/editor_component/service/selection/mobile_selection_service.dart';
 import 'package:appflowy_editor/src/editor/util/platform_extension.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 

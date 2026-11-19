@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../theme/app_theme.dart';
 import '../theme/design_tokens.dart';
@@ -335,7 +335,10 @@ class AmbientBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = AppDesignTheme.of(context).isDark;
-    return Container(
+    // 暗色模式：在左上角（对话/内容常驻区）加一团 accent 暖光，底层再压
+    // 一道对角渐变——「暖而不纯黑」的氛围感，亮色模式保持原样（亮底上
+    // 叠彩光容易脏）。
+    return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -343,6 +346,31 @@ class AmbientBackground extends StatelessWidget {
           colors: dark
               ? [AppTheme.surface0, AppTheme.surface1, AppTheme.surface0]
               : [AppTheme.surface1, AppTheme.surface0, AppTheme.surface2],
+        ),
+      ),
+      child: dark ? _AmbientGlow(child: child) : child,
+    );
+  }
+}
+
+/// 暗色模式的氛围辉光层：accent 色的柔和大半径径向光斑，只提氛围、
+/// 不参与可读性（透明度压到 7%，任何文字都仍在背景对比度之上）。
+class _AmbientGlow extends StatelessWidget {
+  final Widget child;
+
+  const _AmbientGlow({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: const Alignment(-0.7, -0.9),
+          radius: 1.2,
+          colors: [
+            AppTheme.accentPrimary.withValues(alpha: 0.07),
+            AppTheme.accentPrimary.withValues(alpha: 0.0),
+          ],
         ),
       ),
       child: child,

@@ -6,7 +6,7 @@ import 'package:elsewhen_ui/bridge/api.dart' as api;
 import 'package:elsewhen_ui/bridge/generated.dart/api/chat_runs.dart' as runs;
 import 'package:elsewhen_ui/providers/conversation_provider.dart';
 import 'package:elsewhen_ui/widgets/chat_run_status.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 

@@ -38,6 +38,7 @@ import 'api/review_flow.dart';
 import 'api/review_report/detect.dart';
 import 'api/review_report/store.dart';
 import 'api/rules.dart';
+import 'api/scout.dart';
 import 'api/sync/conflicts.dart';
 import 'api/sync/datasets.dart';
 import 'api/sync/invite.dart';
@@ -186,6 +187,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ProcessingYieldProofDto dco_decode_box_autoadd_processing_yield_proof_dto(
     dynamic raw,
   );
+
+  @protected
+  ScoutSettingsDto dco_decode_box_autoadd_scout_settings_dto(dynamic raw);
 
   @protected
   SourceSnapshot dco_decode_box_autoadd_source_snapshot(dynamic raw);
@@ -678,6 +682,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RuleHitDto> dco_decode_list_rule_hit_dto(dynamic raw);
 
   @protected
+  List<ScoutFindingDto> dco_decode_list_scout_finding_dto(dynamic raw);
+
+  @protected
+  List<ScoutSourceDto> dco_decode_list_scout_source_dto(dynamic raw);
+
+  @protected
+  List<ScoutSourceSummaryDto> dco_decode_list_scout_source_summary_dto(
+    dynamic raw,
+  );
+
+  @protected
+  List<ScoutSourceUnreadDto> dco_decode_list_scout_source_unread_dto(
+    dynamic raw,
+  );
+
+  @protected
   List<SourceReference> dco_decode_list_source_reference(dynamic raw);
 
   @protected
@@ -837,6 +857,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlanDto? dco_decode_opt_box_autoadd_plan_dto(dynamic raw);
 
   @protected
+  ScoutSettingsDto? dco_decode_opt_box_autoadd_scout_settings_dto(dynamic raw);
+
+  @protected
   SourceSnapshot? dco_decode_opt_box_autoadd_source_snapshot(dynamic raw);
 
   @protected
@@ -937,6 +960,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RuleHitDto dco_decode_rule_hit_dto(dynamic raw);
+
+  @protected
+  ScoutFindingDto dco_decode_scout_finding_dto(dynamic raw);
+
+  @protected
+  ScoutPollResultDto dco_decode_scout_poll_result_dto(dynamic raw);
+
+  @protected
+  ScoutSettingsDto dco_decode_scout_settings_dto(dynamic raw);
+
+  @protected
+  ScoutSourceDto dco_decode_scout_source_dto(dynamic raw);
+
+  @protected
+  ScoutSourceSummaryDto dco_decode_scout_source_summary_dto(dynamic raw);
+
+  @protected
+  ScoutSourceUnreadDto dco_decode_scout_source_unread_dto(dynamic raw);
 
   @protected
   SourceReference dco_decode_source_reference(dynamic raw);
@@ -1185,6 +1226,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ProcessingYieldProofDto sse_decode_box_autoadd_processing_yield_proof_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ScoutSettingsDto sse_decode_box_autoadd_scout_settings_dto(
     SseDeserializer deserializer,
   );
 
@@ -1839,6 +1885,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<RuleHitDto> sse_decode_list_rule_hit_dto(SseDeserializer deserializer);
 
   @protected
+  List<ScoutFindingDto> sse_decode_list_scout_finding_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ScoutSourceDto> sse_decode_list_scout_source_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ScoutSourceSummaryDto> sse_decode_list_scout_source_summary_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ScoutSourceUnreadDto> sse_decode_list_scout_source_unread_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SourceReference> sse_decode_list_source_reference(
     SseDeserializer deserializer,
   );
@@ -2038,6 +2104,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlanDto? sse_decode_opt_box_autoadd_plan_dto(SseDeserializer deserializer);
 
   @protected
+  ScoutSettingsDto? sse_decode_opt_box_autoadd_scout_settings_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SourceSnapshot? sse_decode_opt_box_autoadd_source_snapshot(
     SseDeserializer deserializer,
   );
@@ -2170,6 +2241,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RuleHitDto sse_decode_rule_hit_dto(SseDeserializer deserializer);
+
+  @protected
+  ScoutFindingDto sse_decode_scout_finding_dto(SseDeserializer deserializer);
+
+  @protected
+  ScoutPollResultDto sse_decode_scout_poll_result_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ScoutSettingsDto sse_decode_scout_settings_dto(SseDeserializer deserializer);
+
+  @protected
+  ScoutSourceDto sse_decode_scout_source_dto(SseDeserializer deserializer);
+
+  @protected
+  ScoutSourceSummaryDto sse_decode_scout_source_summary_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ScoutSourceUnreadDto sse_decode_scout_source_unread_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SourceReference sse_decode_source_reference(SseDeserializer deserializer);
@@ -2566,6 +2661,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_processing_yield_proof_dto(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_scout_settings_dto(ScoutSettingsDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_scout_settings_dto(raw);
   }
 
   @protected
@@ -4101,6 +4202,34 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_scout_finding_dto(List<ScoutFindingDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_scout_finding_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_scout_source_dto(List<ScoutSourceDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_scout_source_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_scout_source_summary_dto(
+    List<ScoutSourceSummaryDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_scout_source_summary_dto).toList().jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_list_scout_source_unread_dto(
+    List<ScoutSourceUnreadDto> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_scout_source_unread_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_list_source_reference(List<SourceReference> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw.map(cst_encode_source_reference).toList().jsify()!;
@@ -4491,6 +4620,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JSAny? cst_encode_opt_box_autoadd_plan_dto(PlanDto? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_plan_dto(raw);
+  }
+
+  @protected
+  JSAny? cst_encode_opt_box_autoadd_scout_settings_dto(ScoutSettingsDto? raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null ? null : cst_encode_box_autoadd_scout_settings_dto(raw);
   }
 
   @protected
@@ -4906,6 +5041,80 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.status),
       cst_encode_String(raw.createdAt),
       cst_encode_opt_String(raw.feedback),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_scout_finding_dto(ScoutFindingDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_i_64(raw.id),
+      cst_encode_String(raw.sourceId),
+      cst_encode_i_64(raw.snapshotId),
+      cst_encode_String(raw.kind),
+      cst_encode_String(raw.itemKey),
+      cst_encode_String(raw.payloadJson),
+      cst_encode_opt_String(raw.deltaJson),
+      cst_encode_String(raw.detectedAt),
+      cst_encode_opt_String(raw.readAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_scout_poll_result_dto(ScoutPollResultDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_i_64(raw.fetched),
+      cst_encode_i_64(raw.newCount),
+      cst_encode_i_64(raw.unreadTotal),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_scout_settings_dto(ScoutSettingsDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.baseUrl),
+      cst_encode_i_64(raw.pollIntervalMinutes),
+      cst_encode_bool(raw.enabled),
+      cst_encode_bool(raw.hasToken),
+      cst_encode_opt_String(raw.lastPolledAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_scout_source_dto(ScoutSourceDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.id),
+      cst_encode_String(raw.name),
+      cst_encode_i_64(raw.intervalMinutes),
+      cst_encode_bool(raw.enabled),
+      cst_encode_opt_String(raw.lastStatus),
+      cst_encode_opt_String(raw.lastRunAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_scout_source_summary_dto(ScoutSourceSummaryDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.sourceId),
+      cst_encode_i_64(raw.unread),
+      cst_encode_i_64(raw.newCount),
+      cst_encode_i_64(raw.changedCount),
+      cst_encode_i_64(raw.goneCount),
+      cst_encode_i_64(raw.total),
+      cst_encode_opt_String(raw.latestDetectedAt),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_scout_source_unread_dto(ScoutSourceUnreadDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.sourceId),
+      cst_encode_i_64(raw.count),
     ].jsify()!;
   }
 
@@ -5559,6 +5768,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_processing_yield_proof_dto(
     ProcessingYieldProofDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_scout_settings_dto(
+    ScoutSettingsDto self,
     SseSerializer serializer,
   );
 
@@ -6403,6 +6618,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_scout_finding_dto(
+    List<ScoutFindingDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_scout_source_dto(
+    List<ScoutSourceDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_scout_source_summary_dto(
+    List<ScoutSourceSummaryDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_scout_source_unread_dto(
+    List<ScoutSourceUnreadDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_source_reference(
     List<SourceReference> self,
     SseSerializer serializer,
@@ -6646,6 +6885,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_scout_settings_dto(
+    ScoutSettingsDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_source_snapshot(
     SourceSnapshot? self,
     SseSerializer serializer,
@@ -6812,6 +7057,42 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_rule_hit_dto(RuleHitDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_scout_finding_dto(
+    ScoutFindingDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_scout_poll_result_dto(
+    ScoutPollResultDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_scout_settings_dto(
+    ScoutSettingsDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_scout_source_dto(
+    ScoutSourceDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_scout_source_summary_dto(
+    ScoutSourceSummaryDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_scout_source_unread_dto(
+    ScoutSourceUnreadDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_source_reference(
@@ -7267,6 +7548,9 @@ class RustLibWire implements BaseWire {
     port_,
   );
 
+  void wire__crate__api__scout__clear_scout_mirror(NativePortType port_) =>
+      wasmModule.wire__crate__api__scout__clear_scout_mirror(port_);
+
   void wire__crate__api__goals__complete_goal(
     NativePortType port_,
     String id,
@@ -7596,6 +7880,16 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
     String rule_id,
   ) => wasmModule.wire__crate__api__rules__delete_rule(port_, rule_id);
+
+  void wire__crate__api__scout__delete_scout_research_draft(
+    NativePortType port_,
+    String instance_id,
+    String product_id,
+  ) => wasmModule.wire__crate__api__scout__delete_scout_research_draft(
+    port_,
+    instance_id,
+    product_id,
+  );
 
   void wire__crate__api__todos__delete_todo(NativePortType port_, String id) =>
       wasmModule.wire__crate__api__todos__delete_todo(port_, id);
@@ -8063,6 +8357,9 @@ class RustLibWire implements BaseWire {
 
   void wire__crate__api__rules__get_rule_trigger_mode(NativePortType port_) =>
       wasmModule.wire__crate__api__rules__get_rule_trigger_mode(port_);
+
+  void wire__crate__api__scout__get_scout_settings(NativePortType port_) =>
+      wasmModule.wire__crate__api__scout__get_scout_settings(port_);
 
   void wire__crate__api__knowledge_workflows__get_suggestion_feedback(
     NativePortType port_,
@@ -8572,6 +8869,28 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
   ) => wasmModule.wire__crate__api__rules__list_rules_missing_essence(port_);
 
+  void wire__crate__api__scout__list_scout_findings(
+    NativePortType port_,
+    String? kind,
+    String? source_id,
+    bool unread_only,
+    JSAny limit,
+    JSAny offset,
+  ) => wasmModule.wire__crate__api__scout__list_scout_findings(
+    port_,
+    kind,
+    source_id,
+    unread_only,
+    limit,
+    offset,
+  );
+
+  void wire__crate__api__scout__list_scout_research(NativePortType port_) =>
+      wasmModule.wire__crate__api__scout__list_scout_research(port_);
+
+  void wire__crate__api__scout__list_scout_sources(NativePortType port_) =>
+      wasmModule.wire__crate__api__scout__list_scout_sources(port_);
+
   void wire__crate__api__sync__datasets__list_sync_dataset_cleanup(
     NativePortType port_,
   ) => wasmModule.wire__crate__api__sync__datasets__list_sync_dataset_cleanup(
@@ -8664,6 +8983,11 @@ class RustLibWire implements BaseWire {
         id,
       );
 
+  void wire__crate__api__scout__mark_scout_findings_read(
+    NativePortType port_,
+    JSAny ids,
+  ) => wasmModule.wire__crate__api__scout__mark_scout_findings_read(port_, ids);
+
   void wire__crate__api__entities__merge_entity(
     NativePortType port_,
     String entity_kind,
@@ -8707,6 +9031,9 @@ class RustLibWire implements BaseWire {
   ) => wasmModule.wire__crate__api__habit_nudges__pending_habit_nudge_count(
     port_,
   );
+
+  void wire__crate__api__scout__poll_scout_now(NativePortType port_) =>
+      wasmModule.wire__crate__api__scout__poll_scout_now(port_);
 
   void wire__crate__api__todos__pop_due_reminders(
     NativePortType port_,
@@ -9142,6 +9469,48 @@ class RustLibWire implements BaseWire {
     note,
   );
 
+  void wire__crate__api__scout__save_scout_preferences(
+    NativePortType port_,
+    String document_json,
+    String? expected_token,
+  ) => wasmModule.wire__crate__api__scout__save_scout_preferences(
+    port_,
+    document_json,
+    expected_token,
+  );
+
+  void wire__crate__api__scout__save_scout_research(
+    NativePortType port_,
+    String document_json,
+    String? expected_token,
+  ) => wasmModule.wire__crate__api__scout__save_scout_research(
+    port_,
+    document_json,
+    expected_token,
+  );
+
+  void wire__crate__api__scout__save_scout_research_draft(
+    NativePortType port_,
+    String document_json,
+  ) => wasmModule.wire__crate__api__scout__save_scout_research_draft(
+    port_,
+    document_json,
+  );
+
+  void wire__crate__api__scout__save_scout_settings(
+    NativePortType port_,
+    String base_url,
+    String token,
+    JSAny poll_interval_minutes,
+    bool enabled,
+  ) => wasmModule.wire__crate__api__scout__save_scout_settings(
+    port_,
+    base_url,
+    token,
+    poll_interval_minutes,
+    enabled,
+  );
+
   void wire__crate__api__knowledge_workflows__save_suggestion_feedback(
     NativePortType port_,
     String message_id,
@@ -9236,6 +9605,70 @@ class RustLibWire implements BaseWire {
     conversation_id,
     input_message_id,
   );
+
+  void wire__crate__api__scout__scout_finding_detail(
+    NativePortType port_,
+    JSAny id,
+  ) => wasmModule.wire__crate__api__scout__scout_finding_detail(port_, id);
+
+  void wire__crate__api__scout__scout_preferences(NativePortType port_) =>
+      wasmModule.wire__crate__api__scout__scout_preferences(port_);
+
+  void wire__crate__api__scout__scout_product_detail(
+    NativePortType port_,
+    String product_id,
+    JSAny? before,
+  ) => wasmModule.wire__crate__api__scout__scout_product_detail(
+    port_,
+    product_id,
+    before,
+  );
+
+  void wire__crate__api__scout__scout_products(
+    NativePortType port_,
+    String query,
+    String? source,
+    String? cursor,
+    String? as_of,
+    String? view,
+  ) => wasmModule.wire__crate__api__scout__scout_products(
+    port_,
+    query,
+    source,
+    cursor,
+    as_of,
+    view,
+  );
+
+  void wire__crate__api__scout__scout_research_analysis(
+    NativePortType port_,
+    String study_slug,
+  ) => wasmModule.wire__crate__api__scout__scout_research_analysis(
+    port_,
+    study_slug,
+  );
+
+  void wire__crate__api__scout__scout_research_draft(
+    NativePortType port_,
+    String instance_id,
+    String product_id,
+  ) => wasmModule.wire__crate__api__scout__scout_research_draft(
+    port_,
+    instance_id,
+    product_id,
+  );
+
+  void wire__crate__api__scout__scout_research_drafts(NativePortType port_) =>
+      wasmModule.wire__crate__api__scout__scout_research_drafts(port_);
+
+  void wire__crate__api__scout__scout_source_summaries(NativePortType port_) =>
+      wasmModule.wire__crate__api__scout__scout_source_summaries(port_);
+
+  void wire__crate__api__scout__scout_unread_by_source(NativePortType port_) =>
+      wasmModule.wire__crate__api__scout__scout_unread_by_source(port_);
+
+  void wire__crate__api__scout__scout_unread_count(NativePortType port_) =>
+      wasmModule.wire__crate__api__scout__scout_unread_count(port_);
 
   void wire__crate__api__sync__datasets__select_default_sync_dataset(
     NativePortType port_,
@@ -9585,6 +10018,9 @@ class RustLibWire implements BaseWire {
     proxy_url,
   );
 
+  void wire__crate__api__scout__test_scout_connection(NativePortType port_) =>
+      wasmModule.wire__crate__api__scout__test_scout_connection(port_);
+
   void wire__crate__api__digest_insights__tick_digest_insights(
     NativePortType port_,
   ) =>
@@ -9605,6 +10041,9 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
   ) => wasmModule
       .wire__crate__api__review_report__detect__tick_periodic_reports(port_);
+
+  void wire__crate__api__scout__tick_scout_research(NativePortType port_) =>
+      wasmModule.wire__crate__api__scout__tick_scout_research(port_);
 
   void wire__crate__api__knowledge_workflows__topic_organization_history(
     NativePortType port_,
@@ -10065,6 +10504,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
   );
 
+  external void wire__crate__api__scout__clear_scout_mirror(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__goals__complete_goal(
     NativePortType port_,
     String id,
@@ -10276,6 +10719,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__rules__delete_rule(
     NativePortType port_,
     String rule_id,
+  );
+
+  external void wire__crate__api__scout__delete_scout_research_draft(
+    NativePortType port_,
+    String instance_id,
+    String product_id,
   );
 
   external void wire__crate__api__todos__delete_todo(
@@ -10606,6 +11055,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void wire__crate__api__rules__get_rule_trigger_mode(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__scout__get_scout_settings(
     NativePortType port_,
   );
 
@@ -10971,6 +11424,23 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
   );
 
+  external void wire__crate__api__scout__list_scout_findings(
+    NativePortType port_,
+    String? kind,
+    String? source_id,
+    bool unread_only,
+    JSAny limit,
+    JSAny offset,
+  );
+
+  external void wire__crate__api__scout__list_scout_research(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__scout__list_scout_sources(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__sync__datasets__list_sync_dataset_cleanup(
     NativePortType port_,
   );
@@ -11047,6 +11517,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String id,
   );
 
+  external void wire__crate__api__scout__mark_scout_findings_read(
+    NativePortType port_,
+    JSAny ids,
+  );
+
   external void wire__crate__api__entities__merge_entity(
     NativePortType port_,
     String entity_kind,
@@ -11081,6 +11556,8 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__habit_nudges__pending_habit_nudge_count(
     NativePortType port_,
   );
+
+  external void wire__crate__api__scout__poll_scout_now(NativePortType port_);
 
   external void wire__crate__api__todos__pop_due_reminders(
     NativePortType port_,
@@ -11352,6 +11829,31 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String note,
   );
 
+  external void wire__crate__api__scout__save_scout_preferences(
+    NativePortType port_,
+    String document_json,
+    String? expected_token,
+  );
+
+  external void wire__crate__api__scout__save_scout_research(
+    NativePortType port_,
+    String document_json,
+    String? expected_token,
+  );
+
+  external void wire__crate__api__scout__save_scout_research_draft(
+    NativePortType port_,
+    String document_json,
+  );
+
+  external void wire__crate__api__scout__save_scout_settings(
+    NativePortType port_,
+    String base_url,
+    String token,
+    JSAny poll_interval_minutes,
+    bool enabled,
+  );
+
   external void wire__crate__api__knowledge_workflows__save_suggestion_feedback(
     NativePortType port_,
     String message_id,
@@ -11404,6 +11906,57 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String conversation_id,
     String input_message_id,
+  );
+
+  external void wire__crate__api__scout__scout_finding_detail(
+    NativePortType port_,
+    JSAny id,
+  );
+
+  external void wire__crate__api__scout__scout_preferences(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__scout__scout_product_detail(
+    NativePortType port_,
+    String product_id,
+    JSAny? before,
+  );
+
+  external void wire__crate__api__scout__scout_products(
+    NativePortType port_,
+    String query,
+    String? source,
+    String? cursor,
+    String? as_of,
+    String? view,
+  );
+
+  external void wire__crate__api__scout__scout_research_analysis(
+    NativePortType port_,
+    String study_slug,
+  );
+
+  external void wire__crate__api__scout__scout_research_draft(
+    NativePortType port_,
+    String instance_id,
+    String product_id,
+  );
+
+  external void wire__crate__api__scout__scout_research_drafts(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__scout__scout_source_summaries(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__scout__scout_unread_by_source(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__scout__scout_unread_count(
+    NativePortType port_,
   );
 
   external void wire__crate__api__sync__datasets__select_default_sync_dataset(
@@ -11627,6 +12180,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String proxy_url,
   );
 
+  external void wire__crate__api__scout__test_scout_connection(
+    NativePortType port_,
+  );
+
   external void wire__crate__api__digest_insights__tick_digest_insights(
     NativePortType port_,
   );
@@ -11644,6 +12201,10 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void wire__crate__api__review_report__detect__tick_periodic_reports(
+    NativePortType port_,
+  );
+
+  external void wire__crate__api__scout__tick_scout_research(
     NativePortType port_,
   );
 

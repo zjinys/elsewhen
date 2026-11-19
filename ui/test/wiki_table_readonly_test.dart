@@ -1,7 +1,7 @@
 import 'package:elsewhen_ui/theme/app_theme.dart';
 import 'package:elsewhen_ui/wiki/wiki_content_editor.dart';
 import 'package:elsewhen_ui/wiki/wiki_table_block.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 表格浏览态（只读）渲染回归测试。

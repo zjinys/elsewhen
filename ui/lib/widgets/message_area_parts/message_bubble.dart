@@ -2,6 +2,17 @@ part of '../message_area.dart';
 
 //! 消息气泡、存为主题按钮与 AI 打字指示。
 
+/// Internal generation state is persisted in message content for auditability,
+/// but it is presented as a quiet status affordance rather than chat prose.
+({String note, String content})? _splitSystemAnnotation(String content) {
+  final match = RegExp(r'^〔系统标注：([\s\S]*?)〕\s*').firstMatch(content);
+  if (match == null) return null;
+  return (note: match.group(1)!.trim(), content: content.substring(match.end));
+}
+
+String _messageDisplayContent(String content) =>
+    _splitSystemAnnotation(content)?.content ?? content;
+
 class _MessageBubble extends ConsumerStatefulWidget {
   final Message message;
 
@@ -29,12 +40,18 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
   Widget build(BuildContext context) {
     final message = widget.message;
     final isUser = message.isUser;
+    final annotation = isUser ? null : _splitSystemAnnotation(message.content);
     final canFlipPast = !widget.isLastMessage;
-    final displayContent = isUser
-        ? message.content
-        // 模型常把普通换行输出成空行分隔，聊天阅读中会显得过于松散；
-        // 保留真实换行，但把连续空行收敛成单行间距。
-        : message.content.replaceAll(RegExp(r'\n{2,}'), '\n');
+    // 模型常把普通换行输出成空行分隔，聊天阅读中会显得过于松散；
+    // 保留真实换行，但把连续空行收敛成单行间距。
+    final displayContent =
+        (isUser ? message.content : (annotation?.content ?? message.content))
+            .replaceAll(RegExp(r'\n{2,}'), '\n');
+    // 对话气泡跟随「外观 → 正文字号」：全对话流字号从同一基准推算
+    // （ChatTypeScale），AI 消息为基准，用户消息小一号维持层次差（原 15/14）。
+    final scale = ref.watch(settingsProvider.select(chatTypeScaleOf));
+    final aiFontSize = scale.ai;
+    final userFontSize = scale.user;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTheme.space4),
@@ -71,7 +88,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                           '${isUser ? context.l10n.me : "AI"} • ${_formatTime(message.createdAt)}',
                           style: TextStyle(
                             color: AppTheme.textTertiary,
-                            fontSize: 11,
+                            fontSize: scale.meta,
                           ),
                         ),
                         const SizedBox(width: 2),
@@ -91,15 +108,36 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                           ),
                           onPressed: () => _copyToClipboard(
                             context,
-                            message.content,
+                            displayContent,
                             context.l10n.message,
                           ),
                         ),
+                        if (annotation != null)
+                          Tooltip(
+                            message: annotation.note.isEmpty
+                                ? context.l10n.systemNotice
+                                : '${context.l10n.systemNotice}: ${annotation.note}',
+                            child: Semantics(
+                              label: context.l10n.systemNotice,
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 5),
+                                child: Icon(
+                                  Icons.info_outline,
+                                  size: 13,
+                                  color: AppTheme.textTertiary,
+                                ),
+                              ),
+                            ),
+                          ),
                         // 「存为主题」：常驻显示在工具条（与「复制」并排），一眼可见。
                         // 移动端另支持长按气泡弹底部菜单（见下方 GestureDetector），两者同一逻辑。
                         // 点击不直接调工具——把明确指令预填进输入框，用户可改可发，
                         // 草稿仍走确认门（比按钮直写库透明，也不绕开用户把关）。
-                        if (!isUser) _SaveTopicButton(message: message),
+                        if (!isUser)
+                          _SaveTopicButton(
+                            message: message,
+                            content: displayContent,
+                          ),
                         // 「翻篇到此」入口暂隐藏：功能在 Rust 侧已就绪，
                         // 待装机观测/冲突裁决后放量（canFlipPast 判定保留）。
                         // if (canFlipPast)
@@ -140,10 +178,24 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                         ),
                         border: Border.all(
                           color: isUser
-                              ? AppTheme.accentPrimary.withValues(alpha: 0.3)
+                              ? AppTheme.accentPrimary.withValues(alpha: 0.55)
                               : AppTheme.surface3.withValues(alpha: 0.7),
                           width: 1,
                         ),
+                        // 用户气泡加一圈柔和的琥珀外发光（借鉴参考图的
+                        // 「我说的话带光」层级感）：只给光不给填充，克制、
+                        // 不干扰正文对比度；助手气泡保持中性玻璃底。
+                        boxShadow: isUser
+                            ? [
+                                BoxShadow(
+                                  color: AppTheme.accentPrimary.withValues(
+                                    alpha: 0.28,
+                                  ),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 0),
+                                ),
+                              ]
+                            : null,
                       ),
                       child: _isMobilePlatform
                           // 移动端：不可选字，纯展示，长按交给外层菜单。
@@ -153,7 +205,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                                       displayContent,
                                       style: TextStyle(
                                         color: AppTheme.textPrimary,
-                                        fontSize: 14,
+                                        fontSize: userFontSize,
                                         height: 1.55,
                                       ),
                                     ),
@@ -162,7 +214,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                                     markdown: displayContent,
                                     baseStyle: TextStyle(
                                       color: AppTheme.textPrimary,
-                                      fontSize: 15,
+                                      fontSize: aiFontSize,
                                       height: 1.65,
                                     ),
                                   ))
@@ -173,7 +225,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                                       displayContent,
                                       style: TextStyle(
                                         color: AppTheme.textPrimary,
-                                        fontSize: 14,
+                                        fontSize: userFontSize,
                                         height: 1.55,
                                       ),
                                     ),
@@ -183,7 +235,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                                       markdown: displayContent,
                                       baseStyle: TextStyle(
                                         color: AppTheme.textPrimary,
-                                        fontSize: 15,
+                                        fontSize: aiFontSize,
                                         height: 1.65,
                                       ),
                                     ),
@@ -213,7 +265,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                             horizontal: AppTheme.space2,
                             vertical: 2,
                           ),
-                          textStyle: const TextStyle(fontSize: 12),
+                          textStyle: TextStyle(fontSize: scale.button),
                         ),
                       ),
                     ),
@@ -272,7 +324,10 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                 subtitle: Text(context.l10n.saveAsTopicDescription),
                 onTap: () {
                   Navigator.of(sheetContext).pop();
-                  SaveTopicDialog.show(context, message.content);
+                  SaveTopicDialog.show(
+                    context,
+                    _messageDisplayContent(message.content),
+                  );
                 },
               ),
             // 「翻篇到此」入口暂隐藏（同工具条注释）。
@@ -440,8 +495,9 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
 /// 点击弹出「存为主题」对话框：从消息提取标题/正文预填，用户确认后存为 topic 页。
 class _SaveTopicButton extends StatelessWidget {
   final Message message;
+  final String? content;
 
-  const _SaveTopicButton({required this.message});
+  const _SaveTopicButton({required this.message, this.content});
 
   @override
   Widget build(BuildContext context) {
@@ -458,7 +514,10 @@ class _SaveTopicButton extends StatelessWidget {
         visualDensity: VisualDensity.compact,
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints(minWidth: 24, minHeight: 20),
-        onPressed: () => SaveTopicDialog.show(context, message.content),
+        onPressed: () => SaveTopicDialog.show(
+          context,
+          content ?? _messageDisplayContent(message.content),
+        ),
       ),
     );
   }
@@ -466,14 +525,14 @@ class _SaveTopicButton extends StatelessWidget {
 
 /// AI 回复生成中的占位气泡：用户发送后、回复入库前，让界面明确告知
 /// 「后台正在执行」，避免发送后长时间无反馈的错觉。
-class _AiTypingBubble extends StatefulWidget {
+class _AiTypingBubble extends ConsumerStatefulWidget {
   const _AiTypingBubble();
 
   @override
-  State<_AiTypingBubble> createState() => _AiTypingBubbleState();
+  ConsumerState<_AiTypingBubble> createState() => _AiTypingBubbleState();
 }
 
-class _AiTypingBubbleState extends State<_AiTypingBubble>
+class _AiTypingBubbleState extends ConsumerState<_AiTypingBubble>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
@@ -494,6 +553,8 @@ class _AiTypingBubbleState extends State<_AiTypingBubble>
 
   @override
   Widget build(BuildContext context) {
+    // 「正在思考」文案与建议 chips 同档（原 13）。
+    final typeScale = ref.watch(settingsProvider.select(chatTypeScaleOf));
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTheme.space4),
       child: Row(
@@ -564,7 +625,7 @@ class _AiTypingBubbleState extends State<_AiTypingBubble>
                     context.l10n.thinking,
                     style: TextStyle(
                       color: AppTheme.textSecondary,
-                      fontSize: 13,
+                      fontSize: typeScale.chip,
                       letterSpacing: 0.2,
                     ),
                   ),

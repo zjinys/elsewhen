@@ -1,9 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:appflowy_editor/appflowy_editor.dart';
 
-import '../lib/wiki/wiki_markdown_codec.dart';
+import 'package:elsewhen_ui/wiki/wiki_markdown_codec.dart';
 
 /// GFM 表格在「行间被空行隔断」时的解码保真（回归：知识页表格不渲染）。
 ///

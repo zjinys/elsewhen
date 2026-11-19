@@ -1,14 +1,15 @@
 import '../l10n/localization.dart';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../bridge/api.dart' as api;
 import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
 import 'local_sync_settings.dart';
 
-/// 主区「同步」工作区：LocalSyncSettings 整包（左栏仪表的完整操作面）。
+/// 主区「同步」工作区：健康度仪表（成员/心跳）+ LocalSyncSettings 整包。
 /// 入口是侧栏一级「同步」；设置页不再有同步 tab——单入口，状态与操作同住。
+/// 原侧栏概览列的内容已整体搬进本工作区，抽屉里不再重复。
 class SyncWorkspace extends StatelessWidget {
   const SyncWorkspace({super.key, required this.repository});
 
@@ -18,13 +19,23 @@ class SyncWorkspace extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.space6),
-      child: _buildSection(
-        title: context.l10n.syncNotificationChannel,
-        icon: Icons.devices_outlined,
-        child: LocalSyncSettings(
-          controller: repository.localSync,
-          repository: repository,
-        ),
+      child: Column(
+        children: [
+          _buildSection(
+            title: context.l10n.sync,
+            icon: Icons.monitor_heart_outlined,
+            child: SyncHealthPanel(repository: repository),
+          ),
+          const SizedBox(height: AppTheme.space6),
+          _buildSection(
+            title: context.l10n.syncNotificationChannel,
+            icon: Icons.devices_outlined,
+            child: LocalSyncSettings(
+              controller: repository.localSync,
+              repository: repository,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -81,12 +92,13 @@ class SyncWorkspace extends StatelessWidget {
   }
 }
 
-/// 左栏「同步」概览列（280px 窄面）：只放健康度仪表，不放大段操作。
-/// 接收任意 StorageRepository：非桌面后端显示「暂不可用」占位。
-/// 三行判据：谁在本机、成员齐不齐、最近心跳走没走。冲突计数待
-/// 冲突清单接口出便宜查询再点亮（本版如实不显示）。
-class SyncNavSummary extends StatelessWidget {
-  const SyncNavSummary({super.key, required this.repository});
+/// 「同步」健康度仪表：谁在本机、成员齐不齐、最近心跳走没走三行判据。
+/// 原侧栏概览列，现直接住在主区同步工作区的第一节卡片里；标题与外边距
+/// 由 [_buildSection] 提供。接收任意 StorageRepository：非桌面后端显示
+/// 「暂不可用」占位。冲突计数待冲突清单接口出便宜查询再点亮（本版如实
+/// 不显示）。
+class SyncHealthPanel extends StatelessWidget {
+  const SyncHealthPanel({super.key, required this.repository});
 
   final dynamic repository;
 
@@ -131,65 +143,52 @@ class SyncNavSummary extends StatelessWidget {
             ? context.l10n.l6ThisDevice8b4c1
             : local.first.name;
 
-        return Padding(
-          padding: const EdgeInsets.all(AppTheme.space4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                context.l10n.sync,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _row(
+              icon: Icons.computer_outlined,
+              text: localName,
+              badge: local.isNotEmpty && local.first.isProcessor
+                  ? context.l10n.l6Processorb4366
+                  : null,
+            ),
+            _row(
+              icon: Icons.devices_outlined,
+              text: context.l10n.l6DevicesOnlineArg0Arg1c5eda(
+                (online).toString(),
+                (activeMembers.length).toString(),
               ),
-              const SizedBox(height: AppTheme.space4),
-              _row(
-                icon: Icons.computer_outlined,
-                text: localName,
-                badge: local.isNotEmpty && local.first.isProcessor
-                    ? context.l10n.l6Processorb4366
-                    : null,
-              ),
-              _row(
-                icon: Icons.devices_outlined,
-                text: context.l10n.l6DevicesOnlineArg0Arg1c5eda(
-                  (online).toString(),
-                  (activeMembers.length).toString(),
-                ),
-                // 名册里保留的已撤销行是审计用的，不算在册数；有撤销时
-                // 用 badge 提示，数字才不会在解绑后纹丝不动。
-                badge: revoked > 0
-                    ? '${context.l10n.l6Revoked61063} $revoked'
-                    : null,
-              ),
-              ValueListenableBuilder<api.SyncTickResultDto?>(
-                valueListenable: bridge.lastSyncTick,
-                builder: (context, tick, _) {
-                  if (tick == null) {
-                    return _row(
-                      icon: Icons.access_time_outlined,
-                      text: context.l10n.l6NoSyncYet8ce44,
-                      muted: true,
-                    );
-                  }
+              // 名册里保留的已撤销行是审计用的，不算在册数；有撤销时
+              // 用 badge 提示，数字才不会在解绑后纹丝不动。
+              badge: revoked > 0
+                  ? '${context.l10n.l6Revoked61063} $revoked'
+                  : null,
+            ),
+            ValueListenableBuilder<api.SyncTickResultDto?>(
+              valueListenable: bridge.lastSyncTick,
+              builder: (context, tick, _) {
+                if (tick == null) {
                   return _row(
-                    icon: tick.ran
-                        ? Icons.check_circle_outline
-                        : Icons.pause_circle_outline,
-                    text: tick.ran
-                        ? context.l10n.l6HeartbeatHealthyPendingArg05c133(
-                            (tick.stagedOperations).toString(),
-                          )
-                        : context.l10n.l6HeartbeatOnStandbyIdleda794,
-                    muted: !tick.ran,
+                    icon: Icons.access_time_outlined,
+                    text: context.l10n.l6NoSyncYet8ce44,
+                    muted: true,
                   );
-                },
-              ),
-              const Spacer(),
-            ],
-          ),
+                }
+                return _row(
+                  icon: tick.ran
+                      ? Icons.check_circle_outline
+                      : Icons.pause_circle_outline,
+                  text: tick.ran
+                      ? context.l10n.l6HeartbeatHealthyPendingArg05c133(
+                          (tick.stagedOperations).toString(),
+                        )
+                      : context.l10n.l6HeartbeatOnStandbyIdleda794,
+                  muted: !tick.ran,
+                );
+              },
+            ),
+          ],
         );
       },
     );

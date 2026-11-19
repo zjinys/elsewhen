@@ -720,6 +720,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get openNavigation => '打开导航';
 
   @override
+  String get closeNavigation => '收起导航';
+
+  @override
   String get createTopic => '创建主题';
 
   @override
@@ -3260,6 +3263,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get wikiTagsUpdated => '标签已更新';
+
+  @override
+  String get wikiTagsExisting => '已有标签，点击填入';
 
   @override
   String get wikiImmersive => '沉浸阅读';
@@ -6992,4 +6998,603 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get datasetCleanupFailed =>
       '清理未完成。请先锁定同步、关闭使用此副本的其他应用进程，再刷新列表重试；未完成的文件或密钥清理会保留待办。';
+
+  @override
+  String get scoutTab => '情报';
+
+  @override
+  String get scoutTabDesc => '外部信号';
+
+  @override
+  String get scoutTitle => '情报速览';
+
+  @override
+  String get scoutOpenFindings => '打开情报页查看 →';
+
+  @override
+  String get scoutDashboard => '总览';
+
+  @override
+  String get scoutFindings => '发现';
+
+  @override
+  String get scoutNotConfigured => '尚未配置 scout 服务地址';
+
+  @override
+  String get scoutGoConfigure => '去设置页配置 Scout 连接';
+
+  @override
+  String get scoutAllRead => '全部已读';
+
+  @override
+  String get scoutMarkRead => '标为已读';
+
+  @override
+  String get scoutKindNew => '首次发现';
+
+  @override
+  String get scoutKindChanged => '有变化';
+
+  @override
+  String get scoutKindGone => '未再出现';
+
+  @override
+  String get scoutFilterAll => '全部';
+
+  @override
+  String get scoutFilterUnread => '未读';
+
+  @override
+  String get scoutLoadMore => '加载更多';
+
+  @override
+  String get scoutEmpty => '暂无情报发现';
+
+  @override
+  String get scoutSyncNow => '立即同步';
+
+  @override
+  String scoutSyncOk(int fetched, int newCount) {
+    return '已同步：拉取 $fetched 条，新增 $newCount 条';
+  }
+
+  @override
+  String scoutLastPolled(String time) {
+    return '上次拉取：$time';
+  }
+
+  @override
+  String scoutSourceLastRun(String time) {
+    return '上次运行：$time';
+  }
+
+  @override
+  String get scoutSourceNeverRun => '从未运行';
+
+  @override
+  String get scoutFindingDetailFailed => '详情加载失败';
+
+  @override
+  String get scoutRecordAsEvent => '记为事件';
+
+  @override
+  String get scoutRecordedAsEvent => '已记为事件';
+
+  @override
+  String get scoutSaveAsMaterial => '存为素材';
+
+  @override
+  String get scoutSavedAsMaterial => '已存为素材';
+
+  @override
+  String get scoutToWikiDraft => '转知识页草稿';
+
+  @override
+  String get scoutDraftCreated => '知识页草稿已创建';
+
+  @override
+  String get scoutActionFailed => '操作失败';
+
+  @override
+  String get scoutYesterday => '昨天';
+
+  @override
+  String get scoutNoUnread => '没有未读情报，稍后再来看新信号';
+
+  @override
+  String get scoutUnreadBadge => '未读';
+
+  @override
+  String get scoutSettingsTitle => 'Scout 情报服务';
+
+  @override
+  String get scoutSettingsDesc => '连接独立采集服务（scout），把外部市场信号镜像进本地';
+
+  @override
+  String get scoutSettingsBaseUrl => '服务地址';
+
+  @override
+  String get scoutSettingsToken => 'API Token（留空保留已存值）';
+
+  @override
+  String get scoutSettingsInterval => '自动拉取间隔（分钟，最少 5）';
+
+  @override
+  String get scoutSettingsEnabled => '启用自动拉取';
+
+  @override
+  String get scoutSettingsTest => '测试连接';
+
+  @override
+  String get scoutSettingsClear => '清空本地镜像';
+
+  @override
+  String get scoutSettingsSaved => '已保存';
+
+  @override
+  String get scoutTestOk => '连接正常';
+
+  @override
+  String scoutUnreadSummary(int count) {
+    return '$count 条新情报待看';
+  }
+
+  @override
+  String get scoutAllReadShort => '全部已读';
+
+  @override
+  String get scoutNoFindings => '暂无发现';
+
+  @override
+  String get scoutSourceOffline => '服务端状态不可用';
+
+  @override
+  String get scoutAllReadConfirmTitle => '全部标为已读？';
+
+  @override
+  String scoutAllReadConfirmBody(int count) {
+    return '当前有 $count 条未读，标记后全部变为已读。';
+  }
+
+  @override
+  String get scoutActivity => '全部动态';
+
+  @override
+  String get scoutSources => '来源';
+
+  @override
+  String get scoutLatest => '最新动态';
+
+  @override
+  String get scoutReadVisible => '本页标为已读';
+
+  @override
+  String get scoutReadVisibleHelp => '仅标记当前已加载列表中的未读条目。';
+
+  @override
+  String get scoutSelectItem => '选择一条动态，查看变化与详情';
+
+  @override
+  String get scoutChanges => '本次变化';
+
+  @override
+  String get scoutFullData => '采集数据';
+
+  @override
+  String get scoutHistory => '采集历史';
+
+  @override
+  String get scoutHistoryHelp => '展示服务端保留的采集快照，时间为采集时间。';
+
+  @override
+  String get scoutHistoryOffline => '历史暂不可用，当前采集数据仍可阅读。';
+
+  @override
+  String get scoutNoHistory => '暂无历史快照';
+
+  @override
+  String get scoutOpenSource => '打开原始链接';
+
+  @override
+  String get scoutNewHelp => '本监控首次发现，不代表刚刚发布。';
+
+  @override
+  String get scoutGoneHelp => '本次采集未再出现，可能只是离开榜单或搜索结果。';
+
+  @override
+  String get scoutChangedHelp => '与上一次采集对比';
+
+  @override
+  String get scoutNoDelta => '这条记录没有字段对比明细。';
+
+  @override
+  String get scoutDetected => '检测时间';
+
+  @override
+  String get scoutBefore => '上次';
+
+  @override
+  String get scoutAfter => '本次';
+
+  @override
+  String get scoutRecordNote => '我的判断（可编辑）';
+
+  @override
+  String get scoutDataSaved => '已保存';
+
+  @override
+  String get scoutRetry => '重试';
+
+  @override
+  String get scoutConnection => '连接设置';
+
+  @override
+  String get scoutAutoPaused => '自动更新已暂停';
+
+  @override
+  String get scoutNoLink => '此条目没有原始链接';
+
+  @override
+  String get scoutSourceUnavailable => '来源状态暂不可用';
+
+  @override
+  String get scoutField => '字段';
+
+  @override
+  String get scoutRawData => '查看原始数据';
+
+  @override
+  String get scoutDailyProducts => '每日新品';
+
+  @override
+  String get scoutNotionTemplates => 'Notion 模板';
+
+  @override
+  String get scoutDigitalPlanners => '数字计划本';
+
+  @override
+  String get scoutExtensionWatchlist => '扩展关注清单';
+
+  @override
+  String get scoutUsTopFree => '美国免费榜';
+
+  @override
+  String get scoutDiscover => '发现线索';
+
+  @override
+  String get scoutStudies => '跟进研究';
+
+  @override
+  String get scoutActivityLog => '原始动态';
+
+  @override
+  String get scoutSearchProducts => '搜索产品、用途或关键词';
+
+  @override
+  String get scoutNoProducts => '暂无产品观察，下一轮成功采集后开始积累趋势。';
+
+  @override
+  String get scoutStudy => '加入研究';
+
+  @override
+  String get scoutEditStudy => '编辑研究';
+
+  @override
+  String get scoutEvidenceGaps => '证据缺口';
+
+  @override
+  String get scoutGapsHelp => '目标买方待核实 · 销量未知 · 尚未分析评价正文';
+
+  @override
+  String get scoutHistoryIncomplete => '历史不足或采样不连续';
+
+  @override
+  String get scoutWindow => '趋势与采样';
+
+  @override
+  String get scoutPriceUnknown => '收费信息待核实';
+
+  @override
+  String get scoutWhyNow => '为什么现在看';
+
+  @override
+  String get scoutNoSignal => '尚无可核实的窗口异动，先作为产品资料观察。';
+
+  @override
+  String get scoutStale => '离线缓存，数据可能已过时';
+
+  @override
+  String get scoutQuestion => '关键未知 / 我要验证的问题';
+
+  @override
+  String get scoutBuyer => '目标人群与使用场景（我的假设）';
+
+  @override
+  String get scoutOffer => '收费假设与现有替代方案';
+
+  @override
+  String get scoutExperiment => '下一步小实验';
+
+  @override
+  String get scoutCriteria => '观察期限、成功与停止条件';
+
+  @override
+  String get scoutFeedback => '实际反馈与反面证据';
+
+  @override
+  String get scoutStudyReason => '为什么关注 / 切入假设';
+
+  @override
+  String get scoutState => '研究阶段';
+
+  @override
+  String get scoutStateResearch => '待研究';
+
+  @override
+  String get scoutStateValidating => '验证中';
+
+  @override
+  String get scoutStateWatching => '继续观察';
+
+  @override
+  String get scoutStatePaused => '搁置';
+
+  @override
+  String get scoutStateRejected => '放弃 / 不相关';
+
+  @override
+  String get scoutResearchHelp => '研究记录保存在可同步的记事本中。清空情报镜像不会删除它。';
+
+  @override
+  String get scoutStudyEmpty => '从发现线索中选一个产品加入研究。';
+
+  @override
+  String get scoutSaveResearch => '保存研究';
+
+  @override
+  String get scoutMyHypothesis => '我的判断与验证';
+
+  @override
+  String get scoutObservedAt => '观察截至';
+
+  @override
+  String get scoutRecent => '最近观察';
+
+  @override
+  String get scoutCoverage => '采样点';
+
+  @override
+  String get scoutKnownPrice => '标价（不代表成交）';
+
+  @override
+  String get scoutResearchSaved => '研究已保存';
+
+  @override
+  String get scoutSourceMaterial => '手动补充需求、评价与定价证据';
+
+  @override
+  String get scoutSourceMaterialHelp => '记录来源链接、原文摘录、时间与反证；未核实的判断请放在假设中。';
+
+  @override
+  String get scoutEvidence => '证据原文与来源';
+
+  @override
+  String get scoutAllProducts => '全部产品';
+
+  @override
+  String get promptScoutContract => '情报研究固定契约';
+
+  @override
+  String get scoutAddEvidence => '添加证据';
+
+  @override
+  String get scoutEvidenceUrl => '来源链接';
+
+  @override
+  String get scoutEvidenceBody => '原文摘录（保留准确措辞）';
+
+  @override
+  String get scoutFetchEvidence => '读取网页正文';
+
+  @override
+  String get scoutEvidenceType => '证据类型';
+
+  @override
+  String get scoutEvidenceReview => '用户评价';
+
+  @override
+  String get scoutEvidencePricing => '定价 / 卖家陈述';
+
+  @override
+  String get scoutEvidenceOther => '其他材料 / 反证';
+
+  @override
+  String get scoutEvidenceProvenance => '摘录仅代表该来源的陈述，不代表全体用户。';
+
+  @override
+  String get scoutAnalysisEnabled => '允许后台 AI 基于这些摘录提出候选假设';
+
+  @override
+  String get scoutAnalysisHelp => '每个证据版本最多成功分析一次，使用已配置的 AI 渠道；结果需人工审阅。';
+
+  @override
+  String get scoutAnalysisCandidate => 'AI 候选分析（待审阅）';
+
+  @override
+  String get scoutAnalysisStale => '依据已变化，旧候选需要重新核实。';
+
+  @override
+  String get scoutAnalysisWaiting => '等待后台分析；需至少一条证据和可用 AI 渠道。';
+
+  @override
+  String get scoutAcceptCandidate => '采用为待验证假设';
+
+  @override
+  String get scoutRejectCandidate => '拒绝该候选';
+
+  @override
+  String get scoutTheme => '需求主题（每行一个，手动确认）';
+
+  @override
+  String get scoutFit => '与我能力、时间及可接触买方的关系';
+
+  @override
+  String get scoutResearchSearch => '搜索研究、需求主题或阶段';
+
+  @override
+  String get scoutResearchSourceChanged => '有新观察：核对研究依据';
+
+  @override
+  String get scoutKeepDraft => '保留草稿并关闭';
+
+  @override
+  String get scoutAlternatives => '替代方案 / 当前怎么解决';
+
+  @override
+  String get scoutDeadline => '观察期限 / 复查时间';
+
+  @override
+  String get scoutEvidenceTruncated => '已截取前 8000 字，请检查并保留与判断有关的原文。';
+
+  @override
+  String get scoutUpgradeRequired =>
+      '当前 Scout 尚不支持产品观察，请升级服务。仍可读取原始动态（兼容模式最多 1000 条）。';
+
+  @override
+  String get scoutNewScope => '新进入监控范围（不代表刚发布）';
+
+  @override
+  String get scoutMetricReviews => '评价数';
+
+  @override
+  String get scoutMetricRating => '评分';
+
+  @override
+  String get scoutMetricRank => '榜位';
+
+  @override
+  String get scoutMetricPrice => '标价（最小货币单位）';
+
+  @override
+  String get scoutMetricStars => 'Star';
+
+  @override
+  String get scoutMetricForks => 'Fork';
+
+  @override
+  String get scoutGrowthSignals => '增长 / 排名';
+
+  @override
+  String get scoutPriceSignals => '定价变化';
+
+  @override
+  String get scoutPreparingSignals => '新观察正在整理为线索，可先查看全部产品。';
+
+  @override
+  String get scoutValidationPlan => '实验与反馈';
+
+  @override
+  String get scoutResearchContext => '需求主题与个人适配';
+
+  @override
+  String get scoutPreferences => '研究偏好';
+
+  @override
+  String get scoutPreferencesHelp => '仅使用你主动填写的信息。留空保持中性；清空后保存可撤回。偏好随个人知识同步。';
+
+  @override
+  String get scoutPreferenceAudience => '我关注的人群';
+
+  @override
+  String get scoutPreferenceInterests => '我关注的方向与任务';
+
+  @override
+  String get scoutPreferenceCapabilities => '我已有的能力和资源';
+
+  @override
+  String get scoutPreferenceConstraints => '时间和成本边界';
+
+  @override
+  String get scoutPreferenceBuyers => '我能接触的买方';
+
+  @override
+  String get scoutWithdrawPreferences => '清空偏好';
+
+  @override
+  String get scoutPreferencesNeutral => '尚未设置研究偏好，当前保持中性。';
+
+  @override
+  String get scoutRecordPreferenceBasis => '将这些偏好记为本次判断依据';
+
+  @override
+  String get scoutPreferenceBasisRecorded => '已记录判断依据；之后撤回偏好不改写本次研究。';
+
+  @override
+  String get scoutMisfit => '不适配原因与反证';
+
+  @override
+  String scoutComparisonScope(int products, int sources) {
+    return '当前对比 $products 个产品 · $sources 个监控源。共同主题由你确认，缺失项需补证据。';
+  }
+
+  @override
+  String scoutSupportingEvidence(String ids) {
+    return '支持证据：$ids';
+  }
+
+  @override
+  String scoutCounterEvidence(String ids) {
+    return '反对证据：$ids';
+  }
+
+  @override
+  String scoutRankUp(int places) {
+    return '上升 $places 位';
+  }
+
+  @override
+  String scoutRankDown(int places) {
+    return '下降 $places 位';
+  }
+
+  @override
+  String get scoutRemoveEvidence => '移除本次研究的证据';
+
+  @override
+  String get scoutEvidenceMetadata => '补充原文信息（可选）';
+
+  @override
+  String get scoutEvidenceAuthor => '原作者或平台 ID';
+
+  @override
+  String get scoutEvidenceLanguage => '原文语言';
+
+  @override
+  String get scoutEvidencePublished => '原文发表时间（来源声明）';
+
+  @override
+  String get scoutEvidenceInvalidUrl => '请填写不含账号信息的 HTTP 或 HTTPS 链接';
+
+  @override
+  String get scoutDrafts => '研究草稿';
+
+  @override
+  String scoutDraftCount(int count) {
+    return '本机草稿 · $count';
+  }
+
+  @override
+  String get scoutLocalDraft => '仅保存在本机，尚未提交为研究';
+
+  @override
+  String get scoutDiscardDraft => '删除本机草稿';
+
+  @override
+  String get scoutDraftWriteFailed => '草稿未能写入磁盘，请重试保留草稿或保存研究后再关闭。';
+
+  @override
+  String get scoutNotRelevant => '不相关';
+
+  @override
+  String get scoutBriefHighlights => '值得关注';
 }

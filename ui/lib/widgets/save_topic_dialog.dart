@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/rust_bridge_repository.dart';
@@ -6,6 +6,8 @@ import '../providers/wiki_provider.dart';
 import '../theme/app_theme.dart';
 import 'glass.dart';
 import '../l10n/localization.dart';
+import 'wiki_tag_input.dart';
+import 'feedback_toast.dart';
 
 /// 「存为主题」对话框：复用知识库「文本导入」的字段与交互（标题 / 标签 / 正文），
 /// 但保存为 topic 页。点消息气泡上的书签按钮弹出，预填从消息提取的内容，
@@ -87,11 +89,10 @@ class _SaveTopicDialogState extends ConsumerState<SaveTopicDialog> {
       ref.invalidate(wikiPagesProvider);
       openWikiPageTab(ref, page);
       Navigator.of(context).pop(true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.topicSavedTitle(page.title)),
-          behavior: SnackBarBehavior.floating,
-        ),
+      showFeedbackToast(
+        context,
+        message: context.l10n.topicSavedTitle(page.title),
+        kind: FeedbackKind.success,
       );
     } catch (e) {
       if (!mounted) return;
@@ -117,14 +118,12 @@ class _SaveTopicDialogState extends ConsumerState<SaveTopicDialog> {
             decoration: _deco(context.l10n.topicTitleHint),
           ),
           const SizedBox(height: AppTheme.space3),
-          TextField(
+          WikiTagInput(
             controller: _tagsController,
             enabled: !_busy,
+            hintText: context.l10n.topicTagsHint,
             style: TextStyle(fontSize: 13.5, color: AppTheme.textPrimary),
-            decoration: _deco(
-              context.l10n.topicTagsHint,
-              prefix: Icon(Icons.sell_outlined, size: 16),
-            ),
+            prefixIcon: const Icon(Icons.sell_outlined, size: 16),
           ),
           const SizedBox(height: AppTheme.space3),
           SizedBox(

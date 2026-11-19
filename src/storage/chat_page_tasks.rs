@@ -229,7 +229,10 @@ pub(crate) fn bind_proposal_materials(
     for material in materials {
         for basis in crate::knowledge::dependencies::capture_for_derivative(store, &material.slug)?
         {
-            if !bases.iter().any(|b: &crate::knowledge::dependencies::Basis| b.page_id == basis.page_id) {
+            if !bases
+                .iter()
+                .any(|b: &crate::knowledge::dependencies::Basis| b.page_id == basis.page_id)
+            {
                 bases.push(basis);
             }
         }

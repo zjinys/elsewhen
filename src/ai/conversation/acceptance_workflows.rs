@@ -90,7 +90,6 @@ impl LiveFixture {
             id: run.id.clone(),
             owner: owner.clone(),
             started_at: std::time::Instant::now(),
-            
         });
         let mut runtime = self.store.list_ai_provider_configs_for_runtime()?.remove(0);
         runtime.base_url = self.provider.base_url.clone();

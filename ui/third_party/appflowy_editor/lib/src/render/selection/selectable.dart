@@ -1,6 +1,6 @@
 import 'package:appflowy_editor/src/core/location/position.dart';
 import 'package:appflowy_editor/src/core/location/selection.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 enum CursorStyle {
   verticalLine,

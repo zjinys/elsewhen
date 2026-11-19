@@ -1,7 +1,7 @@
 import 'package:appflowy_editor/src/editor/editor_component/service/scroll/auto_scroller.dart';
 import 'package:appflowy_editor/src/editor_state.dart';
 import 'package:appflowy_editor/src/editor/util/platform_extension.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 const _selectionDragModeKey = 'selection_drag_mode';

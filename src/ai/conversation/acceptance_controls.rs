@@ -155,7 +155,6 @@ fn real_model_chat_supplement_acceptance() {
                 id: run.id.clone(),
                 owner: owner.into(),
                 started_at: std::time::Instant::now(),
-                
             });
             let provider = ControlledProvider {
                 inner: OpenAiCompatibleProvider::new(fixture.provider.clone())?,
@@ -251,7 +250,6 @@ fn real_model_chat_cancel_recovery_acceptance() {
         id: run.id.clone(),
         owner: owner.into(),
         started_at: std::time::Instant::now(),
-        
     });
     let provider = ControlledProvider {
         inner: OpenAiCompatibleProvider::new(fixture.provider.clone()).unwrap(),

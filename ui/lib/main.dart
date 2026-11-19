@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -198,8 +198,15 @@ class _ElsewhenAppState extends ConsumerState<ElsewhenApp>
             AppThemeMode.system => ThemeMode.system,
           },
           debugShowCheckedModeBanner: false,
-          localizationsDelegates: const [
-            ...AppLocalizations.localizationsDelegates,
+          // 3.50 迁移注意：mui.MaterialApp 会自动注入 material_ui/cupertino_ui 的
+          // Default*Localizations（en-only）。gen-l10n 生成文件里的 Global*Localizations
+          // 来自框架 flutter_localizations 包，其 MaterialLocalizations/CupertinoLocalizations
+          // 与 mui/cui 包是同名不同库的类（不同 Type），无法覆盖注入的 en-only 代理——
+          // 混用会让 zh 环境报「not supported by all delegates」且 Material 文案静默回落英文。
+          // 因此这里不使用生成文件的 localizationsDelegates，改用 mui 的 Global 代理组合。
+          localizationsDelegates: [
+            AppLocalizations.delegate,
+            ...GlobalMaterialLocalizations.delegates,
             AppEditorLocalizationsDelegate(),
           ],
           // 桌面窗口不裁圆角（FlClash 纪律）：窗口不透明直角，圆角交给系统

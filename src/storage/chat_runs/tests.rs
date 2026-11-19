@@ -586,16 +586,27 @@ fn throttled_renew_skips_write_while_lease_is_fresh() {
     let lease_before: String = f
         .store
         .connection
-        .query_row("SELECT lease_until FROM chat_runs WHERE id=?1", [&run.id], |r| r.get(0))
+        .query_row(
+            "SELECT lease_until FROM chat_runs WHERE id=?1",
+            [&run.id],
+            |r| r.get(0),
+        )
         .unwrap();
     // 租约刚创建（5 分钟寿命，剩余远超 4 分钟阈值）：节流续租必须是 no-op。
     assert!(f.store.renew_chat_run_if_due(&run.id, "owner").unwrap());
     let lease_after: String = f
         .store
         .connection
-        .query_row("SELECT lease_until FROM chat_runs WHERE id=?1", [&run.id], |r| r.get(0))
+        .query_row(
+            "SELECT lease_until FROM chat_runs WHERE id=?1",
+            [&run.id],
+            |r| r.get(0),
+        )
         .unwrap();
-    assert_eq!(lease_before, lease_after, "fresh lease must not be rewritten");
+    assert_eq!(
+        lease_before, lease_after,
+        "fresh lease must not be rewritten"
+    );
     f.clean();
 }
 
@@ -638,7 +649,11 @@ fn throttled_renew_rejects_wrong_owner_and_missing_run() {
     // 别的执行者：不能续租。
     assert!(!f.store.renew_chat_run_if_due(&run.id, "intruder").unwrap());
     // 不存在的 run：同样不持有。
-    assert!(!f.store.renew_chat_run_if_due("no-such-run", "owner").unwrap());
+    assert!(
+        !f.store
+            .renew_chat_run_if_due("no-such-run", "owner")
+            .unwrap()
+    );
     f.clean();
 }
 

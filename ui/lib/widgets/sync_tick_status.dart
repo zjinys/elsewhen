@@ -2,7 +2,7 @@ import 'app_error_notice.dart';
 import '../l10n/localization.dart';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../bridge/api.dart' as api;
 import '../sync/sync_backlog_notice.dart';

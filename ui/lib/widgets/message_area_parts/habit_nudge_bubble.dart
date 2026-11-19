@@ -33,6 +33,8 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
 
   @override
   Widget build(BuildContext context) {
+    // 问候卡与对话气泡同基准推算字号（原 15.5/11/12）。
+    final scale = ref.watch(settingsProvider.select(chatTypeScaleOf));
     final message = widget.message;
     final referenceParts = message.messageRef?.split(':') ?? const [];
     final nudgeId = referenceParts.isEmpty ? '' : referenceParts.first;
@@ -137,7 +139,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                         Text(
                           context.l10n.habitCheckin,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: scale.meta,
                             fontWeight: FontWeight.w600,
                             color: AppTheme.accentPrimary,
                           ),
@@ -145,7 +147,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                         Text(
                           ' • ${DateFormat.Hm(context.l10n.localeName).format(message.createdAt)}',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: scale.meta,
                             color: AppTheme.textTertiary,
                           ),
                         ),
@@ -155,7 +157,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                     Text(
                       message.content,
                       style: TextStyle(
-                        fontSize: 15.5,
+                        fontSize: scale.bubble,
                         height: 1.55,
                         color: AppTheme.textPrimary,
                       ),
@@ -198,7 +200,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                               ? context.l10n.checkinTimeUpdated
                               : context.l10n.checkinsPaused,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: scale.button,
                             color: AppTheme.textTertiary,
                           ),
                         ),
@@ -283,7 +285,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                               checkinText ?? missedText,
                             ),
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: scale.button,
                               color: AppTheme.textTertiary,
                             ),
                           ),
@@ -314,7 +316,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                                 missedText: missedText,
                               ),
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: scale.button,
                           color: answered
                               ? AppTheme.success
                               : AppTheme.textTertiary,

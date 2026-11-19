@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../bridge/api.dart' as api;
 import '../sync/sync_object_conflicts_controller.dart';

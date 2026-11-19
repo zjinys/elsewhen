@@ -217,13 +217,15 @@ class _PendingRelationsBanner extends ConsumerWidget {
 /// 会话内临时提示气泡（AI 回复失败等）。仅内存态——不写库，
 /// 不进入对话历史 / 记忆注入 / AI 上下文；发送下一条消息后即清除。
 /// 只承载失败原因文案；「重新生成」入口在最后一条用户消息上。
-class _DayDivider extends StatelessWidget {
+class _DayDivider extends ConsumerWidget {
   final String label;
 
   const _DayDivider({required this.label});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 日期线跟随对话流字号阶梯（原 12）。
+    final scale = ref.watch(settingsProvider.select(chatTypeScaleOf));
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppTheme.space4),
       child: Row(
@@ -233,7 +235,10 @@ class _DayDivider extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: AppTheme.space3),
             child: Text(
               label,
-              style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+              style: TextStyle(
+                fontSize: scale.divider,
+                color: AppTheme.textTertiary,
+              ),
             ),
           ),
           Expanded(child: Divider(color: AppTheme.surface3)),

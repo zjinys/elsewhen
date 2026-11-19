@@ -478,7 +478,11 @@ pub(super) fn application_roundtrip(
     // 信封里有两条回执：`snapshot-start`（通知收口）与 `snapshot-end`（manifest
     // 收口）。它们能不能被应用、能不能把导出线彻底退休，由下面的
     // `due_sync_wire_envelopes` 为空来把关。
-    assert!(returned.accepted >= 1, "回执必须被应用: {}", returned.accepted);
+    assert!(
+        returned.accepted >= 1,
+        "回执必须被应用: {}",
+        returned.accepted
+    );
     assert!(
         source
             .due_sync_wire_envelopes("target", i64::MAX, 10)

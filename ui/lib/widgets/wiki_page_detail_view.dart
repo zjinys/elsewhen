@@ -8,7 +8,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -34,6 +34,7 @@ import '../theme/content_font.dart';
 import '../wiki/wiki_content_editor.dart';
 import '../wiki/wiki_markdown_codec.dart';
 import 'wiki_reading_settings_dialog.dart';
+import 'wiki_tag_input.dart';
 import 'habit_nudge_dialog.dart';
 import 'wiki_ai_chat_panel.dart';
 import 'wiki_derivatives.dart';
@@ -113,22 +114,12 @@ class _EditTagsDialogState extends State<_EditTagsDialog> {
             style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
           ),
           const SizedBox(height: AppTheme.space3),
-          TextField(
+          // 标签：支持点选已有标签 / 前缀补齐，提交值仍是同一串空格分隔文本。
+          WikiTagInput(
             controller: _controller,
-            autofocus: true,
+            hintText: context.l10n.wikiTagsExample,
             style: TextStyle(color: AppTheme.textPrimary),
-            cursorColor: AppTheme.accentPrimary,
-            decoration: InputDecoration(
-              hintText: context.l10n.wikiTagsExample,
-              hintStyle: TextStyle(color: AppTheme.textTertiary),
-              enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: AppTheme.surface3),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: AppTheme.accentPrimary),
-              ),
-            ),
-            onSubmitted: (value) => Navigator.of(context).pop(value),
+            prefixIcon: const SizedBox.shrink(),
           ),
         ],
       ),

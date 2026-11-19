@@ -69,11 +69,7 @@ struct Metered {
     mode: &'static str,
     seen: Arc<Mutex<Vec<Vec<ContextMessage>>>>,
 }
-fn meter(
-    window: u32,
-    mode: &'static str,
-    seen: Arc<Mutex<Vec<Vec<ContextMessage>>>>,
-) -> Metered {
+fn meter(window: u32, mode: &'static str, seen: Arc<Mutex<Vec<Vec<ContextMessage>>>>) -> Metered {
     Metered {
         meter: OpenAiCompatibleProvider::new(OpenAiCompatibleConfig {
             model: "unknown-byte-budget-model".into(),

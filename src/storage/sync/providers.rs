@@ -266,8 +266,8 @@ impl Store {
         bundle: &ProviderBundle,
         _canonical: &[u8],
     ) -> Result<bool> {
-        let relabeled = self
-            .export_provider_bundle(&bundle.revision_id, bundle.base_revision.clone())?;
+        let relabeled =
+            self.export_provider_bundle(&bundle.revision_id, bundle.base_revision.clone())?;
         // updated_at 是本地写入时间戳（显式激活等操作会刷新它），不属于
         // 内容同一性；两侧归一化后比对。
         let strip = |mut value: serde_json::Value| {
@@ -279,9 +279,10 @@ impl Store {
             value
         };
         let canonical_bytes = |value: &ProviderBundle| -> Result<Vec<u8>> {
-            serde_json::to_vec(&strip(serde_json::to_value(value).map_err(|_| {
-                anyhow::anyhow!("sync_provider_bundle_invalid")
-            })?))
+            serde_json::to_vec(&strip(
+                serde_json::to_value(value)
+                    .map_err(|_| anyhow::anyhow!("sync_provider_bundle_invalid"))?,
+            ))
             .map_err(|_| anyhow::anyhow!("sync_provider_bundle_invalid"))
         };
         Ok(canonical_bytes(&relabeled)? == canonical_bytes(bundle)?)
