@@ -203,13 +203,13 @@ class _SettingsEntry extends StatelessWidget {
                 child: Semantics(
                   button: true,
                   child: InkWell(
-                    customBorder: const StadiumBorder(),
+                    borderRadius: BorderRadius.circular(8),
                     onTap: () => _open(context),
                     child: Row(
                       children: [
                         const SizedBox(width: 16),
                         IconTheme.merge(
-                          data: iconTheme,
+                          data: iconTheme.copyWith(size: 20),
                           child: const Icon(Icons.settings_outlined),
                         ),
                         const SizedBox(width: 12),

@@ -297,24 +297,46 @@ class _DayDivider extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 日期线跟随对话流字号阶梯（原 12）。
     final scale = ref.watch(settingsProvider.select(chatTypeScaleOf));
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppTheme.space4),
       child: Row(
         children: [
-          Expanded(child: Divider(color: AppTheme.surface3)),
+          Expanded(
+            child: Divider(
+              color: AppTheme.surface3.withValues(alpha: 0.6),
+              height: 1,
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppTheme.space3),
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: scale.divider,
-                color: AppTheme.textTertiary,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: dark ? AppTheme.surface1 : AppTheme.surface2,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppTheme.surface3.withValues(alpha: 0.6),
+                  width: 0.5,
+                ),
+              ),
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: scale.divider,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.textTertiary,
+                ),
               ),
             ),
           ),
-          Expanded(child: Divider(color: AppTheme.surface3)),
+          Expanded(
+            child: Divider(
+              color: AppTheme.surface3.withValues(alpha: 0.6),
+              height: 1,
+            ),
+          ),
         ],
       ),
     );
