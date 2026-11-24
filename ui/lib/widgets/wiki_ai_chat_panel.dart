@@ -181,7 +181,6 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
   Widget build(BuildContext context) {
     final id = _conversationId;
     final durable = ref.watch(conversationRepositoryProvider).supportsChatRuns;
-    final contentFontStyle = ContentFont.styleOf(context);
     if (id != null && durable) {
       ref.watch(chatRunStateProvider(id).select((value) => value.value?.busy));
     }

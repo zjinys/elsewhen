@@ -157,6 +157,17 @@ class _ChatProposalDetailDialogState
           .read(conversationRepositoryProvider)
           .decideChatProposal(_request(_proposal), accept: accept);
       if (!mounted) return;
+      ref.invalidate(pendingActionsProvider);
+      ref.invalidate(todosProvider);
+      ref.invalidate(activeGoalsProvider);
+      ref.invalidate(archivedGoalsProvider);
+      ref.invalidate(pausedGoalsProvider);
+      ref.invalidate(completedGoalsProvider);
+      ref.invalidate(wikiPagesProvider);
+      ref.invalidate(conversationsProvider);
+      if (_proposal.conversationId != null) {
+        ref.invalidate(_hasPendingProvider(_proposal.conversationId));
+      }
       setState(() {
         _receipt = receipt;
         _changed = true;

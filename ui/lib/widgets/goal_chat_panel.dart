@@ -15,7 +15,6 @@ import '../providers/chat_run_provider.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/goal_provider.dart';
 import '../theme/app_theme.dart';
-import '../theme/content_font.dart';
 import 'chat_input_queue.dart';
 import 'chat_proposal_review.dart';
 import 'chat_run_status.dart';
@@ -338,7 +337,6 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final contentFontStyle = ContentFont.styleOf(context);
     final id = _conversationId;
     // 预填种子（「和 AI 拆解」/ 航向校准「聚焦讨论」写 goalPanelSeedProvider）：
     // 填入输入框并聚焦，绝不自动发送。post-frame 消费，兼容面板还没挂载时

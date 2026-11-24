@@ -59,6 +59,14 @@ class _ChatProposalBatchDialogState
       setState(() => _results[key] = message);
     }
     if (mounted) {
+      ref.invalidate(pendingActionsProvider);
+      ref.invalidate(todosProvider);
+      ref.invalidate(activeGoalsProvider);
+      ref.invalidate(archivedGoalsProvider);
+      ref.invalidate(pausedGoalsProvider);
+      ref.invalidate(completedGoalsProvider);
+      ref.invalidate(wikiPagesProvider);
+      ref.invalidate(conversationsProvider);
       setState(() {
         _busy = false;
         _finished = true;

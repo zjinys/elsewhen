@@ -154,8 +154,8 @@ class _ComposerFieldState extends State<ComposerField> {
                       contentPadding: const EdgeInsetsDirectional.only(
                         start: 2,
                         end: 6,
-                        top: 14,
-                        bottom: 14,
+                        top: 14.5,
+                        bottom: 14.5,
                       ),
                       isDense: true,
                     ),

@@ -159,7 +159,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
           Flexible(
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxWidth: isUser ? 820 : bubbleStyle.assistantMaxWidth,
+                maxWidth: isUser ? double.infinity : bubbleStyle.assistantMaxWidth,
               ),
               child: Column(
                 crossAxisAlignment: isUser

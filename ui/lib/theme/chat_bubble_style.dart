@@ -26,7 +26,7 @@ class ChatBubbleStyle {
   Color get accentInk =>
       isLight ? Color.lerp(accent, palette.textPrimary, .40)! : accent;
 
-  double get assistantMaxWidth => isLight ? 768 : 820;
+  double get assistantMaxWidth => double.infinity;
 
   BoxDecoration assistantCard({
     Color? darkFill,
