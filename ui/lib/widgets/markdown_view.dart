@@ -120,7 +120,11 @@ class _MarkdownViewState extends State<MarkdownView> {
     // UI 边界清洗：协议残留到此为止，不进渲染。
     final baseStyle =
         widget.baseStyle ??
-        TextStyle(color: AppTheme.textPrimary, fontSize: 15, height: 1.8);
+        TextStyle(
+          color: AppTheme.textPrimary,
+          fontSize: TypographyTokens.reading,
+          height: 1.8,
+        );
     // Markdown 渲染的都是内容（AI 回复 / 知识库 / 草稿预览）→ 内容字体。
     // 块内多用 RichText（不继承 DefaultTextStyle），需并进 base 显式传递。
     final contentFont = ContentFont.styleOf(context);

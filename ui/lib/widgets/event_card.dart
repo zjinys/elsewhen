@@ -135,7 +135,7 @@ class EventCard extends StatelessWidget {
   Widget _buildContent() {
     return Text(
       event.rawText,
-      style: TextStyle(color: AppTheme.textPrimary, fontSize: 15, height: 1.6),
+      style: TextStyle(color: AppTheme.textPrimary, fontSize: 14, height: 1.5),
     );
   }
 

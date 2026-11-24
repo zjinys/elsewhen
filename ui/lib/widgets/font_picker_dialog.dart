@@ -303,7 +303,7 @@ class _LocalRow extends StatelessWidget {
           title: entry.family,
           subtitle: entry.style,
           preview: TextStyle(
-            fontSize: 15,
+            fontSize: 14,
             fontFamily: ready ? entry.family : null,
           ),
           selected: selected,

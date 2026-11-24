@@ -107,7 +107,7 @@ class CustomTitleBar extends ConsumerWidget {
                       Text(
                         title,
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: TypographyTokens.title,
                           fontWeight: FontWeight.w600,
                           color: AppTheme.textPrimary,
                           letterSpacing: 0,

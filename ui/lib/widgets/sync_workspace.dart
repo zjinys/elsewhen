@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import '../bridge/api.dart' as api;
 import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
+import '../theme/design_tokens.dart';
 import 'local_sync_settings.dart';
 
 /// 主区「同步」工作区：健康度仪表（成员/心跳）+ LocalSyncSettings 整包。
@@ -76,7 +77,7 @@ class SyncWorkspace extends StatelessWidget {
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: TypographyTokens.title,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,
                   ),
