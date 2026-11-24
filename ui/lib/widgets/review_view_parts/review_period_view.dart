@@ -371,7 +371,7 @@ class _KnowledgeHealthBarState extends ConsumerState<KnowledgeHealthBar> {
               Text(
                 context.l10n.l6KnowledgeProcessingHealthLast30Days3bf5c,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: AppTheme.textPrimary,
                 ),

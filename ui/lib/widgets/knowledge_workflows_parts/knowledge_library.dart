@@ -8,6 +8,15 @@ class KnowledgeLibrary extends ConsumerStatefulWidget {
   ConsumerState<KnowledgeLibrary> createState() => _LibraryState();
 }
 
+String _cleanLibrarySnippet(String text) {
+  return text
+      .replaceAll(RegExp(r'!\[.*?\](\(.*?\)|\[.*?\])?'), '')
+      .replaceAll(RegExp(r'\[(.*?)\](\(.*?\)|\[.*?\])?'), r'$1')
+      .replaceAll(RegExp(r'#+\s*'), '')
+      .replaceAll(RegExp(r'(\*\*|__|\*|_|`)'), '')
+      .trim();
+}
+
 class _LibraryState extends ConsumerState<KnowledgeLibrary> {
   final _query = TextEditingController(), _tag = TextEditingController();
   String? _area, _kind, _state;
@@ -459,10 +468,10 @@ class _LibraryCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (entry.summary.isNotEmpty) ...[
+                if (_cleanLibrarySnippet(entry.summary).isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(
-                    entry.summary,
+                    _cleanLibrarySnippet(entry.summary),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(

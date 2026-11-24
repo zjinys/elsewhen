@@ -327,7 +327,7 @@ class _JobTile extends StatelessWidget {
                   job.eventExcerpt,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 13, color: AppTheme.textPrimary),
+                  style: TextStyle(fontSize: 14, color: AppTheme.textPrimary),
                 ),
               ),
               const SizedBox(width: AppTheme.space2),
@@ -419,7 +419,7 @@ class _RunTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   summary.join(' · '),
-                  style: TextStyle(fontSize: 13, color: AppTheme.textPrimary),
+                  style: TextStyle(fontSize: 14, color: AppTheme.textPrimary),
                 ),
               ),
               _StatusBadge(run.status),

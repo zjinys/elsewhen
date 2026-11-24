@@ -26,8 +26,8 @@ class _EmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppTheme.textSecondary,
-                fontSize: 13,
-                height: 1.6,
+                fontSize: TypographyTokens.body,
+                height: 1.5,
               ),
             ),
           ],

@@ -200,7 +200,7 @@ class _FeedbackSurfaceState extends State<_FeedbackSurface> {
                                           .bodyMedium!
                                           .copyWith(
                                             color: colors.onSurface,
-                                            fontSize: 13,
+                                            fontSize: 14,
                                             height: 1.5,
                                           ),
                                       child: Column(

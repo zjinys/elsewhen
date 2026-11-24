@@ -214,7 +214,7 @@ class _AiReviewCard extends StatelessWidget {
                     child: Text(
                       item.text,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 14,
                         color: AppTheme.textPrimary,
                         height: 1.5,
                       ),
@@ -276,7 +276,7 @@ class _DayEventsCard extends StatelessWidget {
                   entry.rawText,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 13, color: AppTheme.textPrimary),
+                  style: TextStyle(fontSize: 14, color: AppTheme.textPrimary),
                 ),
                 subtitle: Text(
                   '${entry.recordedAt.length >= 16 ? entry.recordedAt.substring(11, 16) : entry.recordedAt}'

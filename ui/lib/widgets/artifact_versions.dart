@@ -528,7 +528,7 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                           child: Text(
                             context.l10n.artifactCompare,
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

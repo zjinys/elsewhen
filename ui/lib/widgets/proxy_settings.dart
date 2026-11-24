@@ -237,7 +237,7 @@ class _ProxySettingsState extends State<ProxySettings> {
       padding: const EdgeInsets.only(left: 40, top: 2, bottom: 4),
       child: TextField(
         controller: _urlController,
-        style: TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+        style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
         decoration: InputDecoration(
           hintText: context.l10n.l6Http1270017890a9d59,
           hintStyle: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
@@ -295,7 +295,7 @@ class _ProxySettingsState extends State<ProxySettings> {
                 color: Colors.white,
               ),
             )
-          : Text(context.l10n.save, style: TextStyle(fontSize: 13)),
+          : Text(context.l10n.save, style: TextStyle(fontSize: 14)),
     );
   }
 
@@ -316,7 +316,7 @@ class _ProxySettingsState extends State<ProxySettings> {
             )
           : Text(
               context.l10n.l6TestConnection10b7d,
-              style: TextStyle(fontSize: 13),
+              style: TextStyle(fontSize: 14),
             ),
     );
   }

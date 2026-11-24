@@ -135,7 +135,7 @@ class KnowledgeSourcesSection extends ConsumerWidget {
                     title: Text(
                       context.l10n.l6SourceEvents2c4b3,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -396,7 +396,7 @@ class _KnowledgePageLink extends ConsumerWidget {
               child: Text(
                 '$prefix · ${page.title}',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: AppTheme.textPrimary,
                 ),

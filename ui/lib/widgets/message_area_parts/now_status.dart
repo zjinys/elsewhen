@@ -380,7 +380,7 @@ class _NoticeBubble extends StatelessWidget {
                           text,
                           style: TextStyle(
                             color: AppTheme.textSecondary,
-                            fontSize: 13,
+                            fontSize: TypographyTokens.body,
                             height: 1.5,
                           ),
                         ),

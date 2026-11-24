@@ -63,7 +63,7 @@ class _RevisionList extends ConsumerWidget {
                       title: Text(
                         revision.reason,
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

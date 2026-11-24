@@ -580,7 +580,7 @@ pub(crate) fn run_agent_loop_inner(
                     results.push(ToolResultMsg::err(&call, text));
                     continue;
                 }
-                let result = dispatch_for_turn(
+                let mut result = dispatch_for_turn(
                     &call,
                     registry,
                     store,
@@ -591,6 +591,33 @@ pub(crate) fn run_agent_loop_inner(
                     &enabled_tools,
                     runtime,
                 )?;
+                if call.name == "get_wiki_page"
+                    && !result.success
+                    && result.content.contains("wiki_read_version_changed")
+                {
+                    let mut restart = call.arguments.clone();
+                    if let Some(object) = restart.as_object_mut() {
+                        object.insert("offset".into(), serde_json::json!(0));
+                        object.remove("content_hash");
+                    }
+                    let retry_call = ToolCall {
+                        id: call.id.clone(),
+                        name: call.name.clone(),
+                        arguments: restart,
+                        raw_arguments: call.raw_arguments.clone(),
+                    };
+                    result = dispatch_for_turn(
+                        &retry_call,
+                        registry,
+                        store,
+                        conversation_id,
+                        status_only,
+                        allow_record_event,
+                        &crate::knowledge::candidates_in_context(context),
+                        &enabled_tools,
+                        runtime,
+                    )?;
+                }
                 debug_eprintln!(
                     "[agent] text-protocol tool={} -> {}",
                     call.name,

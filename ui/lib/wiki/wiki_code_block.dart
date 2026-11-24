@@ -128,7 +128,7 @@ class _WikiCodeBlockComponentState extends State<WikiCodeBlockComponent>
               code,
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 13,
+                fontSize: 14,
                 height: 1.5,
                 color: AppTheme.textPrimary,
               ),

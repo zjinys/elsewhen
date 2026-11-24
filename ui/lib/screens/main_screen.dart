@@ -251,7 +251,7 @@ class MainScreen extends ConsumerWidget {
                                       context.l10n.syncPlatformUnavailable,
                                       style: TextStyle(
                                         color: AppTheme.textTertiary,
-                                        fontSize: 13,
+                                        fontSize: TypographyTokens.secondary,
                                       ),
                                     ),
                                   );

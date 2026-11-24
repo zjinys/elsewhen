@@ -218,7 +218,7 @@ class _TopicOrganizationSectionState
                         contentPadding: EdgeInsets.zero,
                         title: Text(
                           page.title,
-                          style: const TextStyle(fontSize: 13),
+                          style: const TextStyle(fontSize: 14),
                         ),
                         value: _selected.contains(page.slug),
                         onChanged: _busy
@@ -313,7 +313,7 @@ class _TopicOrganizationSectionState
                                             (plan.topics.length).toString(),
                                           ),
                                       style: const TextStyle(
-                                        fontSize: 13,
+                                        fontSize: 14,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),

@@ -256,7 +256,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
                 Text(
                   context.l10n.activeGoalCount(activeCount, maxActiveGoals),
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: TypographyTokens.body,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,
                   ),
@@ -450,7 +450,10 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
               const SizedBox(width: 6),
               Text(
                 context.l10n.goalStudio,
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: TypographyTokens.body,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -1264,7 +1267,7 @@ class _PlanNavigationNodeState extends State<_PlanNavigationNode> {
                       entry.plan.intentText,
                       softWrap: true,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: TypographyTokens.body,
                         fontWeight: FontWeight.w600,
                         color: allDone
                             ? AppTheme.textSecondary
@@ -1609,8 +1612,8 @@ class _ActiveGoalCardState extends State<_ActiveGoalCard> {
                         Text(
                           context.l10n.whyGoal(why),
                           style: TextStyle(
-                            fontSize: 13,
-                            height: 1.6,
+                            fontSize: TypographyTokens.body,
+                            height: 1.5,
                             color: AppTheme.textSecondary,
                           ),
                         ),
@@ -1618,8 +1621,8 @@ class _ActiveGoalCardState extends State<_ActiveGoalCard> {
                         Text(
                           context.l10n.doneGoal(done),
                           style: TextStyle(
-                            fontSize: 13,
-                            height: 1.6,
+                            fontSize: TypographyTokens.body,
+                            height: 1.5,
                             color: AppTheme.textSecondary,
                           ),
                         ),

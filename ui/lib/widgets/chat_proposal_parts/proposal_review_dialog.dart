@@ -308,29 +308,32 @@ class _ChatProposalReviewDialogState
                   },
                 ),
         ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            TextButton(
-              onPressed: _loading || _offset == 0
-                  ? null
-                  : () {
-                      _offset = (_offset - _pageSize).clamp(0, _offset);
-                      _load();
-                    },
-              child: Text(context.l10n.previousPage),
-            ),
-            Text(context.l10n.pageNumber(_offset ~/ _pageSize + 1)),
-            TextButton(
-              onPressed: _loading || count < _pageSize
-                  ? null
-                  : () {
-                      _offset += _pageSize;
-                      _load();
-                    },
-              child: Text(context.l10n.nextPage),
-            ),
-          ],
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton(
+                onPressed: _loading || _offset == 0
+                    ? null
+                    : () {
+                        _offset = (_offset - _pageSize).clamp(0, _offset);
+                        _load();
+                      },
+                child: Text(context.l10n.previousPage),
+              ),
+              Text(context.l10n.pageNumber(_offset ~/ _pageSize + 1)),
+              TextButton(
+                onPressed: _loading || count < _pageSize
+                    ? null
+                    : () {
+                        _offset += _pageSize;
+                        _load();
+                      },
+                child: Text(context.l10n.nextPage),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -452,7 +455,7 @@ class _ChatProposalReviewDialogState
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      receipt.result,
+                      _cleanReceiptResult(receipt.result),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -484,6 +487,31 @@ class _ChatProposalReviewDialogState
         ),
       ),
     );
+  }
+
+  String _cleanReceiptResult(String result) {
+    final trimmed = result.trim();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        final map = jsonDecode(trimmed) as Map<String, dynamic>;
+        if (map.containsKey('claim_id')) {
+          final idStr = map['claim_id'].toString();
+          final shortId = idStr.length > 8 ? idStr.substring(0, 8) : idStr;
+          return '记忆声明已更新 ($shortId)';
+        }
+        if (map.containsKey('error')) {
+          return '错误: ${map['error']}';
+        }
+        if (map.containsKey('message')) {
+          return map['message'].toString();
+        }
+        return map.values
+            .map((v) => v.toString())
+            .where((s) => s.isNotEmpty)
+            .join(' · ');
+      } catch (_) {}
+    }
+    return result;
   }
 
   (IconData, Color) _statusIcon(String status, ThemeData theme) =>
@@ -707,7 +735,7 @@ class _GoalFacetsCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('📍 ', style: TextStyle(fontSize: 13)),
+                const Text('📍 ', style: TextStyle(fontSize: 14)),
                 Expanded(
                   child: Text.rich(
                     TextSpan(
@@ -730,7 +758,7 @@ class _GoalFacetsCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('🚧 ', style: TextStyle(fontSize: 13)),
+                const Text('🚧 ', style: TextStyle(fontSize: 14)),
                 Expanded(
                   child: Text.rich(
                     TextSpan(
@@ -756,7 +784,7 @@ class _GoalFacetsCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('💡 ', style: TextStyle(fontSize: 13)),
+                const Text('💡 ', style: TextStyle(fontSize: 14)),
                 Expanded(
                   child: Text.rich(
                     TextSpan(
@@ -779,7 +807,7 @@ class _GoalFacetsCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('🎯 ', style: TextStyle(fontSize: 13)),
+                const Text('🎯 ', style: TextStyle(fontSize: 14)),
                 Expanded(
                   child: Text.rich(
                     TextSpan(

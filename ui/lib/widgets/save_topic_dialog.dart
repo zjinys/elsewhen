@@ -179,7 +179,10 @@ class _SaveTopicDialogState extends ConsumerState<SaveTopicDialog> {
   InputDecoration _deco(String hint, {Widget? prefix}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(fontSize: 13, color: AppTheme.textTertiary),
+      hintStyle: TextStyle(
+        fontSize: TypographyTokens.body,
+        color: AppTheme.textTertiary,
+      ),
       prefixIcon: prefix,
       prefixIconConstraints: prefix != null
           ? const BoxConstraints(minWidth: 36, minHeight: 36)

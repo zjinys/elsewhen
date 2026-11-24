@@ -61,7 +61,7 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
                       ? context.l10n.compassPlanTitle(nudge.planIntent!)
                       : context.l10n.compassGoalTitle(nudge.goalContent),
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: TypographyTokens.body,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,
                   ),
@@ -320,7 +320,7 @@ class GoalCompassNudgeCard extends ConsumerWidget {
                   context.l10n.compassTitle,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: TypographyTokens.body,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.accentPrimary,
                   ),

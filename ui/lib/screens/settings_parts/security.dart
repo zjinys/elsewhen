@@ -57,7 +57,10 @@ extension _SecurityTab on _SettingsScreenState {
                 _appLockEnabled
                     ? context.l10n.l6EnabledAPasswordIsRequiredWhen1aee3
                     : context.l10n.l6DisabledTheAppOpensDirectlycbfe4,
-                style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                style: TextStyle(
+                  fontSize: TypographyTokens.secondary,
+                  color: AppTheme.textSecondary,
+                ),
               ),
             ),
           ],
@@ -121,7 +124,7 @@ extension _SecurityTab on _SettingsScreenState {
               Text(
                 context.l10n.l6FingerprintOrFaceUnlock1b96c,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: TypographyTokens.body,
                   color: usable ? AppTheme.textPrimary : AppTheme.textTertiary,
                 ),
               ),

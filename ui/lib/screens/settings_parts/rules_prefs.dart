@@ -13,7 +13,10 @@ extension _RulesPrefs on _SettingsScreenState {
       children: [
         Text(
           context.l10n.l6EventRemindersaa957,
-          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: TypographyTokens.secondary,
+          ),
         ),
         const SizedBox(height: AppTheme.space2),
         SegmentedButton<String>(
@@ -64,7 +67,10 @@ extension _RulesPrefs on _SettingsScreenState {
       children: [
         Text(
           context.l10n.l6EmotionalCheckIns74925,
-          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: TypographyTokens.secondary,
+          ),
         ),
         const Spacer(),
         if (!_companionPrefsLoading)
@@ -178,7 +184,10 @@ extension _RulesPrefs on _SettingsScreenState {
       children: [
         Text(
           context.l10n.l6RuleContextsInConversationsEvaluatedSilently95c0c,
-          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: TypographyTokens.secondary,
+          ),
         ),
         const SizedBox(height: AppTheme.space2),
         for (final hit in _recentChatRuleHits.where(
@@ -228,7 +237,10 @@ extension _RulesPrefs on _SettingsScreenState {
           children: [
             Text(
               context.l10n.l6RecentReminderse3fba,
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+              style: TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: TypographyTokens.secondary,
+          ),
             ),
             const Spacer(),
             if (helpfulCount > 0 || notRelevantCount > 0)
@@ -500,7 +512,7 @@ extension _RulesPrefs on _SettingsScreenState {
         context.l10n.l6NoRulesYetWhenYouDiscuss96049,
         style: TextStyle(
           color: AppTheme.textSecondary,
-          fontSize: 13,
+          fontSize: 14,
           height: 1.6,
         ),
       );
@@ -525,7 +537,7 @@ extension _RulesPrefs on _SettingsScreenState {
                     _rules[i].content,
                     style: TextStyle(
                       color: AppTheme.textPrimary,
-                      fontSize: 13,
+                      fontSize: 14,
                       height: 1.5,
                     ),
                   ),
