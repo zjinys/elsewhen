@@ -588,7 +588,7 @@ class GoalWorkbenchPanel extends ConsumerWidget {
               Text(
                 context.l10n.goals,
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: TypographyTokens.title,
                   fontWeight: FontWeight.w600,
                   color: AppTheme.textPrimary,
                 ),

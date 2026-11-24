@@ -61,14 +61,14 @@ class _EventInputState extends State<EventInput> {
               textInputAction: TextInputAction.send,
               style: TextStyle(
                 color: AppTheme.textPrimary,
-                fontSize: 15,
-                height: 1.6,
+                fontSize: 14,
+                height: 1.5,
               ),
               decoration: InputDecoration(
                 hintText: context.l10n.l6RecordWhatIsHappeningUseName925ca,
                 hintStyle: TextStyle(
                   color: AppTheme.textTertiary,
-                  fontSize: 15,
+                  fontSize: 14,
                 ),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(
@@ -123,7 +123,7 @@ class _EventInputState extends State<EventInput> {
                         context.l10n.record,
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          fontSize: 15,
+                          fontSize: 14,
                         ),
                       ),
                     ],
