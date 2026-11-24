@@ -80,7 +80,7 @@ fn generate_content_reply(context: Vec<ContextMessage>, store: &Store) -> Result
         model: ai_config.model,
         temperature: 0.7,
         max_tokens: None,
-        context_window: None,
+        context_window: Some(ai_config.context_window.map(|w| w.min(32768) as u32).unwrap_or(32768)),
     };
     let provider = OpenAiCompatibleProvider::new(provider_config.clone())?
         // 推文/内容处理也是对话型短输出，用低预留档给输入让位。

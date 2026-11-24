@@ -275,7 +275,9 @@ pub(crate) fn generate_with_provider_configs(
                         model: ai_config.model,
                         temperature: ai_config.temperature as f32,
                         max_tokens: None,
-                        context_window: None,
+                        // 聊天使用独立 32K 工作窗口，即使 provider 声称支持
+                        // 128K，也不把整段窗口预算全部消耗在历史上。
+                        context_window: Some(ai_config.context_window.map(|w| w.min(32768) as u32).unwrap_or(32768)),
                     };
                     Ok((
                         Some(id),
@@ -299,7 +301,7 @@ pub(crate) fn generate_with_provider_configs(
             let chat_output = crate::ai::budget::chat_output(&model);
 
             let provider_config = super::provider::OllamaConfig {
-                context_window: None,
+                context_window: Some(32768),
                 max_tokens: None,
                 base_url,
                 model,
