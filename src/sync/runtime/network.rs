@@ -63,6 +63,16 @@ const MAX_PAGES_PER_TICK: u32 = 4;
 /// 有界（2×8 MB）且与发送端窗口匹配；122 MB 的初始快照约 8 拍拉完。
 const MAX_BLOB_WINDOWS_PER_TICK: usize = 2;
 
+fn rotate_peers(peers: &mut Vec<(String, [u8; 32])>, previous: &str) {
+    peers.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+    let offset = peers
+        .iter()
+        .position(|(id, _)| id.as_str() > previous)
+        .unwrap_or(0);
+    peers.rotate_left(offset);
+    peers.truncate(MAX_PEERS_PER_TICK);
+}
+
 /// Runs one bounded push/pull cycle for every active, non-revoked, routed peer
 /// of the pinned database. Returns `Ok(None)` when a tick must not run now:
 /// no confirmed local session, another background caller holds the workspace,
@@ -121,14 +131,73 @@ pub(crate) fn tick(config: &AppConfig) -> Result<Option<NetworkTickReport>> {
     let roster = store
         .current_signed_roster()?
         .context("sync_authority_not_ready")?;
-    let peers: Vec<(String, [u8; 32])> = roster
+    store.reconcile_sync_upstream_outbox()?;
+    let upstream = store.sync_upstream_device()?;
+    let mut peers: Vec<(String, [u8; 32])> = roster
         .roster
         .members
         .iter()
         .filter(|m| m.active && m.device.device_id != local_device.device_id)
-        .take(MAX_PEERS_PER_TICK)
+        .filter(|m| {
+            upstream
+                .as_ref()
+                .is_none_or(|owner| *owner == m.device.device_id)
+        })
         .map(|m| (m.device.device_id.clone(), m.device.signing_key))
         .collect();
+    // Rotate across all routed peers. A fixed take(8) permanently starves
+    // later members; persist the cursor alongside the relay scan cursors.
+    let cursor_key = format!("network-peers:{}", identity.dataset_id);
+    let previous = store.relay_scan_cursor(&cursor_key)?;
+    rotate_peers(&mut peers, &previous);
+    if let Some((last, _)) = peers.last() {
+        store.save_relay_scan_cursor(&cursor_key, last)?;
+    }
+    // Each mailbox scan must recognize every paired sender, including a peer
+    // outside this tick's send budget. Scanning separately with one sender
+    // otherwise keeps counting other members' valid mail as unknown.
+    let mut channels = Vec::new();
+    for member in roster
+        .roster
+        .members
+        .iter()
+        .filter(|m| m.active && m.device.device_id != local_device.device_id)
+        .filter(|m| {
+            upstream
+                .as_ref()
+                .is_none_or(|owner| *owner == m.device.device_id)
+        })
+    {
+        let (send, receive, version) =
+            vault.peer_keys(&identity.dataset_id, &member.device.device_id)?;
+        let route = vault
+            .peer_route(&identity.dataset_id, &member.device.device_id)?
+            .clone();
+        channels.push((
+            member.device.device_id.clone(),
+            member.device.signing_key,
+            send,
+            receive,
+            version,
+            route,
+        ));
+    }
+    let encryption: Vec<_> = channels
+        .iter()
+        .map(
+            |(id, _, send, _, version, _)| crate::sync::engine::EncryptionPeer {
+                device_id: id,
+                key_version: *version,
+                key: send,
+            },
+        )
+        .collect();
+    if !encryption.is_empty() {
+        // All routed recipients need a durable envelope before the provider
+        // revision is frozen; one peer at a time cannot satisfy this contract.
+        crate::sync::engine::stage_provider_updates(&store, &encryption, vault.identity())?;
+    }
+    let mut scanned = std::collections::HashSet::new();
     let mut report = NetworkTickReport::default();
     // 每拍只补关一次 blob（信箱是本地那一个，与对端无关）。
     let mut recycle_swept = false;
@@ -156,12 +225,6 @@ pub(crate) fn tick(config: &AppConfig) -> Result<Option<NetworkTickReport>> {
             &send_key,
             vault.identity(),
         )?;
-        let encryption = [crate::sync::engine::EncryptionPeer {
-            device_id: &peer_id,
-            key_version,
-            key: &send_key,
-        }];
-        crate::sync::engine::stage_provider_updates(&store, &encryption, vault.identity())?;
         // Application receipts ride the same durable outbox; without staging
         // them the peer's applied operations never clear and would resend.
         crate::sync::engine::stage_receipts(
@@ -199,30 +262,40 @@ pub(crate) fn tick(config: &AppConfig) -> Result<Option<NetworkTickReport>> {
             now(),
         )?;
         peer_report.uploaded = pushed.uploaded;
-        let receiving = [crate::sync::engine::ReceivingPeer {
-            device_id: &peer_id,
-            mailbox_id: &route.peer_mailbox,
-            key_version,
-            key: &receive_key,
-            public_key: &peer_signing,
-        }];
-        for _ in 0..MAX_PAGES_PER_TICK {
-            let pulled = crate::sync::engine::pull_page(
-                &store,
-                &client,
-                &route.local_mailbox,
-                vault.mailbox_owner(),
-                &receiving,
-            )?;
-            peer_report.pulled_accepted += pulled.accepted;
-            peer_report.pulled_waiting += pulled.waiting;
-            peer_report.pulled_rejected += pulled.rejected;
-            peer_report.pulled_version_mismatch += pulled.rejected_version_mismatch;
-            peer_report.pulled_dropped += pulled.dropped;
-            peer_report.pulled_blocked += pulled.blocked;
-            peer_report.acknowledgement_failed |= pulled.acknowledgement_failed;
-            if pulled.accepted + pulled.waiting + pulled.rejected < 3 {
-                break;
+        let receiving: Vec<_> = channels
+            .iter()
+            .filter(|(_, _, _, _, _, r)| {
+                r.relay_url == route.relay_url && r.local_mailbox == route.local_mailbox
+            })
+            .map(
+                |(id, signing, _, key, version, r)| crate::sync::engine::ReceivingPeer {
+                    device_id: id,
+                    mailbox_id: &r.peer_mailbox,
+                    key_version: *version,
+                    key,
+                    public_key: signing,
+                },
+            )
+            .collect();
+        if scanned.insert((route.relay_url.clone(), route.local_mailbox.clone())) {
+            for _ in 0..MAX_PAGES_PER_TICK {
+                let pulled = crate::sync::engine::pull_page(
+                    &store,
+                    &client,
+                    &route.local_mailbox,
+                    vault.mailbox_owner(),
+                    &receiving,
+                )?;
+                peer_report.pulled_accepted += pulled.accepted;
+                peer_report.pulled_waiting += pulled.waiting;
+                peer_report.pulled_rejected += pulled.rejected;
+                peer_report.pulled_version_mismatch += pulled.rejected_version_mismatch;
+                peer_report.pulled_dropped += pulled.dropped;
+                peer_report.pulled_blocked += pulled.blocked;
+                peer_report.acknowledgement_failed |= pulled.acknowledgement_failed;
+                if pulled.accepted + pulled.waiting + pulled.rejected < 3 {
+                    break;
+                }
             }
         }
         // blob 数据面：在途快照的分片不在信箱里，要主动去 blob 上拉。每拍最多

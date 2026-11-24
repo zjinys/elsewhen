@@ -49,7 +49,7 @@ class GoalUiCatalog {
               child: Text(
                 ctx.propOr<String>('text', ''),
                 style: TextStyle(
-                  fontSize: 12.5,
+                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.textPrimary,
                 ),
@@ -213,7 +213,7 @@ class _GoalChip extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 10.5,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
           color: color,
         ),
@@ -243,7 +243,7 @@ class _GoalMetric extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              fontSize: 13.5,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
               color: AppTheme.textPrimary,
             ),
@@ -251,7 +251,7 @@ class _GoalMetric extends StatelessWidget {
           const SizedBox(height: 1),
           Text(
             label,
-            style: TextStyle(fontSize: 10.5, color: AppTheme.textTertiary),
+            style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
           ),
         ],
       ),

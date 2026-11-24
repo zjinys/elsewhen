@@ -179,7 +179,7 @@ class _ImportFetchTabBodyState extends ConsumerState<_ImportFetchTabBody> {
                         children: [
                           Icon(
                             Icons.check,
-                            size: 14,
+                            size: DesignTokens.iconMicro,
                             color: AppTheme.accentPrimary,
                           ),
                           const SizedBox(width: 4),
@@ -225,7 +225,7 @@ class _ImportFetchTabBodyState extends ConsumerState<_ImportFetchTabBody> {
               child: SelectableText(
                 fetch.contentMd,
                 style: TextStyle(
-                  fontSize: 13.5,
+                  fontSize: 14,
                   color: AppTheme.textPrimary,
                   height: 1.7,
                 ),

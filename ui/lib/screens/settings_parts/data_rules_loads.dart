@@ -134,7 +134,7 @@ extension _DataRulesLoads on _SettingsScreenState {
       setState(() => _userModelEmotions.remove(item));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: AppErrorMessage(
             action: context.l10n.load,
@@ -156,7 +156,7 @@ extension _DataRulesLoads on _SettingsScreenState {
       setState(() => _userModelRelations.removeWhere((r) => r.id == rel.id));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: AppErrorMessage(
             action: context.l10n.load,

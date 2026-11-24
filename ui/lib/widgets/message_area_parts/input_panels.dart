@@ -112,7 +112,7 @@ class _InputCompletionPanel extends StatelessWidget {
                               marker == '@'
                                   ? Icons.person_outline
                                   : Icons.tag_outlined,
-                              size: 15,
+                              size: DesignTokens.iconMicro,
                               color: AppTheme.accentPrimary,
                             ),
                             const SizedBox(width: 8),
@@ -141,7 +141,7 @@ class _InputCompletionPanel extends StatelessWidget {
                               child: Text(
                                 context.pageKindLabel(page.kind),
                                 style: TextStyle(
-                                  fontSize: 10.5,
+                                  fontSize: 11,
                                   color: AppTheme.textTertiary,
                                 ),
                               ),
@@ -222,7 +222,7 @@ Future<void> _copyToClipboard(
 ) async {
   await Clipboard.setData(ClipboardData(text: text));
   if (!context.mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(
+  FeedbackToast.of(context).show(
     SnackBar(
       content: Text(context.l10n.copiedItem(label)),
       duration: const Duration(seconds: 1),

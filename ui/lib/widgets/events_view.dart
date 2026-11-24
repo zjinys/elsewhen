@@ -1,3 +1,4 @@
+import '../theme/design_tokens.dart';
 import 'app_error_notice.dart';
 import '../l10n/localization.dart';
 
@@ -9,6 +10,7 @@ import '../bridge/api.dart' as api;
 import '../bridge/rust_bridge_repository.dart';
 import '../models/rule.dart';
 import '../theme/app_theme.dart';
+import 'feedback_toast.dart';
 
 part 'events_view_parts/events_stream.dart';
 part 'events_view_parts/events_detail.dart';
@@ -46,7 +48,7 @@ class EventsView extends ConsumerWidget {
                   child: Text(
                     context.l10n.l6SelectAnEventToViewItsd5e60,
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 12,
                       color: AppTheme.textTertiary,
                     ),
                   ),

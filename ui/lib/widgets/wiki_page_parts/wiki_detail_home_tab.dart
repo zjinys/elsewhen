@@ -86,7 +86,7 @@ class _MaintenanceEntry extends ConsumerWidget {
             children: [
               Icon(
                 Icons.fact_check_outlined,
-                size: 18,
+                size: DesignTokens.icon,
                 color: pendingCount > 0
                     ? AppTheme.accentPrimary
                     : AppTheme.textTertiary,
@@ -96,7 +96,7 @@ class _MaintenanceEntry extends ConsumerWidget {
                 child: Text(
                   context.l10n.knowledgeReview,
                   style: TextStyle(
-                    fontSize: 13.5,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: AppTheme.textPrimary,
                   ),
@@ -324,7 +324,7 @@ class _WikiTabChip extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 12,
                       fontWeight: active ? FontWeight.w600 : FontWeight.w400,
                       color: active
                           ? AppTheme.textPrimary

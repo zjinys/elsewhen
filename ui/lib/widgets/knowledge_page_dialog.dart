@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import 'glass.dart';
 import 'markdown_view.dart';
 import '../l10n/localization.dart';
+import 'feedback_toast.dart';
 
 /// 知识库单页内容快速预览对话框。
 ///
@@ -89,7 +90,7 @@ class KnowledgePageDialog extends ConsumerWidget {
               child: Text(
                 context.pageKindLabel(page.kind),
                 style: TextStyle(
-                  fontSize: 11.5,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: AppTheme.accentPrimary,
                 ),
@@ -102,7 +103,7 @@ class KnowledgePageDialog extends ConsumerWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 17,
+                  fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: AppTheme.textPrimary,
                 ),
@@ -116,7 +117,7 @@ class KnowledgePageDialog extends ConsumerWidget {
                 visualDensity: VisualDensity.compact,
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: page.title));
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  FeedbackToast.of(context).show(
                     SnackBar(
                       content: Text(context.l10n.pageTitleCopied),
                       behavior: SnackBarBehavior.floating,
@@ -282,7 +283,7 @@ class KnowledgePageDialog extends ConsumerWidget {
             Text(
               context.l10n.knowledgePageMissingHelp,
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: 12,
                 color: AppTheme.textTertiary,
                 height: 1.5,
               ),

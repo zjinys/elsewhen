@@ -6,6 +6,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../bridge/api.dart' as api;
 import '../theme/app_theme.dart';
+import 'feedback_toast.dart';
+import '../theme/design_tokens.dart';
 
 /// 「网络（DoH）」设置区块：DoH 启用策略三态 + 服务地址 + 测试连接。
 ///
@@ -119,15 +121,10 @@ class _DohSettingsState extends State<DohSettings> {
 
   void _toast(String message, {required bool ok}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: ok ? AppTheme.accentPrimary : AppTheme.error,
-        behavior: SnackBarBehavior.floating,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(999)),
-        ),
-      ),
+    showFeedbackToast(
+      context,
+      message: message,
+      kind: ok ? FeedbackKind.success : FeedbackKind.error,
     );
   }
 
@@ -265,7 +262,7 @@ class _DohSettingsState extends State<DohSettings> {
       children: [
         Icon(
           _testOk ? Icons.check_circle_outline : Icons.error_outline,
-          size: 16,
+          size: DesignTokens.iconMicro,
           color: _testOk ? AppTheme.accentPrimary : AppTheme.error,
         ),
         const SizedBox(width: 6),

@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:elsewhen_ui/bridge/api.dart' as api;
+
 import 'package:elsewhen_ui/sync/sync_backlog_notice.dart';
 import 'package:elsewhen_ui/sync/sync_key_store.dart';
 import 'package:elsewhen_ui/sync/sync_setup_controller.dart';
@@ -10,11 +14,12 @@ import 'support/sync_setup.dart';
 /// 同步页的投递行实时写着「待确认 1」，但主界面状态位整整 8 分钟没有出现
 /// —— 因为状态快照只在 banner 的 `initState` 里读过一次。重启 app 后立刻
 /// 显示「对端未确认 1 条 · 2.7 KB」，证明判定与数字都对，错的是「谁来刷新」。
-SyncSetupController _controllerFor(TestSyncSetupApi setup) => SyncSetupController(
-  keyStore: SyncKeyStore(storage: setup.storage),
-  bridge: setup,
-  previewEnabled: true,
-);
+SyncSetupController _controllerFor(TestSyncSetupApi setup) =>
+    SyncSetupController(
+      keyStore: SyncKeyStore(storage: setup.storage),
+      bridge: setup,
+      previewEnabled: true,
+    );
 
 /// 投递进度信号（真身是 `ValueNotifier<List<SyncDeliveryStatusDto>>`）。
 /// 这里只需要「能推一次」和「是否还挂着监听」两个能力；`hasListeners` 是
@@ -29,7 +34,51 @@ class _TickSignal extends ChangeNotifier {
   void fire() => notifyListeners();
 }
 
+class _DelayedBacklogApi extends TestSyncSetupApi {
+  _DelayedBacklogApi(super.storage);
+  Completer<api.LocalSyncStateDto>? nextRead;
+
+  @override
+  Future<api.LocalSyncStateDto> state() {
+    final read = nextRead;
+    if (read == null) return super.state();
+    nextRead = null;
+    return read.future;
+  }
+}
+
 void main() {
+  test(
+    'late backlog responses cannot undo a completed lock or unlock',
+    () async {
+      final setup = _DelayedBacklogApi(TestSyncSecureStorage());
+      final controller = _controllerFor(setup);
+      addTearDown(() async {
+        await controller.close();
+        controller.dispose();
+      });
+      await controller.createOwner('owner', 'test', consent: true);
+      final oldReady = controller.state!;
+      final first = Completer<api.LocalSyncStateDto>();
+      setup.nextRead = first;
+      final staleReady = controller.refreshBacklog();
+      await controller.lock();
+      expect(controller.state?.state, 'locked');
+      first.complete(oldReady);
+      await staleReady;
+      expect(controller.state?.state, 'locked');
+
+      final oldLocked = controller.state!;
+      final second = Completer<api.LocalSyncStateDto>();
+      setup.nextRead = second;
+      final staleLocked = controller.refreshBacklog();
+      await controller.unlock();
+      expect(controller.state?.state, 'local_ready');
+      second.complete(oldLocked);
+      await staleLocked;
+      expect(controller.state?.state, 'local_ready');
+    },
+  );
   test('投递进度一变就重读快照：积压从无到有时状态位必须自己浮出来', () async {
     final setup = TestSyncSetupApi(TestSyncSecureStorage())
       ..current = testSyncState('local_ready');
@@ -81,11 +130,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
     }
     expect(setup.stateReads, greaterThan(1), reason: '每拍都该重读（不然就是 8 分钟不更新）');
-    expect(
-      notifications,
-      0,
-      reason: '读数没变就不该 notify：状态位每次都重建会闪',
-    );
+    expect(notifications, 0, reason: '读数没变就不该 notify：状态位每次都重建会闪');
     controller.dispose();
   });
 

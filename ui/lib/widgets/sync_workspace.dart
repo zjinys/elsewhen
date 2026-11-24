@@ -114,83 +114,90 @@ class SyncHealthPanel extends StatelessWidget {
       );
     }
     final bridge = repository as RustBridgeRepository;
-    return FutureBuilder<api.SyncRosterDto>(
-      future: api.getSyncRoster(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-        }
-        if (snapshot.hasError) {
-          return Padding(
-            padding: const EdgeInsets.all(AppTheme.space4),
-            child: Text(
-              context.l10n.l6CouldNotLoadSyncStatusSyncb8a20,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
-            ),
-          );
-        }
-        final roster = snapshot.data!;
-        final members = roster.members;
-        // 「设备 x/y 在线」的分母只数活跃成员：名册里保留的已撤销行是
-        // 给 owner 审计用的，不是当前设备群——解绑后这里若仍按 members
-        // 全量计数，数字永远不降，看起来像解绑没生效。
-        final activeMembers = members.where((m) => m.active).toList();
-        final online = activeMembers.length;
-        final revoked = members.length - activeMembers.length;
-        final local = members.where((m) => m.isLocal).toList();
-        final localName = local.isEmpty
-            ? context.l10n.l6ThisDevice8b4c1
-            : local.first.name;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _row(
-              icon: Icons.computer_outlined,
-              text: localName,
-              badge: local.isNotEmpty && local.first.isProcessor
-                  ? context.l10n.l6Processorb4366
-                  : null,
-            ),
-            _row(
-              icon: Icons.devices_outlined,
-              text: context.l10n.l6DevicesOnlineArg0Arg1c5eda(
-                (online).toString(),
-                (activeMembers.length).toString(),
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        bridge.localSync,
+        bridge.localSync.enrollment,
+        bridge.lastSyncTick,
+      ]),
+      builder: (context, _) => FutureBuilder<api.SyncRosterDto>(
+        future: api.getSyncRoster(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData &&
+              snapshot.connectionState != ConnectionState.done) {
+            return const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            );
+          }
+          if (snapshot.hasError) {
+            return Padding(
+              padding: const EdgeInsets.all(AppTheme.space4),
+              child: Text(
+                context.l10n.l6CouldNotLoadSyncStatusSyncb8a20,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
               ),
-              // 名册里保留的已撤销行是审计用的，不算在册数；有撤销时
-              // 用 badge 提示，数字才不会在解绑后纹丝不动。
-              badge: revoked > 0
-                  ? '${context.l10n.l6Revoked61063} $revoked'
-                  : null,
-            ),
-            ValueListenableBuilder<api.SyncTickResultDto?>(
-              valueListenable: bridge.lastSyncTick,
-              builder: (context, tick, _) {
-                if (tick == null) {
+            );
+          }
+          final roster = snapshot.data!;
+          final members = roster.members;
+          // 「设备 x/y 在线」的分母只数活跃成员：名册里保留的已撤销行是
+          // 给 owner 审计用的，不是当前设备群——解绑后这里若仍按 members
+          // 全量计数，数字永远不降，看起来像解绑没生效。
+          final activeMembers = members.where((m) => m.active).toList();
+
+          final revoked = members.length - activeMembers.length;
+          final local = members.where((m) => m.isLocal).toList();
+          final localName = local.isEmpty
+              ? context.l10n.l6ThisDevice8b4c1
+              : local.first.name;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _row(
+                icon: Icons.computer_outlined,
+                text: localName,
+                badge: local.isNotEmpty && local.first.isProcessor
+                    ? context.l10n.l6Processorb4366
+                    : null,
+              ),
+              _row(
+                icon: Icons.devices_outlined,
+                text: context.l10n.syncConnectedDevices(
+                  activeMembers.length.toString(),
+                ),
+                // 名册里保留的已撤销行是审计用的，不算在册数；有撤销时
+                // 用 badge 提示，数字才不会在解绑后纹丝不动。
+                badge: revoked > 0
+                    ? '${context.l10n.l6Revoked61063} $revoked'
+                    : null,
+              ),
+              ValueListenableBuilder<api.SyncTickResultDto?>(
+                valueListenable: bridge.lastSyncTick,
+                builder: (context, tick, _) {
+                  if (tick == null) {
+                    return _row(
+                      icon: Icons.access_time_outlined,
+                      text: context.l10n.l6NoSyncYet8ce44,
+                      muted: true,
+                    );
+                  }
                   return _row(
-                    icon: Icons.access_time_outlined,
-                    text: context.l10n.l6NoSyncYet8ce44,
-                    muted: true,
+                    icon: tick.ran
+                        ? Icons.check_circle_outline
+                        : Icons.pause_circle_outline,
+                    text: tick.ran
+                        ? context.l10n.syncLastRound
+                        : context.l10n.l6HeartbeatOnStandbyIdleda794,
+                    muted: !tick.ran,
                   );
-                }
-                return _row(
-                  icon: tick.ran
-                      ? Icons.check_circle_outline
-                      : Icons.pause_circle_outline,
-                  text: tick.ran
-                      ? context.l10n.l6HeartbeatHealthyPendingArg05c133(
-                          (tick.stagedOperations).toString(),
-                        )
-                      : context.l10n.l6HeartbeatOnStandbyIdleda794,
-                  muted: !tick.ran,
-                );
-              },
-            ),
-          ],
-        );
-      },
+                },
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -207,7 +214,9 @@ class SyncHealthPanel extends StatelessWidget {
         children: [
           Icon(icon, size: 15, color: color),
           const SizedBox(width: 8),
-          Text(text, style: TextStyle(fontSize: 12.5, color: color)),
+          Flexible(
+            child: Text(text, style: TextStyle(fontSize: 12, color: color)),
+          ),
           if (badge != null) ...[
             const SizedBox(width: 6),
             Container(
@@ -218,7 +227,7 @@ class SyncHealthPanel extends StatelessWidget {
               ),
               child: Text(
                 badge,
-                style: TextStyle(fontSize: 10, color: AppTheme.accentPrimary),
+                style: TextStyle(fontSize: 11, color: AppTheme.accentPrimary),
               ),
             ),
           ],

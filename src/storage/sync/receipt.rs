@@ -63,7 +63,15 @@ impl Store {
         // the local stream. op ids are `stream:seq`; the sequence is the
         // watermark position. Local captures insert `applied` ops directly and
         // never flow through ack, so the local device does not gate itself.
-        if let Some(seq) = op_id.rsplit(':').next().and_then(|s| s.parse::<i64>().ok()) {
+        let local_seq: Option<i64> = self
+            .connection
+            .query_row(
+                "SELECT origin_sequence FROM sync_operations WHERE op_id=?1 AND local=1",
+                [op_id],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if let Some(seq) = local_seq {
             self.advance_sync_member_watermark(recipient, seq)?;
         }
         Ok(())
@@ -157,7 +165,7 @@ impl Store {
     }
 
     pub(crate) fn queue_sync_receipt(&self, op_id: &str) -> Result<()> {
-        self.connection.execute("INSERT INTO sync_receipts(op_id,target_device_id,payload_hash) SELECT op_id,origin_device_id,payload_hash FROM sync_operations WHERE op_id=?1 AND local=0 AND state IN ('applied','conflict') ON CONFLICT(op_id) DO UPDATE SET pending=1", [op_id])?;
+        self.connection.execute("INSERT INTO sync_receipts(op_id,target_device_id,payload_hash) SELECT op_id,COALESCE(received_from_device_id,origin_device_id),payload_hash FROM sync_operations WHERE op_id=?1 AND local=0 AND state IN ('applied','conflict') ON CONFLICT(op_id) DO UPDATE SET pending=1,target_device_id=excluded.target_device_id", [op_id])?;
         Ok(())
     }
 }

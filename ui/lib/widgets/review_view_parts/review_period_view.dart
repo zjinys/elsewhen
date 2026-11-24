@@ -56,7 +56,7 @@ class _ReviewPeriodView extends ConsumerWidget {
                       : context.l10n.l6NoRecordsThisMonthd57d9,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 12,
                     height: 1.6,
                     color: AppTheme.textTertiary,
                   ),
@@ -102,7 +102,7 @@ class _ReviewPeriodView extends ConsumerWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    fontSize: 12.5,
+                                    fontSize: 12,
                                     color: AppTheme.textPrimary,
                                   ),
                                 ),
@@ -110,7 +110,7 @@ class _ReviewPeriodView extends ConsumerWidget {
                               Text(
                                 '${row.count}',
                                 style: TextStyle(
-                                  fontSize: 12.5,
+                                  fontSize: 12,
                                   color: AppTheme.textTertiary,
                                   fontFeatures: const [
                                     FontFeature.tabularFigures(),
@@ -298,7 +298,7 @@ class _KnowledgeHealthBarState extends ConsumerState<KnowledgeHealthBar> {
                     summaryBroken
                         ? Icons.warning_amber_outlined
                         : Icons.monitor_heart_outlined,
-                    size: 14,
+                    size: DesignTokens.iconMicro,
                     color: summaryBroken
                         ? const Color(0xFFF7768E)
                         : const Color(0xFF9ECE6A),
@@ -341,7 +341,7 @@ class _KnowledgeHealthBarState extends ConsumerState<KnowledgeHealthBar> {
                   ),
                   Icon(
                     Icons.expand_less,
-                    size: 16,
+                    size: DesignTokens.iconMicro,
                     color: AppTheme.textTertiary,
                   ),
                 ],
@@ -440,7 +440,7 @@ class _KnowledgeHealthBarState extends ConsumerState<KnowledgeHealthBar> {
                     .l10n
                     .l6SummaryPreparationHistoryProcessedInBackground2648e,
                 style: TextStyle(
-                  fontSize: 11.5,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: AppTheme.textTertiary,
                 ),

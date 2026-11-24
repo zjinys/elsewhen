@@ -7,8 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'theme/app_theme.dart';
-import 'theme/content_font.dart';
 import 'theme/design_tokens.dart';
+import 'theme/content_font.dart';
 import 'models/settings.dart';
 import 'l10n/app_localizations.dart';
 import 'l10n/app_locale.dart';

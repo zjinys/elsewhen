@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/knowledge_provider.dart';
 import '../l10n/localization.dart';
+import '../theme/design_tokens.dart';
 
 /// 「反馈这条建议」入口开关，当前默认关闭。
 ///
@@ -110,7 +111,7 @@ class _FeedbackState extends ConsumerState<SuggestionFeedbackControl> {
         ),
         icon: Icon(
           _open ? Icons.expand_less : Icons.rate_review_outlined,
-          size: 14,
+          size: DesignTokens.iconMicro,
         ),
         label: Text(
           context.l10n.feedbackSuggestion,

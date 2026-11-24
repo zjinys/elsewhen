@@ -120,7 +120,7 @@ enum AppThemePreset {
   static AppThemePreset fromName(String name) {
     return AppThemePreset.values.firstWhere(
       (p) => p.name == name,
-      orElse: () => AppThemePreset.amber,
+      orElse: () => AppThemePreset.indigo,
     );
   }
 }
@@ -243,7 +243,7 @@ class AppSettings {
     required this.memory,
     required this.storage,
     this.themeMode = AppThemeMode.system,
-    this.themePreset = AppThemePreset.amber,
+    this.themePreset = AppThemePreset.indigo,
     this.fontName = 'inter',
     this.fontSize = AppFonts.defaultFontSize,
     this.editorFontName,
@@ -323,7 +323,7 @@ class AppSettings {
       memory: const MemorySettings(strategyType: 'simple', maxMessages: 20),
       storage: const StorageSettings(adapterType: 'sqlite'),
       themeMode: AppThemeMode.system,
-      themePreset: AppThemePreset.amber,
+      themePreset: AppThemePreset.indigo,
     );
   }
 }

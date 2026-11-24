@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../theme/app_theme.dart';
+import '../widgets/feedback_toast.dart';
 
 /// 自定义 block「代码块」降级组件（设计 §11 Q4）。
 ///
@@ -158,9 +159,9 @@ class _WikiCodeBlockComponentState extends State<WikiCodeBlockComponent>
     return InkWell(
       onTap: () {
         Clipboard.setData(ClipboardData(text: code));
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
+        FeedbackToast.of(context)
+          ..dismiss()
+          ..show(
             SnackBar(
               content: Text(context.l10n.l6CodeCopied8df90),
               duration: Duration(seconds: 1),

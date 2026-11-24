@@ -7,6 +7,8 @@ import '../providers/goal_provider.dart';
 import '../theme/app_theme.dart';
 import 'goal_view.dart';
 import '../l10n/localization.dart';
+import 'feedback_toast.dart';
+import '../theme/design_tokens.dart';
 
 /// 航向偏离校准横幅（挂在 MessageArea 状态栏下方，与 ReminderBanner 并列）。
 /// 当 3~5 天滑动窗口检测到活跃目标行动停滞且精力分散时呈现。
@@ -27,15 +29,18 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
     );
     final blocker = goal?.blocker;
 
+    final dark = AppTheme.brightness == Brightness.dark;
     return Container(
       width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 6, 16, 2),
       decoration: BoxDecoration(
-        color: AppTheme.accentPrimary.withValues(alpha: 0.08),
-        border: Border(
-          bottom: BorderSide(
-            color: AppTheme.accentPrimary.withValues(alpha: 0.2),
-          ),
+        color: AppTheme.accentPrimary.withValues(alpha: dark ? 0.10 : 0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppTheme.accentPrimary.withValues(alpha: dark ? 0.30 : 0.20),
+          width: 0.5,
         ),
+        boxShadow: ShadowTokens.level1(dark),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Column(
@@ -46,7 +51,7 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
             children: [
               Icon(
                 Icons.explore_outlined,
-                size: 17,
+                size: DesignTokens.icon,
                 color: AppTheme.accentPrimary,
               ),
               const SizedBox(width: 8),
@@ -159,7 +164,7 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
                 onPressed: () => _dismiss(context, ref, nudge),
                 child: Text(
                   context.l10n.compassSnooze,
-                  style: TextStyle(fontSize: 11.5),
+                  style: TextStyle(fontSize: TypographyTokens.secondary),
                 ),
               ),
             ],
@@ -223,7 +228,7 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
       ref.invalidate(activeGoalsProvider);
       ref.invalidate(activeCompassNudgeProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FeedbackToast.of(context).show(
           SnackBar(
             content: Text(context.l10n.compassRealigned),
             behavior: SnackBarBehavior.floating,
@@ -232,7 +237,7 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FeedbackToast.of(context).show(
           SnackBar(
             content: Text(context.errorMessage(context.l10n.edit, e)),
             behavior: SnackBarBehavior.floating,
@@ -252,7 +257,7 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
       await repo.dismissCompassNudge(nudge.id);
       ref.invalidate(activeCompassNudgeProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FeedbackToast.of(context).show(
           SnackBar(
             content: Text(context.l10n.compassDismissed),
             behavior: SnackBarBehavior.floating,
@@ -261,7 +266,7 @@ class GoalCompassNudgeBanner extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FeedbackToast.of(context).show(
           SnackBar(
             content: Text(context.errorMessage(context.l10n.edit, e)),
             behavior: SnackBarBehavior.floating,
@@ -306,7 +311,7 @@ class GoalCompassNudgeCard extends ConsumerWidget {
             children: [
               Icon(
                 Icons.explore_outlined,
-                size: 16,
+                size: DesignTokens.iconMicro,
                 color: AppTheme.accentPrimary,
               ),
               const SizedBox(width: 6),
@@ -334,7 +339,7 @@ class GoalCompassNudgeCard extends ConsumerWidget {
                 child: Text(
                   context.l10n.compassStalled(nudge.stalledDays),
                   style: TextStyle(
-                    fontSize: 10.5,
+                    fontSize: TypographyTokens.micro,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.accentPrimary,
                   ),
@@ -372,7 +377,7 @@ class GoalCompassNudgeCard extends ConsumerWidget {
             Text(
               context.l10n.compassObstacleLine(blocker),
               style: TextStyle(
-                fontSize: 11.5,
+                fontSize: TypographyTokens.secondary,
                 color: AppTheme.accentPrimary,
                 fontWeight: FontWeight.w500,
               ),
@@ -407,7 +412,7 @@ class GoalCompassNudgeCard extends ConsumerWidget {
                       blocker != null && blocker.trim().isNotEmpty
                           ? context.l10n.compassFocusObstacle
                           : context.l10n.compassDiscussProgress,
-                      style: const TextStyle(fontSize: 11.5),
+                      style: const TextStyle(fontSize: TypographyTokens.secondary),
                     ),
                   ],
                 ),
@@ -433,7 +438,7 @@ class GoalCompassNudgeCard extends ConsumerWidget {
                     SizedBox(width: 4),
                     Text(
                       context.l10n.compassRollAction,
-                      style: TextStyle(fontSize: 11.5),
+                      style: TextStyle(fontSize: TypographyTokens.secondary),
                     ),
                   ],
                 ),
@@ -508,7 +513,7 @@ class _SemanticCompassCardState extends ConsumerState<_SemanticCompassCard> {
         showGoalCoAuthorToast(context);
       } else {
         ref.invalidate(activeCompassNudgeProvider);
-        ScaffoldMessenger.of(context).showSnackBar(
+        FeedbackToast.of(context).show(
           SnackBar(
             content: Text(
               kind == 'snooze'
@@ -520,7 +525,7 @@ class _SemanticCompassCardState extends ConsumerState<_SemanticCompassCard> {
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FeedbackToast.of(context).show(
           SnackBar(content: Text(context.errorMessage(strings.edit, error))),
         );
       }
@@ -579,8 +584,19 @@ class _SemanticCompassCardState extends ConsumerState<_SemanticCompassCard> {
     final nudge = widget.nudge;
     final assessment = nudge.assessment!;
     final strings = context.l10n;
-    return Material(
-      color: AppTheme.accentPrimary.withValues(alpha: 0.06),
+    final dark = AppTheme.brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+      decoration: BoxDecoration(
+        color: AppTheme.accentPrimary.withValues(alpha: dark ? 0.10 : 0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppTheme.accentPrimary.withValues(alpha: dark ? 0.30 : 0.20),
+          width: 0.5,
+        ),
+        boxShadow: ShadowTokens.level1(dark),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Column(

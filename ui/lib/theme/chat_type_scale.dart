@@ -19,11 +19,11 @@ class ChatTypeScale {
   /// 用户消息正文，比 AI 小一号维持层次差（原 14）。
   double get user => base - 1;
 
-  /// 习惯问候 / 洞察气泡正文（原 15.5）。
-  double get bubble => base + 0.5;
+  /// 习惯问候 / 洞察气泡正文（基准 15）。
+  double get bubble => base;
 
-  /// 洞察气泡的观察段次级文本（原 13.5）。
-  double get bubbleSecondary => base - 1.5;
+  /// 洞察气泡的观察段次级文本（基准 13）。
+  double get bubbleSecondary => base - 2;
 
   /// 对话输入框文字（原 14）。
   double get input => base - 1;

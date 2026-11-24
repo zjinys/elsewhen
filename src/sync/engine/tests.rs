@@ -7,6 +7,7 @@ use rusqlite::params;
 
 mod fragments;
 mod joining;
+mod snapshot_resume;
 
 struct Database {
     store: Store,

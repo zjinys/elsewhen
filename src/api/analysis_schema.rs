@@ -37,6 +37,22 @@ pub(crate) struct EventAnalysisV1 {
     /// D5 启用：情绪标注（结构就位，prompt 未要求时为 None）。
     #[serde(default)]
     pub(crate) emotion: Option<Vec<EventEmotionTag>>,
+    /// 从主对话中识别出的、可能值得长期记住的用户自述。这里只生成候选，
+    /// 真正写入个人记忆必须经过当前对话中的用户确认。
+    #[serde(default)]
+    pub(crate) memory_candidates: Vec<MemoryCandidateV1>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct MemoryCandidateV1 {
+    pub(crate) title: String,
+    pub(crate) content: String,
+    pub(crate) kind: String,
+    pub(crate) subject: String,
+    pub(crate) predicate: String,
+    #[serde(default = "default_memory_confidence")]
+    pub(crate) confidence: f64,
 }
 
 /// 规则适用性判定（D1）。rule_id 必须是 prompt 附带的 pending 命中之 id。
@@ -82,6 +98,10 @@ pub(crate) fn default_recordable() -> bool {
 }
 pub(crate) fn default_event_kind() -> String {
     "event".to_string()
+}
+
+pub(crate) fn default_memory_confidence() -> f64 {
+    0.7
 }
 
 impl EventAnalysisV1 {
@@ -144,6 +164,36 @@ impl EventAnalysisV1 {
         normalize_strings(&mut result.projects);
         normalize_strings(&mut result.activities);
         normalize_strings(&mut result.follow_ups);
+        let mut memory_candidates = Vec::with_capacity(result.memory_candidates.len().min(3));
+        for mut candidate in result.memory_candidates.drain(..).take(3) {
+            candidate.title = candidate.title.trim().to_string();
+            candidate.content = candidate.content.trim().to_string();
+            candidate.kind = candidate.kind.trim().to_lowercase();
+            candidate.subject = candidate.subject.trim().to_lowercase();
+            candidate.predicate = candidate.predicate.trim().to_lowercase();
+            if candidate.title.is_empty()
+                || candidate.content.is_empty()
+                || candidate.subject.is_empty()
+                || candidate.predicate.is_empty()
+            {
+                anyhow::bail!("memory_candidates 的文本字段不能为空");
+            }
+            anyhow::ensure!(
+                matches!(candidate.kind.as_str(), "semantic" | "procedural"),
+                "memory_candidates.kind 必须是 semantic 或 procedural"
+            );
+            anyhow::ensure!(
+                candidate.confidence.is_finite() && (0.0..=1.0).contains(&candidate.confidence),
+                "memory_candidates.confidence 必须在 0..1 范围内"
+            );
+            anyhow::ensure!(candidate.title.chars().count() <= 120, "记忆候选标题过长");
+            anyhow::ensure!(
+                candidate.content.chars().count() <= 1000,
+                "记忆候选内容过长"
+            );
+            memory_candidates.push(candidate);
+        }
+        result.memory_candidates = memory_candidates;
         Ok(result)
     }
 }

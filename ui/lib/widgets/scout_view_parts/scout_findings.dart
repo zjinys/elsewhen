@@ -23,7 +23,7 @@ class ScoutFindingsPane extends ConsumerWidget {
                     child: Text(
                       source == null
                           ? context.l10n.scoutLatest
-                          : _sourceName(ref, source),
+                          : scoutSourceDisplayName(ref, source),
                       style: TextStyle(
                         fontSize: scale.panel + 3,
                         fontWeight: FontWeight.w600,
@@ -223,7 +223,7 @@ class ScoutFindingsPane extends ConsumerWidget {
       await ref.read(scoutRepositoryProvider).markRead(ref, ids);
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FeedbackToast.of(context).show(
           SnackBar(
             content: Text(context.errorMessage(context.l10n.scoutMarkRead, e)),
           ),
@@ -267,7 +267,7 @@ class _FindingCard extends ConsumerWidget {
           ref.read(scoutRepositoryProvider).markRead(ref, [item.id]).catchError(
             (Object e) {
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                FeedbackToast.of(context).show(
                   SnackBar(
                     content: Text(
                       context.errorMessage(context.l10n.scoutMarkRead, e),
@@ -358,7 +358,7 @@ class _FindingCard extends ConsumerWidget {
                 const SizedBox(width: 6),
                 Icon(
                   Icons.chevron_right,
-                  size: 16,
+                  size: DesignTokens.iconMicro,
                   color: AppTheme.textTertiary,
                 ),
               ],

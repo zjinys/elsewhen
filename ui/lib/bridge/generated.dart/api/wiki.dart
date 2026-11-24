@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `serve`
 
 /// List wiki pages（主列表）。kind/area 均为 None 时列出全部（不含派生产物）。
@@ -20,6 +20,11 @@ Future<List<WikiPageDto>> listWikiPages({String? kind, String? area}) =>
 /// `_isSidebarVisiblePage`——单一真源不过双写。明细按 slug 单页读。
 Future<List<WikiPageMetaDto>> listWikiPageMetas({PlatformInt64? limit}) =>
     RustLib.instance.api.crateApiWikiListWikiPageMetas(limit: limit);
+
+/// List the canonical tag vocabulary. Unlike page metadata this is not bounded
+/// by the recent-page sidebar window.
+Future<List<WikiTagDto>> listWikiTags() =>
+    RustLib.instance.api.crateApiWikiListWikiTags();
 
 /// 某页的派生产物列表（AI 加工成果，挂在该页详情下，不进主列表）。
 Future<List<WikiPageDto>> listWikiPageDerivatives({required String slug}) =>
@@ -336,4 +341,23 @@ class WikiPageMetaDto {
           sourceUrl == other.sourceUrl &&
           area == other.area &&
           opinion == other.opinion;
+}
+
+/// Canonical tag vocabulary entry used by topic/tag autocomplete.
+class WikiTagDto {
+  final String name;
+  final PlatformInt64 usageCount;
+
+  const WikiTagDto({required this.name, required this.usageCount});
+
+  @override
+  int get hashCode => name.hashCode ^ usageCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WikiTagDto &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          usageCount == other.usageCount;
 }

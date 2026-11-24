@@ -23,6 +23,7 @@ mod mcp_servers;
 pub mod named_secrets;
 mod new_migrations;
 pub mod page_marks;
+pub(crate) mod personal_memory;
 mod plans;
 pub(crate) mod prompts;
 mod provider;
@@ -100,7 +101,9 @@ pub use digest::{
     DigestBatch, DigestBatchOutcome, DigestJobRow, DigestJobStats, DigestRunRow,
 };
 pub use digest_insights::DigestInsightSurfacing;
-pub use goals::{Goal, GoalCompassNudge, GoalPhase, GoalStatus, MAX_ACTIVE_GOALS};
+pub use goals::{
+    Goal, GoalChatPredecessor, GoalCompassNudge, GoalPhase, GoalStatus, MAX_ACTIVE_GOALS,
+};
 pub use knowledge::{
     KnowledgeIssue, KnowledgeMetadata, KnowledgeProposal, RejectedSourceRow, SourceSnapshot,
 };

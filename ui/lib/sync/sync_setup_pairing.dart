@@ -14,9 +14,11 @@ extension OwnerSyncPairing on SyncSetupController {
       final offer = await _pairing.issue(relayUrl.trim(), consent);
       _requirePairingOpen();
       invitation = offer;
+      approvedDevice = null;
       pairingPreview = null;
       pendingPairingId = null;
       approvalDelivered = false;
+      approvalReady = false;
       debugPrint(
         '[sync-pairing] owner: invitation created id=${offer.invitationId} '
         'expires=${DateTime.fromMillisecondsSinceEpoch(offer.expiresAtMs).toLocal()}',
@@ -61,6 +63,7 @@ extension OwnerSyncPairing on SyncSetupController {
         () => _pairing.approve(preview.invitationId, preview.token, consent),
       );
       pendingPairingId = preview.invitationId;
+      approvedDevice = preview;
       invitation = null;
       pairingPreview = null;
       debugPrint(
@@ -78,6 +81,12 @@ extension OwnerSyncPairing on SyncSetupController {
         state = await _bridge.confirm(commit.token, revision);
         _requirePairingOpen();
       } catch (_) {
+        // The request row is only a resumable transfer after protected
+        // confirmation succeeds. If that write fails, return to the invitation
+        // entry point instead of leaving a non-retryable phantom transfer.
+        pendingPairingId = null;
+        approvedDevice = null;
+        approvalReady = false;
         final operation = _ownedOperation;
         if (operation != null) {
           try {
@@ -89,6 +98,7 @@ extension OwnerSyncPairing on SyncSetupController {
         }
         rethrow;
       }
+      approvalReady = true;
       onReady?.call();
       await _pairing.sendApproval(preview.invitationId);
       approvalDelivered = true;
@@ -104,7 +114,7 @@ extension OwnerSyncPairing on SyncSetupController {
 
   Future<void> resendPairingApproval() async {
     final id = pendingPairingId;
-    if (id == null) return;
+    if (id == null || !approvalReady) return;
     await _pairingAction(() async {
       await _pairing.sendApproval(id);
       approvalDelivered = true;
@@ -134,18 +144,36 @@ extension OwnerSyncPairing on SyncSetupController {
   Future<void> autoRedeliverPendingApproval() async {
     final id = pendingPairingId;
     if (id == null || approvalDelivered) return;
-    try {
-      await _pairing.sendApproval(id);
-      _requirePairingOpen();
-      debugPrint('[sync-pairing] owner: auto-redelivery confirmed id=$id');
-      if (pendingPairingId == id && !approvalDelivered) {
-        approvalDelivered = true;
-        pairingNotice = appNotice('l6ApprovalDeliveredWaitingForTheNew361e9');
-        _changed();
+    await resendPairingApproval();
+  }
+
+  void _schedulePairingPoll() {
+    _pairingPoll?.cancel();
+    if (_closed || _disposed || state?.state != 'local_ready') return;
+    final offer = invitation;
+    final awaitingRequest =
+        offer != null &&
+        pairingPreview == null &&
+        DateTime.now().millisecondsSinceEpoch < offer.expiresAtMs;
+    final awaitingDelivery =
+        pendingPairingId != null && approvalReady && !approvalDelivered;
+    if (!awaitingRequest && !awaitingDelivery) return;
+    _pairingPoll = Timer(const Duration(seconds: 3), () async {
+      if (_closed || _disposed) return;
+      if (busy || joiner.busy || joiner.active) {
+        _schedulePairingPoll();
+        return;
       }
-    } catch (_) {
-      // 投递仍未确认：保持原状态，下一轮继续。
-    }
+      if (pendingPairingId != null && approvalReady && !approvalDelivered) {
+        await autoRedeliverPendingApproval();
+      } else if (invitation != null && pairingPreview == null) {
+        if (DateTime.now().millisecondsSinceEpoch >= invitation!.expiresAtMs) {
+          _changed();
+        } else {
+          await inspectInvitation();
+        }
+      }
+    });
   }
 
   void _requirePairingOpen() {
@@ -174,7 +202,7 @@ extension OwnerSyncPairing on SyncSetupController {
   }
 
   Future<void> _pairingAction(Future<void> Function() action) async {
-    if (busy || _disposed || _closed) return;
+    if (busy || _disposed || _closed || joiner.busy || joiner.active) return;
     if (!previewEnabled ||
         state?.state != 'local_ready' ||
         state?.isOwner != true) {
@@ -227,6 +255,7 @@ extension OwnerSyncPairing on SyncSetupController {
       _changed();
       SyncKeepAlive.release('sync-pairing-owner');
       _resumeEnrollment();
+      _schedulePairingPoll();
     }
   }
 }

@@ -1,20 +1,36 @@
-part of '../scout_view.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-/// 离线可辨的平台身份；未知来源保留服务端名称和通用图标。
-class _SourceIdentity {
+import '../bridge/api.dart' as api;
+import '../l10n/localization.dart';
+import '../providers/scout_provider.dart';
+import '../theme/app_theme.dart';
+
+/// Scout 来源的离线可辨平台身份 + 图标组件。
+///
+/// 侧栏来源面板、主区产品卡、来源角标共用：未知来源保留服务端名称
+/// 和通用图标。
+class ScoutSourceIdentity {
   final String platform;
   final String topic;
   final String? asset;
   final Color color;
-  const _SourceIdentity(this.platform, this.topic, this.asset, this.color);
+  const ScoutSourceIdentity(this.platform, this.topic, this.asset, this.color);
 }
 
-_SourceIdentity _sourceIdentity(BuildContext context, String id, String? name) {
+ScoutSourceIdentity scoutSourceIdentity(
+  BuildContext context,
+  String id,
+  String? name,
+) {
   final key = id.toLowerCase();
   if (key.startsWith('github')) {
-    return _SourceIdentity(
+    return ScoutSourceIdentity(
       'GitHub',
-      key.contains('rust')
+      key == 'github-newcomers'
+          ? context.l10n.scoutRecentProjects
+          : key.contains('rust')
           ? 'Rust'
           : key.contains('dart')
           ? 'Dart'
@@ -24,7 +40,7 @@ _SourceIdentity _sourceIdentity(BuildContext context, String id, String? name) {
     );
   }
   if (key.startsWith('producthunt') || key.startsWith('product-hunt')) {
-    return _SourceIdentity(
+    return ScoutSourceIdentity(
       'Product Hunt',
       key.contains('daily') || key == 'product-hunt'
           ? context.l10n.scoutDailyProducts
@@ -34,7 +50,7 @@ _SourceIdentity _sourceIdentity(BuildContext context, String id, String? name) {
     );
   }
   if (key.startsWith('gumroad')) {
-    return _SourceIdentity(
+    return ScoutSourceIdentity(
       'Gumroad',
       key.contains('notion')
           ? context.l10n.scoutNotionTemplates
@@ -46,9 +62,11 @@ _SourceIdentity _sourceIdentity(BuildContext context, String id, String? name) {
     );
   }
   if (key.startsWith('cws')) {
-    return _SourceIdentity(
+    return ScoutSourceIdentity(
       'Chrome Web Store',
-      key == 'cws-watchlist'
+      key == 'cws-discover'
+          ? context.l10n.scoutExtensionDiscovery
+          : key == 'cws-watchlist'
           ? context.l10n.scoutExtensionWatchlist
           : name ?? id,
       'googlechrome',
@@ -56,19 +74,27 @@ _SourceIdentity _sourceIdentity(BuildContext context, String id, String? name) {
     );
   }
   if (key.startsWith('appstore')) {
-    return _SourceIdentity(
+    return ScoutSourceIdentity(
       'App Store',
       key == 'appstore-us-top-free' ? context.l10n.scoutUsTopFree : name ?? id,
       'appstore',
       const Color(0xFF4E9DE8),
     );
   }
-  return _SourceIdentity(name ?? id, id, null, AppTheme.textSecondary);
+  return ScoutSourceIdentity(name ?? id, id, null, AppTheme.textSecondary);
 }
 
-class _SourceIcon extends StatelessWidget {
-  final _SourceIdentity source;
-  const _SourceIcon({required this.source});
+String scoutSourceDisplayName(WidgetRef ref, String id) {
+  for (final s
+      in ref.watch(scoutSourcesProvider).value ?? <api.ScoutSourceDto>[]) {
+    if (s.id == id) return s.name;
+  }
+  return id;
+}
+
+class ScoutSourceIcon extends StatelessWidget {
+  final ScoutSourceIdentity source;
+  const ScoutSourceIcon({super.key, required this.source});
   @override
   Widget build(BuildContext context) => Semantics(
     label: source.platform,
@@ -97,14 +123,14 @@ class ScoutSourceBadge extends ConsumerWidget {
   const ScoutSourceBadge({super.key, required this.sourceId});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final source = _sourceIdentity(
+    final source = scoutSourceIdentity(
       context,
       sourceId,
-      _sourceName(ref, sourceId),
+      scoutSourceDisplayName(ref, sourceId),
     );
     return Row(
       children: [
-        _SourceIcon(source: source),
+        ScoutSourceIcon(source: source),
         const SizedBox(width: 9),
         Expanded(
           child: Column(
@@ -127,7 +153,7 @@ class ScoutSourceBadge extends ConsumerWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 11,
                     color: AppTheme.textTertiary,
                   ),
                 ),

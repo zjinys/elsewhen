@@ -199,7 +199,40 @@ fvm flutter build linux --release --target=lib/main_desktop.dart
 > 不带时 `flutter build/run` 默认构建 `lib/main.dart`（不含窗口 chrome 初始化），
 > 用它验证会得到「全部正常」的假结论。桌面入口用 `main_desktop.dart`。
 
-### 2.4 打包 **[仓库]**
+### 2.4 ananicy-cpp 降权坑（CachyOS / 手装 ananicy 的 Arch 系）**[本机/环境，非仓库缺陷]**
+
+CachyOS 及手动安装了 ananicy-cpp 的 Arch 系发行版，会按进程名自动降权，默认规则里有：
+
+```json
+// /etc/ananicy.d/00-default/Development & Programming/dart_flutter.rules
+{ "name": "flutter", "type": "Heavy_CPU" }
+{ "name": "dart",    "type": "Heavy_CPU" }
+```
+
+`Heavy_CPU` 类型会把 flutter/dart 全族（含 debug 运行的 app 本体、flutter run 的
+dartvm、增量编译的 frontend_server）钉在 nice 9 左右的低优先级上。debug 运行
+本身是 JIT + asserts + 边跑边编译，是全场最吃 CPU 的进程，被压之后和其他高
+优先级进程（浏览器、Electron 应用等）抢核，表现为 **debug 启动/使用明显卡顿**。
+启动日志可佐证：`storage_ready_ms`/`bridge_ready_ms` 都是毫秒级——卡的不是
+初始化，是 UI 线程抢不到 CPU。
+
+**症状对照**：debug 卡 + `ps -o pid,ni,cmd` 里 app/flutter/dart 进程的 `NI` 列是
+正数（如 9）+ 系统里 `systemctl status ananicy-cpp` 在跑 → 就是它。
+
+Windows / macOS 没有此类按名降权的守护进程，不受影响；deb/rpm 的目标环境
+基本不装 ananicy，也不受影响。因此**不随安装包分发规则文件**（改 /etc/ananicy.d
+属侵入性系统调优，交由用户自选），提供可选修复脚本：
+
+```bash
+sudo ./scripts/fix-ananicy-priority.sh   # 检测到 ananicy-cpp 才安装豁免规则
+```
+
+脚本做两件事：写入 `/etc/ananicy.d/99-elsewhen/elsewhen.rules`（app 本体
+nice -5，flutter/dart 工具链 nice 0，99- 目录比 00-default 晚加载可覆盖），并
+即时 renice 当前已运行的进程。规则对 debug/release 一视同仁（按二进制名
+`elsewhen_ui`/`elsewhen` 匹配）。
+
+### 2.5 打包 **[仓库]**
 
 各脚本会在缺工具时报错并退出，工具名如下：
 

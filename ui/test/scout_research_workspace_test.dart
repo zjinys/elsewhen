@@ -7,6 +7,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:elsewhen_ui/theme/app_theme.dart';
+import 'package:elsewhen_ui/models/settings.dart' show AppThemePreset;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:elsewhen_ui/bridge/api.dart' as api;
@@ -186,6 +187,10 @@ Future<void> pump(
   WidgetTester tester,
   FakeResearch repository, {
   double width = 1200,
+  List<api.ScoutSourceDto> sources = const [],
+  DateTime? polledAt,
+  Brightness brightness = Brightness.dark,
+  Widget? home,
 }) async {
   tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1;
@@ -209,31 +214,38 @@ Future<void> pump(
       )..addFont(Future.value(ByteData.sublistView(icons)))).load();
     });
   }
-  AppTheme.apply(Brightness.dark, accent: const Color(0xFFE9A568));
+  final theme = AppTheme.buildTheme(AppThemePreset.amber, brightness);
+  AppTheme.apply(
+    brightness,
+    accent: brightness == Brightness.dark
+        ? const Color(0xFFE9A568)
+        : theme.colorScheme.primary,
+  );
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         scoutResearchRepositoryProvider.overrideWithValue(repository),
         scoutRevisionProvider.overrideWithValue(0),
         scoutSettingsProvider.overrideWith(
-          (ref) async => const api.ScoutSettingsDto(
+          (ref) async => api.ScoutSettingsDto(
             baseUrl: 'https://example.test',
             pollIntervalMinutes: 30,
             enabled: true,
             hasToken: true,
+            lastPolledAt: polledAt?.toUtc().toIso8601String(),
           ),
         ),
-        scoutSourcesProvider.overrideWith((ref) async => []),
+        scoutSourcesProvider.overrideWith((ref) async => sources),
       ],
       child: RepaintBoundary(
         key: const ValueKey('research-preview'),
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.darkTheme,
+          theme: theme,
           locale: const Locale('zh'),
           localizationsDelegates: appTestDelegates(),
           supportedLocales: const [Locale('zh'), Locale('en')],
-          home: const Scaffold(body: ScoutView()),
+          home: home ?? const Scaffold(body: ScoutView()),
         ),
       ),
     ),

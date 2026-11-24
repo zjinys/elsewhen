@@ -113,7 +113,7 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
       ref.invalidate(pageRelationsProvider(page.slug));
       // 直接打开已保存的页面，立即看到最新内容，避免再点左侧列表却读到缓存旧页
       openWikiPageTab(ref, page);
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(context.l10n.wikiSavedTitle(page.title)),
           behavior: SnackBarBehavior.floating,
@@ -303,7 +303,7 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
             children: [
               Icon(
                 Icons.check_circle_outline,
-                size: 14,
+                size: DesignTokens.iconMicro,
                 color: AppTheme.accentPrimary,
               ),
               const SizedBox(width: 4),
@@ -373,7 +373,7 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
             children: [
               Icon(
                 Icons.article_outlined,
-                size: 14,
+                size: DesignTokens.iconMicro,
                 color: AppTheme.textTertiary,
               ),
               const SizedBox(width: 6),
@@ -390,7 +390,7 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
               InkWell(
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: fetch.url));
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  FeedbackToast.of(context).show(
                     SnackBar(
                       content: Text(context.l10n.tweetLinkCopied),
                       behavior: SnackBarBehavior.floating,
@@ -402,7 +402,7 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
                   padding: EdgeInsets.all(4),
                   child: Icon(
                     Icons.link,
-                    size: 14,
+                    size: DesignTokens.iconMicro,
                     color: AppTheme.textTertiary,
                   ),
                 ),

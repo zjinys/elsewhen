@@ -40,6 +40,8 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
   Widget build(BuildContext context) {
     final message = widget.message;
     final isUser = message.isUser;
+    final bubbleStyle = ChatBubbleStyle.of(context);
+    final inlineMetadata = !isUser && bubbleStyle.isLight;
     final annotation = isUser ? null : _splitSystemAnnotation(message.content);
     final canFlipPast = !widget.isLastMessage;
     // 模型常把普通换行输出成空行分隔，聊天阅读中会显得过于松散；
@@ -52,6 +54,89 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
     final scale = ref.watch(settingsProvider.select(chatTypeScaleOf));
     final aiFontSize = scale.ai;
     final userFontSize = scale.user;
+    final metaColor = bubbleStyle.metadataColor;
+
+    final metadata = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: isUser ? context.l10n.me : 'AI',
+                  style: inlineMetadata
+                      ? TextStyle(
+                          color: bubbleStyle.palette.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        )
+                      : null,
+                ),
+                TextSpan(text: ' • ${_formatTime(message.createdAt)}'),
+              ],
+            ),
+            style: TextStyle(color: metaColor, fontSize: scale.meta),
+          ),
+        ),
+        SizedBox(width: inlineMetadata ? AppTheme.space2 : 2),
+        IconButton(
+          icon: Icon(Icons.copy_rounded, size: 13, color: metaColor),
+          tooltip: context.l10n.copyThisMessage,
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 24, minHeight: 20),
+          style: inlineMetadata && !_isMobilePlatform
+              ? IconButton.styleFrom(
+                  minimumSize: const Size(28, 28),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                )
+              : null,
+          onPressed: () =>
+              _copyToClipboard(context, displayContent, context.l10n.message),
+        ),
+        if (annotation != null)
+          Tooltip(
+            message: annotation.note.isEmpty
+                ? context.l10n.systemNotice
+                : '${context.l10n.systemNotice}: ${annotation.note}',
+            child: Semantics(
+              label: context.l10n.systemNotice,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                child: Icon(Icons.info_outline, size: 13, color: metaColor),
+              ),
+            ),
+          ),
+        if (!isUser)
+          _SaveTopicButton(
+            message: message,
+            content: displayContent,
+            iconColor: inlineMetadata ? metaColor : bubbleStyle.accent,
+            compact: inlineMetadata && !_isMobilePlatform,
+          ),
+        if (isUser) _buildRecordability(context, ref),
+      ],
+    );
+
+    final bodyStyle = TextStyle(
+      color: bubbleStyle.palette.textPrimary,
+      fontSize: isUser ? userFontSize : aiFontSize,
+      height: isUser ? 1.55 : 1.65,
+    );
+    final Widget body;
+    if (isUser) {
+      body = ContentFontScope(
+        child: _isMobilePlatform
+            ? Text(displayContent, style: bodyStyle)
+            : SelectableText(displayContent, style: bodyStyle),
+      );
+    } else {
+      final markdown = MarkdownView(
+        markdown: displayContent,
+        baseStyle: bodyStyle,
+      );
+      body = _isMobilePlatform ? markdown : SelectionArea(child: markdown);
+    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTheme.space4),
@@ -62,92 +147,34 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
             : MainAxisAlignment.start,
         children: [
           if (!isUser) ...[
-            _buildAvatar(isUser: false),
+            Padding(
+              padding: EdgeInsets.only(
+                top: inlineMetadata ? AppTheme.space1 : 0,
+              ),
+              child: _buildAvatar(isUser: false),
+            ),
             const SizedBox(width: AppTheme.space3),
           ],
 
           Flexible(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 820),
+              constraints: BoxConstraints(
+                maxWidth: isUser ? 820 : bubbleStyle.assistantMaxWidth,
+              ),
               child: Column(
                 crossAxisAlignment: isUser
                     ? CrossAxisAlignment.end
                     : CrossAxisAlignment.start,
                 children: [
-                  // Role and time + 复制按钮
+                  // 元信息行始终在卡片外面（上方）：浅色紧凑模式下也一样，
+                  // 不把「AI · 时间 + 操作」塞进卡片内部。
                   Padding(
                     padding: const EdgeInsets.only(
                       left: AppTheme.space2,
                       right: AppTheme.space2,
                       bottom: AppTheme.space1,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${isUser ? context.l10n.me : "AI"} • ${_formatTime(message.createdAt)}',
-                          style: TextStyle(
-                            color: AppTheme.textTertiary,
-                            fontSize: scale.meta,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        // 整条消息复制
-                        IconButton(
-                          icon: Icon(
-                            Icons.copy_rounded,
-                            size: 13,
-                            color: AppTheme.textTertiary,
-                          ),
-                          tooltip: context.l10n.copyThisMessage,
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 24,
-                            minHeight: 20,
-                          ),
-                          onPressed: () => _copyToClipboard(
-                            context,
-                            displayContent,
-                            context.l10n.message,
-                          ),
-                        ),
-                        if (annotation != null)
-                          Tooltip(
-                            message: annotation.note.isEmpty
-                                ? context.l10n.systemNotice
-                                : '${context.l10n.systemNotice}: ${annotation.note}',
-                            child: Semantics(
-                              label: context.l10n.systemNotice,
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 5),
-                                child: Icon(
-                                  Icons.info_outline,
-                                  size: 13,
-                                  color: AppTheme.textTertiary,
-                                ),
-                              ),
-                            ),
-                          ),
-                        // 「存为主题」：常驻显示在工具条（与「复制」并排），一眼可见。
-                        // 移动端另支持长按气泡弹底部菜单（见下方 GestureDetector），两者同一逻辑。
-                        // 点击不直接调工具——把明确指令预填进输入框，用户可改可发，
-                        // 草稿仍走确认门（比按钮直写库透明，也不绕开用户把关）。
-                        if (!isUser)
-                          _SaveTopicButton(
-                            message: message,
-                            content: displayContent,
-                          ),
-                        // 「翻篇到此」入口暂隐藏：功能在 Rust 侧已就绪，
-                        // 待装机观测/冲突裁决后放量（canFlipPast 判定保留）。
-                        // if (canFlipPast)
-                        //   PageMarkToolButton(
-                        //     conversationId: message.conversationId,
-                        //     boundaryMessageId: message.id,
-                        //   ),
-                        if (isUser) _buildRecordability(context, ref),
-                      ],
-                    ),
+                    child: metadata,
                   ),
 
                   // Message bubble
@@ -165,81 +192,22 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                           )
                         : null,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppTheme.space3,
-                        vertical: AppTheme.space3,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: inlineMetadata
+                            ? AppTheme.space4
+                            : AppTheme.space3,
+                        vertical: inlineMetadata
+                            ? AppTheme.space2
+                            : AppTheme.space3,
                       ),
-                      decoration: BoxDecoration(
-                        color: isUser
-                            ? AppTheme.accentPrimary.withValues(alpha: 0.15)
-                            : AppTheme.surface1,
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusMedium,
-                        ),
-                        border: Border.all(
-                          color: isUser
-                              ? AppTheme.accentPrimary.withValues(alpha: 0.55)
-                              : AppTheme.surface3.withValues(alpha: 0.7),
-                          width: 1,
-                        ),
-                        // 用户气泡加一圈柔和的琥珀外发光（借鉴参考图的
-                        // 「我说的话带光」层级感）：只给光不给填充，克制、
-                        // 不干扰正文对比度；助手气泡保持中性玻璃底。
-                        boxShadow: isUser
-                            ? [
-                                BoxShadow(
-                                  color: AppTheme.accentPrimary.withValues(
-                                    alpha: 0.28,
-                                  ),
-                                  blurRadius: 14,
-                                  offset: const Offset(0, 0),
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: _isMobilePlatform
-                          // 移动端：不可选字，纯展示，长按交给外层菜单。
-                          ? (isUser
-                                ? ContentFontScope(
-                                    child: Text(
-                                      displayContent,
-                                      style: TextStyle(
-                                        color: AppTheme.textPrimary,
-                                        fontSize: userFontSize,
-                                        height: 1.55,
-                                      ),
-                                    ),
-                                  )
-                                : MarkdownView(
-                                    markdown: displayContent,
-                                    baseStyle: TextStyle(
-                                      color: AppTheme.textPrimary,
-                                      fontSize: aiFontSize,
-                                      height: 1.65,
-                                    ),
-                                  ))
-                          // 桌面端：保持可选中。
-                          : (isUser
-                                ? ContentFontScope(
-                                    child: SelectableText(
-                                      displayContent,
-                                      style: TextStyle(
-                                        color: AppTheme.textPrimary,
-                                        fontSize: userFontSize,
-                                        height: 1.55,
-                                      ),
-                                    ),
-                                  )
-                                : SelectionArea(
-                                    child: MarkdownView(
-                                      markdown: displayContent,
-                                      baseStyle: TextStyle(
-                                        color: AppTheme.textPrimary,
-                                        fontSize: aiFontSize,
-                                        height: 1.65,
-                                      ),
-                                    ),
-                                  )),
+                      decoration: isUser
+                          ? bubbleStyle.userBubble(outlined: true)
+                          : bubbleStyle.assistantCard(
+                              darkBorder: AppTheme.surface3.withValues(
+                                alpha: .7,
+                              ),
+                            ),
+                      child: body,
                     ),
                   ),
 
@@ -409,7 +377,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
           children: [
             Icon(icon, size: 12, color: color),
             const SizedBox(width: 3),
-            Text(label, style: TextStyle(fontSize: 10.5, color: color)),
+            Text(label, style: TextStyle(fontSize: 11, color: color)),
           ],
         ),
       ),
@@ -428,7 +396,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
         final queued = await repo.reanalyzeEvent(eventId);
         if (!queued) {
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            FeedbackToast.of(context).show(
               SnackBar(content: Text(context.l10n.eventAnalyzing)),
             );
           }
@@ -444,12 +412,12 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
             : action == 'discussion'
             ? context.l10n.savedAsDiscussion
             : context.l10n.reanalyzeQueued;
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(text)));
+        FeedbackToast.of(context)
+            .show(SnackBar(content: Text(text)));
       }
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FeedbackToast.of(context).show(
           SnackBar(
             content: Text(
               context.errorMessage(context.l10n.updateMessageStatus, error),
@@ -472,7 +440,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
       ),
       child: Icon(
         isUser ? Icons.person : Icons.smart_toy,
-        size: 18,
+        size: DesignTokens.icon,
         color: isUser ? AppTheme.accentPrimary : AppTheme.textSecondary,
       ),
     );
@@ -496,8 +464,15 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
 class _SaveTopicButton extends StatelessWidget {
   final Message message;
   final String? content;
+  final Color iconColor;
+  final bool compact;
 
-  const _SaveTopicButton({required this.message, this.content});
+  const _SaveTopicButton({
+    required this.message,
+    this.content,
+    required this.iconColor,
+    this.compact = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -505,15 +480,17 @@ class _SaveTopicButton extends StatelessWidget {
       scaleOnPress: 0.88,
       duration: const Duration(milliseconds: 120),
       child: IconButton(
-        icon: Icon(
-          Icons.bookmark_add_outlined,
-          size: 14,
-          color: AppTheme.accentPrimary,
-        ),
+        icon: Icon(Icons.bookmark_add_outlined, size: 14, color: iconColor),
         tooltip: context.l10n.saveMessageAsTopic,
         visualDensity: VisualDensity.compact,
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints(minWidth: 24, minHeight: 20),
+        style: compact
+            ? IconButton.styleFrom(
+                minimumSize: const Size(28, 28),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              )
+            : null,
         onPressed: () => SaveTopicDialog.show(
           context,
           content ?? _messageDisplayContent(message.content),
@@ -555,6 +532,7 @@ class _AiTypingBubbleState extends ConsumerState<_AiTypingBubble>
   Widget build(BuildContext context) {
     // 「正在思考」文案与建议 chips 同档（原 13）。
     final typeScale = ref.watch(settingsProvider.select(chatTypeScaleOf));
+    final bubbleStyle = ChatBubbleStyle.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTheme.space4),
       child: Row(
@@ -569,7 +547,7 @@ class _AiTypingBubbleState extends ConsumerState<_AiTypingBubble>
             ),
             child: Icon(
               Icons.smart_toy,
-              size: 18,
+              size: DesignTokens.icon,
               color: AppTheme.textSecondary,
             ),
           ),
@@ -577,10 +555,9 @@ class _AiTypingBubbleState extends ConsumerState<_AiTypingBubble>
           Flexible(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppTheme.surface2,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                border: Border.all(color: AppTheme.surface3, width: 1),
+              decoration: bubbleStyle.assistantCard(
+                darkFill: AppTheme.surface2,
+                darkBorder: AppTheme.surface3,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,

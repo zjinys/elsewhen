@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Elsewhen · 别时 — 退隐导航</title>
+<style>
+  :root{
+    --bg:#15161B;
+    --ctx-bg:#131418;
+    --surface:#1B1D24;
+    --surface-2:#20232B;
+    --border:#2C2F39;
+    --border-soft:#23262E;
+    --text:#E8E9ED;
+    --text-2:#B4B8C3;
+    --text-3:#8A8F9B;
+    --nav-dim:#7E8390;
+    --accent:#5E6AD2;
+    --accent-2:#8B93EC;
+    --body-size:14px;
+    --up:#DC6F68;
+    --down:#5FB389;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:#0B0C10;
+    color:var(--text);
+    font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+    font-size:var(--body-size);
+    -webkit-font-smoothing:antialiased;
+    display:flex;align-items:center;justify-content:center;
+    padding:24px;
+  }
+  button,input{font-family:inherit;}
+  button{cursor:pointer;}
+
+  /* ---------- window ---------- */
+  .window{
+    position:relative;
+    width:1320px;height:812px;max-width:100%;max-height:calc(100vh - 48px);
+    background:var(--bg);
+    border:1px solid #2A2D36;
+    border-radius:12px;
+    box-shadow:0 20px 60px rgba(0,0,0,.42);
+    display:flex;flex-direction:column;overflow:hidden;
+  }
+  .titlebar{
+    flex:0 0 40px;height:40px;
+    display:flex;align-items:center;gap:16px;
+    padding:0 12px;
+    border-bottom:1px solid var(--border-soft);
+  }
+  .win-btns{display:flex;gap:8px;flex:0 0 auto;}
+  .win-btn{width:12px;height:12px;border-radius:50%;}
+  .win-btn.c{background:#8C5A56;}
+  .win-btn.m{background:#8C7A4E;}
+  .win-btn.q{background:#5A7C5E;}
+  .logo{display:flex;align-items:center;}
+  .logo svg{width:104px;height:auto;display:block;}
+  .titlebar .spacer{flex:1;}
+  .icon-btn{
+    width:44px;height:44px;flex:0 0 44px;
+    display:flex;align-items:center;justify-content:center;
+    background:none;border:0;border-radius:8px;color:var(--nav-dim);
+  }
+  .icon-btn:hover{color:var(--text);background:rgba(255,255,255,.04);}
+  .icon-btn svg{width:19px;height:19px;}
+  .ctx-toggle{display:none;}
+
+  .shell{flex:1;display:flex;min-height:0;}
+
+  /* ---------- rail (dimmed chrome) ---------- */
+  .rail{
+    width:56px;flex:0 0 56px;
+    border-right:1px solid var(--border-soft);
+    display:flex;flex-direction:column;align-items:center;
+    padding:8px 0;gap:2px;
+  }
+  .nav-btn{
+    position:relative;
+    width:48px;height:48px;flex:0 0 48px;
+    display:flex;align-items:center;justify-content:center;
+    background:none;border:0;border-radius:8px;
+    color:var(--nav-dim);
+    transition:color .18s ease,background .18s ease;
+  }
+  .nav-btn:hover{color:var(--text-2);background:rgba(255,255,255,.03);}
+  .nav-btn.active{color:var(--accent-2);background:rgba(94,106,210,.10);}
+  .nav-btn svg{width:20px;height:20px;flex:0 0 auto;}
+  .nav-label{display:none;}
+  .unread{
+    position:absolute;top:9px;right:9px;
+    width:6px;height:6px;border-radius:50%;background:var(--accent-2);
+  }
+  .rail-gap{flex:1;}
+
+  /* ---------- main ---------- */
+  .main{flex:1;min-width:0;display:flex;flex-direction:column;}
+  .view{display:none;flex:1;min-height:0;flex-direction:column;}
+  .view.active{display:flex;}
+  .view-head{
+    flex:0 0 auto;
+    padding:26px 40px 10px;
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  }
+  .view-head h1{font-size:20px;font-weight:600;letter-spacing:-.3px;margin:0;}
+  .view-sub{font-size:13px;color:var(--text-3);}
+  .spacer-inline{flex:1;}
+
+  /* chat */
+  .stream{flex:1;overflow:auto;padding:4px 40px 20px;}
+  .msg{max-width:780px;padding:11px 0;}
+  .msg .meta{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .role{font-size:12px;font-weight:600;color:var(--text-3);}
+  .msg.ai .role{color:var(--accent-2);}
+  time{font-size:12px;color:#7C818D;}
+  .msg p{margin:0;font-size:var(--body-size);line-height:1.75;color:var(--text);}
+  .msg.ai p{color:var(--text-2);}
+  .proposal{
+    margin:8px 0 8px 24px;
+    border:1px solid var(--border);border-radius:10px;
+    background:var(--surface-2);
+    padding:16px 18px;max-width:720px;
+  }
+  .proposal p{color:var(--text);}
+  .decision-row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+  .decision-btn{
+    min-height:44px;padding:0 18px;
+    border:1px solid var(--border);border-radius:8px;
+    background:transparent;color:var(--text-2);font-size:14px;
+  }
+  .decision-btn:hover{border-color:#3B404C;color:var(--text);}
+  .decision-btn.selected{
+    border-color:var(--accent);color:#CDD2FF;background:rgba(94,106,210,.14);
+  }
+  .proposal-state{min-height:20px;margin-top:10px;font-size:13px;color:var(--accent-2);}
+
+  .composer{flex:0 0 auto;padding:12px 40px 20px;border-top:1px solid var(--border-soft);}
+  .composer-row{display:flex;gap:10px;align-items:center;}
+  .composer input{
+    flex:1;min-width:0;height:48px;
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;
+    color:var(--text);padding:0 16px;font-size:var(--body-size);outline:none;
+  }
+  .composer input:focus{border-color:var(--accent);}
+  .composer input::placeholder{color:#6E7380;}
+  .btn-send{
+    height:48px;min-width:84px;padding:0 20px;
+    border:1px solid var(--accent);border-radius:10px;
+    background:var(--accent);color:#fff;font-size:14px;font-weight:600;
+  }
+  .btn-send:hover{background:#6671DD;}
+
+  /* goals */
+  .scroll{flex:1;overflow:auto;padding:6px 40px 32px;}
+  .slot-track{display:flex;gap:5px;align-items:center;}
+  .slot{width:22px;height:3px;border-radius:2px;background:var(--accent);}
+  .goal-list{display:flex;flex-direction:column;gap:10px;max-width:860px;}
+  .goal{
+    border:1px solid var(--border);border-radius:10px;
+    background:var(--surface);padding:18px 20px;
+  }
+  .goal.primary{border-color:#343A55;}
+  .goal-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .goal h2{font-size:16px;font-weight:600;margin:0;}
+  .status{
+    font-size:12px;padding:4px 10px;border-radius:999px;
+    border:1px solid var(--border);color:var(--text-2);background:transparent;
+  }
+  .status.live{color:#A9B0F5;border-color:#3A4169;background:rgba(94,106,210,.10);}
+  .status.paused{color:var(--text-3);}
+  .goal-fields{margin:14px 0 0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 28px;}
+  .goal-fields>div{min-width:0;}
+  .goal-fields dt{font-size:12px;color:var(--text-3);margin-bottom:3px;}
+  .goal-fields dd{margin:0;font-size:var(--body-size);color:var(--text);line-height:1.55;}
+  .goal-fields dd.soft{color:var(--text-2);}
+
+  /* knowledge */
+  .cats{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 22px;max-width:860px;}
+  .chip{
+    min-height:44px;padding:0 14px;
+    display:inline-flex;align-items:center;gap:8px;
+    border:1px solid var(--border);border-radius:8px;
+    background:var(--surface);color:var(--text-2);font-size:14px;
+  }
+  .chip:hover{border-color:#3B404C;color:var(--text);}
+  .chip.selected{border-color:var(--accent);color:#CDD2FF;background:rgba(94,106,210,.10);}
+  .dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;}
+  .wiki{max-width:780px;}
+  .wiki h2{font-size:19px;font-weight:600;margin:0 0 8px;}
+  .wiki-summary{font-size:var(--body-size);line-height:1.7;color:var(--text-2);margin:0 0 24px;}
+  .ev-head{font-size:13px;color:var(--text-3);margin-bottom:10px;}
+  .stack{display:flex;gap:6px;max-width:560px;}
+  .seg-block{
+    flex:1;min-width:0;height:54px;border-radius:7px;
+    display:flex;align-items:flex-end;padding:8px 10px;
+    font-size:12px;color:#E9EBFF;line-height:1.2;
+  }
+  .seg-block b{font-size:14px;font-weight:600;margin-right:5px;}
+  .seg-block.pending{
+    border:1px dashed #3A3E4A;background:transparent;color:var(--text-3);
+  }
+  .derived{margin-top:22px;font-size:var(--body-size);color:var(--text-2);}
+
+  /* review */
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+  .seg-btn{
+    min-height:44px;min-width:52px;padding:0 14px;
+    background:transparent;border:0;color:var(--text-3);font-size:14px;
+  }
+  .seg-btn+ .seg-btn{border-left:1px solid var(--border);}
+  .seg-btn.selected{color:#CDD2FF;background:rgba(94,106,210,.14);}
+  .review-scope{font-size:13px;color:var(--text-3);margin:2px 0 20px;}
+  .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;max-width:840px;}
+  .metric{border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:16px 16px 14px;}
+  .metric b{display:block;font-size:26px;font-weight:600;letter-spacing:-.5px;line-height:1.1;}
+  .metric span{display:block;font-size:12px;color:var(--text-3);margin-top:8px;line-height:1.45;}
+  .metric .up{color:var(--up);}
+  .metric .down{color:var(--down);}
+  .review-line{
+    margin:24px 0 0;max-width:760px;
+    border-left:2px solid var(--accent);padding:2px 0 2px 16px;
+    font-size:16px;line-height:1.7;color:var(--text);
+  }
+  .legend{margin-top:10px;font-size:12px;color:var(--text-3);}
+
+  /* intel */
+  .count-pill{font-size:12px;color:#A9B0F5;border:1px solid #3A4169;border-radius:999px;padding:4px 10px;}
+  .filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 18px;}
+  .filters .flabel{font-size:12px;color:var(--text-3);margin-right:2px;}
+  .filters .chip{min-height:44px;padding:0 14px;font-size:14px;}
+  .intel-list{max-width:820px;}
+  .intel-item{display:flex;gap:14px;padding:15px 0;border-top:1px solid var(--border-soft);}
+  .intel-item:first-child{border-top:0;}
+  .src{flex:0 0 64px;font-size:12px;color:var(--accent-2);padding-top:3px;}
+  .intel-item p{margin:0;font-size:var(--body-size);line-height:1.7;color:var(--text-2);}
+
+  /* sync */
+  .sync-status{display:flex;align-items:center;gap:9px;font-size:15px;color:var(--text);margin:2px 0 20px;}
+  .ok-dot{width:8px;height:8px;border-radius:50%;background:var(--down);}
+  .device-list{max-width:520px;}
+  .device{
+    display:flex;align-items:center;justify-content:space-between;
+    min-height:56px;border-top:1px solid var(--border-soft);
+    font-size:var(--body-size);color:var(--text);
+  }
+  .device span{font-size:12px;color:var(--text-3);}
+  .sync-note{margin-top:22px;font-size:var(--body-size);color:var(--text-2);}
+
+  /* ---------- context bar (always present, low contrast) ---------- */
+  .context{
+    width:300px;flex:0 0 300px;
+    border-left:1px solid var(--border-soft);
+    background:var(--ctx-bg);
+    padding:22px 22px 32px;overflow:auto;
+  }
+  .ctx-top{display:none;}
+  .ctx-label{font-size:12px;font-weight:600;color:#6F7480;margin-bottom:22px;}
+  .ctx-section{margin-bottom:28px;}
+  .ctx-section h3{font-size:12px;font-weight:600;color:#777C88;margin:0 0 10px;}
+  .ctx-line{font-size:var(--body-size);line-height:1.6;color:#A9AEB9;margin:0 0 6px;}
+  .ctx-line.primary{color:#D2D5DD;}
+  .progress{height:3px;border-radius:2px;background:#262932;margin-top:12px;overflow:hidden;}
+  .progress span{display:block;height:100%;width:40%;background:var(--accent);border-radius:2px;}
+  .reminder{padding:11px 0;border-top:1px solid #21232A;}
+  .reminder:first-of-type{border-top:0;padding-top:2px;}
+  .reminder .tag{font-size:12px;color:#8C919D;}
+  .reminder p{margin:5px 0 0;font-size:var(--body-size);line-height:1.6;color:#A9AEB9;}
+  .ctx-backdrop{display:none;}
+
+  /* ---------- toast ---------- */
+  .toast{
+    position:absolute;top:52px;right:18px;z-index:60;
+    max-width:320px;padding:11px 16px;
+    border:1px solid #3A4169;border-radius:8px;
+    background:#1E2130;color:#D6DAF6;font-size:13px;line-height:1.5;
+    box-shadow:0 8px 24px rgba(0,0,0,.35);
+    opacity:0;transform:translateY(-6px);pointer-events:none;
+    transition:opacity .2s ease,transform .2s ease;
+  }
+  .toast.show{opacity:1;transform:translateY(0);}
+
+  /* ---------- mobile 375 x 812 ---------- */
+  @media (max-width:700px){
+    :root{--body-size:16px;}
+    body{padding:0;display:block;}
+    .window{width:100%;height:100dvh;max-height:none;border:0;border-radius:0;box-shadow:none;}
+    .titlebar{flex-basis:44px;height:44px;gap:10px;padding:0 8px;}
+    .logo svg{width:94px;}
+    .ctx-toggle{display:flex;}
+    .shell{flex-direction:column;}
+    .main{order:1;flex:1;min-height:0;}
+    .rail{
+      order:2;width:100%;flex:0 0 auto;
+      flex-direction:row;align-items:stretch;
+      border-right:0;border-top:1px solid var(--border);
+      padding:4px 4px calc(4px + env(safe-area-inset-bottom));
+      gap:0;overflow-x:auto;
+    }
+    .nav-btn{
+      width:60px;height:56px;flex:0 0 60px;
+      flex-direction:column;gap:3px;border-radius:6px;
+    }
+    .nav-btn svg{width:20px;height:20px;}
+    .nav-label{display:block;font-size:12px;line-height:1;}
+    .unread{top:6px;right:12px;}
+    .rail-gap{display:none;}
+    .view-head{padding:18px 18px 8px;}
+    .view-head h1{font-size:20px;}
+    .stream{padding:2px 18px 16px;}
+    .msg{padding:10px 0;}
+    .proposal{margin-left:0;padding:14px;}
+    .decision-row{gap:8px;}
+    .decision-btn{flex:1;min-width:96px;}
+    .composer{padding:10px 18px 14px;}
+    .scroll{padding:4px 18px 26px;}
+    .goal-fields{grid-template-columns:1fr;gap:10px;}
+    .metrics{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .review-line{font-size:16px;}
+    .context{
+      position:absolute;top:0;right:0;bottom:0;z-index:40;
+      width:min(88vw,340px);
+      transform:translateX(100%);transition:transform .25s ease;
+      box-shadow:-12px 0 36px rgba(0,0,0,.42);
+      padding-top:0;
+    }
+    .context.open{transform:translateX(0);}
+    .ctx-top{
+      display:flex;align-items:center;justify-content:space-between;
+      height:52px;border-bottom:1px solid var(--border-soft);
+      margin-bottom:20px;
+    }
+    .ctx-top strong{font-size:14px;font-weight:600;color:var(--text-2);}
+    .ctx-close{width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:none;border:0;color:var(--text-2);}
+    .ctx-close svg{width:20px;height:20px;}
+    .ctx-backdrop{position:absolute;inset:0;z-index:30;background:rgba(0,0,0,.5);}
+    .ctx-backdrop.open{display:block;}
+    .toast{top:56px;right:12px;left:12px;max-width:none;}
+  }
+</style>
+</head>
+<body>
+<div class="window">
+
+  <div class="titlebar">
+    <span class="win-btns" aria-hidden="true">
+      <span class="win-btn c"></span><span class="win-btn m"></span><span class="win-btn q"></span>
+    </span>
+    <span class="logo" aria-label="Elsewhen">
+      <svg viewBox="0 0 720 220" aria-label="Elsewhen"><defs><linearGradient id="mark2" x1="30" y1="24" x2="200" y2="200" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#3E4453"/><stop offset="0.55" stop-color="#5A60D8"/><stop offset="1" stop-color="#7B81F0"/></linearGradient></defs><path d="M140.1 27.3 A88 88 0 1 0 195.0 87.2" fill="none" stroke="url(#mark2)" stroke-width="28" stroke-linecap="round"/><circle cx="148.6" cy="78.2" r="12" fill="#6A6FE0"/><text x="248" y="134" font-family="Inter,system-ui,sans-serif" font-size="68" font-weight="520" letter-spacing="-2.5" fill="#E8E9EC">Elsewhen</text></svg>
+    </span>
+    <span class="spacer"></span>
+    <button class="icon-btn ctx-toggle" id="ctxToggle" title="上下文" aria-label="打开上下文">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M15 5v14"/></svg>
+    </button>
+    <button class="icon-btn" id="settingsBtn" title="设置" aria-label="设置">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+    </button>
+  </div>
+
+  <div class="shell">
+
+    <nav class="rail" aria-label="主导航">
+      <button class="nav-btn active" data-view="chat" title="对话" aria-label="对话">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 15a2 2 0 0 1-2 2H8l-4 3V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/></svg>
+        <span class="nav-label">对话</span>
+      </button>
+      <button class="nav-btn" data-view="knowledge" title="知识" aria-label="知识">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6c-2-1.5-5-2-8-1.5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5v-13c-3-.5-6 0-8 1.5z"/><path d="M12 6v13"/></svg>
+        <span class="nav-label">知识</span>
+      </button>
+      <button class="nav-btn" data-view="goals" title="目标" aria-label="目标">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg>
+        <span class="nav-label">目标</span>
+      </button>
+      <button class="nav-btn" data-view="intel" title="情报" aria-label="情报">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9z"/><path d="M10 21h4"/></svg>
+        <span class="unread" aria-hidden="true"></span>
+        <span class="nav-label">情报</span>
+      </button>
+      <button class="nav-btn" data-view="review" title="回顾" aria-label="回顾">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+        <span class="nav-label">回顾</span>
+      </button>
+      <button class="nav-btn" data-view="sync" title="同步" aria-label="同步">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3"/><path d="M20 16H7l3 3"/></svg>
+        <span class="nav-label">同步</span>
+      </button>
+      <span class="rail-gap"></span>
+    </nav>
+
+    <main class="main">
+
+      <!-- 对话 -->
+      <section class="view active" id="view-chat">
+        <header class="view-head"><h1>对话</h1></header>
+        <div class="stream" id="stream">
+          <article class="msg user">
+            <div class="meta"><span class="role">用户</span><time>09:12</time></div>
+            <p>今天把同步的冲突处理逻辑跑通了，中途发现快照 resumed 的边界其实在 transport 层，不在 engine。</p>
+          </article>
+          <article class="msg ai">
+            <div class="meta"><span class="role">AI</span><time>09:12</time></div>
+            <p>这条我记进『Elsewhen 1.0 / 同步稳定性』了。你之前 10-24 的复盘里也写过 transport 边界，这次算是第二次证据。</p>
+          </article>
+          <article class="msg user">
+            <div class="meta"><span class="role">用户</span><time>13:40</time></div>
+            <p>下午想专心写发布说明，但老被打断。是不是该把目标从 3 个减到 2 个？</p>
+          </article>
+          <article class="msg ai proposal">
+            <div class="meta"><span class="role">AI 提议</span><time>13:41</time></div>
+            <p>检测到『发布 Elsewhen 1.0』已 3 天没有具体抓手推进。建议：把『写作节奏』暂停，本周只保留发布目标。你决定。</p>
+            <div class="decision-row">
+              <button class="decision-btn" data-decision="accept">采纳</button>
+              <button class="decision-btn" data-decision="ignore">忽略</button>
+              <button class="decision-btn" data-decision="later">先放着</button>
+            </div>
+            <div class="proposal-state" aria-live="polite"></div>
+          </article>
+          <article class="msg user">
+            <div class="meta"><span class="role">用户</span><time>20:05</time></div>
+            <p>重读《置身事内》，里面讲地方政府激励那段，和我做工具的取舍其实是一个结构。</p>
+          </article>
+          <article class="msg ai">
+            <div class="meta"><span class="role">AI</span><time>20:06</time></div>
+            <p>已生成知识页草稿《激励结构 → 产品取舍》，来源 2 条记录，待你审阅。</p>
+          </article>
+        </div>
+        <div class="composer">
+          <div class="composer-row">
+            <input id="composerInput" placeholder="输入消息..." aria-label="输入消息">
+            <button class="btn-send" id="sendBtn">发送</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 目标 -->
+      <section class="view" id="view-goals">
+        <header class="view-head">
+          <h1>目标</h1>
+          <span class="view-sub">最多 3 个</span>
+          <span class="spacer-inline"></span>
+          <span class="slot-track" aria-label="3 个目标位已占满"><i class="slot"></i><i class="slot"></i><i class="slot"></i></span>
+        </header>
+        <div class="scroll">
+          <div class="goal-list">
+            <article class="goal primary">
+              <div class="goal-top"><h2>发布 Elsewhen 1.0</h2><span class="status live">进行中（第 12 天）</span></div>
+              <dl class="goal-fields">
+                <div><dt>核心动力</dt><dd>把本地优先的认知工具交到具体的人手里</dd></div>
+                <div><dt>当前抓手</dt><dd>发布说明 + 同步稳定性</dd></div>
+                <div><dt>已知卡点</dt><dd>知识页编辑体验</dd></div>
+                <div><dt>完成判据</dt><dd>v1.0 安装包可下载</dd></div>
+              </dl>
+            </article>
+            <article class="goal">
+              <div class="goal-top"><h2>建立稳定写作节奏</h2><span class="status live">进行中（第 5 天）</span></div>
+              <dl class="goal-fields">
+                <div><dt>核心动力</dt><dd>把思考沉淀成可复用的文字</dd></div>
+                <div><dt>当前抓手</dt><dd>每周两篇</dd></div>
+              </dl>
+            </article>
+            <article class="goal">
+              <div class="goal-top"><h2>完成《地方与国家》阅读笔记</h2><span class="status paused">暂停（8 天前暂停）</span></div>
+              <dl class="goal-fields">
+                <div><dt>核心动力</dt><dd class="soft">理解激励结构</dd></div>
+              </dl>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- 知识 -->
+      <section class="view" id="view-knowledge">
+        <header class="view-head"><h1>知识</h1></header>
+        <div class="scroll">
+          <div class="cats">
+            <button class="chip" data-label="人物"><span class="dot" style="background:#6C7AE0"></span>人物</button>
+            <button class="chip" data-label="来源"><span class="dot" style="background:#5E6AD2"></span>来源</button>
+            <button class="chip" data-label="能力"><span class="dot" style="background:#7A86E6"></span>能力</button>
+            <button class="chip" data-label="成本"><span class="dot" style="background:#8781D8"></span>成本</button>
+            <button class="chip" data-label="项目"><span class="dot" style="background:#5C7BD4"></span>项目</button>
+            <button class="chip" data-label="决策"><span class="dot" style="background:#6E93DA"></span>决策</button>
+            <button class="chip" data-label="洞察"><span class="dot" style="background:#9A8FE0"></span>洞察</button>
+          </div>
+          <article class="wiki">
+            <h2>激励结构 → 产品取舍</h2>
+            <p class="wiki-summary">把「谁承担成本、谁拿收益」的框架，迁移到工具设计取舍。</p>
+            <div class="ev-head">证据堆叠 · 3 条来源记录（10-24 复盘 / 11-22 对话 / 读书笔记），1 条待审阅。</div>
+            <div class="stack">
+              <div class="seg-block" style="background:#3C4478"><span><b>1</b>10-24 复盘</span></div>
+              <div class="seg-block" style="background:#4A5596"><span><b>2</b>11-22 对话</span></div>
+              <div class="seg-block" style="background:#5E6AD2"><span><b>3</b>读书笔记</span></div>
+              <div class="seg-block pending"><span>待审阅</span></div>
+            </div>
+            <p class="derived">派生：观点 2 条、创作素材 1 条。</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- 回顾 -->
+      <section class="view" id="view-review">
+        <header class="view-head">
+          <h1>回顾</h1>
+          <div class="seg" role="tablist" aria-label="回顾粒度">
+            <button class="seg-btn" data-gran="day">日</button>
+            <button class="seg-btn selected" data-gran="week">周</button>
+            <button class="seg-btn" data-gran="month">月</button>
+          </div>
+        </header>
+        <div class="scroll">
+          <p class="review-scope" id="reviewScope">本周示例</p>
+          <div class="metrics">
+            <div class="metric"><b>31</b><span>记录 31 条</span></div>
+            <div class="metric"><b>1</b><span>活跃目标偏离 1 次（写作节奏，连续 4 天未推进）</span></div>
+            <div class="metric"><b>6</b><span>新增知识页 6</span></div>
+            <div class="metric"><b><span class="up">4</span> / <span class="down">2</span></b><span>审阅提议采纳 4 / 忽略 2</span></div>
+          </div>
+          <blockquote class="review-line">本周『建立稳定写作节奏』连续 4 天没有新记录。是计划变了，还是这件事先放下了？</blockquote>
+          <p class="legend">统计按红涨绿跌。</p>
+        </div>
+      </section>
+
+      <!-- 情报 -->
+      <section class="view" id="view-intel">
+        <header class="view-head">
+          <h1>情报</h1><span class="count-pill">3 条未读</span>
+        </header>
+        <div class="scroll">
+          <div class="filters">
+            <span class="flabel">来源筛选</span>
+            <button class="chip selected" data-label="全部">全部</button>
+            <button class="chip" data-label="X">X</button>
+            <button class="chip" data-label="网页">网页</button>
+            <button class="chip" data-label="手动">手动</button>
+          </div>
+          <div class="intel-list">
+            <article class="intel-item"><span class="src">X</span><p>检测到『发布 Elsewhen 1.0』已 3 天没有具体抓手推进。建议：把『写作节奏』暂停，本周只保留发布目标。你决定。</p></article>
+            <article class="intel-item"><span class="src">网页</span><p>已生成知识页草稿《激励结构 → 产品取舍》，来源 2 条记录，待你审阅。</p></article>
+            <article class="intel-item"><span class="src">手动</span><p>本周『建立稳定写作节奏』连续 4 天没有新记录。是计划变了，还是这件事先放下了？</p></article>
+          </div>
+        </div>
+      </section>
+
+      <!-- 同步 -->
+      <section class="view" id="view-sync">
+        <header class="view-head"><h1>同步</h1></header>
+        <div class="scroll">
+          <div class="sync-status"><span class="ok-dot"></span>已追平</div>
+          <div class="device-list">
+            <div class="device">这台 MacBook <span>本机</span></div>
+            <div class="device">iPhone <span>已追平</span></div>
+          </div>
+          <p class="sync-note">端到端加密，中继只见密文。</p>
+        </div>
+      </section>
+
+    </main>
+
+    <div class="ctx-backdrop" id="ctxBackdrop"></div>
+    <aside class="context" id="context" aria-label="上下文">
+      <div class="ctx-top">
+        <strong>上下文</strong>
+        <button class="ctx-close" id="ctxClose" aria-label="关闭上下文">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="ctx-label">上下文</div>
+      <div class="ctx-section">
+        <h3>今日状态</h3>
+        <p class="ctx-line primary">今天 · 11 月 22 日 周日</p>
+        <p class="ctx-line">今日 4 条记录 · 1,260 tokens · 本地模型</p>
+        <p class="ctx-line">目标：发布 Elsewhen 1.0 · 第 12 天 / 共 30 天</p>
+        <div class="progress" aria-hidden="true"><span></span></div>
+      </div>
+      <div class="ctx-section">
+        <h3>AI 提醒</h3>
+        <div class="reminder">
+          <span class="tag">目标偏移</span>
+          <p>检测到『发布 Elsewhen 1.0』已 3 天没有具体抓手推进。建议：把『写作节奏』暂停，本周只保留发布目标。你决定。</p>
+        </div>
+        <div class="reminder">
+          <span class="tag">待审阅</span>
+          <p>已生成知识页草稿《激励结构 → 产品取舍》，来源 2 条记录，待你审阅。</p>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+
+<script>
+(function(){
+  var toastEl = document.getElementById('toast'), toastTimer;
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 2400);
+  }
+
+  var ctx = document.getElementById('context'), backdrop = document.getElementById('ctxBackdrop');
+  function closeCtx(){ ctx.classList.remove('open'); backdrop.classList.remove('open'); }
+  function openCtx(){ ctx.classList.add('open'); backdrop.classList.add('open'); }
+  document.getElementById('ctxToggle').addEventListener('click', openCtx);
+  document.getElementById('ctxClose').addEventListener('click', closeCtx);
+  backdrop.addEventListener('click', closeCtx);
+  document.getElementById('settingsBtn').addEventListener('click', function(){ toast('设置 · 二级页（演示中未展开）'); });
+
+  var navBtns = Array.prototype.slice.call(document.querySelectorAll('.nav-btn'));
+  var views = Array.prototype.slice.call(document.querySelectorAll('.view'));
+  navBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var id = btn.dataset.view;
+      navBtns.forEach(function(b){ b.classList.toggle('active', b === btn); });
+      views.forEach(function(v){ v.classList.toggle('active', v.id === 'view-' + id); });
+      closeCtx();
+    });
+  });
+
+  var decisionText = {
+    accept: '已采纳 · 本周只保留发布目标',
+    ignore: '已忽略这条提议',
+    later:  '先放着 · 仍保留在上下文条'
+  };
+  document.querySelectorAll('.decision-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var card = btn.closest('.proposal');
+      card.querySelectorAll('.decision-btn').forEach(function(b){ b.classList.remove('selected'); });
+      btn.classList.add('selected');
+      var msg = decisionText[btn.dataset.decision];
+      card.querySelector('.proposal-state').textContent = msg;
+      toast(msg);
+    });
+  });
+
+  var input = document.getElementById('composerInput'), stream = document.getElementById('stream');
+  function send(){
+    var val = input.value.trim();
+    if(!val){ toast('在下方输入框开始对话。'); return; }
+    var d = new Date();
+    var hh = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    var art = document.createElement('article');
+    art.className = 'msg user';
+    var meta = document.createElement('div');
+    meta.className = 'meta';
+    var role = document.createElement('span'); role.className = 'role'; role.textContent = '用户';
+    var t = document.createElement('time'); t.textContent = hh;
+    meta.appendChild(role); meta.appendChild(t);
+    var p = document.createElement('p'); p.textContent = val;
+    art.appendChild(meta); art.appendChild(p);
+    stream.appendChild(art);
+    stream.scrollTop = stream.scrollHeight;
+    input.value = '';
+    toast('AI 正在思考…');
+  }
+  document.getElementById('sendBtn').addEventListener('click', send);
+  input.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); send(); } });
+
+  document.querySelectorAll('.seg-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.seg-btn').forEach(function(b){ b.classList.remove('selected'); });
+      btn.classList.add('selected');
+      var g = btn.dataset.gran;
+      document.getElementById('reviewScope').textContent =
+        g === 'week' ? '本周示例' :
+        g === 'day'  ? '按日回顾（示例数据为本周）' : '按月回顾（示例数据为本周）';
+      toast('回顾粒度：' + btn.textContent);
+    });
+  });
+
+  document.querySelectorAll('.chip').forEach(function(chip){
+    chip.addEventListener('click', function(){
+      var group = chip.closest('.cats') || chip.closest('.filters');
+      group.querySelectorAll('.chip').forEach(function(c){ c.classList.remove('selected'); });
+      chip.classList.add('selected');
+      toast('筛选：' + chip.dataset.label);
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,4 +1,7 @@
 {
+  "search_memories": {"description":"查询有来源的个人记忆，支持 query/kind/subject/state/support/confirmed/validity/limit。默认仅有效、已确认且未排除的 active 条目；明确回查历史才 include_history=true，明确查看被排除项才 include_excluded=true（仅供审阅，不据此主动建议）。focus_goal_id 可召回无共同关键词的活跃目标关联项并排序，不授予跨会话权限。view=maintenance 查看有界重复/断链线索和统计，不自动合并删除。区分确认、证据判断和执行许可。","parameters":{}},
+  "propose_memory": {"description":"从本会话用户消息提出独立记忆候选。必填 content/kind/subject/predicate/source_message_id；content 就是实际记忆正文，不需要知识页。只记录稳定且明确的用户事实或偏好，不从引述、假设、助手推断或临时状态生成事实。候选保持 pending，不授予执行权限。","parameters":{}},
+  "review_memory": {"description":"起草记忆控制操作，必须经用户审阅卡批准。operation: confirm/dismiss/delete/restore/conflict/supersede；pin/unpin（相关时优先）；exclude/include（停用/恢复自动使用，不删除）；set_salience（salience=low/normal/high）；link_goal/unlink_goal（goal_id，关联需 reason，最多8个，只影响相关性不授权）。以上需 claim_id，替代还需 replacement_id。另有 share_conversation/revoke_conversation（source_conversation_id，只读批准时快照）；block_kind/allow_kind（kind）；enable_index/disable_index/rebuild_index；pause_reviews/resume_reviews；clear_usage（只清本机访问回执）；assess（claim_id、assessment_run_id）。可传 scope(reference/conversation/personal)、valid_from/valid_until/expires_at(RFC3339)、reason。确认不等于证明客观真伪或允许执行。","parameters":{}},
   "add_plan_steps": {
     "description": "为既有长程计划追加拆解步骤（需用户确认；确认后全部进入等待队列，活跃名额空出时激活）。计划推进到下一里程碑、用户细化路径、或原拆解需要补步时使用。plan_id 来自上下文中的计划清单或 list_plans；不要重复追加已有步骤，不要为同一意图重复建计划。",
     "parameters": {
@@ -248,7 +251,7 @@
     }
   },
   "search_knowledge_base": {
-    "description": "检索已核验知识：query为原问题关键词，alternate_queries可提供最多3种同义、概念或跨语言改写，保持同一需求，一次融合返回。初次未命中时换有意义的概念检索。结果只是候选，回答前核对适用条件、否定和局限，不把词面命中当成语义相关。 同时返回独立的knowledge_warnings历史否定记录，仅用于核对当时原因与当前条件，不作为正面依据。 knowledge_reading里的generated_summary是生成摘要，只用于判断页面是否相关，不是原文；核对具体要求时用get_wiki_page，可把hit_offset作为offset并带上content_hash，直接从命中处读。结果带suggest=synthesize_knowledge表示命中页的篇幅超过本轮读得完的量，需要综合多页或通读时改用该工具。",
+    "description": "检索知识页、个人事件及历史讨论：query为原问题关键词，alternate_queries可提供最多3种同义、概念或跨语言改写，保持同一需求，一次融合返回。初次未命中时换有意义的概念检索。结果只是候选，回答前核对适用条件、否定和局限，不把词面命中当成语义相关。conversation_history含当前会话的局部历史片段；shared_history只含用户已明确批准给当前目标会话的有向源快照，不包含未来消息。遵循history_instructions与范围授权；区分用户自述与助手建议，讨论过不等于已采纳，不代表已确认的当前事实。knowledge_warnings是历史否定记录，仅用于核对当时原因与当前条件，不作为正面依据。knowledge_reading里的generated_summary是生成摘要，不是原文；核对具体要求时用get_wiki_page，可把hit_offset作为offset并带上content_hash。引用使用日期和原文片段，不展示内部ID。suggest=synthesize_knowledge表示命中页超过本轮阅读量，需要综合多页或通读时改用该工具。",
     "parameters": {
       "/properties/limit/description": "最多返回条数，默认 5",
       "/properties/query/description": "搜索关键词，必填",

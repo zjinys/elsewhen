@@ -56,7 +56,7 @@ extension _PanelRender on _WikiAiChatPanelState {
                   isProject
                       ? Icons.find_replace_outlined
                       : Icons.bookmark_add_outlined,
-                  size: 14,
+                  size: DesignTokens.iconMicro,
                 ),
                 label: Text(
                   isProject

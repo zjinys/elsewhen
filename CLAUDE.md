@@ -141,6 +141,7 @@ powershell -File scripts/package-msi.ps1   # Windows → dist/Elsewhen-*-x64.msi
 | Capture 模式 | `./scripts/elsewhen-capture.sh` | `powershell -File scripts\elsewhen-capture.ps1` |
 | 带诊断日志启动 | `./scripts/debug-run.sh` | `powershell -File scripts\debug-run.ps1` |
 | 重建 frb bridge | `./scripts/regen.sh` | `powershell -File scripts\regen.ps1` |
+| 修复 ananicy 降权（Linux） | `./scripts/fix-ananicy-priority.sh`（需 sudo） | 无 Windows 版本（该问题不存在于 Windows） |
 | 校验 bridge 集成 | `./scripts/test_bridge.sh` | `powershell -File scripts\test_bridge.ps1` |
 | 打 Android APK | `./scripts/build-apk.sh` | `powershell -File scripts\build-apk.ps1` |
 | 旧库版本标记修复 | `./scripts/stamp-legacy-db.sh` | `powershell -File scripts\stamp-legacy-db.ps1` |

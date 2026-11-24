@@ -3,6 +3,7 @@ import 'app_error_notice.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../l10n/localization.dart';
+import '../theme/design_tokens.dart';
 
 /// 三类同步冲突审阅区（Provider / 知识库 / 待办目标）共用的外壳。
 ///
@@ -52,7 +53,7 @@ class SyncConflictSection extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: 18,
+              size: DesignTokens.icon,
               color: strong && error != null
                   ? theme.colorScheme.error
                   : strong
@@ -70,7 +71,7 @@ class SyncConflictSection extends StatelessWidget {
                 padding: const EdgeInsets.all(4),
                 child: Icon(
                   Icons.info_outline,
-                  size: 14,
+                  size: DesignTokens.iconMicro,
                   color: theme.colorScheme.outline,
                 ),
               ),
@@ -92,7 +93,7 @@ class SyncConflictSection extends StatelessWidget {
               children: [
                 Icon(
                   Icons.error_outline,
-                  size: 14,
+                  size: DesignTokens.iconMicro,
                   color: theme.colorScheme.error,
                 ),
                 const SizedBox(width: 4),
@@ -109,7 +110,7 @@ class SyncConflictSection extends StatelessWidget {
                   ActionChip(
                     avatar: Icon(
                       Icons.refresh,
-                      size: 14,
+                      size: DesignTokens.iconMicro,
                       color: theme.colorScheme.error,
                     ),
                     label: Text(context.l10n.syncRefresh),
@@ -152,7 +153,7 @@ class SyncConflictSection extends StatelessWidget {
               children: [
                 Icon(
                   Icons.check_circle_outline,
-                  size: 14,
+                  size: DesignTokens.iconMicro,
                   color: theme.colorScheme.outline,
                 ),
                 const SizedBox(width: 4),
@@ -226,7 +227,7 @@ class _StatusBadge extends StatelessWidget {
         children: [
           Icon(
             Icons.check_circle_outline,
-            size: 14,
+            size: DesignTokens.iconMicro,
             color: colorScheme.outline,
           ),
           const SizedBox(width: 4),

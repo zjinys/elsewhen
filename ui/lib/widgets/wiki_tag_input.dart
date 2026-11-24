@@ -5,33 +5,42 @@
 //! 多个变体，标签退化成不可聚合的噪声。
 //!
 //! 设计取舍：
-//! - **不改变存储格式**。控制器里仍是一整串 `空格/逗号` 分隔的文本，提交方
-//!   （创建主题 / 导入保存 / 编辑标签）的 `_parsedTags()` 一行都不用改。
-//!   引入 chip 列表会同时改三处解析与三处回填，收益不抵风险。
+//! - 输入控制器仍是一整串 `空格/逗号` 分隔的文本，提交方
+//!   （创建主题 / 导入保存 / 编辑标签）的 `_parsedTags()` 一行都不用改；
+//!   规范化 tag 词表由 Rust/SQLite 独立维护。
 //! - **补全只碰「光标所在的这一个 token」**。前缀匹配、替换，前后文原样保留，
 //!   所以「工作 Rust」里补全 `Rust` 不会动 `工作`。
 //! - **点空白收起建议**，不抢焦点：候选面板是输入框下方的 `Material` 浮层，
 //!   键盘仍留在输入框里，选完可继续打下一个标签。
 
-import 'dart:async';
-
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../bridge/rust_bridge_repository.dart';
 import '../l10n/localization.dart';
+import '../models/wiki_page.dart';
 import '../providers/wiki_provider.dart';
 import '../theme/app_theme.dart';
+import '../theme/design_tokens.dart';
 
 /// 空格 / 逗号 / 顿号 —— 与各提交方 `_parsedTags()` 的分隔符保持一致。
 final _tagSeparator = RegExp(r'[\s,，、]');
 
-/// 全库已有标签（按使用频次从高到低）。
-///
-/// 数据源复用 [wikiPagesProvider]：那已经是「全部页面元数据」的唯一来源，
-/// 标签就在 meta 里，不必为补全再加一个新的 Rust 接口。页数上限 500、
-/// meta 不带正文，聚合是纯本地计算。
-final wikiTagVocabularyProvider = Provider<List<String>>((ref) {
-  final pages = ref.watch(wikiPagesProvider).value ?? const [];
+/// Canonical tag vocabulary. The page metadata fallback keeps older databases
+/// and bridge test doubles usable while the normalized tag endpoint is absent.
+final wikiTagsProvider = FutureProvider<List<String>>((ref) async {
+  try {
+    final bridge = ref.read(storageRepositoryProvider) as RustBridgeRepository;
+    final tags = await bridge.listWikiTags();
+    if (tags.isNotEmpty) return tags;
+  } catch (_) {
+    // Fall back to the compatibility page metadata below.
+  }
+  final pages = await ref.watch(wikiPagesProvider.future);
+  return _sortPageTags(pages);
+});
+
+List<String> _sortPageTags(List<WikiPageMeta> pages) {
   final counts = <String, int>{};
   for (final page in pages) {
     for (final raw in page.tags) {
@@ -47,6 +56,13 @@ final wikiTagVocabularyProvider = Provider<List<String>>((ref) {
       return byCount != 0 ? byCount : a.compareTo(b);
     });
   return List.unmodifiable(sorted);
+}
+
+/// Synchronous view used by the input widget while the vocabulary loads.
+final wikiTagVocabularyProvider = Provider<List<String>>((ref) {
+  final canonical = ref.watch(wikiTagsProvider).value;
+  if (canonical != null && canonical.isNotEmpty) return canonical;
+  return _sortPageTags(ref.watch(wikiPagesProvider).value ?? const []);
 });
 
 /// 光标所在 token 的边界：向前 / 向后扫到最近的分隔符。
@@ -96,7 +112,7 @@ class WikiTagInput extends ConsumerStatefulWidget {
 class _WikiTagInputState extends ConsumerState<WikiTagInput> {
   final _focusNode = FocusNode();
   final _scrollController = ScrollController();
-  Timer? _collapseTimer;
+  final _tapRegionGroup = Object();
 
   /// 当前候选对应的 token 起始位置；null = 面板收起。
   int? _suggestStart;
@@ -119,7 +135,6 @@ class _WikiTagInputState extends ConsumerState<WikiTagInput> {
 
   @override
   void dispose() {
-    _collapseTimer?.cancel();
     widget.controller.removeListener(_onTextChanged);
     _focusNode.removeListener(_onFocusChanged);
     _focusNode.dispose();
@@ -151,7 +166,8 @@ class _WikiTagInputState extends ConsumerState<WikiTagInput> {
     // 空 token 也给候选：刚打完分隔符时最想「挑一个已有标签」，
     // 这时不该让用户凭记忆打第一个字。
     final next = _tokenAt(value.text, caret).start;
-    if (_suggestStart != next) setState(() => _suggestStart = next);
+    // A prefix may change while its token starts at the same offset.
+    setState(() => _suggestStart = next);
   }
 
   /// 当前会话的候选列表（空 list 表示没有可选项）。
@@ -210,19 +226,8 @@ class _WikiTagInputState extends ConsumerState<WikiTagInput> {
   }
 
   /// 点击输入框以外的地方收起面板。
-  void _collapse({bool delayed = false}) {
-    _collapseTimer?.cancel();
-    if (!delayed) {
-      if (_suggestStart != null) setState(() => _suggestStart = null);
-      return;
-    }
-    // 延迟一帧再收起：点按候选行时，PointerDown 会先触发 TapRegion 的
-    // onTapOutside，紧接着才是自己的 onTap。不延迟会先收起、再点到空处。
-    _collapseTimer = Timer(const Duration(milliseconds: 150), () {
-      if (mounted && _suggestStart != null) {
-        setState(() => _suggestStart = null);
-      }
-    });
+  void _collapse() {
+    if (_suggestStart != null) setState(() => _suggestStart = null);
   }
 
   @override
@@ -232,12 +237,16 @@ class _WikiTagInputState extends ConsumerState<WikiTagInput> {
     final suggestions = _visibleSuggestions();
     final showPanel = _suggestStart != null && suggestions.isNotEmpty;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TapRegion(
-          onTapOutside: (_) => _collapse(delayed: true),
-          child: TextField(
+    // The text field's built-in outside-tap handler shares this group. Both
+    // mouse and touch can press/scroll suggestions without losing the token.
+    return TextFieldTapRegion(
+      groupId: _tapRegionGroup,
+      onTapOutside: (_) => _collapse(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            groupId: _tapRegionGroup,
             controller: widget.controller,
             focusNode: _focusNode,
             enabled: widget.enabled,
@@ -250,22 +259,22 @@ class _WikiTagInputState extends ConsumerState<WikiTagInput> {
                   widget.prefixIcon ??
                   Icon(
                     Icons.sell_outlined,
-                    size: 16,
+                    size: DesignTokens.iconMicro,
                     color: AppTheme.textTertiary,
                   ),
             ),
             onTap: _recomputeSuggestions,
           ),
-        ),
-        if (showPanel) ...[
-          const SizedBox(height: 4),
-          _SuggestionPanel(
-            suggestions: suggestions,
-            scrollController: _scrollController,
-            onAccept: _accept,
-          ),
+          if (showPanel) ...[
+            const SizedBox(height: 4),
+            _SuggestionPanel(
+              suggestions: suggestions,
+              scrollController: _scrollController,
+              onAccept: _accept,
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
@@ -316,7 +325,7 @@ class _SuggestionPanel extends StatelessWidget {
                   child: Text(
                     context.l10n.wikiTagsExisting,
                     style: TextStyle(
-                      fontSize: 10.5,
+                      fontSize: 11,
                       color: AppTheme.textTertiary,
                     ),
                   ),
@@ -340,7 +349,7 @@ class _SuggestionPanel extends StatelessWidget {
                         children: [
                           Icon(
                             Icons.sell_outlined,
-                            size: 12,
+                            size: DesignTokens.iconMicro,
                             color: AppTheme.textTertiary,
                           ),
                           const SizedBox(width: 6),
@@ -350,7 +359,7 @@ class _SuggestionPanel extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 12.5,
+                                fontSize: 12,
                                 color: AppTheme.textPrimary,
                               ),
                             ),

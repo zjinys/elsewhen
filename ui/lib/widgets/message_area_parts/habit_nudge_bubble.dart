@@ -35,6 +35,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
   Widget build(BuildContext context) {
     // 问候卡与对话气泡同基准推算字号（原 15.5/11/12）。
     final scale = ref.watch(settingsProvider.select(chatTypeScaleOf));
+    final bubbleStyle = ChatBubbleStyle.of(context);
     final message = widget.message;
     final referenceParts = message.messageRef?.split(':') ?? const [];
     final nudgeId = referenceParts.isEmpty ? '' : referenceParts.first;
@@ -101,8 +102,8 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 30,
-            height: 30,
+            width: bubbleStyle.isLight ? 32 : 30,
+            height: bubbleStyle.isLight ? 32 : 30,
             decoration: BoxDecoration(
               color: AppTheme.accentPrimary.withValues(alpha: 0.12),
               shape: BoxShape.circle,
@@ -112,24 +113,26 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
             ),
             child: Icon(
               Icons.notifications_active_outlined,
-              size: 15,
-              color: AppTheme.accentPrimary,
+              size: DesignTokens.iconMicro,
+              color: bubbleStyle.accentInk,
             ),
           ),
           const SizedBox(width: AppTheme.space3),
           Flexible(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 820),
+              constraints: BoxConstraints(
+                maxWidth: bubbleStyle.assistantMaxWidth,
+              ),
               child: Container(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                decoration: BoxDecoration(
-                  color: AppTheme.surface1,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                  border: Border.all(
-                    color: active
-                        ? AppTheme.accentPrimary.withValues(alpha: 0.32)
-                        : AppTheme.surface3.withValues(alpha: 0.7),
-                  ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: bubbleStyle.isLight ? 16 : 14,
+                  vertical: 12,
+                ),
+                decoration: bubbleStyle.assistantCard(
+                  emphasized: active,
+                  darkBorder: active
+                      ? AppTheme.accentPrimary.withValues(alpha: 0.32)
+                      : AppTheme.surface3.withValues(alpha: 0.7),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -141,14 +144,14 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                           style: TextStyle(
                             fontSize: scale.meta,
                             fontWeight: FontWeight.w600,
-                            color: AppTheme.accentPrimary,
+                            color: bubbleStyle.accentInk,
                           ),
                         ),
                         Text(
                           ' • ${DateFormat.Hm(context.l10n.localeName).format(message.createdAt)}',
                           style: TextStyle(
                             fontSize: scale.meta,
-                            color: AppTheme.textTertiary,
+                            color: bubbleStyle.metadataColor,
                           ),
                         ),
                       ],
@@ -286,7 +289,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                             ),
                             style: TextStyle(
                               fontSize: scale.button,
-                              color: AppTheme.textTertiary,
+                              color: bubbleStyle.metadataColor,
                             ),
                           ),
                           TextButton(
@@ -319,7 +322,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
                           fontSize: scale.button,
                           color: answered
                               ? AppTheme.success
-                              : AppTheme.textTertiary,
+                              : bubbleStyle.metadataColor,
                         ),
                       ),
                   ],
@@ -357,7 +360,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
       if (!mounted) return;
       if (changed == true) {
         setState(() => _acted = true);
-        ScaffoldMessenger.of(context).showSnackBar(
+        FeedbackToast.of(context).show(
           SnackBar(
             content: Text(context.l10n.checkinsUpdated),
             behavior: SnackBarBehavior.floating,
@@ -397,7 +400,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
       setState(() => _acted = false);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(context.errorMessage(context.l10n.edit, e)),
           behavior: SnackBarBehavior.floating,
@@ -434,19 +437,16 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
       final result = await repo.answerHabitNudge(widget.message.id, done);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            done && result.eventCreated
-                ? context.l10n.checkinRecordedEvent
-                : context.l10n.recordedText(text),
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
+      showFeedbackToast(
+        context,
+        message: done && result.eventCreated
+            ? context.l10n.checkinRecordedEvent
+            : context.l10n.recordedText(text),
+        kind: FeedbackKind.success,
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(context.errorMessage(context.l10n.record, e)),
           behavior: SnackBarBehavior.floating,
@@ -464,7 +464,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
       await repo.snoozeHabitNudge(widget.message.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(context.l10n.askAfterHour),
           behavior: SnackBarBehavior.floating,
@@ -472,7 +472,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(context.errorMessage(context.l10n.askLater, e)),
           behavior: SnackBarBehavior.floating,
@@ -491,7 +491,7 @@ class _HabitNudgeBubbleState extends ConsumerState<HabitNudgeBubble> {
       await repo.dismissHabitNudge(widget.message.id);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(context.errorMessage(context.l10n.edit, e)),
           behavior: SnackBarBehavior.floating,

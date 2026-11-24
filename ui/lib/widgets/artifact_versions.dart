@@ -9,6 +9,8 @@ import '../theme/app_theme.dart';
 import 'markdown_view.dart';
 import '../l10n/localization.dart';
 import 'app_error_notice.dart';
+import 'feedback_toast.dart';
+import '../theme/design_tokens.dart';
 
 class ArtifactVersions extends ConsumerStatefulWidget {
   final String slug;
@@ -164,7 +166,7 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
             children: [
               Icon(
                 Icons.auto_stories_outlined,
-                size: 18,
+                size: DesignTokens.icon,
                 color: AppTheme.textTertiary,
               ),
               const SizedBox(width: 10),
@@ -218,7 +220,7 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                     v.adopted
                         ? Icons.check_circle_outline
                         : Icons.auto_awesome_outlined,
-                    size: 16,
+                    size: DesignTokens.iconMicro,
                     color: v.adopted
                         ? AppTheme.accentPrimary
                         : AppTheme.textSecondary,
@@ -227,7 +229,7 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                 title: Text(
                   '${v.title} · v${v.version}',
                   style: const TextStyle(
-                    fontSize: 13.5,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -236,7 +238,7 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                   child: Text(
                     '${context.artifactTypeLabel(v.contentType)} · ${v.adopted ? context.l10n.readingAdopted : context.l10n.artifactNotAdopted} · ${_date(v.createdAt)}',
                     style: TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 12,
                       color: AppTheme.textTertiary,
                     ),
                   ),
@@ -262,7 +264,7 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                                   context.l10n.artifactUnknownStrategy,
                             ),
                             style: TextStyle(
-                              fontSize: 11.5,
+                              fontSize: 12,
                               color: AppTheme.textTertiary,
                             ),
                           ),
@@ -283,7 +285,7 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                                 ),
                                 title: Text(
                                   context.l10n.artifactInstruction,
-                                  style: TextStyle(fontSize: 12.5),
+                                  style: TextStyle(fontSize: 12),
                                 ),
                                 children: [
                                   Padding(
@@ -327,7 +329,7 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                                   ),
                                   title: Text(
                                     context.l10n.artifactAdoptedRevision,
-                                    style: TextStyle(fontSize: 12.5),
+                                    style: TextStyle(fontSize: 12),
                                   ),
                                   onExpansionChanged: (open) async {
                                     if (!open ||
@@ -380,7 +382,7 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                               child: Text(
                                 context.l10n.artifactNewerRevisionHelp,
                                 style: TextStyle(
-                                  fontSize: 11.5,
+                                  fontSize: 12,
                                   color: AppTheme.textTertiary,
                                 ),
                               ),
@@ -417,9 +419,9 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                                           ),
                                         );
                                         if (context.mounted) {
-                                          ScaffoldMessenger.of(
+                                          FeedbackToast.of(
                                             context,
-                                          ).showSnackBar(
+                                          ).show(
                                             SnackBar(
                                               content: Text(
                                                 context.l10n.artifactBodyCopied,
@@ -518,7 +520,7 @@ class _VersionsState extends ConsumerState<ArtifactVersions> {
                       children: [
                         Icon(
                           Icons.compare_arrows_rounded,
-                          size: 16,
+                          size: DesignTokens.iconMicro,
                           color: AppTheme.accentPrimary,
                         ),
                         const SizedBox(width: 6),

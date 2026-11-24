@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'app_pressable.dart';
 import 'composer_field.dart';
+import 'chat_reading_controller.dart';
 import 'glass.dart';
 import 'suggestion_feedback.dart';
 import 'save_topic_dialog.dart';
@@ -15,6 +16,7 @@ import 'page_mark_review.dart';
 import 'chat_proposal_review.dart';
 import 'chat_run_status.dart';
 import 'chat_input_queue.dart';
+import '../theme/design_tokens.dart';
 import 'goal_compass_banner.dart';
 import '../providers/chat_run_provider.dart';
 import '../bridge/api.dart'
@@ -22,7 +24,8 @@ import '../bridge/api.dart'
         ChatInputMode,
         DigestInsightSurfacingDto,
         HabitNudgeInputDto,
-        HabitNudgeStateDto;
+        HabitNudgeStateDto,
+        PendingActionDto;
 
 import 'dart:math';
 
@@ -51,6 +54,7 @@ import '../utils/app_error.dart';
 import 'app_error_notice.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
+import '../theme/chat_bubble_style.dart';
 import '../theme/chat_type_scale.dart';
 import '../theme/content_font.dart';
 import 'markdown_view.dart';
@@ -60,6 +64,7 @@ import 'todo_view.dart';
 import 'goal_view.dart';
 import 'reminder_banner.dart';
 import '../l10n/localization.dart';
+import 'feedback_toast.dart';
 
 // ── 消息区拆分为 part（行为零变化，见 message_area_parts/）──
 part 'message_area_parts/pending_banner.dart';
@@ -224,24 +229,13 @@ class MessageArea extends ConsumerStatefulWidget {
 class _MessageAreaState extends ConsumerState<MessageArea> {
   /// 初始窗口与每页加载量：只显示最近 N 条，旧的通过「显示更早」逐步展开
 
-  final ScrollController _scrollController = ScrollController();
+  final _scrollController = ChatReadingController();
   final TextEditingController _searchController = TextEditingController();
   bool _expanded = false;
   int _shownSince = 0; // 展开后从消息开头跳过的条数
-  bool _nearBottom = true;
-  bool _pendingScrollToBottom = true; // 会话刚切换/初始加载后，数据到达时滚到最新
+  String? _windowStartMessageId;
   String _searchQuery = '';
   DateTime? _selectedDate;
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(() {
-      final pos = _scrollController.position;
-      _nearBottom =
-          !pos.hasContentDimensions || pos.pixels >= pos.maxScrollExtent - 120;
-    });
-  }
-
   @override
   void dispose() {
     _scrollController.dispose();
@@ -285,8 +279,8 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
       if (prev == next) return;
       _expanded = false;
       _shownSince = 0;
-      _nearBottom = true;
-      _pendingScrollToBottom = true;
+      _windowStartMessageId = null;
+      _scrollController.reset();
       if (mounted) setState(() {});
     });
     // 当前会话进入「AI 生成中」→ 滚到底部展示生成中占位气泡
@@ -294,22 +288,11 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
       final id = ref.read(selectedConversationIdProvider);
       if (id == null) return;
       final started = next.contains(id) && !(prev?.contains(id) ?? false);
-      if (started) _scheduleScrollToBottom();
-    });
-    // 新消息（用户发送或 AI 回复）：若停在底部则跟随滚动。
-    // 「会话切换/初次加载的滚到最新」不在这里消费 —— loading 阶段触发会把
-    // _pendingScrollToBottom 消耗掉却滚不动（列表未挂载）；改由数据分支在
-    // 渲染完成后兜底滚到底部。
-    ref.listen(messagesProvider, (prev, next) {
-      final nextLen = next.value?.length ?? 0;
-      final prevLen = prev?.value?.length ?? 0;
-      if (nextLen > prevLen && _nearBottom) {
-        _scheduleScrollToBottom();
-      }
+      if (started) _scrollController.followTail();
     });
     // 会话临时提示追加（错误气泡等）→ 滚到底部展示
     ref.listen(scrollRequestProvider, (prev, next) {
-      if (next != prev) _scheduleScrollToBottom();
+      if (next != prev) _scrollController.followTail();
     });
 
     if (selectedId == null) {
@@ -343,6 +326,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
         if (!durableBusy && !generatingIds.contains(selectedId))
           const GoalCompassNudgeBanner(),
         if (showSearch) _buildSearchBar(messagesAsync.value ?? const []),
+        const _PendingMemoryBanner(),
         _PendingRelationsBanner(),
         // Messages list
         Expanded(
@@ -355,7 +339,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
             data: (messages) {
               // 切会话时 provider 会先短暂携带上一个会话的消息：按
               // conversationId 识别并降级为 loading，且不在假数据上白白
-              // 消耗 _pendingScrollToBottom。
+              // 触发初次定位。
               // 例外：「主对话流」的消息列表本就是**全部普通会话的合并时
               // 间线**（见 ConversationRepository.getMessages 主会话特例），
               // 消息的 conversation_id 天然各不相同，不能套此判定。
@@ -370,16 +354,13 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
               final legacyTyping = generatingIds.contains(selectedId);
               final isAiTyping = legacyTyping || durableBusy;
 
+              _scrollController.observeMessages(
+                messages,
+                follow: _searchQuery.trim().isEmpty && _selectedDate == null,
+              );
+
               if (messages.isEmpty && notices.isEmpty && !isAiTyping) {
                 return _buildNoMessages();
-              }
-
-              // 会话刚切换 / 初次加载：数据渲染完成后滚到最新消息。
-              // 放在渲染分支内保证 postFrame 时列表已挂载（hasClients 为真），
-              // 无论上游是 loading 空跑还是数据缓存的路径，都能稳定滚到底。
-              if (_pendingScrollToBottom) {
-                _pendingScrollToBottom = false;
-                _scheduleScrollToBottom();
               }
 
               // 默认只看最近 N 条，点「显示更早」逐页展开
@@ -397,11 +378,24 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                     );
               }).toList();
               final total = matching.length;
+              final pinnedStart =
+                  !_scrollController.preserveWindow ||
+                      _windowStartMessageId == null
+                  ? -1
+                  : matching.indexWhere((m) => m.id == _windowStartMessageId);
               final shownSince = _searchQuery.trim().isNotEmpty
                   ? 0
                   : _expanded
-                  ? _shownSince
+                  ? _shownSince.clamp(0, max(0, total - 1)).toInt()
+                  : pinnedStart >= 0
+                  ? pinnedStart
                   : (total > _windowSize ? total - _windowSize : 0);
+              if (_searchQuery.trim().isEmpty &&
+                  _selectedDate == null &&
+                  total > 0) {
+                // 新回复不断追加时保留窗口起点，不能把正在读的首条回复挤掉。
+                _windowStartMessageId = matching[shownSince].id;
+              }
               final hasMore = shownSince > 0;
               // 「重新生成」的目标 = 会话里最后一条 user 消息（Rust 侧
               // generateReply 始终回复最新那条 user 消息）。按 **id** 判定而
@@ -486,65 +480,71 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
               // 气泡正文/日期线/问候卡/洞察卡全部跟随「内容字体」族；
               // 按钮类（重新生成/加载更早）由自身主题样式覆盖，不受影响。
               return ContentFontScope(
-                child: ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(AppTheme.space4),
-                  itemCount: rows.length + (hasMore ? 1 : 0) + tailCount,
-                  itemBuilder: (context, index) {
-                    if (hasMore && index == 0) {
-                      return _buildLoadMoreButton(total);
-                    }
-                    final libIndex = index - (hasMore ? 1 : 0);
-                    if (libIndex < rows.length) {
-                      final row = rows[libIndex];
-                      if (row is String) return _DayDivider(label: row);
-                      final message = row as Message;
-                      // 「重新生成」出现在**待回复的那条用户消息**上：会话最后一条
-                      // user 消息（生成失败、或还没生成），或上一轮被记为失败的那条。
-                      // 生成期间不显示（此时以「AI 正在思考…」占位反馈）。
-                      final needsReply =
-                          message.isUser &&
-                          !isAiTyping &&
-                          (!durable ||
-                              (durableRunInput != message.id &&
-                                  message.conversationId == selectedId)) &&
-                          ((message.id == latestUserMessageId &&
-                                  !latestUserHasReply) ||
-                              (failedReplyId != null &&
-                                  message.id == failedReplyId));
-                      if (message.isHabitNudge || message.isHabitNudgeSuggest) {
-                        final base = _habitNudgeBaseRef(message.messageRef);
-                        final latestAsk = base == null
-                            ? 1
-                            : (latestHabitAsk[base] ?? 1);
-                        return HabitNudgeBubble(
-                          message: message,
-                          checkin: habitCheckins[message.messageRef],
-                          supersededByNewer:
-                              message.messageRef != null &&
-                              latestAsk > _habitNudgeAsk(message.messageRef!),
+                child: _scrollController.trackUserScroll(
+                  ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(AppTheme.space4),
+                    itemCount: rows.length + (hasMore ? 1 : 0) + tailCount,
+                    itemBuilder: (context, index) {
+                      if (hasMore && index == 0) {
+                        return _buildLoadMoreButton(total, shownSince);
+                      }
+                      final libIndex = index - (hasMore ? 1 : 0);
+                      if (libIndex < rows.length) {
+                        final row = rows[libIndex];
+                        if (row is String) return _DayDivider(label: row);
+                        final message = row as Message;
+                        // 「重新生成」出现在**待回复的那条用户消息**上：会话最后一条
+                        // user 消息（生成失败、或还没生成），或上一轮被记为失败的那条。
+                        // 生成期间不显示（此时以「AI 正在思考…」占位反馈）。
+                        final needsReply =
+                            message.isUser &&
+                            !isAiTyping &&
+                            (!durable ||
+                                (durableRunInput != message.id &&
+                                    message.conversationId == selectedId)) &&
+                            ((message.id == latestUserMessageId &&
+                                    !latestUserHasReply) ||
+                                (failedReplyId != null &&
+                                    message.id == failedReplyId));
+                        if (message.isHabitNudge ||
+                            message.isHabitNudgeSuggest) {
+                          final base = _habitNudgeBaseRef(message.messageRef);
+                          final latestAsk = base == null
+                              ? 1
+                              : (latestHabitAsk[base] ?? 1);
+                          return HabitNudgeBubble(
+                            message: message,
+                            checkin: habitCheckins[message.messageRef],
+                            supersededByNewer:
+                                message.messageRef != null &&
+                                latestAsk > _habitNudgeAsk(message.messageRef!),
+                          );
+                        }
+                        if (message.isDigestInsight) {
+                          return DigestInsightBubble(message: message);
+                        }
+                        if (message.isScoutBrief) {
+                          return ScoutBriefBubble(message: message);
+                        }
+                        return _scrollController.anchorMessage(
+                          message,
+                          _MessageBubble(
+                            message: message,
+                            showRetry: needsReply,
+                            onRetry: () =>
+                                _retryAiGeneration(selectedId, message.id),
+                            isLastMessage: libIndex == rows.length - 1,
+                          ),
                         );
                       }
-                      if (message.isDigestInsight) {
-                        return DigestInsightBubble(message: message);
+                      final tailIndex = libIndex - rows.length;
+                      if (tailIndex < notices.length) {
+                        return _NoticeBubble(text: notices[tailIndex]);
                       }
-                      if (message.isScoutBrief) {
-                        return ScoutBriefBubble(message: message);
-                      }
-                      return _MessageBubble(
-                        message: message,
-                        showRetry: needsReply,
-                        onRetry: () =>
-                            _retryAiGeneration(selectedId, message.id),
-                        isLastMessage: libIndex == rows.length - 1,
-                      );
-                    }
-                    final tailIndex = libIndex - rows.length;
-                    if (tailIndex < notices.length) {
-                      return _NoticeBubble(text: notices[tailIndex]);
-                    }
-                    return const _AiTypingBubble();
-                  },
+                      return const _AiTypingBubble();
+                    },
+                  ),
                 ),
               );
             },
@@ -575,7 +575,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
             ),
           ),
         // Input area
-        _MessageInput(),
+        _MessageInput(onMessageSent: _scrollController.scrollToLatest),
       ],
     );
     return ChatCompanionWorkspace(child: content);

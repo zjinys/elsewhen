@@ -135,6 +135,12 @@ impl Tool for GetWikiPageTool {
             .store
             .get_wiki_page(&slug)?
             .context("没有找到该知识页")?;
+        for event in &page.source_event_ids {
+            anyhow::ensure!(
+                ctx.store.memory_event_visible(event)?,
+                "wiki_source_outside_request_snapshot"
+            );
+        }
         let offset = match args.get("offset") {
             None => 0,
             Some(value) => value
@@ -219,6 +225,9 @@ impl Tool for GetWikiPageTool {
                 "wiki_read_budget_exhausted"
             );
         }
+        let access = uuid::Uuid::new_v4().to_string();
+        ctx.store
+            .memory_page_access(&slug, ctx.conversation_id, &access, "opened")?;
         Ok(render(length))
     }
 }
@@ -263,7 +272,7 @@ impl Tool for SearchKnowledgeBaseTool {
         "search_knowledge_base"
     }
     fn description(&self) -> &'static str {
-        "在知识库页面与个人事件记录中按关键词搜索，返回相关片段（带引用 slug）。\
+        "在知识库页面、个人事件记录与当前会话历史讨论中按关键词搜索，返回相关片段；shared_history 仅来自已明确批准给当前会话的有向源快照，不含未来消息。按 history_instructions 核对范围、来源角色与有效性（知识页带 slug，用户记录带日期和原文片段；不要展示 event_id、snapshot_id 等内部 ID）。\
          涉及用户过往细节或约定时先检索，闲聊不必检索。"
     }
     fn parameters_schema(&self) -> Value {
@@ -291,46 +300,7 @@ impl Tool for SearchKnowledgeBaseTool {
             crate::knowledge::select::select_knowledge_variants(ctx.store, &queries, 4000)?;
         hits.truncate(limit);
         let warnings = crate::knowledge::negative::select_warnings(ctx.store, &queries, 1600)?;
-        // 事件按词匹配：把整句当一个子串时，多词问法几乎匹配不到。命中词多的
-        // 排前，其次按时间；摘录取命中处的原文窗口，而不是固定取开头。
-        let mut seen = std::collections::HashSet::new();
-        let terms: Vec<String> = queries
-            .iter()
-            .flat_map(|query| crate::knowledge::select::query_terms(query))
-            .filter(|term| seen.insert(term.clone()))
-            .take(40)
-            .collect();
-        let mut events = Vec::new();
-        if !terms.is_empty() {
-            let wanted = limit.min(8);
-            let hit = |index: usize| format!("(instr(lower(raw_text),?{index})>0)");
-            let sql = format!(
-                "SELECT id,raw_text FROM events WHERE {}
-                 ORDER BY ({}) DESC,recorded_at DESC LIMIT {}",
-                (1..=terms.len()).map(hit).collect::<Vec<_>>().join(" OR "),
-                (1..=terms.len()).map(hit).collect::<Vec<_>>().join("+"),
-                // 不可记录的事件在下面过滤掉，多取一些以便凑满。
-                wanted * 3
-            );
-            let rows = ctx
-                .store
-                .connection
-                .prepare(&sql)?
-                .query_map(rusqlite::params_from_iter(terms.iter()), |r| {
-                    Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
-                })?
-                .collect::<rusqlite::Result<Vec<_>>>()?;
-            for (id, text) in rows {
-                if events.len() == wanted {
-                    break;
-                }
-                if ctx.store.recordable_event(&id)? {
-                    let (excerpt, _) =
-                        crate::knowledge::select::matching_excerpt(&text, &terms, 350);
-                    events.push(json!({"event_id":id,"excerpt":excerpt,"category":"用户记录"}));
-                }
-            }
-        }
+        let events = crate::knowledge::recall::event_excerpts(ctx.store, &queries, limit, None)?;
         // 命中页的篇幅超过本轮读得完的量时给一个确定性的指路（只看结果数据，
         // 不看用户文本）；要不要综合仍由模型判断。
         let heavy = hits.iter().any(|hit| hit.total_chars > 8000)
@@ -355,9 +325,45 @@ impl Tool for SearchKnowledgeBaseTool {
             reading.insert(hit.citation.page_slug.clone(), entry);
             candidates.push(hit.citation);
         }
-        let mut result = json!({"knowledge_candidates":candidates,"knowledge_reading":reading,"knowledge_warnings":warnings,"events":events});
+        let history =
+            crate::ai::memory::history::search(ctx.store, ctx.conversation_id, &queries, &[])
+                .ok()
+                .flatten();
+        let shared_history =
+            crate::ai::memory::history::search_shared(ctx.store, ctx.conversation_id, &queries)
+                .unwrap_or_default();
+        let history_instructions = if history.is_some() || !shared_history.is_empty() {
+            ctx.store
+                .render_context_instruction("history_recall", &[])
+                .ok()
+        } else {
+            None
+        };
+        let mut result = json!({"knowledge_candidates":candidates,"knowledge_reading":reading,"knowledge_warnings":warnings,"events":events,"conversation_history":history,"shared_history":shared_history,"history_instructions":history_instructions});
         if heavy {
             result["suggest"] = "synthesize_knowledge".into();
+        }
+        if let Some((tokens, model)) = ctx.runtime.result_budget {
+            while crate::ai::budget::text_tokens(
+                model,
+                &Value::String(result.to_string()).to_string(),
+            ) > tokens
+            {
+                if result["shared_history"]
+                    .as_array_mut()
+                    .and_then(|items| items.pop())
+                    .is_some()
+                {
+                    result["history_omitted_by_budget"] = true.into();
+                } else if !result["conversation_history"].is_null() {
+                    result["conversation_history"] = Value::Null;
+                    result["history_omitted_by_budget"] = true.into();
+                } else if !result["history_instructions"].is_null() {
+                    result["history_instructions"] = Value::Null;
+                } else {
+                    break;
+                }
+            }
         }
         Ok(result.to_string())
     }

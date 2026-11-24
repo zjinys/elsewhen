@@ -1,3 +1,4 @@
+import '../theme/design_tokens.dart';
 import 'app_error_notice.dart';
 import '../l10n/localization.dart';
 
@@ -30,6 +31,7 @@ import '../sync/sync_object_conflicts_controller.dart';
 import '../theme/app_theme.dart';
 import 'sync_object_conflicts_settings.dart';
 import 'sync_wiki_conflicts_settings.dart';
+import 'feedback_toast.dart';
 
 part 'local_sync_parts/local_sync_device_card.dart';
 
@@ -79,6 +81,8 @@ class LocalSyncSettings extends StatefulWidget {
 /// 用户反馈绑定流程找不到重点——拆成 tab。
 enum _SyncTab { bind, manage }
 
+enum _PairingIntent { invite, join }
+
 class _LocalSyncSettingsState extends State<LocalSyncSettings> {
   _SyncTab _tab = _SyncTab.bind;
   late final SyncDatasetCleanupApi _cleanupApi =
@@ -86,6 +90,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
   int _cleanupRevision = 0;
   bool _repairBusy = false;
   bool _tabTouched = false;
+  _PairingIntent? _intent;
   final _name = TextEditingController(text: 'This device');
   late final SyncProviderConflictsController _conflicts;
   late final bool _ownsConflicts;
@@ -140,7 +145,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
       return Text(context.l10n.l6TheCurrentStorageBackendDoesNot2cb78);
     }
     return ListenableBuilder(
-      listenable: controller,
+      listenable: Listenable.merge([controller, controller.joiner]),
       builder: (context, _) {
         final state = controller.state;
         final theme = Theme.of(context);
@@ -149,7 +154,13 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
         // 用户主动点过后以用户选择为准。
         final tab = _tabTouched
             ? _tab
-            : (configured ? _SyncTab.manage : _SyncTab.bind);
+            : (controller.currentPairingId != null ||
+                      controller.joiner.active ||
+                      controller.joiner.state?.phase == 'joined'
+                  ? _SyncTab.bind
+                  : configured
+                  ? _SyncTab.manage
+                  : _SyncTab.bind);
         final installation = state?.installationId;
         final ready = state?.state == 'local_ready';
 
@@ -184,12 +195,6 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 绑定前的第一步：先给本机起名，再点按钮走明确确认（用户要求：
-            // 名称放在状态卡之前，按钮紧跟输入框，确认改成弹窗）。
-            if (!configured && state != null && controller.previewEnabled) ...[
-              _buildPrepareRow(controller),
-              const SizedBox(height: 12),
-            ],
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
@@ -310,11 +315,12 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
                 _tabTouched = true;
               }),
             ),
-            DatasetSwitchCard(
-              key: ValueKey(_cleanupRevision),
-              api: widget.datasetApi ?? const FrbSyncDatasetSwitchApi(),
-              catalogChanges: controller.joiner,
-            ),
+            if (controller.joiner.state?.phase != 'joined')
+              DatasetSwitchCard(
+                key: ValueKey(_cleanupRevision),
+                api: widget.datasetApi ?? const FrbSyncDatasetSwitchApi(),
+                catalogChanges: controller.joiner,
+              ),
             if (tab == _SyncTab.manage) ...[
               const SizedBox(height: 12),
               DatasetCleanupCard(
@@ -459,7 +465,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
       await controller.refresh();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      FeedbackToast.maybeOf(context)?.show(
         SnackBar(
           content: AppErrorMessage(error: error, action: context.l10n.delete),
         ),
@@ -489,7 +495,7 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
             hintText: context.l10n.l6DeviceName4433e,
             prefixIcon: Icon(
               Icons.badge_outlined,
-              size: 16,
+              size: DesignTokens.iconMicro,
               color: AppTheme.textTertiary,
             ),
           ).copyWith(counterText: ''),
@@ -543,30 +549,105 @@ class _LocalSyncSettingsState extends State<LocalSyncSettings> {
     bool configured,
   ) {
     final ready = state?.state == 'local_ready';
+    final intent =
+        controller.joiner.active || controller.joiner.state?.phase == 'joined'
+        ? _PairingIntent.join
+        : controller.currentPairingId != null
+        ? _PairingIntent.invite
+        : _intent;
+    if (!controller.previewEnabled) {
+      return Text(context.l10n.l6DeviceSyncIsDisabledInThise1b42);
+    }
+    if (intent == null) {
+      return Column(
+        children: [
+          _intentCard(
+            Icons.add_link,
+            context.l10n.pairingConnectNew,
+            context.l10n.pairingConnectHint,
+            _PairingIntent.invite,
+          ),
+          const SizedBox(height: 12),
+          _intentCard(
+            Icons.qr_code_scanner,
+            context.l10n.pairingJoinExisting,
+            context.l10n.pairingJoinHint,
+            _PairingIntent.join,
+          ),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (!configured && state != null && !controller.previewEnabled) ...[
-          const SizedBox(height: 12),
-          Text(
-            context.l10n.l6DeviceSyncIsDisabledInThise1b42,
-            style: theme.textTheme.bodySmall,
-          ),
-        ],
+        Row(
+          children: [
+            if (!controller.joiner.active &&
+                controller.currentPairingId == null)
+              IconButton(
+                tooltip: context.l10n.l6Back11d02,
+                onPressed: () => setState(() => _intent = null),
+                icon: const Icon(Icons.arrow_back),
+              ),
+            Expanded(
+              child: Text(
+                intent == _PairingIntent.invite
+                    ? context.l10n.pairingConnectNew
+                    : context.l10n.pairingJoinExisting,
+                style: theme.textTheme.titleMedium,
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 16),
-        if (ready && state?.isOwner == true && controller.previewEnabled)
-          OwnerSyncPairingSettings(
-            controller: controller,
-            deliveryStatuses: widget.repository?.syncDeliveryStatus,
-          ),
-        if (controller.previewEnabled)
+        if (intent == _PairingIntent.invite) ...[
+          if (!configured && state != null) _buildPrepareRow(controller),
+          if (ready && state?.isOwner == true)
+            OwnerSyncPairingSettings(
+              controller: controller,
+              deliveryStatuses: widget.repository?.syncDeliveryStatus,
+            )
+          else if (configured)
+            Text(context.l10n.l6AuthorizedDevicesAppearHereAfterThey67f15),
+        ] else
           JoinerSyncPairingSettings(
             controller: controller.joiner,
+            datasetApi: widget.datasetApi ?? const FrbSyncDatasetSwitchApi(),
             deliveryStatuses: widget.repository?.syncDeliveryStatus,
           ),
       ],
     );
   }
+
+  Widget _intentCard(
+    IconData icon,
+    String title,
+    String description,
+    _PairingIntent intent,
+  ) => Card(
+    margin: EdgeInsets.zero,
+    child: Material(
+      type: MaterialType.transparency,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+        leading: Icon(icon),
+        title: Text(title),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(description),
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => setState(() {
+          _intent = intent;
+          _tab = _SyncTab.bind;
+          _tabTouched = true;
+        }),
+      ),
+    ),
+  );
 
   /// 管理 tab——日常运维：设备列表、加工权移交、密钥健康、冲突、锁定。
   Widget _buildManageContent(

@@ -1,6 +1,7 @@
 import '../l10n/localization.dart';
 
 import 'package:material_ui/material_ui.dart';
+import '../theme/design_tokens.dart';
 
 /// 配对进度步骤条：owner/joiner 两个视角共用（用户要求绑定页面能看出
 /// 「现在执行到哪一步」，而不是只有终态成功/失败文案）。
@@ -39,24 +40,17 @@ class SyncPairingSteps extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 2),
               child: Row(
                 children: [
-                  if (i == current)
-                    // 正在执行的步骤用转动图标，一眼能看出「还在进行」。
-                    // 注意：这是无限循环动画，渲染它的测试不能再用
-                    // pumpAndSettle（永不 idle），改用 test/support 里的
-                    // pumpPairingSteps 定长推进。
-                    const _StepSpinner(size: 16)
-                  else
-                    Icon(
-                      i < current
-                          ? Icons.check_circle
-                          : Icons.radio_button_unchecked,
-                      size: 16,
-                      // 未开始的步骤也要看得清：outline 是边框色，作为文字色在
-                      // 浅色分组底上几乎不可读，统一改用 onSurfaceVariant。
-                      color: i < current
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurfaceVariant,
-                    ),
+                  Icon(
+                    i < current
+                        ? Icons.check_circle
+                        : i == current
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    size: DesignTokens.iconMicro,
+                    color: i <= current
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -69,14 +63,6 @@ class SyncPairingSteps extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // 当前步的强调交给转动图标 + 加粗文字，这里只留一个指向标记。
-                  if (i == current)
-                    Text(
-                      '◀',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -86,39 +72,7 @@ class SyncPairingSteps extends StatelessWidget {
   }
 }
 
-/// 当前步骤的转动图标（用户要求「正在执行的步骤」有动画）。
-/// 系统开启「减弱动态效果」时退化为静态图标。
-class _StepSpinner extends StatelessWidget {
-  const _StepSpinner({required this.size});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    if (MediaQuery.disableAnimationsOf(context)) {
-      return Icon(
-        Icons.radio_button_checked,
-        size: size,
-        color: theme.colorScheme.primary,
-      );
-    }
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CircularProgressIndicator(
-        strokeWidth: 2,
-        color: theme.colorScheme.primary,
-      ),
-    );
-  }
-}
-
-/// owner 视角：当前推进到第几步（步骤数组见 owner 卡接线处）。
-///
-/// `deviceJoined` 是**终态**信号（enrollment 视图里该邀请已 `complete`）：为真时
-/// 返回 5 = 全部完成。少了它，第五步「新设备接入」会永远转圈 —— 和 joiner 侧
-/// 是同一个缺陷的两端。
+/// Owner progress uses only the current invitation's handoff facts.
 int ownerPairingStage({
   required String? invitationId,
   required bool hasPreview,
@@ -126,32 +80,31 @@ int ownerPairingStage({
   required bool approvalDelivered,
   bool deviceJoined = false,
 }) {
-  if (deviceJoined) return 5;
-  if (pendingPairingId != null) {
-    // 审批已持久化；投递由轮询自动重试，确认送达即停在「等待安装」。
-    return approvalDelivered ? 4 : 3;
-  }
-  if (hasPreview) return 2;
-  if (invitationId != null) return 1;
-  return 0;
+  if (deviceJoined) return 3;
+  if (pendingPairingId != null) return 2;
+  if (hasPreview) return 1;
+  return invitationId == null ? -1 : 0;
 }
 
-/// joiner 视角：phase 名 → 步骤下标。
+/// Three user stages, independent of the native protocol's internal phases.
 int joinerStageFor(String phase) => switch (phase) {
   'preview' => 0,
-  'key_required' || 'key_confirmation' || 'ready_to_request' => 1,
-  'awaiting_approval' => 2,
-  'installation_confirmation' || 'proof_sent' => 3,
-  'awaiting_membership' || 'enrollment' || 'enrollment_confirmation' => 4,
-  // 终态：五步全 ✔。它由本地事实推导（快照 applied + 本机名册 active），
-  // 不等任何一条确认帧 —— 详见 `src/sync/runtime/joining.rs::terminal_phase`。
-  'joined' => 5,
+  'key_required' ||
+  'key_confirmation' ||
+  'ready_to_request' ||
+  'awaiting_approval' ||
+  'installation_confirmation' => 1,
+  'proof_sent' ||
+  'awaiting_membership' ||
+  'enrollment' ||
+  'enrollment_confirmation' => 2,
+  'joined' => 3,
   _ => -1,
 };
 
 /// 初始快照传输进度条：owner「正在发送」与 joiner「正在接收」共用。
 /// 数据源：enrollment 视图的 received/total chunks（快照分片级进度）。
-/// 进度值必须确定性（value 非 null），否则测试 pumpAndSettle 永 idle。
+/// 未知总量显示准备状态，不伪造百分比。
 class SyncSnapshotProgress extends StatelessWidget {
   const SyncSnapshotProgress({
     super.key,
@@ -167,21 +120,23 @@ class SyncSnapshotProgress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final value = total > 0 ? (received / total).clamp(0.0, 1.0) : 0.0;
+    final value = total > 0 ? (received / total).clamp(0.0, 1.0) : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Text(
-              label ?? context.l10n.initialSnapshotTransfer,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w600,
+            Expanded(
+              child: Text(
+                label ?? context.l10n.initialSnapshotTransfer,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-            const Spacer(),
+            const SizedBox(width: 8),
             Text(
-              '$received/$total',
+              total > 0 ? '${(value! * 100).floor()}% · $received/$total' : '—',
               style: theme.textTheme.labelSmall?.copyWith(
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),

@@ -1,6 +1,85 @@
 {
   "@@locale": "zh",
   "appTitle": "Elsewhen",
+  "memoryManager": "记忆",
+  "memoryBackList": "返回记忆列表",
+  "memoryMore": "更多记忆操作",
+  "memoryStatus": "记忆状态",
+  "memoryKind": "记忆类型",
+  "memoryManagerHelp": "查看 AI 的记忆、来源和适用范围。修改需核对审阅卡后生效。",
+  "memorySearchHint": "搜索标题、主体或关系",
+  "memoryAll": "全部",
+  "memoryMain": "主对话",
+  "memoryWiki": "知识页讨论",
+  "memoryGoal": "目标讨论",
+  "memoryPending": "待确认",
+  "memoryActive": "已确认",
+  "memoryConflicted": "存在冲突",
+  "memorySuperseded": "已被替代",
+  "memoryDismissed": "已否定",
+  "memoryDeleted": "已删除",
+  "memoryExcluded": "已排除",
+  "memoryIncluded": "未排除",
+  "memorySemantic": "事实记忆",
+  "memoryProcedural": "做法与偏好",
+  "memoryReference": "仅作参考",
+  "memoryConversation": "所属会话",
+  "memoryPersonal": "个人通用",
+  "memoryCurrent": "来源有效",
+  "memoryStale": "来源已变化",
+  "memoryUnavailable": "当前不可用",
+  "memoryUnassessed": "尚未核查证据",
+  "memorySupported": "证据支持",
+  "memoryContradicted": "证据不支持",
+  "memoryInsufficient": "证据不足",
+  "memoryPin": "固定",
+  "memoryUnpin": "取消固定",
+  "memoryExclude": "排除自动使用",
+  "memoryInclude": "恢复自动使用",
+  "memorySalience": "显著性",
+  "memoryLow": "低",
+  "memoryNormal": "普通",
+  "memoryHigh": "高",
+  "memoryConfirm": "确认记忆",
+  "memoryDismiss": "否定记忆",
+  "memoryRestore": "恢复为候选",
+  "memoryConflict": "标记冲突",
+  "memorySupersede": "由新记忆替代",
+  "memoryLinkGoal": "关联目标",
+  "memoryUnlinkGoal": "解除关联",
+  "memoryGoalReason": "说明这条记忆如何适用于该目标",
+  "memoryNoGoals": "暂无可关联的活跃目标",
+  "memoryNoReplacement": "没有符合条件的替代记忆",
+  "memoryChooseReplacement": "选择同会话、同主体关系的新记忆",
+  "memoryEmpty": "没有符合条件的记忆",
+  "memoryEmptyHelp": "请调整搜索词或筛选条件，再查看记忆。",
+  "memoryNoSaved": "尚未创建记忆",
+  "memoryNoSavedHelp": "这里显示已创建的记忆条目，不会自动列出旧聊天或知识页。目前可在对话中请 AI 基于已保存且有来源的知识页提出记忆候选；创建候选不等于确认或允许自动使用。",
+  "memorySelect": "选择一条记忆查看内容",
+  "memorySources": "来源依据",
+  "memoryNoContent": "该版本正文当前不可展示；已删除、否定或正文版本已变化。",
+  "memoryTruncated": "这里只展示部分内容。",
+  "memoryNoSources": "没有可展示的来源摘录",
+  "memorySourceHidden": "来源已变化或条目已停用，摘录不展示。",
+  "memoryDecisions": "最近 20 条人工决定",
+  "memoryNoDecisions": "暂无人工决定",
+  "memoryNoLinks": "暂未关联目标",
+  "memoryScope": "适用范围",
+  "memoryVersion": "版本",
+  "memoryOwnerUnavailable": "所属会话当前不可用，可查看记录；恢复会话后才能审阅修改。",
+  "memoryReviewTitle": "核对记忆修改",
+  "memoryReviewHelp": "批准仅应用本次展示的操作和版本。确认、显著性与目标关联都不授予执行权限。",
+  "memoryApprove": "批准修改",
+  "memoryReviewFailed": "修改未完成，请关闭后刷新详情重新审阅。",
+  "memoryDeleteHelp": "删除会停用此记忆并保留人工决定，原始事件与知识页仍保留。",
+  "memoryMaintenance": "检查维护线索",
+  "memoryMaintenanceHelp": "检查此会话可见的最新至多 200 条未删除记忆。重复与断链仅供人工判断，不会自动合并或删除。",
+  "memoryScanned": "已检查条目",
+  "memoryExactDuplicates": "相同正文组",
+  "memorySharedSources": "共享来源组",
+  "memoryNearDuplicates": "词面相近线索",
+  "memoryBrokenSources": "来源变化或不可用",
+  "memoryItems": "条记忆",
   "initializationFailed": "初始化失败",
   "initializationError": "初始化失败：{error}",
   "@initializationError": {
@@ -395,8 +474,8 @@
   "startConversation": "选择一个对话开始聊天",
   "noMessages": "还没有消息",
   "startTyping": "在下方输入框开始对话",
-  "conversationCount": "对话{count}次",
-  "todoCountItems": "待办{count}项",
+  "conversationCount": "对话 {count} 次",
+  "todoCountItems": "待办 {count}",
   "copyAll": "复制全部对话",
   "flipPast": "翻篇记录",
   "topics": "主题",
@@ -633,6 +712,15 @@
   "generateReply": "生成回复",
   "goalStudioWelcome": "🎯 说说你想实现的长程意图（比如「3 年内月收入 10 万」）。我会先给现实性评估与假设清单，再拆成一条长程计划与由近及远的里程碑步骤，落库前都要你确认。",
   "goalChatWelcome": "🎯 我们来聊聊这个目标。我可以帮你拆解行动、检视困难、回顾完成标准；需要暂停、标记达成或重启目标时，我会先给出提议，等你确认后才生效。",
+  "goalPredecessorEntry": "以上承接自《{goal}》的 {count} 条讨论",
+  "@goalPredecessorEntry": {
+    "placeholders": {
+      "goal": {},
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "goalPaused": "已将「{goal}」暂时搁置",
   "@goalPaused": {
     "placeholders": {
@@ -807,7 +895,7 @@
   "loadMessages": "消息加载",
   "examplePerson": "@张伟 ",
   "exampleTopic": "#付款流程",
-  "goalSummaryCount": "{count, plural, =0{目标} other{目标{count}}}",
+  "goalSummaryCount": "{count, plural, =0{目标} other{目标 {count}}}",
   "@goalSummaryCount": {
     "placeholders": {
       "count": {
@@ -2234,7 +2322,7 @@
   "l6RejectPlan8b441": "拒绝方案",
   "l6LoadEarlierPlans65e31": "加载更早整理方案",
   "l6RestartTheAppAfterSwitchingToea99d": "切换后重启应用即可看到全部同步数据。",
-  "l6EnterDatasete3665": "进入数据集",
+  "l6EnterDatasete3665": "选择数据集",
   "l6CouldNotLoadSyncStatusSyncb8a20": "同步状态读取失败\n（同步可能尚未启用）",
   "l6Processorb4366": "处理器",
   "l6NoSyncYet8ce44": "尚未同步过",
@@ -3714,7 +3802,7 @@
       }
     }
   },
-  "l6SwitchedToArg0QuitAndReopenc2285": "已切换到「{arg0}」。请完全退出并重新打开应用，即可看到同步的数据。",
+  "l6SwitchedToArg0QuitAndReopenc2285": "已选择 {arg0}，请完全退出并重新打开应用后使用。",
   "@l6SwitchedToArg0QuitAndReopenc2285": {
     "placeholders": {
       "arg0": {
@@ -3951,6 +4039,19 @@
       "arg1": {
         "type": "String"
       }
+    }
+  },
+  "l6SourceTitleArg0VersionArg1": "来源：{arg0} · 版本 {arg1}",
+  "@l6SourceTitleArg0VersionArg1": {
+    "placeholders": {
+      "arg0": {},
+      "arg1": {}
+    }
+  },
+  "l6UserRecordExcerptArg0": "用户记录：{arg0}",
+  "@l6UserRecordExcerptArg0": {
+    "placeholders": {
+      "arg0": {}
     }
   },
   "l6UnverifiedPageArg01a6ef": "未核验页面 · {arg0}",
@@ -4250,6 +4351,8 @@
   "scoutNotionTemplates": "Notion 模板",
   "scoutDigitalPlanners": "数字计划本",
   "scoutExtensionWatchlist": "扩展关注清单",
+  "scoutRecentProjects": "近 90 天新项目",
+  "scoutExtensionDiscovery": "扩展发现",
   "scoutUsTopFree": "美国免费榜",
   "scoutDiscover": "发现线索",
   "scoutStudies": "跟进研究",
@@ -4263,6 +4366,31 @@
   "scoutHistoryIncomplete": "历史不足或采样不连续",
   "scoutWindow": "趋势与采样",
   "scoutPriceUnknown": "收费信息待核实",
+  "scoutAffiliateConfirmed": "Affiliate · 可申请推广返佣",
+  "scoutAffiliateUnknown": "Affiliate 暂未确认",
+  "scoutAffiliateUnavailable": "官网明确关闭或不提供 Affiliate",
+  "scoutAffiliateStale": "Affiliate 证据待重新核实",
+  "scoutAffiliateProgram": "查看推广计划与申请条件",
+  "scoutAffiliateChecked": "核查时间：{time}",
+  "@scoutAffiliateChecked": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "scoutPurposeMissing": "来源未提供用途简介，可查看原始介绍。",
+  "scoutReadIntroduction": "查看原始介绍",
+  "scoutFreeDownload": "免费下载",
+  "scoutListedFree": "标价免费",
+  "scoutFirstObservedOn": "{date} 首次进入监控",
+  "@scoutFirstObservedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "scoutWhyNow": "为什么现在看",
   "scoutNoSignal": "尚无可核实的窗口异动，先作为产品资料观察。",
   "scoutStale": "离线缓存，数据可能已过时",
@@ -4404,5 +4532,49 @@
     }
   },
   "scoutNotRelevant": "不相关",
-  "scoutBriefHighlights": "值得关注"
+  "scoutBriefHighlights": "值得关注",
+  "pairingConnectNew": "连接新设备",
+  "pairingJoinExisting": "加入已有设备",
+  "pairingConnectHint": "在有数据的设备上创建邀请，让另一台设备扫码加入。",
+  "pairingJoinHint": "在这台设备上扫码或粘贴邀请，连接已有数据。",
+  "pairingIdentify": "识别设备",
+  "pairingConfirm": "双端确认",
+  "pairingSyncData": "同步数据",
+  "pairingDetails": "连接详情",
+  "pairingConnectionSettings": "连接设置",
+  "pairingPaste": "粘贴邀请",
+  "pairingAllow": "允许连接",
+  "pairingConnect": "连接这台设备",
+  "pairingWaitingScan": "请在新设备上选择“加入已有设备”，扫描下方二维码。",
+  "pairingWaitingApproval": "请在已有设备上核对这台设备，并允许连接。这里会自动继续。",
+  "pairingTransferring": "正在准备并同步数据，请保持两台设备运行。连接恢复后会继续。",
+  "pairingDone": "已连接，首次数据已准备好",
+  "pairingOwnerDone": "新设备已连接，首次同步已完成",
+  "pairingAnother": "再连接一台设备",
+  "pairingExpired": "邀请已过期，请重新生成",
+  "pairingRegenerate": "重新生成邀请",
+  "pairingRemaining": "邀请剩余 {minutes} 分钟",
+  "@pairingRemaining": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "pairingRetry": "重试连接",
+  "pairingChangeInvitation": "更换邀请",
+  "pairingStop": "停止连接",
+  "pairingVerifyHint": "连接前，请与已有设备核对下方公钥指纹。",
+  "pairingLocalFingerprint": "请在已有设备核对本机指纹",
+  "pairingNoRelay": "首次连接需要配置可用的中继地址。",
+  "pairingDataPrepared": "正在准备数据",
+  "syncConnectedDevices": "已连接 {count} 台设备",
+  "@syncConnectedDevices": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastRound": "最近一轮本机同步已运行"
 }

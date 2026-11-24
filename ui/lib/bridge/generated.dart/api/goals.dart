@@ -9,7 +9,7 @@ import 'conversations.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `compass_dto`, `parse_phase`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
 
 /// Append a local correction or discussion receipt; never changes the goal.
 Future<void> submitCompassFeedback({
@@ -22,11 +22,17 @@ Future<void> submitCompassFeedback({
   note: note,
 );
 
-/// 列出全部活跃目标（最多 3 条，按近期→中期→长远排序）
 /// 获取（不存在则创建）某个目标的专属讨论会话，返回会话 DTO。
 /// 目标页内 AI 讨论通过该会话进行；生成时注入目标全部认知切片。
 Future<ConversationDto> ensureGoalChat({required String goalId}) =>
     RustLib.instance.api.crateApiGoalsEnsureGoalChat(goalId: goalId);
+
+/// 查询当前目标讨论的承接源：同计划前序目标（step_index 更小、有非空
+/// goal_mentor 会话）中最近的一个。无计划 / 无前序 / 前序均无讨论时返回
+/// None。只读；UI 用返回的 conversation_id 读前序会话原文展示，提示词
+/// 侧另行注入有界尾部。
+Future<GoalChatPredecessorDto?> goalChatPredecessor({required String goalId}) =>
+    RustLib.instance.api.crateApiGoalsGoalChatPredecessor(goalId: goalId);
 
 /// 获取（不存在则创建）目标工作室会话：AI 立项/拆解专用，不进普通对话清单。
 Future<ConversationDto> ensureGoalStudio() =>
@@ -166,6 +172,43 @@ Future<void> dismissCompassNudge({required String id}) =>
 /// 航向已校准（例如用户点击了「聚焦攻克卡点」或「更新当前抓手」）
 Future<void> realignCompassNudge({required String id}) =>
     RustLib.instance.api.crateApiGoalsRealignCompassNudge(id: id);
+
+/// 列出全部活跃目标（最多 3 条，按近期→中期→长远排序）
+/// 目标讨论承接源 DTO：同计划前序目标（有非空专属讨论）供 UI 读取原文。
+/// UI 用 `conversation_id` + `list_messages` 读完整消息；提示词侧的尾部
+/// 摘录另行在存储层有界截取，不走这个 DTO。
+class GoalChatPredecessorDto {
+  final String goalId;
+  final String goalContent;
+  final PlatformInt64 messageCount;
+
+  /// 前序目标的 goal_mentor 会话 id（必有：message_count > 0 才返回承接源）
+  final String conversationId;
+
+  const GoalChatPredecessorDto({
+    required this.goalId,
+    required this.goalContent,
+    required this.messageCount,
+    required this.conversationId,
+  });
+
+  @override
+  int get hashCode =>
+      goalId.hashCode ^
+      goalContent.hashCode ^
+      messageCount.hashCode ^
+      conversationId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GoalChatPredecessorDto &&
+          runtimeType == other.runtimeType &&
+          goalId == other.goalId &&
+          goalContent == other.goalContent &&
+          messageCount == other.messageCount &&
+          conversationId == other.conversationId;
+}
 
 class GoalCompassAssessmentDto {
   final String id;

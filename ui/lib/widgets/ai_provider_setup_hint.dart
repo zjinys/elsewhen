@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/app_provider.dart';
 import '../screens/settings_screen.dart';
 import '../theme/app_theme.dart';
+import '../theme/design_tokens.dart';
 
 /// 首次运行引导横幅：未配置任何 AI Provider 时提示并引导去设置页。
 ///
@@ -61,14 +62,14 @@ class _AiProviderSetupHintState extends ConsumerState<AiProviderSetupHint> {
         children: [
           Icon(
             Icons.rocket_launch_outlined,
-            size: 18,
+            size: DesignTokens.icon,
             color: AppTheme.accentPrimary,
           ),
           const SizedBox(width: AppTheme.space3),
           Expanded(
             child: Text(
               context.l10n.l6SetUpAnAiProviderToc8ad4,
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 12.5),
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
             ),
           ),
           TextButton(

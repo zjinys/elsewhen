@@ -28,6 +28,7 @@ import 'api/mcp.dart';
 import 'api/named_secrets.dart';
 import 'api/page_marks.dart';
 import 'api/period_stats.dart';
+import 'api/personal_memory.dart';
 import 'api/plans.dart';
 import 'api/prompts.dart';
 import 'api/provider_config.dart';
@@ -138,6 +139,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double dco_decode_box_autoadd_f_64(dynamic raw);
+
+  @protected
+  GoalChatPredecessorDto dco_decode_box_autoadd_goal_chat_predecessor_dto(
+    dynamic raw,
+  );
 
   @protected
   GoalCompassAssessmentDto dco_decode_box_autoadd_goal_compass_assessment_dto(
@@ -319,6 +325,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double dco_decode_f_64(dynamic raw);
+
+  @protected
+  GoalChatPredecessorDto dco_decode_goal_chat_predecessor_dto(dynamic raw);
 
   @protected
   GoalCompassAssessmentDto dco_decode_goal_compass_assessment_dto(dynamic raw);
@@ -756,6 +765,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<WikiPageMetaDto> dco_decode_list_wiki_page_meta_dto(dynamic raw);
 
   @protected
+  List<WikiTagDto> dco_decode_list_wiki_tag_dto(dynamic raw);
+
+  @protected
   LocalSyncStateDto dco_decode_local_sync_state_dto(dynamic raw);
 
   @protected
@@ -822,6 +834,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
+
+  @protected
+  GoalChatPredecessorDto? dco_decode_opt_box_autoadd_goal_chat_predecessor_dto(
+    dynamic raw,
+  );
 
   @protected
   GoalCompassAssessmentDto?
@@ -1094,6 +1111,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WikiPageMetaDto dco_decode_wiki_page_meta_dto(dynamic raw);
 
   @protected
+  WikiTagDto dco_decode_wiki_tag_dto(dynamic raw);
+
+  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
@@ -1171,6 +1191,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
+
+  @protected
+  GoalChatPredecessorDto sse_decode_box_autoadd_goal_chat_predecessor_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   GoalCompassAssessmentDto sse_decode_box_autoadd_goal_compass_assessment_dto(
@@ -1396,6 +1421,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double sse_decode_f_64(SseDeserializer deserializer);
+
+  @protected
+  GoalChatPredecessorDto sse_decode_goal_chat_predecessor_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   GoalCompassAssessmentDto sse_decode_goal_compass_assessment_dto(
@@ -1981,6 +2011,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<WikiTagDto> sse_decode_list_wiki_tag_dto(SseDeserializer deserializer);
+
+  @protected
   LocalSyncStateDto sse_decode_local_sync_state_dto(
     SseDeserializer deserializer,
   );
@@ -2061,6 +2094,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
+
+  @protected
+  GoalChatPredecessorDto? sse_decode_opt_box_autoadd_goal_chat_predecessor_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   GoalCompassAssessmentDto?
@@ -2419,6 +2457,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WikiPageMetaDto sse_decode_wiki_page_meta_dto(SseDeserializer deserializer);
 
   @protected
+  WikiTagDto sse_decode_wiki_tag_dto(SseDeserializer deserializer);
+
+  @protected
   String cst_encode_AnyhowException(AnyhowException raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     throw UnimplementedError();
@@ -2575,6 +2616,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double cst_encode_box_autoadd_f_64(double raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_f_64(raw);
+  }
+
+  @protected
+  JSAny cst_encode_box_autoadd_goal_chat_predecessor_dto(
+    GoalChatPredecessorDto raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_goal_chat_predecessor_dto(raw);
   }
 
   @protected
@@ -3171,6 +3220,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       cst_encode_String(raw.recordedAt),
       cst_encode_String(raw.source),
       cst_encode_String(raw.status),
+    ].jsify()!;
+  }
+
+  @protected
+  JSAny cst_encode_goal_chat_predecessor_dto(GoalChatPredecessorDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.goalId),
+      cst_encode_String(raw.goalContent),
+      cst_encode_i_64(raw.messageCount),
+      cst_encode_String(raw.conversationId),
     ].jsify()!;
   }
 
@@ -4336,6 +4396,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_list_wiki_tag_dto(List<WikiTagDto> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw.map(cst_encode_wiki_tag_dto).toList().jsify()!;
+  }
+
+  @protected
   JSAny cst_encode_local_sync_state_dto(LocalSyncStateDto raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return [
@@ -4550,6 +4616,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double? cst_encode_opt_box_autoadd_f_64(double? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? null : cst_encode_box_autoadd_f_64(raw);
+  }
+
+  @protected
+  JSAny? cst_encode_opt_box_autoadd_goal_chat_predecessor_dto(
+    GoalChatPredecessorDto? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? null
+        : cst_encode_box_autoadd_goal_chat_predecessor_dto(raw);
   }
 
   @protected
@@ -5583,6 +5659,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  JSAny cst_encode_wiki_tag_dto(WikiTagDto raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return [
+      cst_encode_String(raw.name),
+      cst_encode_i_64(raw.usageCount),
+    ].jsify()!;
+  }
+
+  @protected
   bool cst_encode_bool(bool raw);
 
   @protected
@@ -5698,6 +5783,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_goal_chat_predecessor_dto(
+    GoalChatPredecessorDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_goal_compass_assessment_dto(
@@ -5998,6 +6089,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_goal_chat_predecessor_dto(
+    GoalChatPredecessorDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_goal_compass_assessment_dto(
@@ -6735,6 +6832,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_wiki_tag_dto(
+    List<WikiTagDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_local_sync_state_dto(
     LocalSyncStateDto self,
     SseSerializer serializer,
@@ -6829,6 +6932,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_goal_chat_predecessor_dto(
+    GoalChatPredecessorDto? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_goal_compass_assessment_dto(
@@ -7288,6 +7397,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     WikiPageMetaDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_wiki_tag_dto(WikiTagDto self, SseSerializer serializer);
 }
 
 // Section: wire_class
@@ -7799,6 +7911,17 @@ class RustLibWire implements BaseWire {
     reason,
   );
 
+  void wire__crate__api__personal_memory__decide_personal_memory_action(
+    NativePortType port_,
+    JSAny request,
+    bool accept,
+  ) => wasmModule
+      .wire__crate__api__personal_memory__decide_personal_memory_action(
+        port_,
+        request,
+        accept,
+      );
+
   void wire__crate__api__conversations__decline_knowledge_draft(
     NativePortType port_,
     String conversation_id,
@@ -7975,6 +8098,18 @@ class RustLibWire implements BaseWire {
     name,
     title,
     value,
+  );
+
+  void wire__crate__api__personal_memory__edit_personal_memory(
+    NativePortType port_,
+    String claim_id,
+    JSAny expected_version,
+    String content,
+  ) => wasmModule.wire__crate__api__personal_memory__edit_personal_memory(
+    port_,
+    claim_id,
+    expected_version,
+    content,
   );
 
   void wire__crate__api__chat_runs__enqueue_chat_input(
@@ -8336,6 +8471,14 @@ class RustLibWire implements BaseWire {
     date,
   );
 
+  void wire__crate__api__personal_memory__get_personal_memory_detail(
+    NativePortType port_,
+    String claim_id,
+  ) => wasmModule.wire__crate__api__personal_memory__get_personal_memory_detail(
+    port_,
+    claim_id,
+  );
+
   void wire__crate__api__plans__get_plan(NativePortType port_, String id) =>
       wasmModule.wire__crate__api__plans__get_plan(port_, id);
 
@@ -8417,6 +8560,12 @@ class RustLibWire implements BaseWire {
     String slug,
   ) => wasmModule.wire__crate__api__wiki__get_wiki_page(port_, slug);
 
+  void wire__crate__api__goals__goal_chat_predecessor(
+    NativePortType port_,
+    String goal_id,
+  ) =>
+      wasmModule.wire__crate__api__goals__goal_chat_predecessor(port_, goal_id);
+
   void wire__crate__api__tweet__guess_import_kind(
     NativePortType port_,
     String url,
@@ -8434,6 +8583,15 @@ class RustLibWire implements BaseWire {
     port_,
     invitation_id,
   );
+
+  void wire__crate__api__personal_memory__inspect_personal_memory_maintenance(
+    NativePortType port_,
+    String conversation_id,
+  ) => wasmModule
+      .wire__crate__api__personal_memory__inspect_personal_memory_maintenance(
+        port_,
+        conversation_id,
+      );
 
   void wire__crate__api__sync__join__inspect_sync_join_approval(
     NativePortType port_,
@@ -8791,6 +8949,18 @@ class RustLibWire implements BaseWire {
     NativePortType port_,
   ) => wasmModule.wire__crate__api__sync__join__list_pending_sync_joins(port_);
 
+  void wire__crate__api__personal_memory__list_personal_memories(
+    NativePortType port_,
+    String filter_json,
+    int offset,
+    int limit,
+  ) => wasmModule.wire__crate__api__personal_memory__list_personal_memories(
+    port_,
+    filter_json,
+    offset,
+    limit,
+  );
+
   void wire__crate__api__plans__list_plan_steps(
     NativePortType port_,
     String plan_id,
@@ -8822,6 +8992,16 @@ class RustLibWire implements BaseWire {
     key,
     locale,
     offset,
+  );
+
+  void wire__crate__api__conversations__list_recent_chat_messages(
+    NativePortType port_,
+    String conversation_id,
+    JSAny limit,
+  ) => wasmModule.wire__crate__api__conversations__list_recent_chat_messages(
+    port_,
+    conversation_id,
+    limit,
   );
 
   void wire__crate__api__rules__list_recent_chat_rule_hits(
@@ -8971,6 +9151,9 @@ class RustLibWire implements BaseWire {
     String? area,
   ) => wasmModule.wire__crate__api__wiki__list_wiki_pages(port_, kind, area);
 
+  void wire__crate__api__wiki__list_wiki_tags(NativePortType port_) =>
+      wasmModule.wire__crate__api__wiki__list_wiki_tags(port_);
+
   void wire__crate__api__sync__invite__lock_local_sync(NativePortType port_) =>
       wasmModule.wire__crate__api__sync__invite__lock_local_sync(port_);
 
@@ -9059,6 +9242,21 @@ class RustLibWire implements BaseWire {
     slug,
     snapshot_ids,
   );
+
+  void wire__crate__api__personal_memory__prepare_personal_memory_action(
+    NativePortType port_,
+    String claim_id,
+    JSAny expected_version,
+    String detail_token,
+    String args_json,
+  ) => wasmModule
+      .wire__crate__api__personal_memory__prepare_personal_memory_action(
+        port_,
+        claim_id,
+        expected_version,
+        detail_token,
+        args_json,
+      );
 
   void wire__crate__api__sync__join__prepare_sync_join_key(
     NativePortType port_,
@@ -10659,6 +10857,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String reason,
   );
 
+  external void
+  wire__crate__api__personal_memory__decide_personal_memory_action(
+    NativePortType port_,
+    JSAny request,
+    bool accept,
+  );
+
   external void wire__crate__api__conversations__decline_knowledge_draft(
     NativePortType port_,
     String conversation_id,
@@ -10784,6 +10989,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String name,
     String title,
     String? value,
+  );
+
+  external void wire__crate__api__personal_memory__edit_personal_memory(
+    NativePortType port_,
+    String claim_id,
+    JSAny expected_version,
+    String content,
   );
 
   external void wire__crate__api__chat_runs__enqueue_chat_input(
@@ -11037,6 +11249,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String date,
   );
 
+  external void wire__crate__api__personal_memory__get_personal_memory_detail(
+    NativePortType port_,
+    String claim_id,
+  );
+
   external void wire__crate__api__plans__get_plan(
     NativePortType port_,
     String id,
@@ -11105,6 +11322,11 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String slug,
   );
 
+  external void wire__crate__api__goals__goal_chat_predecessor(
+    NativePortType port_,
+    String goal_id,
+  );
+
   external void wire__crate__api__tweet__guess_import_kind(
     NativePortType port_,
     String url,
@@ -11118,6 +11340,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   external void wire__crate__api__sync__invite__inspect_owner_sync_invitation(
     NativePortType port_,
     String invitation_id,
+  );
+
+  external void
+  wire__crate__api__personal_memory__inspect_personal_memory_maintenance(
+    NativePortType port_,
+    String conversation_id,
   );
 
   external void wire__crate__api__sync__join__inspect_sync_join_approval(
@@ -11365,6 +11593,13 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
   );
 
+  external void wire__crate__api__personal_memory__list_personal_memories(
+    NativePortType port_,
+    String filter_json,
+    int offset,
+    int limit,
+  );
+
   external void wire__crate__api__plans__list_plan_steps(
     NativePortType port_,
     String plan_id,
@@ -11387,6 +11622,12 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String key,
     String locale,
     int offset,
+  );
+
+  external void wire__crate__api__conversations__list_recent_chat_messages(
+    NativePortType port_,
+    String conversation_id,
+    JSAny limit,
   );
 
   external void wire__crate__api__rules__list_recent_chat_rule_hits(
@@ -11507,6 +11748,8 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     String? area,
   );
 
+  external void wire__crate__api__wiki__list_wiki_tags(NativePortType port_);
+
   external void wire__crate__api__sync__invite__lock_local_sync(
     NativePortType port_,
   );
@@ -11574,6 +11817,15 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
     NativePortType port_,
     String slug,
     JSAny snapshot_ids,
+  );
+
+  external void
+  wire__crate__api__personal_memory__prepare_personal_memory_action(
+    NativePortType port_,
+    String claim_id,
+    JSAny expected_version,
+    String detail_token,
+    String args_json,
   );
 
   external void wire__crate__api__sync__join__prepare_sync_join_key(

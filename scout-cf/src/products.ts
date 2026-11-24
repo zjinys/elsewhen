@@ -1,5 +1,6 @@
 import { trends, type Observation } from './trends';
 import { buildInsight } from './insights';
+import { affiliateEvidence } from './affiliate';
 export { trends } from './trends';
 export type { Observation } from './trends';
 
@@ -16,7 +17,8 @@ export async function productRoutes(db:D1Database,url:URL):Promise<Response> {
     const before=Math.min(rawBefore,Number.MAX_SAFE_INTEGER);
     const history=await db.prepare('SELECT * FROM scout_observations WHERE product_id=? AND snapshot_id<? ORDER BY snapshot_id DESC LIMIT 100').bind(id,before).all<Observation>();
     const instance=await db.prepare('SELECT instance_id FROM scout_instance WHERE id=1').first();
-    return send({instance_id:instance!.instance_id,...product,payload:JSON.parse(String(product.payload_json)),payload_json:undefined,history:history.results.map(o=>({...o,payload:JSON.parse(o.payload_json),payload_json:undefined})),next:history.results.length===100?history.results.at(-1)!.snapshot_id:null});
+    const affiliate=(await affiliateEvidence(db,[id])).get(id) ?? null;
+    return send({instance_id:instance!.instance_id,...product,affiliate,payload:JSON.parse(String(product.payload_json)),payload_json:undefined,history:history.results.map(o=>({...o,payload:JSON.parse(o.payload_json),payload_json:undefined})),next:history.results.length===100?history.results.at(-1)!.snapshot_id:null});
   }
   const mode=url.searchParams.get('view') ?? 'all';
   if(!['all','signals','growth','price'].includes(mode))return send({error:'invalid_view'},400);
@@ -48,6 +50,7 @@ export async function productRoutes(db:D1Database,url:URL):Promise<Response> {
     WHERE o.product_id IN (SELECT value FROM json_each(?)) AND f.kind='new' AND f.detected_at>=? AND f.detected_at<=?
     GROUP BY o.product_id`).bind(JSON.stringify(products.results.map(p=>p.product_id)),new Date(Date.parse(asOf)-7*86400000).toISOString(),asOf).all();
   const aliases=await db.prepare('SELECT alias_id,product_id FROM scout_product_aliases WHERE product_id IN (SELECT value FROM json_each(?))').bind(JSON.stringify(products.results.map(p=>p.product_id))).all();
+  const affiliates=await affiliateEvidence(db,products.results.map(p=>String(p.product_id)));
   const items=[];
   for(const [index,p] of products.results.entries()) {
     // bounded per product/source history, not whole-source snapshot JSON scans
@@ -59,7 +62,7 @@ export async function productRoutes(db:D1Database,url:URL):Promise<Response> {
     const windows=insight.windows;
     const reasons=insight.reasons.filter(r=>mode!=='growth'&&mode!=='price' ||
       (mode==='growth'?['sustained_growth','rank_rise'].includes(String(r.kind)):r.kind==='price_change'));
-    items.push({...p,aliases:aliases.results.filter(a=>a.product_id===p.product_id).map(a=>a.alias_id),payload:JSON.parse(String(p.payload_json)),payload_json:undefined,sources:members.results.filter(s=>s.product_id===p.product_id && s.last_seen_at),trends:windows,reasons,
+    items.push({...p,affiliate:affiliates.get(String(p.product_id)) ?? null,aliases:aliases.results.filter(a=>a.product_id===p.product_id).map(a=>a.alias_id),payload:JSON.parse(String(p.payload_json)),payload_json:undefined,sources:members.results.filter(s=>s.product_id===p.product_id && s.last_seen_at),trends:windows,reasons,
       gaps:['buyer_unverified','sales_unknown','review_text_missing'], as_of:asOf});
   }
   const instance=await db.prepare('SELECT instance_id FROM scout_instance WHERE id=1').first();

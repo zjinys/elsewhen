@@ -3,6 +3,7 @@ import '../l10n/localization.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../models/conversation.dart';
+import '../theme/design_tokens.dart';
 
 /// A tree node representing a message and its children
 class MessageTreeNode {
@@ -186,7 +187,7 @@ class _MessageTreeNodeWidget extends StatelessWidget {
                               children: [
                                 const Icon(
                                   Icons.call_split,
-                                  size: 12,
+                                  size: DesignTokens.iconMicro,
                                   color: Color(0xFFE9A568),
                                 ),
                                 const SizedBox(width: 4),
@@ -195,7 +196,7 @@ class _MessageTreeNodeWidget extends StatelessWidget {
                                     (node.children.length).toString(),
                                   ),
                                   style: const TextStyle(
-                                    fontSize: 10,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w500,
                                     color: Color(0xFFE9A568),
                                   ),

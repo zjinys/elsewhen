@@ -9,19 +9,25 @@ import 'adaptive.dart';
 import 'app_pressable.dart';
 
 import '../models/wiki_page.dart';
+import '../models/goal.dart';
 import '../bridge/api.dart' as api;
 import '../providers/app_provider.dart';
 import '../providers/conversation_provider.dart';
+import '../providers/goal_provider.dart';
 import '../providers/knowledge_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../providers/scout_provider.dart';
+import '../providers/scout_research_provider.dart';
+import 'scout_source_identity.dart';
 import '../screens/settings_screen.dart';
 import '../theme/app_theme.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../l10n/localization.dart';
 
+import '../theme/design_tokens.dart';
 part 'left_sidebar_parts/sidebar_destinations.dart';
 part 'left_sidebar_parts/sidebar_wiki_tab.dart';
+part 'left_sidebar_parts/sidebar_scout_tab.dart';
 part 'left_sidebar_parts/sidebar_misc.dart';
 
 // ── 左侧导航按 一级入口/最近页面/杂项 拆分 ──
@@ -94,11 +100,13 @@ class LeftSidebar extends ConsumerWidget {
         // 上下文面板各自带滚动区，必须拿到一个确定的高度。窗口够高时它正好
         // 填满一级入口与设置之间的空间；不够高时保底 [_kMinPanelHeight]，
         // 抽屉像标准抽屉那样整体滚动，入口不会被挤出屏幕。
-        // 上下文面板只服务对话/知识两个入口。目标/回顾/同步/情报的面板
-        // 内容（工作台清单/日期导航/健康仪表/来源筛选）已整体搬进右侧主
-        // 工作区，抽屉里只留一级入口，避免同一份导航两处维护。
+        // 上下文面板服务对话/知识/情报三个入口：目标/回顾/同步的面板
+        // 内容与主工作区重复，仍由主区直接承载。情报面板是来源筛选
+        // 列表（来源数量持续增长，平铺 chip 放不下，收进侧栏滚动）。
         final showPanel =
-            tab == SidebarTab.conversation || tab == SidebarTab.wiki;
+            tab == SidebarTab.conversation ||
+            tab == SidebarTab.wiki ||
+            tab == SidebarTab.scout;
         final fixed =
             insets.top +
             _kDestinationsTopGap +
@@ -181,7 +189,8 @@ class LeftSidebar extends ConsumerWidget {
     return switch (tab) {
       SidebarTab.conversation => _buildConversationTab(context, ref),
       SidebarTab.wiki => const _WikiTab(),
-      // 目标/回顾/同步/情报：面板已移除，主区直接承载。不会走到这里
+      SidebarTab.scout => const _ScoutSourcePanel(),
+      // 目标/回顾/同步：面板已移除，主区直接承载。不会走到这里
       // （showPanel 为 false 时面板整体不渲染），兜底空面板。
       _ => const SizedBox.shrink(),
     };
@@ -254,7 +263,7 @@ class LeftSidebar extends ConsumerWidget {
                               page.kind == 'topic'
                                   ? Icons.tag_outlined
                                   : Icons.description_outlined,
-                              size: 16,
+                              size: DesignTokens.iconMicro,
                             ),
                             title: Text(
                               page.title,

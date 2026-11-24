@@ -15,6 +15,7 @@ pub mod knowledge_workflows;
 pub mod language;
 pub mod mcp;
 pub mod page_marks;
+pub mod personal_memory;
 pub mod plans;
 pub mod provider_config;
 pub mod provider_reachability;

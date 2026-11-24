@@ -32,6 +32,8 @@ npx wrangler d1 execute elsewhen-scout --remote --json --command "SELECT ..."
 
 ## API（Bearer SCOUT_TOKEN）
 
+Affiliate 补充采集需要迁移 `0006_affiliate_evidence.sql`：每次 cron 最多检查两个 PH 产品，沿官方 Link 到官网后跟随最多两个推广入口，保留条款原文/URL/核查时间。最多六请求、8 秒/请求、512 KiB/页，七天复查，一天重试未知结果；失败保留旧证据并标过期，不影响榜单基线。Affiliate 仅作为 PH 产品卡片属性展示，不提供单独查询条件；详情与列表的 `affiliate` 对象支持 confirmed/unavailable/unknown。仅额度奖励不标为可推广，未查到不代表没有。
+
 `GET /health`（免鉴权）· `/sources` · `/findings?source=&kind=&since=&limit=` ·
 `/findings/{id}`（含 item 时间线）· `/snapshots/{id}` · `/runs?source=&limit=`
 · `/probe?url=https://…[&full=1][&headers={json}]`（源开发调试）
@@ -46,20 +48,22 @@ npx wrangler d1 execute elsewhen-scout --remote --json --command "SELECT ..."
 管理 API（管理页内部使用，也可直接调）：`GET /admin/sources`（含禁用源+最近状态）、
 `PATCH /admin/sources/{id}`（enabled / interval_minutes，用户粘性不被 deploy 覆盖）、
 `POST /admin/trigger {source}`（手动强制跑一轮，无视间隔与开关）、
-`GET/PUT /admin/settings/cws_ids`（CWS 竞品清单扩展 ID，与代码内置清单合并去重）。
+`GET/PUT /admin/settings/cws_ids`（可选额外跟踪，支持商店链接或 ID，最多 20 个；留空正常自动发现）。
 
-## 源清单（当前 7 个）
+## 源清单（当前 6 个）
 
 | id | 内容 | 间隔 | 提取方式 |
 |---|---|---|---|
-| github-dart / github-rust | GitHub 搜索热榜 | 12h | JSON API |
+| github-newcomers | GitHub 近 90 天创建、超过 50 星的全语言项目，按 stars 取前 30 | 12h | JSON API；滚动日期不重置 baseline |
 | producthunt-daily | PH 每日精选 50 条 | 6h | Atom feed |
-| appstore-us-top-free | App Store 美区免费榜 | 12h | Apple RSS JSON |
+| appstore-us-top-free | App Store 美区免费榜 | 12h | Apple RSS JSON + 一次批量 ID lookup 补简介 |
 | gumroad-notion / gumroad-digital-planner | Gumroad 搜索结果 | 12h | **Inertia data-page JSON**（`props.search_results.products`：name/price/ratings/permalink）|
-| cws-watchlist | CWS 竞品清单安装量/评分 | 12h | 详情页正则提取（name/rating/rating_count/developer/updated/size；同域 slug 301 跟随一次）|
+| cws-discover | Chrome 商店扩展发现页；名称、简介、评分和原始链接 | 12h | 公开页面可访问性关联字段；可选额外跟踪补详情 |
 
 加新源 = 在 `SOURCES` 里加一个条目（jsonSource / feedSource / inertiaSource /
 cwsSource 四种工厂 + 自定义 fetch 函数），deploy 即生效。
+
+迁移 0007 停用旧 `github-dart` / `github-rust` / `cws-watchlist`，保留历史观察和研究证据；当前来源 API 与后台只列仍注册的源。新范围独立建基线，首次采集不产生 findings。CWS 发现页是商店推荐样本，不代表全商店、新发布榜或增长排名；页面结构变化、空列表和缺失卡片字段会使本轮失败，保留上次成功基线。
 
 ### 采什么字段（以及为什么）
 
@@ -72,10 +76,10 @@ cwsSource 四种工厂 + 自定义 fetch 函数），deploy 即生效。
   `ratings_average` / `ratings_count` **拆成两个标量**（整块对象变化时算不出
   `diff`）；`seller_name` 是「谁在做这个生意」。
   **不收** `buyer_currency_*`（按买家 IP 变，会让每条都误报 changed）。
-- App Store：`rank` 由条目在 feed 里的**下标**给出（`withRank: true`），榜内
-  升降是榜单类源最重要的信号而 API 不直接给。`genres.0.name` 只取主分类。
+- App Store：`rank` 由条目在 feed 里的**下标**给出（`withRank: true`）。榜单本身不含用途简介，采集最多 25 条后一次请求 Apple lookup，按 `trackId` 补商店简介、分类、评分/评价数、下载标价与币种。lookup 响应最多 2 MiB，简介最多 16000 字符；缺项/失败让本轮失败，不发布缩水基线；新增字段参与 specHash，首轮重建基线，不制造整榜假变化。免费只表示下载标价，不推断内购、销量或收入。
 - Product Hunt / Atom：补 `author` 与 `updated`——`updated` 随票数/排名刷新变化，
   与 `published` 分开才能区分「内容改了」和「热度变了」。
+  HTML 与 XML 使用 htmlparser2 统一解析，最多解开四层转义，兼容 CDATA/XHTML，移除标签、隐藏脚本与尾部 Discussion/Link 导航。客户端也清洗旧镜像的展示文本，保留原始证据 payload。
 - CWS：详情侧栏的 `Offered by` / `Updated` / `Size` 与评分同页，零额外请求。
 
 **CWS 必须先判定「这一页是不是它的」再取数据。** 详情页靠 `canonical` 与

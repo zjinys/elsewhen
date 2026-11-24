@@ -1,0 +1,6 @@
+# 复制为 key.properties（已忽略提交），填写既有固定签名；不要每次生成新密钥。
+# 相对路径从 ui/android/ 解析；Windows 路径用 /。
+storeFile=/path/to/elsewhen-release.jks
+storePassword=replace-with-store-password
+keyAlias=elsewhen-release
+keyPassword=replace-with-key-password

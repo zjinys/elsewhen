@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../bridge/api.dart' as api;
 import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
+import '../theme/design_tokens.dart';
 
 /// 情感回访横幅（决策辅助 D6）：「被记得」的轻量体验。
 ///
@@ -88,7 +89,7 @@ class _CompanionRevisitHintState extends ConsumerState<CompanionRevisitHint> {
         children: [
           Icon(
             Icons.auto_stories_outlined,
-            size: 18,
+            size: DesignTokens.icon,
             color: AppTheme.accentPrimary,
           ),
           const SizedBox(width: AppTheme.space3),
@@ -101,7 +102,7 @@ class _CompanionRevisitHintState extends ConsumerState<CompanionRevisitHint> {
               ),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 12.5),
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
             ),
           ),
           IconButton(

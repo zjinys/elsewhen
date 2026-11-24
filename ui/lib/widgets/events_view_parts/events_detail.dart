@@ -91,7 +91,7 @@ class _EventDetailBody extends ConsumerWidget {
           child: SelectableText(
             detail.rawText,
             style: TextStyle(
-              fontSize: 13.5,
+              fontSize: 14,
               color: AppTheme.textPrimary,
               height: 1.6,
             ),
@@ -140,7 +140,7 @@ class _EventDetailBody extends ConsumerWidget {
                     child: SelectableText(
                       '- $followUp',
                       style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: 12,
                         color: AppTheme.textSecondary,
                       ),
                     ),
@@ -162,7 +162,7 @@ class _EventDetailBody extends ConsumerWidget {
                     child: SelectableText(
                       '- $lesson',
                       style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: 12,
                         color: AppTheme.textSecondary,
                       ),
                     ),
@@ -173,7 +173,7 @@ class _EventDetailBody extends ConsumerWidget {
                     child: SelectableText(
                       '- ${guidanceRef.note}（wiki:${guidanceRef.slug}）',
                       style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: 12,
                         color: AppTheme.textSecondary,
                       ),
                     ),
@@ -203,7 +203,7 @@ class _EventDetailBody extends ConsumerWidget {
         Expanded(
           child: SelectableText(
             value,
-            style: TextStyle(fontSize: 12.5, color: AppTheme.textSecondary),
+            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
           ),
         ),
       ],
@@ -259,7 +259,7 @@ class _EventRuleHitsState extends ConsumerState<_EventRuleHits> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _optimistic = undo);
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: AppErrorMessage(error: e, action: context.l10n.save),
         ),
@@ -303,7 +303,7 @@ class _EventRuleHitsState extends ConsumerState<_EventRuleHits> {
                         child: SelectableText(
                           hit.ruleContent,
                           style: TextStyle(
-                            fontSize: 12.5,
+                            fontSize: 12,
                             color: AppTheme.textSecondary,
                             height: 1.5,
                           ),
@@ -342,7 +342,7 @@ class _EventRuleHitsState extends ConsumerState<_EventRuleHits> {
     height: 26,
     child: IconButton(
       padding: EdgeInsets.zero,
-      iconSize: 14,
+      iconSize: DesignTokens.icon,
       tooltip: tooltip,
       icon: Icon(filled ? icon : iconOutlined(icon)),
       color: filled ? AppTheme.accentPrimary : AppTheme.textTertiary,

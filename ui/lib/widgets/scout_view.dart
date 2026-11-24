@@ -2,7 +2,6 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../bridge/api.dart' as api;
@@ -15,7 +14,11 @@ import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/chat_type_scale.dart';
 import '../theme/content_font.dart';
+import '../utils/pretty_time.dart';
 import 'feedback_toast.dart';
+import 'scout_source_identity.dart';
+import '../theme/design_tokens.dart';
+export 'scout_source_identity.dart';
 
 import 'dart:convert';
 import 'dart:async';
@@ -32,7 +35,6 @@ part 'scout_view_parts/scout_navigation.dart';
 part 'scout_view_parts/scout_products.dart';
 part 'scout_view_parts/scout_research_form.dart';
 part 'scout_view_parts/scout_preferences.dart';
-part 'scout_view_parts/scout_source_identity.dart';
 part 'scout_view_parts/scout_detail.dart';
 part 'scout_view_parts/scout_findings.dart';
 
@@ -87,75 +89,134 @@ class _ScoutWorkspaceNav extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: LayoutBuilder(
-        builder: (context, _) => Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 12,
-          runSpacing: 8,
-          children: [
-            SegmentedButton<ScoutWorkspace>(
-              segments: [
-                for (final w in ScoutWorkspace.values)
-                  ButtonSegment(
-                    value: w,
-                    icon: Icon(switch (w) {
-                      ScoutWorkspace.discover => Icons.explore_outlined,
-                      ScoutWorkspace.studies => Icons.science_outlined,
-                      ScoutWorkspace.activity => Icons.history,
-                    }),
-                    label: Text(switch (w) {
-                      ScoutWorkspace.discover => context.l10n.scoutDiscover,
-                      ScoutWorkspace.studies => context.l10n.scoutStudies,
-                      ScoutWorkspace.activity => context.l10n.scoutActivityLog,
-                    }),
+        builder: (context, constraints) {
+          final navigation = SegmentedButton<ScoutWorkspace>(
+            style: constraints.maxWidth < 480
+                ? SegmentedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    textStyle: Theme.of(context).textTheme.labelLarge
+                        ?.copyWith(fontSize: 12),
+                  )
+                : null,
+            segments: [
+              for (final w in ScoutWorkspace.values)
+                ButtonSegment(
+                  value: w,
+                  icon: Icon(switch (w) {
+                    ScoutWorkspace.discover => Icons.explore_outlined,
+                    ScoutWorkspace.studies => Icons.science_outlined,
+                    ScoutWorkspace.activity => Icons.history,
+                  }, size: constraints.maxWidth < 480 ? 16 : 18),
+                  label: Text(switch (w) {
+                    ScoutWorkspace.discover => context.l10n.scoutDiscover,
+                    ScoutWorkspace.studies => context.l10n.scoutStudies,
+                    ScoutWorkspace.activity => context.l10n.scoutActivityLog,
+                  }, maxLines: 1),
+                ),
+            ],
+            selected: {workspace},
+            onSelectionChanged: (selection) =>
+                ref.read(scoutWorkspaceProvider.notifier).set(selection.first),
+          );
+          final sync = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (workspace == ScoutWorkspace.activity)
+                IconButton(
+                  tooltip: context.l10n.scoutSources,
+                  icon: const Icon(Icons.filter_list),
+                  onPressed: () => showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    builder: (_) => SizedBox(
+                      height: MediaQuery.sizeOf(context).height * .75,
+                      child: ScoutSourceNavigation(
+                        onSelected: () => Navigator.of(context).pop(),
+                      ),
+                    ),
                   ),
-              ],
-              selected: {workspace},
-              onSelectionChanged: (selection) => ref
-                  .read(scoutWorkspaceProvider.notifier)
-                  .set(selection.first),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
+                ),
+              if (settings?.lastPolledAt != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: _ScoutLastPolled(timestamp: settings!.lastPolledAt!),
+                ),
+              _SyncNowButton(
+                scale: chatTypeScaleOf(ref.watch(settingsProvider)),
+              ),
+            ],
+          );
+          if (constraints.maxWidth >= 760) {
+            return Row(
               children: [
-                if (workspace == ScoutWorkspace.activity)
-                  IconButton(
-                    tooltip: context.l10n.scoutSources,
-                    icon: const Icon(Icons.filter_list),
-                    onPressed: () => showModalBottomSheet<void>(
-                      context: context,
-                      isScrollControlled: true,
-                      builder: (_) => SizedBox(
-                        height: MediaQuery.sizeOf(context).height * .75,
-                        child: ScoutSourceNavigation(
-                          onSelected: () => Navigator.of(context).pop(),
-                        ),
-                      ),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: navigation,
+                  ),
+                ),
+                Container(
+                  margin: const EdgeInsets.only(left: 32),
+                  padding: const EdgeInsets.only(left: 24),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      left: BorderSide(color: AppTheme.boundaryColor),
                     ),
                   ),
-                if (settings?.lastPolledAt != null)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Text(
-                      context.l10n.scoutLastPolled(
-                        _formatTime(context, settings!.lastPolledAt!),
-                      ),
-                      style: TextStyle(
-                        color: AppTheme.textTertiary,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-                _SyncNowButton(
-                  scale: chatTypeScaleOf(ref.watch(settingsProvider)),
+                  child: sync,
                 ),
               ],
-            ),
-          ],
-        ),
+            );
+          }
+          return Wrap(
+            spacing: 32,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [navigation, sync],
+          );
+        },
       ),
     );
   }
+}
+
+/// Relative text ages while the workspace remains open; exact time stays available.
+class _ScoutLastPolled extends StatefulWidget {
+  const _ScoutLastPolled({required this.timestamp});
+  final String timestamp;
+
+  @override
+  State<_ScoutLastPolled> createState() => _ScoutLastPolledState();
+}
+
+class _ScoutLastPolledState extends State<_ScoutLastPolled> {
+  late final Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: _exactTime(widget.timestamp),
+    child: Text(
+      context.l10n.scoutLastPolled(
+        prettyTimestamp(widget.timestamp, strings: context.l10n) ?? '',
+      ),
+      style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+    ),
+  );
 }
 
 /// 未配置空态：引导去设置页（设置→情报连接）。
@@ -211,7 +272,7 @@ class _ScoutMessage extends StatelessWidget {
     return Center(
       child: Text(
         text,
-        style: TextStyle(fontSize: 13.5, color: AppTheme.textSecondary),
+        style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
       ),
     );
   }

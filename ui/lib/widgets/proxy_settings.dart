@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../bridge/api.dart' as api;
 import '../theme/app_theme.dart';
+import 'feedback_toast.dart';
 
 /// 「网络」设置里的「出站代理」区块——标准单选列表（Chrome 代理设置同构）。
 ///
@@ -117,15 +118,10 @@ class _ProxySettingsState extends State<ProxySettings> {
 
   void _toast(String message, {required bool ok}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: ok ? AppTheme.accentPrimary : AppTheme.error,
-        behavior: SnackBarBehavior.floating,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(999)),
-        ),
-      ),
+    showFeedbackToast(
+      context,
+      message: message,
+      kind: ok ? FeedbackKind.success : FeedbackKind.error,
     );
   }
 
@@ -209,7 +205,7 @@ class _ProxySettingsState extends State<ProxySettings> {
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: 13.5,
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
                         color: selected
                             ? AppTheme.textPrimary
@@ -220,7 +216,7 @@ class _ProxySettingsState extends State<ProxySettings> {
                     Text(
                       subtitle,
                       style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 12,
                         color: AppTheme.textTertiary,
                         height: 1.4,
                       ),
@@ -244,7 +240,7 @@ class _ProxySettingsState extends State<ProxySettings> {
         style: TextStyle(color: AppTheme.textPrimary, fontSize: 13),
         decoration: InputDecoration(
           hintText: context.l10n.l6Http1270017890a9d59,
-          hintStyle: TextStyle(color: AppTheme.textTertiary, fontSize: 12.5),
+          hintStyle: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
           filled: true,
           fillColor: AppTheme.surface2.withValues(alpha: 0.5),
           contentPadding: const EdgeInsets.symmetric(

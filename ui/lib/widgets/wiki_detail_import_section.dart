@@ -120,12 +120,13 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
       _titleController.clear();
       _tagsController.clear();
       ref.invalidate(wikiPagesProvider);
+      ref.invalidate(wikiTagsProvider);
       // 从对话/回顾等一级 tab 打开创建主题时，保存后把主工作区切回知识库，
       // 否则新页面 tab 虽然打开了，用户仍停在原来的 tab 看不到结果。
       ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
       openWikiPageTab(ref, page);
       widget.onCompleted?.call();
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(context.l10n.wikiSavedTitle(page.title)),
           behavior: SnackBarBehavior.floating,
@@ -297,7 +298,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
             children: [
               Icon(
                 Icons.lightbulb_outline,
-                size: 14,
+                size: DesignTokens.iconMicro,
                 color: AppTheme.accentPrimary,
               ),
               const SizedBox(width: 6),

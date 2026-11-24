@@ -64,7 +64,7 @@ extension _Skills on _SettingsScreenState {
                       )
                     : context.l10n.l6TotalArg01e668((skills.length).toString()),
                 style: TextStyle(
-                  fontSize: 11.5,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.4,
                   color: AppTheme.textTertiary,
@@ -80,13 +80,13 @@ extension _Skills on _SettingsScreenState {
                   _skillBatchMode
                       ? Icons.close_outlined
                       : Icons.checklist_outlined,
-                  size: 15,
+                  size: DesignTokens.iconMicro,
                 ),
                 label: Text(
                   _skillBatchMode
                       ? context.l10n.l6ExitSelectione23ed
                       : context.l10n.l6DeleteMultiple362ae,
-                  style: const TextStyle(fontSize: 12.5),
+                  style: const TextStyle(fontSize: 12),
                 ),
                 style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
@@ -111,7 +111,7 @@ extension _Skills on _SettingsScreenState {
                     _skillSelected.length == skills.length
                         ? context.l10n.l6DeselectAllba20e
                         : context.l10n.l6SelectAll3e44b,
-                    style: const TextStyle(fontSize: 12.5),
+                    style: const TextStyle(fontSize: 12),
                   ),
                 ),
               ],
@@ -276,7 +276,7 @@ extension _Skills on _SettingsScreenState {
       final dto = await install();
       await _loadUserSkills();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(
             context.l10n.l6InstalledArg0EnabledByDefaultdd2c2(
@@ -287,7 +287,7 @@ extension _Skills on _SettingsScreenState {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: AppErrorMessage(
             action: context.l10n.load,
@@ -313,7 +313,7 @@ extension _Skills on _SettingsScreenState {
       await Process.run(binary, [dir]);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: AppErrorMessage(
             action: context.l10n.load,
@@ -352,7 +352,7 @@ extension _Skills on _SettingsScreenState {
       await _loadUserSkills();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: AppErrorMessage(
             action: context.l10n.load,
@@ -401,7 +401,7 @@ extension _Skills on _SettingsScreenState {
       } catch (e) {
         failures.add(id);
         if (mounted) {
-          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          FeedbackToast.maybeOf(context)?.show(
             SnackBar(
               content: AppErrorMessage(
                 action: context.l10n.load,
@@ -423,7 +423,7 @@ extension _Skills on _SettingsScreenState {
     await _loadUserSkills();
     if (!mounted) return;
     if (failures.isEmpty) {
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      FeedbackToast.maybeOf(context)?.show(
         SnackBar(
           content: Text(
             context.l10n.l6SkillsUninstalledArg08db74((ok).toString()),
@@ -431,7 +431,7 @@ extension _Skills on _SettingsScreenState {
         ),
       );
     } else {
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      FeedbackToast.maybeOf(context)?.show(
         SnackBar(
           content: Text(
             context.l10n.l6SucceededArg0FailedArg1Arg2Arg3a2cde(
@@ -481,7 +481,7 @@ extension _Skills on _SettingsScreenState {
           ref.read(storageRepositoryProvider) as RustBridgeRepository;
       await repository.setUserSkillTrusted(id: id, trusted: trusted);
       if (mounted && trusted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        FeedbackToast.maybeOf(context)?.show(
           SnackBar(
             content: Text(context.l10n.l6MarkedAsTrustedThisSkillS1cf36),
           ),
@@ -643,7 +643,7 @@ class _UserSkillCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 13.5,
+                          fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: enabled
                               ? AppTheme.textPrimary
@@ -667,7 +667,7 @@ class _UserSkillCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: 12,
                     color: enabled
                         ? AppTheme.textSecondary
                         : AppTheme.textTertiary,
@@ -683,7 +683,7 @@ class _UserSkillCard extends StatelessWidget {
               tooltip: context.l10n.moreActions,
               icon: Icon(
                 Icons.more_horiz,
-                size: 18,
+                size: DesignTokens.icon,
                 color: AppTheme.textTertiary,
               ),
               color: AppTheme.surface3,
@@ -701,7 +701,7 @@ class _UserSkillCard extends StatelessWidget {
                         skill.trusted
                             ? Icons.shield_outlined
                             : Icons.verified_user_outlined,
-                        size: 16,
+                        size: DesignTokens.iconMicro,
                         color: skill.trusted
                             ? AppTheme.textSecondary
                             : AppTheme.accentPrimary,

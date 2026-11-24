@@ -33,7 +33,13 @@ class NowStatusIconButton extends StatelessWidget {
             children: [
               Icon(icon, size: 15, color: effective),
               const SizedBox(width: 4),
-              Text(label, style: TextStyle(fontSize: 12, color: effective)),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: TypographyTokens.secondary,
+                  color: effective,
+                ),
+              ),
             ],
           ),
         ),
@@ -81,38 +87,23 @@ class _NowStatus extends ConsumerWidget {
         .value
         ?.where((todo) => !todo.isDone)
         .length;
-    final activeProvider = ref.watch(activeAiProviderProvider).value;
-    final tokenUsage = ref.watch(todayTokenUsageProvider).value;
     final activeGoals = ref.watch(activeGoalsProvider).value ?? const [];
     // 目标为空时入口仍必须显示：目标功能没有独立一级 tab，这里是唯一入口，
     // 显示为「目标 0」会让人以为无路可走。
     final goalLabel = context.l10n.goalSummaryCount(activeGoals.length);
-
-    final today = DateTime.now();
-    final count = messages
-        .where(
-          (m) =>
-              m.isUser &&
-              m.createdAt.year == today.year &&
-              m.createdAt.month == today.month &&
-              m.createdAt.day == today.day,
-        )
-        .length;
-    final summary = context.l10n.conversationCount(count);
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppTheme.surface1,
-        border: Border.all(color: AppTheme.surface3),
-        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-      ),
+    final dark = AppTheme.brightness == Brightness.dark;
+    return GlassPanel(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 2),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      borderRadius: 12,
+      elevation: 1,
+      fillColor: dark ? AppTheme.surface1 : AppTheme.surface1,
+      showHighlight: true,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // 宽形态一行的自然宽度实测约 950–1000px（今天+草稿+目标+待办+审阅
-          // +对话统计+Token+provider+2 图标按钮）；断点取 1020 留出余量。
-          // 旧值 780 在图标轨（700–1024 窗口）区间会溢出 RenderFlex。
-          final compact = constraints.maxWidth < 1020;
+          // 宽形态一行的自然宽度实测约 500px（今天+目标+待办+审阅+创建主题+右侧操作按钮）；
+          // 断点取 640 留出安全余量。
+          final compact = constraints.maxWidth < 640;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -121,13 +112,14 @@ class _NowStatus extends ConsumerWidget {
                 children: [
                   Icon(
                     Icons.today_outlined,
-                    size: 16,
+                    size: DesignTokens.iconMicro,
                     color: AppTheme.accentPrimary,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     context.l10n.today,
                     style: TextStyle(
+                      fontSize: TypographyTokens.secondary,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimary,
                     ),
@@ -141,7 +133,7 @@ class _NowStatus extends ConsumerWidget {
                       onPressed: onOpenGoals,
                       icon: Icon(
                         Icons.flag_outlined,
-                        size: 16,
+                        size: DesignTokens.iconMicro,
                         color: activeGoals.isEmpty
                             ? AppTheme.accentPrimary
                             : AppTheme.textSecondary,
@@ -156,6 +148,10 @@ class _NowStatus extends ConsumerWidget {
                       ),
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,
+                        textStyle: const TextStyle(
+                          fontSize: TypographyTokens.secondary,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -165,6 +161,10 @@ class _NowStatus extends ConsumerWidget {
                       label: Text(context.l10n.todoCountItems(openTodos ?? 0)),
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,
+                        textStyle: const TextStyle(
+                          fontSize: TypographyTokens.secondary,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                     if (conversationId != null) ...[
@@ -178,76 +178,13 @@ class _NowStatus extends ConsumerWidget {
                       label: Text(context.l10n.createTopic),
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,
+                        textStyle: const TextStyle(
+                          fontSize: TypographyTokens.secondary,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                     const Spacer(),
-                    // 防跳动：会出现/消失的 widget 全部排在左边，常驻按钮钉死
-                    // 最右。provider 名加载异步、最长、最易有/无 → 挪到最左，
-                    // 它的闪烁只影响自己左边（没人），不再推挤右侧所有图标。
-                    if (activeProvider != null) ...[
-                      Icon(
-                        Icons.smart_toy_outlined,
-                        size: 14,
-                        color: AppTheme.textTertiary,
-                      ),
-                      const SizedBox(width: 5),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 120),
-                        child: Text(
-                          activeProvider,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                    ],
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.forum_outlined,
-                          size: 14,
-                          color: AppTheme.textTertiary,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          summary,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    // Token 永远占位：有数据显数值，没数据显「Token–」，不再
-                    // 整个消失导致右侧图标来回跳。
-                    const SizedBox(width: 12),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.data_usage_outlined,
-                          size: 14,
-                          color: AppTheme.textTertiary,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          tokenUsage != null
-                              ? 'Token${_formatTokens(tokenUsage.totalTokens)}'
-                              : 'Token–',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    // 常驻按钮区：复制全部（可能无）也在搜索左边，搜索钉死最右。
-                    const SizedBox(width: 12),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -274,7 +211,7 @@ class _NowStatus extends ConsumerWidget {
                           visualDensity: VisualDensity.compact,
                           icon: Icon(
                             showSearch ? Icons.search_off : Icons.search,
-                            size: 17,
+                            size: DesignTokens.icon,
                           ),
                           color: showSearch
                               ? AppTheme.accentPrimary
@@ -288,9 +225,13 @@ class _NowStatus extends ConsumerWidget {
                     TextButton.icon(
                       onPressed: onOpenTodos,
                       icon: const Icon(Icons.check_circle_outlined, size: 16),
-                      label: Text(context.l10n.todoCount(openTodos ?? 0)),
+                      label: Text(context.l10n.todoCountItems(openTodos ?? 0)),
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,
+                        textStyle: const TextStyle(
+                          fontSize: TypographyTokens.secondary,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],
@@ -304,8 +245,6 @@ class _NowStatus extends ConsumerWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // 窄屏时目标入口落在第二行：它没有独立一级 tab，这里是唯一入口，
-                        // 空态也必须可见（故空态只显示「目标」，且用 accent 着色）。
                         NowStatusIconButton(
                           tooltip: context.l10n.goals,
                           icon: Icons.flag_outlined,
@@ -328,54 +267,6 @@ class _NowStatus extends ConsumerWidget {
                           ChatProposalReviewButton(
                             conversationId: conversationId,
                             compact: true,
-                          ),
-                        ],
-                        if (activeProvider != null) ...[
-                          const SizedBox(width: 6),
-                          Icon(
-                            Icons.smart_toy_outlined,
-                            size: 14,
-                            color: AppTheme.textTertiary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            activeProvider,
-                            maxLines: 1,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                        ],
-                        const SizedBox(width: 6),
-                        Icon(
-                          Icons.forum_outlined,
-                          size: 14,
-                          color: AppTheme.textTertiary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          summary,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                        if (tokenUsage != null) ...[
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.data_usage_outlined,
-                            size: 14,
-                            color: AppTheme.textTertiary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Token ${_formatTokens(tokenUsage.totalTokens)}',
-                            maxLines: 1,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppTheme.textSecondary,
-                            ),
                           ),
                         ],
                         if (onCopyAll != null) ...[
@@ -403,7 +294,7 @@ class _NowStatus extends ConsumerWidget {
                           visualDensity: VisualDensity.compact,
                           icon: Icon(
                             showSearch ? Icons.search_off : Icons.search,
-                            size: 16,
+                            size: DesignTokens.iconMicro,
                           ),
                           color: showSearch
                               ? AppTheme.accentPrimary
@@ -419,12 +310,6 @@ class _NowStatus extends ConsumerWidget {
         },
       ),
     );
-  }
-
-  String _formatTokens(int value) {
-    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
-    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
-    return value.toString();
   }
 }
 
@@ -459,7 +344,7 @@ class _NoticeBubble extends StatelessWidget {
                     children: [
                       Icon(
                         Icons.error_outline_rounded,
-                        size: 13,
+                        size: DesignTokens.iconMicro,
                         color: danger.withValues(alpha: 0.85),
                       ),
                       const SizedBox(width: 4),
@@ -518,7 +403,7 @@ class _NoticeBubble extends StatelessWidget {
       ),
       child: Icon(
         Icons.error_outline_rounded,
-        size: 16,
+        size: DesignTokens.iconMicro,
         color: const Color(0xFFB91C1C).withValues(alpha: 0.85),
       ),
     );

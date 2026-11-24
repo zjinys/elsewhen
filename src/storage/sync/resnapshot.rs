@@ -117,11 +117,18 @@ impl Store {
                 }
                 return Ok(None);
             }
-            // building：有进展（分片在动）就让它继续；停满 EXPORT_STALL_MS 就是
-            // 死导出——abort 掉。下一拍 claim 重跑：同 id 走 aborted 续传（blob
-            // 已被 relay TTL 回收时自动从零重传），request 校验也不会再拒绝它。
-            // 没有这条出路，一次接收端失联就把这份重快照永久钉死，owner 的 GC
-            // 冻结、配对流程的 id 校验全部跟着锁死（2026-11-12 事故形态）。
+            if self.snapshot_export_cached(&export_id)? {
+                if let Some(tx) = tx {
+                    tx.commit()?;
+                }
+                return Ok(Some(ResnapshotClaim {
+                    member_device_id: member.to_string(),
+                    snapshot_id: export_id,
+                }));
+            }
+            // An uncached legacy build cannot guarantee the original bytes.
+            // Keep its current attempt until stalled, then abort and rotate.
+            // Cached builds above resume immediately under the same identity.
             let progress_at: i64 = self.connection.query_row(
                 "SELECT progress_at FROM sync_snapshot_exports WHERE id=?1",
                 [&export_id],
@@ -163,14 +170,10 @@ impl Store {
                         )
                         .optional()?;
                     match state.as_deref() {
-                        // Claimed but never built, or the build aborted:
-                        // resume the SAME request id. The rebuilt export is
-                        // byte-identical under a reused id, so a partially
-                        // delivered old transfer can never be confused with
-                        // a new generation. begin_snapshot_export refuses an
-                        // id under a different request, so this cannot mix
-                        // generations.
-                        None | Some("aborted") => *nonce,
+                        // Never built: retain the claim. An aborted upload can
+                        // retain its identity only with a complete stable cache.
+                        None => *nonce,
+                        Some("aborted") if self.snapshot_export_cached(id)? => *nonce,
                         // Any other state means the request moved on —
                         // rotate for a new generation.
                         _ => nonce + 1,

@@ -162,6 +162,18 @@ fn parse_phase(phase: &str) -> Result<GoalPhase> {
 pub const MAX_ACTIVE_GOALS: usize = crate::storage::MAX_ACTIVE_GOALS;
 
 /// 列出全部活跃目标（最多 3 条，按近期→中期→长远排序）
+/// 目标讨论承接源 DTO：同计划前序目标（有非空专属讨论）供 UI 读取原文。
+/// UI 用 `conversation_id` + `list_messages` 读完整消息；提示词侧的尾部
+/// 摘录另行在存储层有界截取，不走这个 DTO。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GoalChatPredecessorDto {
+    pub goal_id: String,
+    pub goal_content: String,
+    pub message_count: i64,
+    /// 前序目标的 goal_mentor 会话 id（必有：message_count > 0 才返回承接源）
+    pub conversation_id: String,
+}
+
 /// 获取（不存在则创建）某个目标的专属讨论会话，返回会话 DTO。
 /// 目标页内 AI 讨论通过该会话进行；生成时注入目标全部认知切片。
 pub fn ensure_goal_chat(goal_id: String) -> Result<ConversationDto> {
@@ -191,6 +203,29 @@ pub fn ensure_goal_chat(goal_id: String) -> Result<ConversationDto> {
         wiki_page_slug: conversation.wiki_page_slug,
         goal_id: conversation.goal_id,
     })
+}
+
+/// 查询当前目标讨论的承接源：同计划前序目标（step_index 更小、有非空
+/// goal_mentor 会话）中最近的一个。无计划 / 无前序 / 前序均无讨论时返回
+/// None。只读；UI 用返回的 conversation_id 读前序会话原文展示，提示词
+/// 侧另行注入有界尾部。
+pub fn goal_chat_predecessor(goal_id: String) -> Result<Option<GoalChatPredecessorDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let Some(predecessor) = store.goal_chat_predecessor(&goal_id)? else {
+        return Ok(None);
+    };
+    // message_count > 0 意味着会话必然存在；取不到说明数据被并发清理，
+    // 稳妥起见当作无承接源处理而不是报错。
+    let Some(conversation_id) = store.find_goal_chat_conversation(&predecessor.goal_id)? else {
+        return Ok(None);
+    };
+    Ok(Some(GoalChatPredecessorDto {
+        goal_id: predecessor.goal_id,
+        goal_content: predecessor.goal_content,
+        message_count: predecessor.message_count,
+        conversation_id,
+    }))
 }
 
 /// 获取（不存在则创建）目标工作室会话：AI 立项/拆解专用，不进普通对话清单。

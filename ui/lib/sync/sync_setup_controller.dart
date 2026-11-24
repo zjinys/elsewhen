@@ -129,9 +129,13 @@ class SyncSetupController extends ChangeNotifier {
   api.SyncInvitationOfferDto? invitation;
   api.SyncInvitationPreviewDto? pairingPreview;
   String? pendingPairingId;
+  api.SyncInvitationPreviewDto? approvedDevice;
+  String? get currentPairingId => pendingPairingId ?? invitation?.invitationId;
+  Timer? _pairingPoll;
 
   /// 审批是否已获中继投递确认；未确认时由邀请页轮询自动重投。
   bool approvalDelivered = false;
+  bool approvalReady = false;
   String? pairingNotice;
   final bool previewEnabled;
   api.LocalSyncStateDto? state;
@@ -139,11 +143,13 @@ class SyncSetupController extends ChangeNotifier {
   bool busy = false;
   bool _disposed = false;
   bool _closed = false;
+  int _stateGeneration = 0;
   String? _ownedOperation;
   Completer<void>? _activationDone;
   VoidCallback? onReady;
 
   void _changed() {
+    _stateGeneration++;
     if (!_disposed) notifyListeners();
   }
 
@@ -154,9 +160,17 @@ class SyncSetupController extends ChangeNotifier {
       return;
     }
     final operation = _ownedOperation;
+    final generation = _stateGeneration;
     try {
       final next = await _bridge.state();
-      if (_closed || _disposed || busy || _ownedOperation != operation) return;
+      if (_closed ||
+          _disposed ||
+          busy ||
+          joiner.active ||
+          generation != _stateGeneration ||
+          _ownedOperation != operation) {
+        return;
+      }
       final changed = state?.vaultRevision != next.vaultRevision;
       state = next;
       _changed();
@@ -225,9 +239,18 @@ class SyncSetupController extends ChangeNotifier {
       return;
     }
     _backlogRefreshing = true;
+    final generation = _stateGeneration;
     try {
       final next = await _bridge.state();
-      if (_disposed || _closed) return;
+      // A completed lock/unlock/pairing may already have cleared `busy` again.
+      // Fence by generation as well as the current flags before publishing.
+      if (_disposed ||
+          _closed ||
+          busy ||
+          joiner.active ||
+          generation != _stateGeneration) {
+        return;
+      }
       final previous = state;
       if (previous != null &&
           previous.state == next.state &&
@@ -401,6 +424,10 @@ class SyncSetupController extends ChangeNotifier {
       state = await _bridge.state();
       invitation = null;
       pairingPreview = null;
+      pendingPairingId = null;
+      approvalReady = false;
+      approvedDevice = null;
+      _pairingPoll?.cancel();
       pairingNotice = null;
       _ownedOperation = null;
     } catch (_) {
@@ -415,6 +442,7 @@ class SyncSetupController extends ChangeNotifier {
 
   Future<void> close() async {
     _closed = true;
+    _pairingPoll?.cancel();
     invitation = null;
     pairingPreview = null;
     await enrollment.close();

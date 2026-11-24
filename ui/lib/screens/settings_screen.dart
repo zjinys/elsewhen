@@ -1,7 +1,10 @@
+import '../theme/design_tokens.dart';
+
 import 'dart:async';
 
 import '../l10n/notice_messages.dart';
 import '../widgets/app_error_notice.dart';
+import 'personal_memory_screen.dart';
 
 import 'dart:io' show Platform, Process;
 
@@ -39,6 +42,7 @@ import '../utils/system_fonts.dart';
 import '../utils/window_service.dart';
 import '../theme/app_theme.dart';
 import '../l10n/localization.dart';
+import '../widgets/feedback_toast.dart';
 // ── 大类方法按功能域拆分为 part extension（行为零变化，见 settings_parts/）──
 part 'settings_parts/data_rules_loads.dart';
 part 'settings_parts/rules_prefs.dart';
@@ -193,7 +197,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 11, vsync: this);
+    _tabController = TabController(length: 12, vsync: this);
     _loadVersion();
     final settings = ref.read(settingsProvider);
     // 桌面窗口偏好：WindowService 为单例，桌面入口已注册实现；移动端读 stub 默认值。
@@ -314,6 +318,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                           _buildNetworkTab(),
                           _buildSkillsTab(),
                           _buildMcpTab(),
+                          const PersonalMemoryScreen(embedded: true),
                           _buildKnowledgeTab(),
                           _buildHabitsTab(),
                           _buildDataTab(),
@@ -334,7 +339,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                                 child: Text(
                                   _version,
                                   style: TextStyle(
-                                    fontSize: 10,
+                                    fontSize: 11,
                                     color: AppTheme.textTertiary,
                                   ),
                                 ),
@@ -372,7 +377,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               maxTokens: int.tryParse(_maxTokensController.text),
             ),
           );
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(context.l10n.memorySaved),
           backgroundColor: AppTheme.accentPrimary,

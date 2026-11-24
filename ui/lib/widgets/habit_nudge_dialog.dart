@@ -242,7 +242,7 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                                   : context.l10n.adjustCheckins,
                               style: TextStyle(
                                 color: AppTheme.textPrimary,
-                                fontSize: 17,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),

@@ -12,6 +12,7 @@
 #endif
 
 #include "flutter/generated_plugin_registrant.h"
+#include "window_restore.h"
 
 struct _MyApplication {
   GtkApplication parent_instance;
@@ -131,6 +132,13 @@ static void my_application_activate(GApplication* application) {
   // 终值，splash 从第一帧起就居中。first-frame 回调保留：只负责
   // X11 下重贴无边框装饰。
   gtk_widget_show(GTK_WIDGET(window));
+
+#ifdef GDK_WINDOWING_WAYLAND
+  if (GDK_IS_WAYLAND_DISPLAY(gdk_display_get_default())) {
+    g_signal_connect_object(window, "map", G_CALLBACK(window_mapped_cb), view,
+                            G_CONNECT_AFTER);
+  }
+#endif
 
   // first-frame 回调只负责 X11 下重贴无边框装饰（窗口显示已提前）。
   g_signal_connect_swapped(view, "first-frame", G_CALLBACK(first_frame_cb),

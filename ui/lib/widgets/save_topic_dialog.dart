@@ -87,6 +87,7 @@ class _SaveTopicDialogState extends ConsumerState<SaveTopicDialog> {
       );
       if (!mounted) return;
       ref.invalidate(wikiPagesProvider);
+      ref.invalidate(wikiTagsProvider);
       openWikiPageTab(ref, page);
       Navigator.of(context).pop(true);
       showFeedbackToast(
@@ -122,7 +123,7 @@ class _SaveTopicDialogState extends ConsumerState<SaveTopicDialog> {
             controller: _tagsController,
             enabled: !_busy,
             hintText: context.l10n.topicTagsHint,
-            style: TextStyle(fontSize: 13.5, color: AppTheme.textPrimary),
+            style: TextStyle(fontSize: 14, color: AppTheme.textPrimary),
             prefixIcon: const Icon(Icons.sell_outlined, size: 16),
           ),
           const SizedBox(height: AppTheme.space3),

@@ -56,7 +56,7 @@ class _RevisionList extends ConsumerWidget {
                         ),
                         child: Icon(
                           Icons.history,
-                          size: 16,
+                          size: DesignTokens.iconMicro,
                           color: AppTheme.textSecondary,
                         ),
                       ),
@@ -70,7 +70,7 @@ class _RevisionList extends ConsumerWidget {
                       subtitle: Text(
                         _shortTime(revision.createdAt),
                         style: TextStyle(
-                          fontSize: 11.5,
+                          fontSize: 12,
                           color: AppTheme.textTertiary,
                         ),
                       ),
@@ -114,9 +114,9 @@ class _RevisionList extends ConsumerWidget {
                                         .restore(slug, revision.id);
                                     if (context.mounted) {
                                       _refresh(ref, slug);
-                                      ScaffoldMessenger.of(
+                                      FeedbackToast.of(
                                         context,
-                                      ).showSnackBar(
+                                      ).show(
                                         SnackBar(
                                           content: Text(
                                             context
@@ -128,9 +128,9 @@ class _RevisionList extends ConsumerWidget {
                                     }
                                   } catch (error) {
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(
+                                      FeedbackToast.of(
                                         context,
-                                      ).showSnackBar(
+                                      ).show(
                                         SnackBar(
                                           content: AppErrorMessage(
                                             action: context.l10n.load,
@@ -171,7 +171,7 @@ class _OpinionControl extends ConsumerWidget {
       Text(
         context.l10n.l6SourceAssessment7740d,
         style: TextStyle(
-          fontSize: 12.5,
+          fontSize: 12,
           fontWeight: FontWeight.w600,
           color: AppTheme.textSecondary,
         ),
@@ -190,7 +190,7 @@ class _OpinionControl extends ConsumerWidget {
                 : (opinion == value
                       ? Icons.thumb_down
                       : Icons.thumb_down_outlined),
-            size: 14,
+            size: DesignTokens.iconMicro,
             color: opinion == value
                 ? (value == 'endorse' ? AppTheme.accentPrimary : AppTheme.error)
                 : AppTheme.textTertiary,

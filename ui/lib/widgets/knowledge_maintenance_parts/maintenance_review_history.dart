@@ -53,7 +53,7 @@ class _ReviewHistoryState extends ConsumerState<KnowledgeReviewHistorySection> {
           title: Text(
             title,
             style: TextStyle(
-              fontSize: 12.5,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               color: AppTheme.textSecondary,
             ),
@@ -86,7 +86,7 @@ class _ReviewHistoryState extends ConsumerState<KnowledgeReviewHistorySection> {
         Text(
           value,
           style: TextStyle(
-            fontSize: 12.5,
+            fontSize: 12,
             height: 1.5,
             color: AppTheme.textSecondary,
             fontFamily: mono ? 'monospace' : null,
@@ -117,19 +117,19 @@ class _ReviewHistoryState extends ConsumerState<KnowledgeReviewHistorySection> {
             ),
             child: Icon(
               Icons.history_toggle_off_outlined,
-              size: 16,
+              size: DesignTokens.iconMicro,
               color: AppTheme.accentPrimary,
             ),
           ),
           title: Text(
             context.l10n.l6KnowledgeHistory37e16,
-            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(
               context.l10n.l6HistoryOfProposalsAndRevisionsAccepted1535c,
-              style: TextStyle(fontSize: 11.5, color: AppTheme.textTertiary),
+              style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
             ),
           ),
           onExpansionChanged: (open) {
@@ -186,7 +186,7 @@ class _ReviewHistoryState extends ConsumerState<KnowledgeReviewHistorySection> {
                             _ => item.action,
                           }} · ${_shortTime(item.createdAt)}',
                           style: TextStyle(
-                            fontSize: 11.5,
+                            fontSize: 12,
                             color: AppTheme.textTertiary,
                           ),
                         ),
@@ -272,7 +272,7 @@ class _ReviewHistoryState extends ConsumerState<KnowledgeReviewHistorySection> {
                                           },
                                           icon: const Icon(
                                             Icons.open_in_new,
-                                            size: 14,
+                                            size: DesignTokens.iconMicro,
                                           ),
                                           label: Text(
                                             context

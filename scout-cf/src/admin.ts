@@ -80,11 +80,14 @@ const PAGE = `<!doctype html>
   </section>
 
   <section>
-    <h2>CWS 竞品清单</h2>
+    <h2>Chrome Web Store 自动发现</h2>
     <div class="card">
-      <div class="muted" style="margin-bottom:8px">扩展 ID（32 位小写字母，逗号或换行分隔）。保存后下个采集周期生效；合并进代码内置清单一起监控。</div>
-      <textarea id="cwsIds" placeholder="ddkjiahejlhfcafbddmgiahcphecmpfh, nkbihfbeogaeaoehlefnkodbefgpgknn"></textarea>
-      <div class="row" style="margin-top:8px"><button class="primary" id="saveCws">保存清单</button><span id="cwsMsg" class="muted"></span></div>
+      <div class="muted">自动从商店扩展发现页采集名称、用途简介和评分，无需填写 ID。发现页为商店推荐，首次出现不代表刚发布。</div>
+      <details style="margin-top:12px"><summary>额外跟踪指定扩展（可选）</summary>
+        <p class="muted">粘贴商店链接或扩展 ID，逗号或换行分隔，最多 20 个。留空仍会正常自动发现；保存后下个采集周期生效。</p>
+        <textarea id="cwsIds" placeholder="粘贴 Chrome Web Store 扩展链接（可留空）"></textarea>
+        <div class="row" style="margin-top:8px"><button class="primary" id="saveCws">保存额外跟踪</button><span id="cwsMsg" class="muted"></span></div>
+      </details>
     </div>
   </section>
 </section>
@@ -191,6 +194,8 @@ async function loadRuns() {
 
 async function loadAll() {
   await Promise.all([loadSources(), loadFindings(), loadRuns()]);
+  const cws = await api("/admin/settings/cws_ids");
+  $("#cwsIds").value = cws.value;
   const h = await fetch("/health").then(r => r.json()).catch(() => ({}));
   $("#health").textContent = h.status === "ok" ? "健康" : "异常";
 }
@@ -205,7 +210,7 @@ $("#fSource").onchange = loadFindings;
 $("#fKind").onchange = loadFindings;
 $("#saveCws").onclick = async () => {
   const r = await api("/admin/settings/cws_ids", { method: "PUT", body: JSON.stringify({ value: $("#cwsIds").value }) });
-  $("#cwsMsg").textContent = "已保存 " + r.ids.length + " 个有效 ID（无效的已忽略）";
+  $("#cwsMsg").textContent = "已保存 " + r.ids.length + " 个额外跟踪扩展（无效输入已忽略），自动发现继续运行";
   toast("CWS 清单已保存");
 };
 

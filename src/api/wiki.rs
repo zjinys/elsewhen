@@ -24,6 +24,22 @@ pub struct WikiPageMetaDto {
     pub opinion: Option<String>,
 }
 
+/// Canonical tag vocabulary entry used by topic/tag autocomplete.
+#[derive(Clone, Debug)]
+pub struct WikiTagDto {
+    pub name: String,
+    pub usage_count: i64,
+}
+
+impl From<crate::storage::WikiTag> for WikiTagDto {
+    fn from(tag: crate::storage::WikiTag) -> Self {
+        Self {
+            name: tag.name,
+            usage_count: tag.usage_count,
+        }
+    }
+}
+
 impl From<crate::storage::WikiPageMeta> for WikiPageMetaDto {
     fn from(m: crate::storage::WikiPageMeta) -> Self {
         Self {
@@ -137,6 +153,16 @@ pub fn list_wiki_page_metas(limit: Option<i64>) -> Result<Vec<WikiPageMetaDto>> 
     let limit = limit.unwrap_or(500).clamp(1, 2000);
     store
         .list_wiki_page_metas(limit)
+        .map(|rows| rows.into_iter().map(Into::into).collect())
+}
+
+/// List the canonical tag vocabulary. Unlike page metadata this is not bounded
+/// by the recent-page sidebar window.
+pub fn list_wiki_tags() -> Result<Vec<WikiTagDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    store
+        .list_wiki_tags()
         .map(|rows| rows.into_iter().map(Into::into).collect())
 }
 

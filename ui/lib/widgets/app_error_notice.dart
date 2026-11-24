@@ -3,11 +3,12 @@ import 'package:flutter/services.dart';
 
 import '../l10n/localization.dart';
 import '../l10n/notice_messages.dart';
+import 'feedback_toast.dart';
 
 /// Keep the ordinary flow readable and retain explicit access to diagnostics.
 void showAppError(BuildContext context, String action, Object error) {
   final message = context.errorMessage(action, error);
-  ScaffoldMessenger.of(context).showSnackBar(
+  FeedbackToast.of(context).show(
     SnackBar(
       content: Text(message),
       action: SnackBarAction(
@@ -18,6 +19,7 @@ void showAppError(BuildContext context, String action, Object error) {
         },
       ),
     ),
+    kind: FeedbackKind.error,
   );
 }
 

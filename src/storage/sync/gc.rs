@@ -12,7 +12,9 @@
 //! Invariants (all enforced in SQL, all fail closed):
 //!
 //! * GC never uses relay-level information; only application watermarks.
-//! * All active members participate in the watermark computation. A member row
+//! * On the owner, all active members participate in the watermark computation.
+//!   A leaf hands delivery responsibility to its owner and waits for that hop.
+//!   The owner retains received remote history for downstream delivery. A member row
 //!   missing from `sync_member_state` counts as 0 — a lagging device ALWAYS
 //!   holds back GC (`MIN(...) FILTER` never excludes NULL / missing rows).
 //! * A member whose `confirmed_sequence` falls behind
@@ -131,12 +133,13 @@ impl Store {
                     s.confirmed_sequence IS NULL
              FROM sync_members m
              LEFT JOIN sync_member_state s ON s.device_id = m.device_id
-             WHERE m.active = 1 AND m.device_id != ?1",
+             WHERE m.active = 1 AND m.device_id != ?1 AND (?2 IS NULL OR m.device_id=?2)",
         )?;
         let members: Vec<(String, i64, bool, bool)> = stmt
-            .query_map([&identity.device_id], |r| {
-                Ok((r.get(0)?, r.get(1)?, r.get::<_, i64>(2)? != 0, r.get(3)?))
-            })?
+            .query_map(
+                params![identity.device_id, self.sync_upstream_device()?],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get::<_, i64>(2)? != 0, r.get(3)?)),
+            )?
             .collect::<rusqlite::Result<Vec<_>>>()?;
 
         let current_floor = self.sync_local_gc_floor()?;

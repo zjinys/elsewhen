@@ -47,7 +47,9 @@ pub(crate) fn execute_claimed_proposal(
         || matches!(
             proposal.action.as_str(),
             "create_todo"
+                | "review_memory"
                 | "save_knowledge_draft"
+                | "propose_memory_candidates"
                 | "save_wiki_revision"
                 | "rename_wiki_page"
                 | "propose_people_relations"

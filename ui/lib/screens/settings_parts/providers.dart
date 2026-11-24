@@ -252,7 +252,7 @@ extension _ProvidersView on _SettingsScreenState {
       await _loadProviders();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: AppErrorMessage(
             action: context.l10n.switchProvider,
@@ -294,7 +294,7 @@ extension _ProvidersView on _SettingsScreenState {
       await _loadProviders();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: AppErrorMessage(
             action: context.l10n.deleteProvider,

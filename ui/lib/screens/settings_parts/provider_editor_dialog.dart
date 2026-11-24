@@ -408,7 +408,7 @@ class _TokenUsageBarChart extends StatelessWidget {
                       Text(
                         _fmtShort(d.totalTokens),
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 11,
                           color: AppTheme.textTertiary,
                         ),
                       )

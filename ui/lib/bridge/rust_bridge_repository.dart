@@ -227,7 +227,7 @@ class RustBridgeRepository implements StorageRepository {
     await localSync.restoreIfConfigured();
     if (!runBackgroundWorker) return;
     // Resume durable work after process restart. The timer also covers retry
-    // backoff expiry and the Rust-side 50-job invocation bound.
+    // backoff expiry; native AI batches yield the workspace between jobs.
     _analysisTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
       // 提醒/习惯问候必须每 5s 真跑，不能跟空闲退避一起降到 30s；它们只做
       // 本地 SQL 判断，成本低。失败各自隔离，不影响后面的后台序列。
@@ -304,6 +304,40 @@ class RustBridgeRepository implements StorageRepository {
       doneCriteria: doneCriteria,
     );
     return Goal.fromDto(dto);
+  }
+
+  /// 目标讨论承接源：同计划前序目标（有非空专属讨论）供 UI 入口展示；
+  /// null = 无计划 / 无前序 / 前序均无讨论。只读查询。
+  Future<GoalChatPredecessor?> goalChatPredecessor(String goalId) async {
+    final dto = await api.goalChatPredecessor(goalId: goalId);
+    return dto == null ? null : GoalChatPredecessor.fromDto(dto);
+  }
+
+  /// 某会话最后 N 条 chat 轮次（时间正序、内容完整）。承接展示读原文用，
+  /// 限量在 Rust 侧完成，UI 不再手动截取。
+  Future<List<Message>> listRecentChatMessages(
+    String conversationId,
+    int limit,
+  ) async {
+    final dtos = await api.listRecentChatMessages(
+      conversationId: conversationId,
+      limit: limit,
+    );
+    return dtos
+        .map(
+          (dto) => Message(
+            id: dto.id,
+            conversationId: dto.conversationId,
+            parentMessageId: dto.parentMessageId,
+            role: MessageRole.fromString(dto.role),
+            content: dto.content,
+            createdAt: DateTime.parse(dto.createdAt).toLocal(),
+            inputMessageId: dto.inputMessageId,
+            kind: dto.kind,
+            messageRef: dto.messageRef,
+          ),
+        )
+        .toList();
   }
 
   Future<api.InputRecordDto> submitInput(
@@ -494,7 +528,7 @@ class RustBridgeRepository implements StorageRepository {
   /// Schedule analysis without making input persistence wait for the network.
   /// Multiple saves coalesce into one in-flight invocation.
   /// 空转退避参数：每 _idleWakeFullEvery 拍（每拍 5s，6 拍≈30s）做一次完整
-  /// 后台序列（分析排空+知识消化+网络同步+洞察 tick）。序列本身每次都是全量的
+  /// 后台序列（同步与有界分析/消化交替+洞察 tick）。序列本身每次都是全量的
   /// （开 store、解密 vault、roster 校验），空闲期白烧——这是唯一的省法。
   static const int _idleWakeFullEvery = 6;
   int _idleWakes = 0;
@@ -716,6 +750,57 @@ class RustBridgeRepository implements StorageRepository {
     offset: offset,
     limit: limit,
   );
+
+  Future<String> listPersonalMemories(
+    String filterJson, {
+    int offset = 0,
+    int limit = 30,
+  }) => api.listPersonalMemories(
+    filterJson: filterJson,
+    offset: offset,
+    limit: limit,
+  );
+
+  Future<String> getPersonalMemoryDetail(String claimId) =>
+      api.getPersonalMemoryDetail(claimId: claimId);
+
+  Future<void> editPersonalMemory(
+    String claimId,
+    int version,
+    String content,
+  ) => api.editPersonalMemory(
+    claimId: claimId,
+    expectedVersion: version,
+    content: content,
+  );
+
+  Future<api.PlanningProfileDto> getPersonalMemoryProfile() =>
+      api.getPlanningProfile();
+
+  Future<void> savePersonalMemoryProfile(api.PlanningProfileDto profile) =>
+      api.savePlanningProfile(profile: profile);
+
+  Future<api.ChatProposalDto> preparePersonalMemoryAction({
+    required String claimId,
+    required int expectedVersion,
+    required String detailToken,
+    required String argsJson,
+  }) => api.preparePersonalMemoryAction(
+    claimId: claimId,
+    expectedVersion: expectedVersion,
+    detailToken: detailToken,
+    argsJson: argsJson,
+  );
+
+  Future<api.ChatDecisionDto> decidePersonalMemoryAction(
+    api.ChatReviewRequest request, {
+    required bool accept,
+  }) => api.decidePersonalMemoryAction(request: request, accept: accept);
+
+  Future<String> inspectPersonalMemoryMaintenance(String conversationId) =>
+      api.inspectPersonalMemoryMaintenance(conversationId: conversationId);
+
+  Future<List<api.GoalDto>> listMemoryLinkGoals() => api.listActiveGoals();
 
   Future<List<api.ChatDecisionDto>> listChatDecisions(
     String? conversationId, {

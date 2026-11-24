@@ -15,7 +15,7 @@
     }
   ],
   "vars": {
-    // 每源间隔（分钟）覆盖：JSON 对象 {"github-dart":720, "ph-feed":1440}
+    // 每源间隔（分钟）覆盖：JSON 对象 {"github-newcomers":720, "producthunt-daily":1440}
     "INTERVAL_OVERRIDES": "{}"
   }
   // Secrets (wrangler secret put):

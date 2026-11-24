@@ -104,6 +104,480 @@ abstract class AppLocalizations {
   /// **'Elsewhen'**
   String get appTitle;
 
+  /// No description provided for @memoryManager.
+  ///
+  /// In zh, this message translates to:
+  /// **'记忆'**
+  String get memoryManager;
+
+  /// No description provided for @memoryBackList.
+  ///
+  /// In zh, this message translates to:
+  /// **'返回记忆列表'**
+  String get memoryBackList;
+
+  /// No description provided for @memoryMore.
+  ///
+  /// In zh, this message translates to:
+  /// **'更多记忆操作'**
+  String get memoryMore;
+
+  /// No description provided for @memoryStatus.
+  ///
+  /// In zh, this message translates to:
+  /// **'记忆状态'**
+  String get memoryStatus;
+
+  /// No description provided for @memoryKind.
+  ///
+  /// In zh, this message translates to:
+  /// **'记忆类型'**
+  String get memoryKind;
+
+  /// No description provided for @memoryManagerHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看 AI 的记忆、来源和适用范围。修改需核对审阅卡后生效。'**
+  String get memoryManagerHelp;
+
+  /// No description provided for @memorySearchHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索标题、主体或关系'**
+  String get memorySearchHint;
+
+  /// No description provided for @memoryAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部'**
+  String get memoryAll;
+
+  /// No description provided for @memoryMain.
+  ///
+  /// In zh, this message translates to:
+  /// **'主对话'**
+  String get memoryMain;
+
+  /// No description provided for @memoryWiki.
+  ///
+  /// In zh, this message translates to:
+  /// **'知识页讨论'**
+  String get memoryWiki;
+
+  /// No description provided for @memoryGoal.
+  ///
+  /// In zh, this message translates to:
+  /// **'目标讨论'**
+  String get memoryGoal;
+
+  /// No description provided for @memoryPending.
+  ///
+  /// In zh, this message translates to:
+  /// **'待确认'**
+  String get memoryPending;
+
+  /// No description provided for @memoryActive.
+  ///
+  /// In zh, this message translates to:
+  /// **'已确认'**
+  String get memoryActive;
+
+  /// No description provided for @memoryConflicted.
+  ///
+  /// In zh, this message translates to:
+  /// **'存在冲突'**
+  String get memoryConflicted;
+
+  /// No description provided for @memorySuperseded.
+  ///
+  /// In zh, this message translates to:
+  /// **'已被替代'**
+  String get memorySuperseded;
+
+  /// No description provided for @memoryDismissed.
+  ///
+  /// In zh, this message translates to:
+  /// **'已否定'**
+  String get memoryDismissed;
+
+  /// No description provided for @memoryDeleted.
+  ///
+  /// In zh, this message translates to:
+  /// **'已删除'**
+  String get memoryDeleted;
+
+  /// No description provided for @memoryExcluded.
+  ///
+  /// In zh, this message translates to:
+  /// **'已排除'**
+  String get memoryExcluded;
+
+  /// No description provided for @memoryIncluded.
+  ///
+  /// In zh, this message translates to:
+  /// **'未排除'**
+  String get memoryIncluded;
+
+  /// No description provided for @memorySemantic.
+  ///
+  /// In zh, this message translates to:
+  /// **'事实记忆'**
+  String get memorySemantic;
+
+  /// No description provided for @memoryProcedural.
+  ///
+  /// In zh, this message translates to:
+  /// **'做法与偏好'**
+  String get memoryProcedural;
+
+  /// No description provided for @memoryReference.
+  ///
+  /// In zh, this message translates to:
+  /// **'仅作参考'**
+  String get memoryReference;
+
+  /// No description provided for @memoryConversation.
+  ///
+  /// In zh, this message translates to:
+  /// **'所属会话'**
+  String get memoryConversation;
+
+  /// No description provided for @memoryPersonal.
+  ///
+  /// In zh, this message translates to:
+  /// **'个人通用'**
+  String get memoryPersonal;
+
+  /// No description provided for @memoryCurrent.
+  ///
+  /// In zh, this message translates to:
+  /// **'来源有效'**
+  String get memoryCurrent;
+
+  /// No description provided for @memoryStale.
+  ///
+  /// In zh, this message translates to:
+  /// **'来源已变化'**
+  String get memoryStale;
+
+  /// No description provided for @memoryUnavailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前不可用'**
+  String get memoryUnavailable;
+
+  /// No description provided for @memoryUnassessed.
+  ///
+  /// In zh, this message translates to:
+  /// **'尚未核查证据'**
+  String get memoryUnassessed;
+
+  /// No description provided for @memorySupported.
+  ///
+  /// In zh, this message translates to:
+  /// **'证据支持'**
+  String get memorySupported;
+
+  /// No description provided for @memoryContradicted.
+  ///
+  /// In zh, this message translates to:
+  /// **'证据不支持'**
+  String get memoryContradicted;
+
+  /// No description provided for @memoryInsufficient.
+  ///
+  /// In zh, this message translates to:
+  /// **'证据不足'**
+  String get memoryInsufficient;
+
+  /// No description provided for @memoryPin.
+  ///
+  /// In zh, this message translates to:
+  /// **'固定'**
+  String get memoryPin;
+
+  /// No description provided for @memoryUnpin.
+  ///
+  /// In zh, this message translates to:
+  /// **'取消固定'**
+  String get memoryUnpin;
+
+  /// No description provided for @memoryExclude.
+  ///
+  /// In zh, this message translates to:
+  /// **'排除自动使用'**
+  String get memoryExclude;
+
+  /// No description provided for @memoryInclude.
+  ///
+  /// In zh, this message translates to:
+  /// **'恢复自动使用'**
+  String get memoryInclude;
+
+  /// No description provided for @memorySalience.
+  ///
+  /// In zh, this message translates to:
+  /// **'显著性'**
+  String get memorySalience;
+
+  /// No description provided for @memoryLow.
+  ///
+  /// In zh, this message translates to:
+  /// **'低'**
+  String get memoryLow;
+
+  /// No description provided for @memoryNormal.
+  ///
+  /// In zh, this message translates to:
+  /// **'普通'**
+  String get memoryNormal;
+
+  /// No description provided for @memoryHigh.
+  ///
+  /// In zh, this message translates to:
+  /// **'高'**
+  String get memoryHigh;
+
+  /// No description provided for @memoryConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'确认记忆'**
+  String get memoryConfirm;
+
+  /// No description provided for @memoryDismiss.
+  ///
+  /// In zh, this message translates to:
+  /// **'否定记忆'**
+  String get memoryDismiss;
+
+  /// No description provided for @memoryRestore.
+  ///
+  /// In zh, this message translates to:
+  /// **'恢复为候选'**
+  String get memoryRestore;
+
+  /// No description provided for @memoryConflict.
+  ///
+  /// In zh, this message translates to:
+  /// **'标记冲突'**
+  String get memoryConflict;
+
+  /// No description provided for @memorySupersede.
+  ///
+  /// In zh, this message translates to:
+  /// **'由新记忆替代'**
+  String get memorySupersede;
+
+  /// No description provided for @memoryLinkGoal.
+  ///
+  /// In zh, this message translates to:
+  /// **'关联目标'**
+  String get memoryLinkGoal;
+
+  /// No description provided for @memoryUnlinkGoal.
+  ///
+  /// In zh, this message translates to:
+  /// **'解除关联'**
+  String get memoryUnlinkGoal;
+
+  /// No description provided for @memoryGoalReason.
+  ///
+  /// In zh, this message translates to:
+  /// **'说明这条记忆如何适用于该目标'**
+  String get memoryGoalReason;
+
+  /// No description provided for @memoryNoGoals.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无可关联的活跃目标'**
+  String get memoryNoGoals;
+
+  /// No description provided for @memoryNoReplacement.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有符合条件的替代记忆'**
+  String get memoryNoReplacement;
+
+  /// No description provided for @memoryChooseReplacement.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择同会话、同主体关系的新记忆'**
+  String get memoryChooseReplacement;
+
+  /// No description provided for @memoryEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有符合条件的记忆'**
+  String get memoryEmpty;
+
+  /// No description provided for @memoryEmptyHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'请调整搜索词或筛选条件，再查看记忆。'**
+  String get memoryEmptyHelp;
+
+  /// No description provided for @memoryNoSaved.
+  ///
+  /// In zh, this message translates to:
+  /// **'尚未创建记忆'**
+  String get memoryNoSaved;
+
+  /// No description provided for @memoryNoSavedHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'这里显示已创建的记忆条目，不会自动列出旧聊天或知识页。目前可在对话中请 AI 基于已保存且有来源的知识页提出记忆候选；创建候选不等于确认或允许自动使用。'**
+  String get memoryNoSavedHelp;
+
+  /// No description provided for @memorySelect.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择一条记忆查看内容'**
+  String get memorySelect;
+
+  /// No description provided for @memorySources.
+  ///
+  /// In zh, this message translates to:
+  /// **'来源依据'**
+  String get memorySources;
+
+  /// No description provided for @memoryNoContent.
+  ///
+  /// In zh, this message translates to:
+  /// **'该版本正文当前不可展示；已删除、否定或正文版本已变化。'**
+  String get memoryNoContent;
+
+  /// No description provided for @memoryTruncated.
+  ///
+  /// In zh, this message translates to:
+  /// **'这里只展示部分内容。'**
+  String get memoryTruncated;
+
+  /// No description provided for @memoryNoSources.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有可展示的来源摘录'**
+  String get memoryNoSources;
+
+  /// No description provided for @memorySourceHidden.
+  ///
+  /// In zh, this message translates to:
+  /// **'来源已变化或条目已停用，摘录不展示。'**
+  String get memorySourceHidden;
+
+  /// No description provided for @memoryDecisions.
+  ///
+  /// In zh, this message translates to:
+  /// **'最近 20 条人工决定'**
+  String get memoryDecisions;
+
+  /// No description provided for @memoryNoDecisions.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无人工决定'**
+  String get memoryNoDecisions;
+
+  /// No description provided for @memoryNoLinks.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂未关联目标'**
+  String get memoryNoLinks;
+
+  /// No description provided for @memoryScope.
+  ///
+  /// In zh, this message translates to:
+  /// **'适用范围'**
+  String get memoryScope;
+
+  /// No description provided for @memoryVersion.
+  ///
+  /// In zh, this message translates to:
+  /// **'版本'**
+  String get memoryVersion;
+
+  /// No description provided for @memoryOwnerUnavailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'所属会话当前不可用，可查看记录；恢复会话后才能审阅修改。'**
+  String get memoryOwnerUnavailable;
+
+  /// No description provided for @memoryReviewTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'核对记忆修改'**
+  String get memoryReviewTitle;
+
+  /// No description provided for @memoryReviewHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'批准仅应用本次展示的操作和版本。确认、显著性与目标关联都不授予执行权限。'**
+  String get memoryReviewHelp;
+
+  /// No description provided for @memoryApprove.
+  ///
+  /// In zh, this message translates to:
+  /// **'批准修改'**
+  String get memoryApprove;
+
+  /// No description provided for @memoryReviewFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'修改未完成，请关闭后刷新详情重新审阅。'**
+  String get memoryReviewFailed;
+
+  /// No description provided for @memoryDeleteHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除会停用此记忆并保留人工决定，原始事件与知识页仍保留。'**
+  String get memoryDeleteHelp;
+
+  /// No description provided for @memoryMaintenance.
+  ///
+  /// In zh, this message translates to:
+  /// **'检查维护线索'**
+  String get memoryMaintenance;
+
+  /// No description provided for @memoryMaintenanceHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'检查此会话可见的最新至多 200 条未删除记忆。重复与断链仅供人工判断，不会自动合并或删除。'**
+  String get memoryMaintenanceHelp;
+
+  /// No description provided for @memoryScanned.
+  ///
+  /// In zh, this message translates to:
+  /// **'已检查条目'**
+  String get memoryScanned;
+
+  /// No description provided for @memoryExactDuplicates.
+  ///
+  /// In zh, this message translates to:
+  /// **'相同正文组'**
+  String get memoryExactDuplicates;
+
+  /// No description provided for @memorySharedSources.
+  ///
+  /// In zh, this message translates to:
+  /// **'共享来源组'**
+  String get memorySharedSources;
+
+  /// No description provided for @memoryNearDuplicates.
+  ///
+  /// In zh, this message translates to:
+  /// **'词面相近线索'**
+  String get memoryNearDuplicates;
+
+  /// No description provided for @memoryBrokenSources.
+  ///
+  /// In zh, this message translates to:
+  /// **'来源变化或不可用'**
+  String get memoryBrokenSources;
+
+  /// No description provided for @memoryItems.
+  ///
+  /// In zh, this message translates to:
+  /// **'条记忆'**
+  String get memoryItems;
+
   /// No description provided for @initializationFailed.
   ///
   /// In zh, this message translates to:
@@ -1607,13 +2081,13 @@ abstract class AppLocalizations {
   /// No description provided for @conversationCount.
   ///
   /// In zh, this message translates to:
-  /// **'对话{count}次'**
+  /// **'对话 {count} 次'**
   String conversationCount(int count);
 
   /// No description provided for @todoCountItems.
   ///
   /// In zh, this message translates to:
-  /// **'待办{count}项'**
+  /// **'待办 {count}'**
   String todoCountItems(int count);
 
   /// No description provided for @copyAll.
@@ -2654,6 +3128,12 @@ abstract class AppLocalizations {
   /// **'🎯 我们来聊聊这个目标。我可以帮你拆解行动、检视困难、回顾完成标准；需要暂停、标记达成或重启目标时，我会先给出提议，等你确认后才生效。'**
   String get goalChatWelcome;
 
+  /// No description provided for @goalPredecessorEntry.
+  ///
+  /// In zh, this message translates to:
+  /// **'以上承接自《{goal}》的 {count} 条讨论'**
+  String goalPredecessorEntry(Object goal, int count);
+
   /// No description provided for @goalPaused.
   ///
   /// In zh, this message translates to:
@@ -2867,7 +3347,7 @@ abstract class AppLocalizations {
   /// No description provided for @goalSummaryCount.
   ///
   /// In zh, this message translates to:
-  /// **'{count, plural, =0{目标} other{目标{count}}}'**
+  /// **'{count, plural, =0{目标} other{目标 {count}}}'**
   String goalSummaryCount(int count);
 
   /// No description provided for @supplementUnsupported.
@@ -7001,7 +7481,7 @@ abstract class AppLocalizations {
   /// No description provided for @l6EnterDatasete3665.
   ///
   /// In zh, this message translates to:
-  /// **'进入数据集'**
+  /// **'选择数据集'**
   String get l6EnterDatasete3665;
 
   /// No description provided for @l6CouldNotLoadSyncStatusSyncb8a20.
@@ -11456,7 +11936,7 @@ abstract class AppLocalizations {
   /// No description provided for @l6SwitchedToArg0QuitAndReopenc2285.
   ///
   /// In zh, this message translates to:
-  /// **'已切换到「{arg0}」。请完全退出并重新打开应用，即可看到同步的数据。'**
+  /// **'已选择 {arg0}，请完全退出并重新打开应用后使用。'**
   String l6SwitchedToArg0QuitAndReopenc2285(String arg0);
 
   /// No description provided for @l6JoinedDatasetArg0ItsDataIs7a081.
@@ -11902,6 +12382,18 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'用户记录 {arg0}：{arg1}'**
   String l6UserRecordArg0Arg1902d4(String arg0, String arg1);
+
+  /// No description provided for @l6SourceTitleArg0VersionArg1.
+  ///
+  /// In zh, this message translates to:
+  /// **'来源：{arg0} · 版本 {arg1}'**
+  String l6SourceTitleArg0VersionArg1(Object arg0, Object arg1);
+
+  /// No description provided for @l6UserRecordExcerptArg0.
+  ///
+  /// In zh, this message translates to:
+  /// **'用户记录：{arg0}'**
+  String l6UserRecordExcerptArg0(Object arg0);
 
   /// No description provided for @l6UnverifiedPageArg01a6ef.
   ///
@@ -12994,6 +13486,18 @@ abstract class AppLocalizations {
   /// **'扩展关注清单'**
   String get scoutExtensionWatchlist;
 
+  /// No description provided for @scoutRecentProjects.
+  ///
+  /// In zh, this message translates to:
+  /// **'近 90 天新项目'**
+  String get scoutRecentProjects;
+
+  /// No description provided for @scoutExtensionDiscovery.
+  ///
+  /// In zh, this message translates to:
+  /// **'扩展发现'**
+  String get scoutExtensionDiscovery;
+
   /// No description provided for @scoutUsTopFree.
   ///
   /// In zh, this message translates to:
@@ -13071,6 +13575,72 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'收费信息待核实'**
   String get scoutPriceUnknown;
+
+  /// No description provided for @scoutAffiliateConfirmed.
+  ///
+  /// In zh, this message translates to:
+  /// **'Affiliate · 可申请推广返佣'**
+  String get scoutAffiliateConfirmed;
+
+  /// No description provided for @scoutAffiliateUnknown.
+  ///
+  /// In zh, this message translates to:
+  /// **'Affiliate 暂未确认'**
+  String get scoutAffiliateUnknown;
+
+  /// No description provided for @scoutAffiliateUnavailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'官网明确关闭或不提供 Affiliate'**
+  String get scoutAffiliateUnavailable;
+
+  /// No description provided for @scoutAffiliateStale.
+  ///
+  /// In zh, this message translates to:
+  /// **'Affiliate 证据待重新核实'**
+  String get scoutAffiliateStale;
+
+  /// No description provided for @scoutAffiliateProgram.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看推广计划与申请条件'**
+  String get scoutAffiliateProgram;
+
+  /// No description provided for @scoutAffiliateChecked.
+  ///
+  /// In zh, this message translates to:
+  /// **'核查时间：{time}'**
+  String scoutAffiliateChecked(String time);
+
+  /// No description provided for @scoutPurposeMissing.
+  ///
+  /// In zh, this message translates to:
+  /// **'来源未提供用途简介，可查看原始介绍。'**
+  String get scoutPurposeMissing;
+
+  /// No description provided for @scoutReadIntroduction.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看原始介绍'**
+  String get scoutReadIntroduction;
+
+  /// No description provided for @scoutFreeDownload.
+  ///
+  /// In zh, this message translates to:
+  /// **'免费下载'**
+  String get scoutFreeDownload;
+
+  /// No description provided for @scoutListedFree.
+  ///
+  /// In zh, this message translates to:
+  /// **'标价免费'**
+  String get scoutListedFree;
+
+  /// No description provided for @scoutFirstObservedOn.
+  ///
+  /// In zh, this message translates to:
+  /// **'{date} 首次进入监控'**
+  String scoutFirstObservedOn(String date);
 
   /// No description provided for @scoutWhyNow.
   ///
@@ -13653,6 +14223,186 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'值得关注'**
   String get scoutBriefHighlights;
+
+  /// No description provided for @pairingConnectNew.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接新设备'**
+  String get pairingConnectNew;
+
+  /// No description provided for @pairingJoinExisting.
+  ///
+  /// In zh, this message translates to:
+  /// **'加入已有设备'**
+  String get pairingJoinExisting;
+
+  /// No description provided for @pairingConnectHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'在有数据的设备上创建邀请，让另一台设备扫码加入。'**
+  String get pairingConnectHint;
+
+  /// No description provided for @pairingJoinHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'在这台设备上扫码或粘贴邀请，连接已有数据。'**
+  String get pairingJoinHint;
+
+  /// No description provided for @pairingIdentify.
+  ///
+  /// In zh, this message translates to:
+  /// **'识别设备'**
+  String get pairingIdentify;
+
+  /// No description provided for @pairingConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'双端确认'**
+  String get pairingConfirm;
+
+  /// No description provided for @pairingSyncData.
+  ///
+  /// In zh, this message translates to:
+  /// **'同步数据'**
+  String get pairingSyncData;
+
+  /// No description provided for @pairingDetails.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接详情'**
+  String get pairingDetails;
+
+  /// No description provided for @pairingConnectionSettings.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接设置'**
+  String get pairingConnectionSettings;
+
+  /// No description provided for @pairingPaste.
+  ///
+  /// In zh, this message translates to:
+  /// **'粘贴邀请'**
+  String get pairingPaste;
+
+  /// No description provided for @pairingAllow.
+  ///
+  /// In zh, this message translates to:
+  /// **'允许连接'**
+  String get pairingAllow;
+
+  /// No description provided for @pairingConnect.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接这台设备'**
+  String get pairingConnect;
+
+  /// No description provided for @pairingWaitingScan.
+  ///
+  /// In zh, this message translates to:
+  /// **'请在新设备上选择“加入已有设备”，扫描下方二维码。'**
+  String get pairingWaitingScan;
+
+  /// No description provided for @pairingWaitingApproval.
+  ///
+  /// In zh, this message translates to:
+  /// **'请在已有设备上核对这台设备，并允许连接。这里会自动继续。'**
+  String get pairingWaitingApproval;
+
+  /// No description provided for @pairingTransferring.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在准备并同步数据，请保持两台设备运行。连接恢复后会继续。'**
+  String get pairingTransferring;
+
+  /// No description provided for @pairingDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'已连接，首次数据已准备好'**
+  String get pairingDone;
+
+  /// No description provided for @pairingOwnerDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'新设备已连接，首次同步已完成'**
+  String get pairingOwnerDone;
+
+  /// No description provided for @pairingAnother.
+  ///
+  /// In zh, this message translates to:
+  /// **'再连接一台设备'**
+  String get pairingAnother;
+
+  /// No description provided for @pairingExpired.
+  ///
+  /// In zh, this message translates to:
+  /// **'邀请已过期，请重新生成'**
+  String get pairingExpired;
+
+  /// No description provided for @pairingRegenerate.
+  ///
+  /// In zh, this message translates to:
+  /// **'重新生成邀请'**
+  String get pairingRegenerate;
+
+  /// No description provided for @pairingRemaining.
+  ///
+  /// In zh, this message translates to:
+  /// **'邀请剩余 {minutes} 分钟'**
+  String pairingRemaining(String minutes);
+
+  /// No description provided for @pairingRetry.
+  ///
+  /// In zh, this message translates to:
+  /// **'重试连接'**
+  String get pairingRetry;
+
+  /// No description provided for @pairingChangeInvitation.
+  ///
+  /// In zh, this message translates to:
+  /// **'更换邀请'**
+  String get pairingChangeInvitation;
+
+  /// No description provided for @pairingStop.
+  ///
+  /// In zh, this message translates to:
+  /// **'停止连接'**
+  String get pairingStop;
+
+  /// No description provided for @pairingVerifyHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接前，请与已有设备核对下方公钥指纹。'**
+  String get pairingVerifyHint;
+
+  /// No description provided for @pairingLocalFingerprint.
+  ///
+  /// In zh, this message translates to:
+  /// **'请在已有设备核对本机指纹'**
+  String get pairingLocalFingerprint;
+
+  /// No description provided for @pairingNoRelay.
+  ///
+  /// In zh, this message translates to:
+  /// **'首次连接需要配置可用的中继地址。'**
+  String get pairingNoRelay;
+
+  /// No description provided for @pairingDataPrepared.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在准备数据'**
+  String get pairingDataPrepared;
+
+  /// No description provided for @syncConnectedDevices.
+  ///
+  /// In zh, this message translates to:
+  /// **'已连接 {count} 台设备'**
+  String syncConnectedDevices(String count);
+
+  /// No description provided for @syncLastRound.
+  ///
+  /// In zh, this message translates to:
+  /// **'最近一轮本机同步已运行'**
+  String get syncLastRound;
 }
 
 class _AppLocalizationsDelegate

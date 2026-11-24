@@ -73,20 +73,15 @@ String toolProgressDetails(
         for (final source in sources.take(3)) {
           if (source is! Map<String, dynamic>) continue;
           lines.add(
-            strings.l6SourceArg0VersionArg1SnapshotArg2d0032(
+            strings.l6SourceTitleArg0VersionArg1(
               (_excerpt(strings, source['title'], 80)).toString(),
               (source['version'] is num
                       ? source['version']
                       : strings.l6Unknownd9c32)
                   .toString(),
-              (_excerpt(strings, source['snapshot_id'], 80)).toString(),
             ),
           );
         }
-      }
-      final hash = _excerpt(strings, item['content_hash'], 80);
-      if (hash.isNotEmpty) {
-        lines.add(strings.l6PageHashAtRetrievalArg05808a((hash).toString()));
       }
     }
   }
@@ -95,8 +90,7 @@ String toolProgressDetails(
     for (final event in events.take(5)) {
       if (event is! Map<String, dynamic>) continue;
       lines.add(
-        strings.l6UserRecordArg0Arg1902d4(
-          (_excerpt(strings, event['event_id'], 80)).toString(),
+        strings.l6UserRecordExcerptArg0(
           (_excerpt(strings, event['excerpt'], 350)).toString(),
         ),
       );

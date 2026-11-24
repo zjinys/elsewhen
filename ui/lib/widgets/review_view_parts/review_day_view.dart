@@ -20,7 +20,7 @@ class _AnchorDateStepper extends ConsumerWidget {
         Text(
           anchor,
           style: TextStyle(
-            fontSize: 12.5,
+            fontSize: 12,
             color: AppTheme.textSecondary,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
@@ -133,7 +133,7 @@ class _ReviewCard extends StatelessWidget {
           Text(
             title,
             style: TextStyle(
-              fontSize: 11.5,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.4,
               color: AppTheme.textTertiary,
@@ -174,7 +174,7 @@ class _AiReviewCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: AppTheme.space1),
             child: Text(
               context.l10n.l6NoAiReviewForThisDay286ea,
-              style: TextStyle(fontSize: 12.5, color: AppTheme.textTertiary),
+              style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
             ),
           ),
         ],
@@ -247,7 +247,7 @@ class _DayEventsCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: AppTheme.space1),
             child: Text(
               context.l10n.l6NoEventsRecordedOnThisDay6a37a,
-              style: TextStyle(fontSize: 12.5, color: AppTheme.textTertiary),
+              style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
             ),
           ),
         ],
@@ -289,7 +289,7 @@ class _DayEventsCard extends StatelessWidget {
                     child: Text(
                       entry.rawText,
                       style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: 12,
                         color: AppTheme.textSecondary,
                         height: 1.5,
                       ),
@@ -323,7 +323,7 @@ class _TodoCard extends StatelessWidget {
                   todo.status == 'done'
                       ? Icons.check_circle_outline
                       : Icons.radio_button_unchecked,
-                  size: 14,
+                  size: DesignTokens.iconMicro,
                   color: todo.status == 'done'
                       ? AppTheme.success
                       : AppTheme.textTertiary,
@@ -335,7 +335,7 @@ class _TodoCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 12,
                       color: todo.status == 'done'
                           ? AppTheme.textTertiary
                           : AppTheme.textPrimary,
@@ -377,7 +377,7 @@ class _ReminderCard extends StatelessWidget {
               children: [
                 Icon(
                   Icons.notifications_none,
-                  size: 14,
+                  size: DesignTokens.iconMicro,
                   color: AppTheme.warning,
                 ),
                 const SizedBox(width: AppTheme.space2),
@@ -385,7 +385,7 @@ class _ReminderCard extends StatelessWidget {
                   child: Text(
                     hit.ruleContent,
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 12,
                       color: AppTheme.textPrimary,
                       height: 1.4,
                     ),
@@ -436,7 +436,7 @@ class _MemoryEchoCard extends StatelessWidget {
                 Text(
                   echo.rawText,
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 12,
                     color: AppTheme.textSecondary,
                     height: 1.5,
                   ),

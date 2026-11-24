@@ -146,7 +146,7 @@ class _LibraryState extends ConsumerState<KnowledgeLibrary> {
                           icon: Icon(
                             Icons.clear,
                             color: AppTheme.textTertiary,
-                            size: 18,
+                            size: DesignTokens.icon,
                           ),
                           onPressed: () {
                             _query.clear();
@@ -418,7 +418,7 @@ class _LibraryCard extends StatelessWidget {
                       child: Text(
                         kindLabel,
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: AppTheme.accentPrimary,
                         ),
@@ -431,7 +431,7 @@ class _LibraryCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 14.5,
+                          fontSize: 14,
                           fontWeight: FontWeight.w600,
                           height: 1.3,
                           color: AppTheme.textPrimary,
@@ -451,7 +451,7 @@ class _LibraryCard extends StatelessWidget {
                       child: Text(
                         readingLabel,
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w500,
                           color: _readingColor(),
                         ),
@@ -466,7 +466,7 @@ class _LibraryCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 12,
                       height: 1.45,
                       color: AppTheme.textSecondary,
                     ),

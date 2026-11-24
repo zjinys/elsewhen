@@ -39,7 +39,7 @@ class _EventStream extends ConsumerWidget {
                 context.l10n.l6NoEventsRecordedYetConversationsWithb4ac9,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 12.5,
+                  fontSize: 12,
                   color: AppTheme.textTertiary,
                   height: 1.6,
                 ),
@@ -110,7 +110,7 @@ class _EventList extends ConsumerWidget {
               padding: const EdgeInsets.all(AppTheme.space4),
               child: Text(
                 context.l10n.l6NoRecentlyRecordedEventsf0c62,
-                style: TextStyle(fontSize: 12.5, color: AppTheme.textTertiary),
+                style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
               ),
             ),
           );
@@ -192,7 +192,7 @@ class _EventCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 12.5,
+                          fontSize: 12,
                           color: AppTheme.textPrimary,
                           height: 1.4,
                         ),
@@ -203,7 +203,7 @@ class _EventCard extends StatelessWidget {
                         message: context.l10n.l6RecordedAwaitingAnalysis8e5e7,
                         child: Icon(
                           Icons.schedule,
-                          size: 14,
+                          size: DesignTokens.iconMicro,
                           color: AppTheme.textTertiary,
                         ),
                       ),

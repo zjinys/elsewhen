@@ -268,7 +268,7 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
                                   children: [
                                     Icon(
                                       Icons.auto_awesome_outlined,
-                                      size: 18,
+                                      size: DesignTokens.icon,
                                       color: AppTheme.accentPrimary,
                                     ),
                                     const SizedBox(width: 6),

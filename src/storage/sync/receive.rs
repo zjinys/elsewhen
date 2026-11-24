@@ -49,14 +49,13 @@ impl Store {
         };
         let identity = self.sync_identity()?.context("sync_not_initialized")?;
         ensure!(op.dataset_id == identity.dataset_id, "sync_wrong_dataset");
-        ensure!(
-            op.origin_device_id == authenticated_device,
-            "sync_sender_mismatch"
-        );
         let tx = self.begin_write_transaction()?;
         self.require_local_sync_membership()?;
-        let active:bool=self.connection.query_row("SELECT EXISTS(SELECT 1 FROM sync_members WHERE device_id=?1 AND stream_id=?2 AND active=1)",params![authenticated_device,op.origin_stream_id],|r|r.get(0))?;
-        ensure!(active, "sync_member_not_authorized");
+        self.require_sync_operation_source(
+            authenticated_device,
+            &op.origin_device_id,
+            &op.origin_stream_id,
+        )?;
         let local_clock = self.replica_logical_clock()?;
         let payload = serde_json::to_string(&op)?;
         let digest = hash(payload.as_bytes());
@@ -109,7 +108,7 @@ impl Store {
                     id == op.op_id && hash == digest && device == op.origin_device_id,
                     "sync_operation_content_conflict"
                 );
-                self.connection.execute("INSERT INTO sync_receipts(op_id,target_device_id,payload_hash) VALUES(?1,?2,?3) ON CONFLICT(op_id) DO UPDATE SET pending=1",params![op.op_id,op.origin_device_id,digest])?;
+                self.connection.execute("INSERT INTO sync_receipts(op_id,target_device_id,payload_hash) VALUES(?1,?2,?3) ON CONFLICT(op_id) DO UPDATE SET pending=1,target_device_id=excluded.target_device_id",params![op.op_id,authenticated_device,digest])?;
                 if let Some(tx) = tx {
                     tx.commit()?;
                 }
@@ -121,16 +120,21 @@ impl Store {
             );
             let (queued, queued_bytes): (i64,i64) = self.connection.query_row(
                 "SELECT COUNT(*),COALESCE(SUM(length(CAST(payload AS BLOB))),0) FROM sync_operations WHERE origin_device_id=?1 AND state IN ('waiting','rejected')",
-                [authenticated_device], |r| Ok((r.get(0)?,r.get(1)?)),
+                [&op.origin_device_id], |r| Ok((r.get(0)?,r.get(1)?)),
             )?;
             ensure!(
                 queued < 1000 && queued_bytes + payload.len() as i64 <= 32 * 1024 * 1024,
                 "sync_inbox_source_limit"
             );
-            self.connection.execute("INSERT INTO sync_operations(op_id,origin_device_id,origin_stream_id,origin_sequence,payload,payload_hash,local,state) VALUES(?1,?2,?3,?4,?5,?6,0,'waiting')",params![op.op_id,op.origin_device_id,op.origin_stream_id,op.origin_sequence,payload,digest])?;
+            self.connection.execute("INSERT INTO sync_operations(op_id,origin_device_id,origin_stream_id,origin_sequence,payload,payload_hash,local,state,received_from_device_id) VALUES(?1,?2,?3,?4,?5,?6,0,'waiting',?7)",params![op.op_id,op.origin_device_id,op.origin_stream_id,op.origin_sequence,payload,digest,authenticated_device])?;
         }
         let report = self.sync_drain_waiting()?;
+        self.connection.execute(
+            "UPDATE sync_operations SET received_from_device_id=?2 WHERE op_id=?1 AND local=0",
+            params![op.op_id, authenticated_device],
+        )?;
         self.queue_sync_receipt(&op.op_id)?;
+        self.queue_sync_forwarding(&op.op_id)?;
         if let Some(tx) = tx {
             tx.commit()?;
         }
@@ -211,6 +215,7 @@ impl Store {
                         self.connection.execute("UPDATE sync_replica SET logical_clock=MAX(logical_clock,?1) WHERE singleton=1",[op.logical_clock])?;
                         self.connection.execute("UPDATE sync_frontiers SET applied_sequence=?2 WHERE origin_stream_id=?1",params![op.origin_stream_id,op.origin_sequence])?;
                         self.queue_sync_receipt(&op.op_id)?;
+                        self.queue_sync_forwarding(&op.op_id)?;
                         progressed = true;
                     }
                 }

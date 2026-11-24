@@ -1,67 +1,251 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:material_ui/material_ui.dart';
 
 import '../theme/app_theme.dart';
 
-/// 统一的操作反馈 toast：替代散落各处直接 new SnackBar 的写法。
-///
-/// 定位纪律：右上角（惯例通知位）——离主操作区（底部输入条/按钮）
-/// 最远，不盖操作区，也不和手势条打架；移动端窄屏时右上角与居中
-/// 近似等效（胶囊几乎占满宽度）。胶囊 + 语义色发光边，深浅模式都可读。
-///
-/// 视觉跟随全局 snackBarTheme（胶囊 + accent 边），这里补语义色与图标：
-/// success = success 色边 + 勾；error = error 色边 + 感叹号；info 走
-/// 默认 accent 边。duration 默认 3 秒，错误给 4 秒（caller 可覆盖）。
+/// All operation feedback uses the root overlay, independent of the current
+/// scaffold, dialog or keyboard. SnackBar is retained only as a message payload
+/// for existing callers (content, actions, duration); it is never laid out.
+class FeedbackToast {
+  FeedbackToast._(this._overlay, this._themes);
+
+  final OverlayState _overlay;
+  final CapturedThemes _themes;
+  static final _active = Expando<_ToastEntry>();
+
+  static FeedbackToast of(BuildContext context) {
+    final toast = maybeOf(context);
+    assert(toast != null, 'Operation feedback requires a Navigator overlay.');
+    return toast!;
+  }
+
+  static FeedbackToast? maybeOf(BuildContext context) {
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlay == null) return null;
+    return FeedbackToast._(
+      overlay,
+      InheritedTheme.capture(from: context, to: overlay.context),
+    );
+  }
+
+  void dismiss() => _active[_overlay]?.close();
+
+  Future<void> show(SnackBar message, {FeedbackKind? kind}) {
+    if (!_overlay.mounted) return Future.value();
+    dismiss();
+    final entry = _ToastEntry();
+    entry.overlay = OverlayEntry(
+      builder: (_) => _themes.wrap(
+        _FeedbackSurface(
+          message: message,
+          kind:
+              kind ??
+              (message.backgroundColor == AppTheme.error
+                  ? FeedbackKind.error
+                  : FeedbackKind.info),
+          entry: entry,
+        ),
+      ),
+    );
+    _active[_overlay] = entry;
+    _overlay.insert(entry.overlay);
+    return entry.closed.future;
+  }
+}
+
+class _ToastEntry {
+  late final OverlayEntry overlay;
+  final closed = Completer<void>();
+  bool _removed = false;
+
+  void close() {
+    if (_removed) return;
+    _removed = true;
+    overlay.remove();
+    overlay.dispose();
+    if (!closed.isCompleted) closed.complete();
+  }
+}
+
+/// Unified text-only entry point with semantic styling.
 Future<void> showFeedbackToast(
   BuildContext context, {
   required String message,
   FeedbackKind kind = FeedbackKind.info,
   Duration? duration,
-}) async {
-  final color = switch (kind) {
-    FeedbackKind.success => AppTheme.success,
-    FeedbackKind.error => AppTheme.error,
-    FeedbackKind.info => AppTheme.accentPrimary,
-  };
-  final icon = switch (kind) {
-    FeedbackKind.success => Icons.check_circle_outline,
-    FeedbackKind.error => Icons.error_outline,
-    FeedbackKind.info => Icons.info_outline,
-  };
-  // 顶栏（CustomTitleBar）已吞掉系统状态栏内垫，悬浮层用 Scaffold 的
-  // 实际可视顶边即可；桌面为 0，移动端把状态栏高度加上避免被裁。
-  final topInset = MediaQuery.paddingOf(context).top;
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Row(
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: AppTheme.space2),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+}) => FeedbackToast.of(context).show(
+  SnackBar(
+    content: Text(message),
+    duration: duration ?? Duration(seconds: kind == FeedbackKind.error ? 4 : 3),
+  ),
+  kind: kind,
+);
+
+enum FeedbackKind { success, error, info }
+
+class _FeedbackSurface extends StatefulWidget {
+  const _FeedbackSurface({
+    required this.message,
+    required this.kind,
+    required this.entry,
+  });
+  final SnackBar message;
+  final FeedbackKind kind;
+  final _ToastEntry entry;
+
+  @override
+  State<_FeedbackSurface> createState() => _FeedbackSurfaceState();
+}
+
+class _FeedbackSurfaceState extends State<_FeedbackSurface> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.message.onVisible?.call();
+      _startTimer();
+    });
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    // Action feedback remains until explicitly dismissed. Screen-reader users
+    // also need time to inspect its content, which may itself contain buttons.
+    if (widget.message.persist || MediaQuery.accessibleNavigationOf(context)) {
+      return;
+    }
+    _timer = Timer(widget.message.duration, widget.entry.close);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    if (!widget.entry.closed.isCompleted) widget.entry.closed.complete();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final color = switch (widget.kind) {
+      FeedbackKind.success => AppTheme.success,
+      FeedbackKind.error => colors.error,
+      FeedbackKind.info => colors.primary,
+    };
+    final icon = switch (widget.kind) {
+      FeedbackKind.success => Icons.check_circle_outline,
+      FeedbackKind.error => Icons.error_outline,
+      FeedbackKind.info => Icons.info_outline,
+    };
+    final action = widget.message.action;
+    return Positioned.fill(
+      child: SafeArea(
+        minimum: const EdgeInsets.all(12),
+        child: Align(
+          alignment: Alignment.topRight,
+          child: LayoutBuilder(
+            builder: (context, constraints) => SizedBox(
+              width: math.min(400, constraints.maxWidth),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: math.min(240, constraints.maxHeight),
+                ),
+                child: Semantics(
+                  liveRegion: true,
+                  child: MouseRegion(
+                    onEnter: (_) => _timer?.cancel(),
+                    onExit: (_) => _startTimer(),
+                    child: Listener(
+                      onPointerDown: (_) => _timer?.cancel(),
+                      onPointerUp: (_) => _startTimer(),
+                      onPointerCancel: (_) => _startTimer(),
+                      child: Material(
+                        key: const ValueKey('feedback-toast'),
+                        color: colors.surfaceContainerHigh,
+                        elevation: 6,
+                        shadowColor: colors.shadow.withValues(alpha: .2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: colors.outlineVariant),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                            left: 14,
+                            top: 4,
+                            bottom: 4,
+                            right: 4,
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 12),
+                                child: Icon(icon, size: 18, color: color),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
+                                  child: SingleChildScrollView(
+                                    child: DefaultTextStyle(
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium!
+                                          .copyWith(
+                                            color: colors.onSurface,
+                                            fontSize: 13,
+                                            height: 1.5,
+                                          ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          widget.message.content,
+                                          if (action != null)
+                                            TextButton(
+                                              onPressed: () {
+                                                widget.entry.close();
+                                                action.onPressed();
+                                              },
+                                              child: Text(action.label),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: MaterialLocalizations.of(context)
+                                    .closeButtonTooltip,
+                                onPressed: widget.entry.close,
+                                icon: const Icon(Icons.close, size: 16),
+                                constraints: const BoxConstraints(
+                                  minWidth: 44,
+                                  minHeight: 44,
+                                ),
+                                padding: const EdgeInsets.all(12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
-        ],
+        ),
       ),
-      behavior: SnackBarBehavior.floating,
-      // 右上角惯例位：贴顶贴右。SnackBar 无 alignment 参数（版本限制），
-      // 用大左 margin 把胶囊推到右侧实现；长文案在窄屏下自动占满可用
-      // 宽度，不会溢出。
-      margin: EdgeInsets.fromLTRB(120, 12 + topInset, 16, 0),
-      duration: duration ?? const Duration(seconds: 3),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-        side: BorderSide(color: color.withValues(alpha: 0.55)),
-      ),
-      backgroundColor: AppTheme.surface2.withValues(alpha: 0.98),
-      elevation: 8,
-    ),
-  );
+    );
+  }
 }
-
-enum FeedbackKind { success, error, info }

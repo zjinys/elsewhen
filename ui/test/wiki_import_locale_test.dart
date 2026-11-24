@@ -1,13 +1,16 @@
 import 'support/localizations.dart';
+
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:elsewhen_ui/bridge/rust_bridge_repository.dart';
 import 'package:elsewhen_ui/l10n/localization.dart';
 import 'package:elsewhen_ui/models/wiki_page.dart';
 import 'package:elsewhen_ui/widgets/wiki_page_detail_view.dart';
+import 'package:elsewhen_ui/widgets/wiki_tag_input.dart';
 import 'package:elsewhen_ui/wiki/wiki_content_editor.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/gestures.dart';
 
 class _ImportRepo extends RustBridgeRepository {
   int fetches = 0, saves = 0;
@@ -44,7 +47,10 @@ Future<ValueNotifier<Locale>> _pump(
   addTearDown(locale.dispose);
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [storageRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        storageRepositoryProvider.overrideWithValue(repo),
+        wikiTagsProvider.overrideWith((ref) async => ['烟丝', '分类']),
+      ],
       child: ValueListenableBuilder<Locale>(
         valueListenable: locale,
         builder: (_, value, _) => MaterialApp(
@@ -80,6 +86,49 @@ Future<ValueNotifier<Locale>> _pump(
 }
 
 void main() {
+  testWidgets('创建主题点选中文候选后保存完整标签', (tester) async {
+    final repo = _ImportRepo();
+    final locale = await _pump(tester, repo);
+    locale.value = const Locale('zh');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('text'));
+    await tester.pumpAndSettle();
+    final tagField = find.descendant(
+      of: find.byType(WikiTagInput),
+      matching: find.byType(TextField),
+    );
+    await tester.tap(tagField);
+    await tester.pumpAndSettle();
+    await tester.enterText(tagField, '烟');
+    await tester.pumpAndSettle();
+    final pointer = await tester.startGesture(
+      tester.getCenter(find.text('烟丝')),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await pointer.up();
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<TextField>(find.byType(TextField).last).controller!.text,
+      '烟丝',
+    );
+    final state = tester.state<WikiContentEditorState>(
+      find.byType(WikiContentEditor),
+    );
+    final transaction = state.editorState.transaction;
+    transaction.insertText(
+      state.editorState.document.root.children.first,
+      0,
+      '记录相关知识',
+    );
+    await state.editorState.apply(transaction);
+    await tester.pump();
+    await tester.tap(find.text('保存到知识库'));
+    await tester.pumpAndSettle();
+    expect(repo.savedTags, ['烟丝']);
+    expect(repo.savedText, contains('记录相关知识'));
+  });
+
   testWidgets(
     'URL import validation and diagnostics follow locale without clearing input',
     (tester) async {

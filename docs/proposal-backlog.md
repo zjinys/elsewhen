@@ -1,21 +1,24 @@
 # Proposal Backlog（未完成提案总索引）
 
-更新：2026-11-17；最近实现提交：`15d3487`。本文件只记录当前缺口与归属；逐批进度、旧测试数字和历史方案见[历史快照](reference/proposal-backlog-history-2026-11-08.md)，实现依据见各条链接。
+更新：2026-11-23（记忆生命周期与受控跨会话工程）；最近实现提交：`15d3487`。本文件只记录当前缺口与归属；逐批进度、旧测试数字和历史方案见[历史快照](reference/proposal-backlog-history-2026-11-08.md)，实现依据见各条链接。
 
-当前共 **5 项工程待办、15 项验收事项、3 项后置增量、3 项方向讨论、1 项搁置**。工程完成不等于真实模型或真人设备验收通过。超长事件分块消化已交付，真实验收范围及限制见实现记录；多语言 Goal 按用户要求暂停，L7只保留验收。
+当前共 **6 项工程待办、15 项验收事项、3 项后置增量、3 项方向讨论、1 项搁置**。工程完成不等于真实模型或真人设备验收通过。超长事件分块消化已交付，真实验收范围及限制见实现记录；多语言 Goal 按用户要求暂停，L7只保留验收。
 
 维护规则：新增缺口先查已有归属，避免同一工作重复排期；推进时同步具体提案或路线，记录证据；已交付能力从工程待办移除，验收缺口单列。本文分类描述当前进度，历史提案的 `proposed` 状态不等于其全部内容尚未实现。
 
-## 工程待办（5 项）
+## 工程待办（6 项）
 
 按建议优先顺序排列，尚未开始的新项明确标注；不把人工验收算作工程开发。
 
+记忆管理补充（2026-11-23）：入口沿用用户当前的「设置 → 记忆」。当前只管理已有结构化主张；候选需由聊天工具创建，旧聊天/Wiki 的候选发现与回填未实现。对话另有历史、画像、Wiki、事件等供给通道，空列表不能代表对话没有历史信息。[FR-PES-007 统一记忆与使用可见性](requirements/product/FR-PES-007-统一记忆与使用可见性.md)已补充来源/范围分离、三类对话统一资格、候选发现/回填和本轮使用记录，仍为 Draft、未实施。该缺口归属下面的 Agent 记忆增强项，不能用页面已完成代替数据生成和可见性闭环；表内初版知识设置入口描述为历史交付位置。
+
 | 项目 | 当前缺口 | 优先级 |
 |---|---|---|
+| [Agent 记忆增强：来源、纠错与任务召回](notes/proposed/architecture/2026-11-21-agent-memory-anthropic-research.md) | **生命周期、受控跨会话、M5 保守策略及专用管理页已接线（2026-11-23）**：本地主张/来源/决定、冲突与替代、否定删除防复活；有向消息快照授权及撤回；最终请求/重试资格检查；限额自审生成审阅卡；默认关闭的 8 项/800 字符索引；访问回执。迁移 93 新增经审阅的固定/排除、人工显著性、活跃目标关联、有界重复/断链线索与回执清理，保留普通自审名额，不自我强化或自动删除。「设置 → 知识 → 记忆管理」通过专用桥接提供分页筛选、来源详情、单项控制及目标关联，沿用原版本/token 审批且不触发模型或聊天后续。[验证与限制](testing/2026-11-23-personal-memory-controls.md)。**待办**：M0/M2 真实模型等预算质量与跨会话基线、7 天/多模型/实机验收；任意自述/同义主张语义判定，M4 及 M5 排序收益对照。新表仅本地，跨设备记忆协议未实现。整体 FR 未验收完成 | 中 |
 | [个人规模同步简化](notes/proposed/architecture/2026-11-12-personal-scale-sync-simplification.md) | **设计提案，未排期**：2026-11-12 现场互锁（GC 重快照标记 × 配对 request id 校验）暴露同步子系统约 44,500 行、711 处失败关闭点、9 张 `sync_*` 状态表远超个人场景需要。提案三条主张：用“快照永远可用”替代增量追赶+GC、名册恒等于实际设备数、单 owner 降级处理器移交。P0 修复（GC 不标记配对中设备、卡死 building 导出可接管，迁移 v81）已交付并合入本条；P1 按 §3.1→§3.2→§3.3 推进 | 高 |
 | [待办讨论与 Wiki 结果](notes/proposed/architecture/2026-11-10-work-item-discussion-and-wiki-outcomes.md) | **设计草案，未实施/排期**：建议 A 先分离专属讨论与参考知识、修实时状态及旧关联，覆盖同步与过程页隔离；B 后置可选执行结果录入与已有消化/依据回链。保留 todos，不再默认推进[旧提案](notes/proposed/architecture/2026-09-22-work-items-as-first-class-pages.md)的全量页面化/导航重构 | 中 |
 | [Wayland 窗口恢复](notes/proposed/bug-fix/2026-10-10-window-geometry-wayland.md) | 关闭时补存已实现。恢复侧仍需 compositor 实机取证后决定尺寸/位置策略，不以重复 `setBounds` 认定修复 | 中 |
-| [数据监控与情报采集](notes/proposed/product/2026-11-15-watcher-data-collection-and-analysis.md) | **商机研究工程推进中（2026-11-19）**：主对话速览已收敛为最多三条产品信号，无可靠新证据保持安静；：[O0–O7 路线](roadmap/2026-11-17-scout-opportunity-research-roadmap.md)已接通成功观察/续传、产品归并与窗口趋势、发现/个人研究、人工证据/可选 AI 候选、手动主题和主动偏好；O0.2/O0.3/O1.3/O3.4/O6.2 工程项完成，其余缺口逐项保留。专项 Workers 58、Rust Scout 17 + 同步 2、Flutter 36 通过，1 万产品/100 万观察本地查询已测；全量仍有失败。三源单轮通过，不代替连续 7/30 天、20 真实模型审阅、真人/用户实验与正式发布；见[验收记录](testing/2026-11-17-scout-research-acceptance.md)。自动评价/主题建议、草稿重启恢复与部分研究回链待补；多 token/多服务器及未批准方向讨论仍按原案后置。 | 中 |
+| [数据监控与情报采集](notes/proposed/product/2026-11-15-watcher-data-collection-and-analysis.md) | **商机研究工程推进中（2026-11-20）**：发现页补来源多选、跨源有界分页去重、自适应卡片与相对拉取时间；主对话速览已收敛为最多三条产品信号，无可靠新证据保持安静；[O0–O7 路线](roadmap/2026-11-17-scout-opportunity-research-roadmap.md)已接通成功观察/续传、产品归并与窗口趋势、发现/个人研究、人工证据/可选 AI 候选、手动主题和主动偏好；O0.2/O0.3/O1.3/O3.4/O6.2 工程项完成，其余缺口逐项保留。专项 Workers 58、Rust Scout 17 + 同步 2、Flutter 36 通过，1 万产品/100 万观察本地查询已测；全量仍有失败。三源单轮通过，不代替连续 7/30 天、20 真实模型审阅、真人/用户实验与正式发布；见[验收记录](testing/2026-11-17-scout-research-acceptance.md)。自动评价/主题建议与部分研究回链待补；多 token/多服务器及未批准方向讨论仍按原案后置。 | 中 |
 | [按需翻译：知识页与情报条目共用](notes/proposed/architecture/2026-11-17-on-demand-translation.md) | **设计提案，未排期（2026-11-17）**：知识页译文落派生产物（`area=derivative`、`content_type='译文'`、`based_on=原页`）而不进正文修订，避开 `escalate_page_task` 的「翻译→改写」误升级；情报条目**实际只有 GitHub `description` 与 Product Hunt `summary` 两个源有可翻文本（631/994 条）**，CWS / Gumroad / App Store 的 payload 只有专名、数值、日期与 URL，不为它们写分支；产品名一律不译。，块级缓存按 `(source_hash, target_locale, prompt_dependency)` 命中，迁移 88。**评价正文当前未采集**（库里只有 `ratings_average` / `ratings_count`），故翻译评价目前是空操作；若将来采也只翻正文且不得进 `fields`（会造假 changed）。首版用现有 LLM provider，不引入专用翻译引擎，判断依据与四条重估条件见提案 §11。尚未开始实现；前置是先做真实材料质量基线 | 中 |
 
 ## 工程完成，待验收（15 项）
@@ -37,7 +40,7 @@
 | [记事本页](notes/proposed/product/2026-10-19-notepad-memo-pages.md) | `memo`、AI 隔离、创建/追加与 Flutter 入口已实现；待真人 GUI 验收。旧 Capture 模式已删除，不恢复该验收项 |
 | [定时提醒](notes/proposed/architecture/2026-10-19-timed-reminders.md) | 持久提醒、5 秒 tick、稍后提醒、解析及确认制工具已实现；待真人 GUI 验收。系统通知为后置增量 |
 | [习惯主动问候](notes/proposed/product/2026-10-22-proactive-habit-checkins.md) | 问候、聊聊预填、限流/忽略反馈、设置与 owner 单写已实现；待真人 GUI 和多设备验收 |
-| [多设备同步 S06](notes/proposed/architecture/2026-09-30-multi-device-sync.md) | 核心同步与后续 relay 改造已有交付记录；综合真人门禁按[人工测试路线](roadmap/2026-10-14-sync-manual-test-roadmap.md)与[S06 清单](roadmap/2026-10-14-s06-human-gate-checklist.md)完成。D6/D7 已补齐旧副本显式清理与合法加入期消息等待，Rust1222单元+2集成、Relay49项及15项变异验证完成；Flutter617项、analyze与Release／FRB／本地化门禁通过，证据见[生命周期路线C13–C17](roadmap/2026-10-27-sync-lifecycle-boundaries-roadmap.md)。按[双端测试步骤](testing/2026-11-10-sync-d6-d7-manual-test.md)验收系统密钥、清理恢复和录入期间加入收敛 |
+| [多设备同步 S06](notes/proposed/architecture/2026-09-30-multi-device-sync.md) | 核心同步与后续 relay 改造已有交付记录；综合真人门禁按[人工测试路线](roadmap/2026-10-14-sync-manual-test-roadmap.md)与[S06 清单](roadmap/2026-10-14-s06-human-gate-checklist.md)完成。D6/D7 已补齐旧副本显式清理与合法加入期消息等待，Rust1222单元+2集成、Relay49项及15项变异验证完成；Flutter617项、analyze与Release／FRB／本地化门禁通过，证据见[生命周期路线C13–C17](roadmap/2026-10-27-sync-lifecycle-boundaries-roadmap.md)。按[双端测试步骤](testing/2026-11-10-sync-d6-d7-manual-test.md)验收系统密钥、清理恢复和录入期间加入收敛；2026-11-19 增补稳定快照续传、owner 转发逐跳确认、AI/同步交替与 UI 竞态修复，工程证据见[同步修复记录](notes/implemented/bug-fix/2026-11-19-sync-resume-routing-and-scheduling.md)，真人门禁不变 |
 | [AI 对话体验](notes/proposed/architecture/2026-09-30-ai-chat-experience.md) | C00–C09 工程及合成场景完成；待[人工验收 S1–S6](roadmap/2026-10-04-ai-chat-manual-acceptance-roadmap.md) |
 
 ## 后置增量（3 项）

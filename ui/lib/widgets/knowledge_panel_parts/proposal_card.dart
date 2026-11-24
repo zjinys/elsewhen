@@ -128,7 +128,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                     child: Text(
                       p.title,
                       style: const TextStyle(
-                        fontSize: 14.5,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -170,7 +170,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
               Text(
                 p.reason,
                 style: TextStyle(
-                  fontSize: 12.5,
+                  fontSize: 12,
                   color: AppTheme.textSecondary,
                   height: 1.45,
                 ),
@@ -289,7 +289,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                                 Text(
                                   context.l10n.l6OriginalParagraphe62c3,
                                   style: TextStyle(
-                                    fontSize: 11.5,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     color: AppTheme.textTertiary,
                                   ),
@@ -315,7 +315,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                                 Text(
                                   context.l10n.l6SuggestedParagraphcd73c,
                                   style: TextStyle(
-                                    fontSize: 11.5,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     color: AppTheme.textTertiary,
                                   ),
@@ -370,7 +370,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                   subtitle: Text(
                     p.applicableWhen,
                     style: TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 12,
                       color: AppTheme.textTertiary,
                     ),
                   ),
@@ -385,7 +385,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                     padding: EdgeInsets.only(top: 4, bottom: 2),
                     child: Text(
                       context.l10n.l6WhichIssuesThisRevisionResolvesYou7c3a0,
-                      style: TextStyle(fontSize: 12.5),
+                      style: TextStyle(fontSize: 12),
                     ),
                   ),
                 for (final issue in _reviewIssues)
@@ -411,7 +411,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                   child: Text(
                     context.l10n.l6ChangesToSourceEvidenceRequireFull6139c,
                     style: TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 12,
                       color: AppTheme.textTertiary,
                     ),
                   ),
@@ -513,7 +513,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                     error: _failure!,
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.error,
-                      fontSize: 12.5,
+                      fontSize: 12,
                     ),
                   ),
                 ),
@@ -566,7 +566,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                         ? context.l10n.l6ReferenceKnowledgeSaved962eb
                         : context.l10n.l6RejectedDecisionPreserved97f65,
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 12,
                       color: AppTheme.textSecondary,
                     ),
                   ),

@@ -11,6 +11,7 @@ import '../theme/app_theme.dart';
 import '../l10n/localization.dart';
 import 'app_error_notice.dart';
 
+import '../theme/design_tokens.dart';
 part 'knowledge_workflows_parts/knowledge_library.dart';
 
 // ── 知识工作流按阅读控制/库列表拆分（纯类段平移，零行为变化）──
@@ -91,7 +92,7 @@ class _ReadingState extends ConsumerState<KnowledgeReadingControl> {
           children: [
             Icon(
               Icons.bookmark_outline,
-              size: 16,
+              size: DesignTokens.iconMicro,
               color: AppTheme.accentPrimary,
             ),
             const SizedBox(width: 8),
@@ -128,11 +129,11 @@ class _ReadingState extends ConsumerState<KnowledgeReadingControl> {
                     isDense: true,
                     icon: Icon(
                       Icons.keyboard_arrow_down_rounded,
-                      size: 18,
+                      size: DesignTokens.icon,
                       color: AppTheme.textSecondary,
                     ),
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: AppTheme.textPrimary,
                     ),
@@ -159,7 +160,7 @@ class _ReadingState extends ConsumerState<KnowledgeReadingControl> {
         Text(
           context.l10n.knowledgeReadingHelp,
           style: TextStyle(
-            fontSize: 11.5,
+            fontSize: 12,
             color: AppTheme.textTertiary,
             height: 1.3,
           ),

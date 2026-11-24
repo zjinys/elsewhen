@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elsewhen · 别时 — 航向刻度</title>
+<style>
+:root{
+  --bg:#05070C; --win:#0B0D13; --panel:#10131B; --panel2:#161A24;
+  --line:#242936; --line2:#1B1F29;
+  --tx:#E8E9EC; --tx2:#AAB0BF; --tx3:#9299A9;
+  --indigo:#5B63D3; --indigo-tx:#9BA1F2; --orange:#E9A568;
+  --radius:6px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--tx);
+  display:flex; align-items:center; justify-content:center;
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  font-size:14px; -webkit-font-smoothing:antialiased;
+}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0}
+h1,h2,h3,p,dl,dd,dt,blockquote{margin:0}
+
+.icon{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ---------- window ---------- */
+.app{
+  position:relative;
+  width:min(1320px,calc(100vw - 56px)); height:min(840px,calc(100vh - 56px));
+  background:var(--win); border:1px solid var(--line); border-radius:10px;
+  box-shadow:0 28px 80px rgba(0,0,0,.55); overflow:hidden;
+  display:flex; flex-direction:column;
+}
+
+/* ---------- top bar ---------- */
+.topbar{
+  flex:0 0 52px; height:52px; display:flex; align-items:center; gap:14px;
+  padding:0 14px 0 16px; border-bottom:1px solid var(--line); background:var(--panel);
+}
+.win-dots{display:flex;gap:7px;align-items:center}
+.win-dots i{width:10px;height:10px;border-radius:50%;border:1px solid #343A48;background:#1B202B;display:block}
+.vrule{width:1px;height:20px;background:var(--line);flex:none}
+.logo{width:112px;height:34px;display:block;flex:none}
+.cn-name{font-size:12px;color:var(--tx3);letter-spacing:.04em}
+.cur-view{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--tx2);margin-left:8px}
+.cur-view .pip{width:6px;height:6px;border-radius:50%;background:var(--indigo);display:block}
+.spacer{flex:1}
+.icon-btn{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--radius);color:var(--tx2)}
+.icon-btn:hover{background:var(--panel2);color:var(--tx)}
+.hamburger{display:none}
+
+/* ---------- body grid ---------- */
+.shell{flex:1;display:flex;min-height:0}
+
+/* ---------- sidebar ---------- */
+.sidebar{
+  width:200px;flex:0 0 200px;background:var(--panel);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;min-height:0;
+}
+.side-scroll{flex:1;overflow-y:auto;padding:18px 12px 12px}
+.side-title{font-size:13px;font-weight:600;color:var(--tx2);padding:0 8px;margin-bottom:12px}
+.tick-list{display:flex;flex-direction:column;gap:2px}
+.tick{
+  width:100%;min-height:52px;display:grid;grid-template-columns:30px minmax(0,1fr);
+  gap:10px;align-items:center;text-align:left;padding:7px 8px;border-radius:var(--radius);
+}
+.tick:hover{background:var(--panel2)}
+.track{position:relative;display:block;width:30px;height:14px}
+.track::before{content:"";position:absolute;left:1px;right:1px;top:7px;height:1px;background:#333A4A}
+.track::after{content:"";position:absolute;left:14px;top:4px;width:1px;height:7px;background:#3A4152}
+.track .dot{position:absolute;left:11px;top:4px;width:7px;height:7px;border-radius:50%;background:var(--indigo);display:block}
+.track.deviate .dot{left:21px;box-shadow:0 0 0 3px rgba(91,99,211,.16)}
+.tick-name{font-size:13px;color:var(--tx);line-height:1.45;display:block;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tick{min-height:58px}
+.tick-sub{font-size:12px;color:var(--tx3);margin-top:3px;display:block}
+.tick.deviating .tick-sub{color:var(--indigo-tx)}
+.side-div{height:1px;background:var(--line);margin:16px 8px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav-item{
+  width:100%;height:48px;display:flex;align-items:center;gap:12px;padding:0 10px;
+  border-radius:var(--radius);color:var(--tx2);font-size:14px;text-align:left;
+}
+.nav-item:hover{background:var(--panel2);color:var(--tx)}
+.nav-item.active{background:rgba(91,99,211,.13);color:var(--indigo-tx)}
+.nav-item.active .icon{stroke:var(--indigo)}
+.side-foot{padding:16px 20px 18px;border-top:1px solid var(--line)}
+.side-foot p{font-size:12px;color:var(--tx3);line-height:1.6}
+
+/* ---------- main ---------- */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--win)}
+.today{
+  flex:none;display:flex;align-items:center;gap:0;min-height:44px;
+  border-bottom:1px solid var(--line);padding:0 36px;background:var(--panel);
+}
+.today span{font-size:12px;color:var(--tx2);white-space:nowrap}
+.today .seg{padding:0 18px;border-left:1px solid var(--line);background:transparent;min-height:0;border-radius:0;display:inline}
+.today .seg:first-child{padding-left:0;border-left:0}
+.today b{font-weight:500;color:var(--tx)}
+.scroll{flex:1;overflow-y:auto;min-height:0}
+.view{display:none}
+.view.active{display:block}
+.view-inner{max-width:860px;margin:0 auto;padding:28px 36px 40px}
+.view-head{display:flex;align-items:baseline;gap:14px;margin-bottom:22px}
+.view-head h1{font-size:19px;font-weight:600;letter-spacing:-.01em}
+.view-head .meta{font-size:12px;color:var(--tx3)}
+
+/* ---------- conversation ---------- */
+.msg{display:grid;grid-template-columns:76px minmax(0,1fr);gap:16px;padding:18px 0;border-bottom:1px solid var(--line2)}
+.msg-meta{text-align:right;padding-top:3px}
+.msg-meta .who{display:block;font-size:12px;color:var(--tx3)}
+.msg-meta time{display:block;font-size:12px;color:var(--tx3);margin-top:5px;font-variant-numeric:tabular-nums}
+.msg.ai .who,.msg.proposal-row .who{color:var(--indigo-tx)}
+.msg p{font-size:15px;line-height:1.78;color:var(--tx)}
+.proposal-card{background:var(--panel);border:1px solid rgba(91,99,211,.34);border-radius:var(--radius);padding:18px}
+.proposal-card p{font-size:15px;line-height:1.78}
+.proposal-actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+.btn{
+  min-height:44px;padding:0 20px;border:1px solid var(--line);border-radius:var(--radius);
+  background:var(--panel2);color:var(--tx);font-size:14px;display:inline-flex;align-items:center;justify-content:center;
+}
+.btn:hover{border-color:#3A4256;background:#1C2130}
+.btn:active{transform:translateY(1px)}
+.proposal-result{display:none;align-items:center;gap:8px;margin-top:16px;font-size:13px;color:var(--tx2)}
+.proposal-result .icon{width:15px;height:15px;stroke:var(--indigo)}
+.proposal-card.resolved{border-color:var(--line);background:var(--win)}
+.proposal-card.resolved .proposal-actions{display:none}
+.proposal-card.resolved .proposal-result{display:flex}
+.link-btn{min-height:44px;display:inline-flex;align-items:center;color:var(--indigo-tx);font-size:13px;text-decoration:underline;text-underline-offset:3px;padding:0 2px;margin-left:6px}
+.link-btn:hover{color:#C0C4FF}
+
+/* ---------- composer ---------- */
+.composer{display:none;flex:none;border-top:1px solid var(--line);padding:12px 36px 16px;background:var(--panel)}
+.app[data-view="chat"] .composer{display:block}
+.composer-hint{font-size:12px;color:var(--tx3);display:block;margin-bottom:8px}
+.composer-row{display:flex;gap:10px;align-items:center}
+.composer input{
+  flex:1;height:44px;background:var(--win);border:1px solid var(--line);border-radius:var(--radius);
+  padding:0 14px;font-size:14px;outline:none;min-width:0;
+}
+.composer input::placeholder{color:var(--tx3)}
+.composer input:focus{border-color:var(--indigo)}
+.btn-send{height:44px;min-width:88px;background:var(--indigo);border-color:var(--indigo);color:#fff}
+.btn-send:hover{background:#6B73DF;border-color:#6B73DF}
+.thinking{display:none;font-size:12px;color:var(--tx3);margin-top:8px}
+.thinking.on{display:block}
+
+/* ---------- goals ---------- */
+.goal-list{display:flex;flex-direction:column;gap:1px;background:var(--line2);border:1px solid var(--line2);border-radius:var(--radius);overflow:hidden}
+.goal{background:var(--win);padding:20px 22px}
+.goal-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.goal-top h2{font-size:16px;font-weight:600}
+.status{font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid var(--line)}
+.status.running{color:var(--orange);border-color:rgba(233,165,104,.38)}
+.status.paused{color:var(--tx3)}
+.tag-drift{font-size:12px;color:var(--indigo-tx)}
+.goal-fields{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px 28px}
+.goal-fields>div{display:flex;gap:12px;min-width:0}
+.goal-fields dt{font-size:12px;color:var(--tx3);flex:0 0 60px}
+.goal-fields dd{font-size:14px;color:var(--tx2);line-height:1.6}
+.goal-fields dd em{font-style:normal;color:var(--orange)}
+
+/* ---------- knowledge ---------- */
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:24px}
+.chip{
+  min-height:44px;padding:0 16px;border:1px solid var(--line);border-radius:var(--radius);
+  font-size:13px;color:var(--tx2);white-space:nowrap;flex:none;
+}
+.chip:hover{background:var(--panel2)}
+.chip.active{border-color:var(--indigo);color:var(--indigo-tx);background:rgba(91,99,211,.1)}
+.kpage{border:1px solid var(--line);border-radius:var(--radius);padding:24px}
+.kpage h2{font-size:19px;font-weight:600;margin-bottom:18px}
+.krow{display:grid;grid-template-columns:80px minmax(0,1fr);gap:16px;padding:14px 0;border-top:1px solid var(--line2)}
+.kfield{font-size:12px;color:var(--tx3);padding-top:3px}
+.krow p{font-size:15px;line-height:1.75;color:var(--tx)}
+.stack{display:flex;gap:6px;margin-top:14px;flex-wrap:wrap}
+.seg{
+  min-height:44px;display:inline-flex;align-items:center;padding:0 14px;border-radius:var(--radius);
+  font-size:12px;color:var(--tx);background:var(--indigo);
+}
+.seg.s2{background:#4F56BE}
+.seg.s3{background:#424890}
+.seg.pending{
+  background:transparent;border:1px dashed rgba(91,99,211,.7);color:var(--indigo-tx);
+}
+.seg.pending:hover{background:rgba(91,99,211,.12)}
+
+/* ---------- review ---------- */
+.segmented{display:inline-flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:22px}
+.segmented button{min-width:56px;height:44px;font-size:13px;color:var(--tx2);border-right:1px solid var(--line)}
+.segmented button:last-child{border-right:0}
+.segmented button:hover{background:var(--panel2)}
+.segmented button.active{background:rgba(91,99,211,.14);color:var(--indigo-tx)}
+.review-line{font-size:14px;line-height:1.8;color:var(--tx2);padding-bottom:20px;border-bottom:1px solid var(--line2)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line2);border:1px solid var(--line2);border-radius:var(--radius);overflow:hidden;margin-top:20px}
+.stat{background:var(--win);padding:18px 16px}
+.stat b{display:block;font-size:24px;font-weight:600;color:var(--tx);line-height:1.2;font-variant-numeric:tabular-nums}
+.stat span{display:block;font-size:12px;color:var(--tx3);margin-top:8px;line-height:1.5}
+.reflect{margin-top:24px;padding:20px 22px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);font-size:15px;line-height:1.8;color:var(--tx)}
+.reflect .who{display:block;font-size:12px;color:var(--tx3);margin-bottom:8px}
+
+/* ---------- intel / sync ---------- */
+.count-line{font-size:15px;color:var(--tx);margin-bottom:6px}
+.filter-label{font-size:12px;color:var(--tx3);margin-bottom:12px}
+.sync-head{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--tx);margin-bottom:24px}
+.sync-head .pip{width:8px;height:8px;border-radius:50%;background:var(--indigo);display:block}
+.devices{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.device{display:flex;align-items:center;gap:12px;min-height:56px;padding:0 18px;background:var(--win);border-bottom:1px solid var(--line2);font-size:14px}
+.device:last-child{border-bottom:0}
+.device .icon{color:var(--tx2)}
+.note{margin-top:18px;font-size:13px;color:var(--tx3);line-height:1.7}
+
+/* ---------- review drawer ---------- */
+.review-drawer{
+  width:340px;flex:0 0 340px;background:var(--panel);border-left:1px solid var(--line);
+  display:flex;flex-direction:column;min-height:0;
+}
+.app:not(.review-open) .review-drawer{display:none}
+.drawer-head{flex:0 0 52px;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 20px;border-bottom:1px solid var(--line)}
+.drawer-head h2{font-size:14px;font-weight:600}
+.drawer-body{flex:1;overflow-y:auto;padding:22px 20px}
+.drawer-block{padding-bottom:20px;margin-bottom:20px;border-bottom:1px solid var(--line2)}
+.drawer-block:last-child{border-bottom:0;margin-bottom:0}
+.drawer-field{font-size:12px;color:var(--tx3);display:block;margin-bottom:10px}
+.drawer-block p{font-size:14px;line-height:1.75;color:var(--tx)}
+.drawer-block .btn{width:100%;margin-top:14px}
+
+/* ---------- settings popover ---------- */
+.settings-pop{
+  position:absolute;top:48px;right:14px;width:220px;background:var(--panel2);
+  border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;z-index:50;
+  box-shadow:0 18px 40px rgba(0,0,0,.5);
+}
+.settings-pop[hidden]{display:none}
+.settings-pop h3{font-size:14px;font-weight:600;margin-bottom:12px}
+.settings-pop p{font-size:13px;color:var(--tx2);line-height:1.7}
+
+/* ---------- toast ---------- */
+.toast{
+  position:absolute;left:50%;bottom:26px;transform:translate(-50%,12px);
+  background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);
+  padding:12px 18px;font-size:13px;color:var(--tx);opacity:0;pointer-events:none;transition:.22s;z-index:90;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+.scrim{display:none}
+
+/* ---------- mobile ---------- */
+@media (max-width:700px){
+  body{background:var(--win);display:block}
+  .app{width:100vw;height:100dvh;border:0;border-radius:0;box-shadow:none}
+  .topbar{height:56px;flex-basis:56px;padding:0 8px 0 10px;gap:10px}
+  .hamburger{display:inline-flex}
+  .logo{width:100px}
+  .cn-name,.cur-view{display:none}
+  .win-dots{display:none}
+  .vrule:first-of-type{display:none}
+
+  .sidebar{
+    position:fixed;top:0;left:0;bottom:0;width:280px;flex-basis:280px;z-index:60;
+    transform:translateX(-100%);transition:transform .24s ease;box-shadow:none;
+  }
+  .app.nav-open .sidebar{transform:none;box-shadow:20px 0 50px rgba(0,0,0,.5)}
+  .scrim{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;z-index:55;transition:opacity .24s}
+  .app.nav-open .scrim{opacity:1;pointer-events:auto}
+
+  .today{padding:0 16px;flex-wrap:wrap;gap:2px 0;height:auto;min-height:48px;padding-top:6px;padding-bottom:6px}
+  .today .seg{padding:0 12px}
+  .today span{font-size:12px}
+  .view-inner{padding:22px 18px 36px}
+  .msg{grid-template-columns:1fr;gap:6px;padding:16px 0}
+  .msg-meta{text-align:left;display:flex;gap:10px;align-items:baseline;padding-top:0}
+  .msg-meta time{margin-top:0}
+  .msg p{font-size:16px}
+  .proposal-card p{font-size:16px}
+  .btn{font-size:15px;min-height:46px}
+  .link-btn{font-size:14px;min-height:46px}
+  .goal-fields{grid-template-columns:1fr;gap:10px}
+  .kpage{padding:18px}
+  .krow{grid-template-columns:1fr;gap:8px}
+  .krow p{font-size:16px}
+  .review-line{font-size:16px}
+  .reflect{font-size:16px}
+  .stats{grid-template-columns:1fr 1fr}
+  .chip{font-size:14px}
+  .composer{padding:10px 16px 14px}
+  .composer input{font-size:16px}
+  .composer-hint{font-size:12px}
+
+  .review-drawer{
+    position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;flex-basis:auto;
+    height:min(72vh,540px);border-left:0;border-top:1px solid var(--line);
+    border-radius:12px 12px 0 0;z-index:70;transform:translateY(100%);transition:transform .24s ease;
+    display:flex;box-shadow:0 -20px 50px rgba(0,0,0,.5);
+  }
+  .app:not(.review-open) .review-drawer{display:flex}
+  .app.review-open .review-drawer{transform:none}
+  .drawer-head{flex-basis:56px;height:56px}
+  .settings-pop{top:52px;right:8px}
+}
+</style>
+</head>
+<body>
+
+<!-- inline icon sprite -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M19 11.5a7 7 0 0 1-7 7H8l-4 3v-4.8A7 7 0 0 1 12 4.5a7 7 0 0 1 7 7Z"/></symbol>
+  <symbol id="i-knowledge" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v16H6.5A2.5 2.5 0 0 0 4 21.5V5.5Z"/><path d="M4 18.5A2.5 2.5 0 0 1 6.5 16H19"/></symbol>
+  <symbol id="i-goal" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22"/></symbol>
+  <symbol id="i-intel" viewBox="0 0 24 24"><path d="M4 13h4l2 3h4l2-3h4"/><path d="M5 5h14l2 8v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5l2-8Z"/></symbol>
+  <symbol id="i-review" viewBox="0 0 24 24"><path d="M4 20h16"/><rect x="6" y="11" width="3" height="9" rx=".5"/><rect x="10.5" y="6" width="3" height="14" rx=".5"/><rect x="15" y="14" width="3" height="6" rx=".5"/></symbol>
+  <symbol id="i-sync" viewBox="0 0 24 24"><path d="M20 8v5h-5"/><path d="M4 16v-5h5"/><path d="M6.4 9A7 7 0 0 1 18.6 7l1.4 3"/><path d="M17.6 15A7 7 0 0 1 5.4 17L4 14"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v2.1M12 19.3v2.1M4.4 4.4l1.5 1.5M18.1 18.1l1.5 1.5M2.6 12h2.1M19.3 12h2.1M4.4 19.6l1.5-1.5M18.1 5.9l1.5-1.5"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12 20 4l-6 16-3-6-7-2Z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
+  <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="10" rx="1"/><path d="M3 18h18"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></symbol>
+</svg>
+
+<div class="app" id="app" data-view="chat">
+
+  <!-- top bar -->
+  <header class="topbar">
+    <button class="icon-btn hamburger" id="menuBtn" aria-label="打开导航"><svg class="icon"><use href="#i-menu"/></svg></button>
+    <div class="win-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="vrule"></div>
+    <svg class="logo" viewBox="0 0 720 220" aria-label="Elsewhen"><defs><linearGradient id="mark1" x1="30" y1="24" x2="200" y2="200" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#3E4453"/><stop offset="0.55" stop-color="#5A60D8"/><stop offset="1" stop-color="#7B81F0"/></linearGradient></defs><path d="M140.1 27.3 A88 88 0 1 0 195.0 87.2" fill="none" stroke="url(#mark1)" stroke-width="28" stroke-linecap="round"/><circle cx="148.6" cy="78.2" r="12" fill="#6A6FE0"/><text x="248" y="134" font-family="Inter,system-ui,sans-serif" font-size="68" font-weight="520" letter-spacing="-2.5" fill="#E8E9EC">Elsewhen</text></svg>
+    <span class="cn-name">别时</span>
+    <div class="cur-view"><span class="pip"></span><span id="curViewName">对话</span></div>
+    <div class="spacer"></div>
+    <button class="icon-btn" id="settingsBtn" aria-label="设置"><svg class="icon"><use href="#i-settings"/></svg></button>
+  </header>
+
+  <div class="settings-pop" id="settingsPop" hidden>
+    <h3>设置</h3>
+    <p>Elsewhen</p>
+    <p>别时</p>
+    <p>记录此刻，复利此生。</p>
+    <p>本地模型</p>
+  </div>
+
+  <div class="shell">
+    <!-- sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="side-scroll">
+        <div class="side-title">航向刻度</div>
+        <div class="tick-list">
+          <button class="tick" data-goto="goals">
+            <span class="track"><i class="dot"></i></span>
+            <span><span class="tick-name">发布 Elsewhen 1.0</span><span class="tick-sub">进行中 · 第 12 天</span></span>
+          </button>
+          <button class="tick deviating" data-goto="goals">
+            <span class="track deviate"><i class="dot"></i></span>
+            <span><span class="tick-name">建立稳定写作节奏</span><span class="tick-sub">偏离 · 连续 4 天未推进</span></span>
+          </button>
+          <button class="tick" data-goto="goals">
+            <span class="track"><i class="dot"></i></span>
+            <span><span class="tick-name">完成《地方与国家》阅读笔记</span><span class="tick-sub">暂停 · 8 天前暂停</span></span>
+          </button>
+        </div>
+        <div class="side-div"></div>
+        <nav class="nav" id="nav">
+          <button class="nav-item active" data-view="chat"><svg class="icon"><use href="#i-chat"/></svg>对话</button>
+          <button class="nav-item" data-view="knowledge"><svg class="icon"><use href="#i-knowledge"/></svg>知识</button>
+          <button class="nav-item" data-view="goals"><svg class="icon"><use href="#i-goal"/></svg>目标</button>
+          <button class="nav-item" data-view="intel"><svg class="icon"><use href="#i-intel"/></svg>情报</button>
+          <button class="nav-item" data-view="review"><svg class="icon"><use href="#i-review"/></svg>回顾</button>
+          <button class="nav-item" data-view="sync"><svg class="icon"><use href="#i-sync"/></svg>同步</button>
+        </nav>
+      </div>
+      <div class="side-foot"><p>记录此刻，复利此生。</p></div>
+    </aside>
+
+    <!-- main -->
+    <main class="main">
+      <div class="today" id="todayBar">
+        <span class="seg"><b>今天 · 11 月 22 日 周日</b></span>
+        <span class="seg">今日 4 条记录 · 1,260 tokens · 本地模型</span>
+        <span class="seg">目标：发布 Elsewhen 1.0 · 第 12 天 / 共 30 天</span>
+      </div>
+
+      <div class="scroll">
+        <!-- 对话 -->
+        <section class="view active" data-view="chat">
+          <div class="view-inner">
+            <header class="view-head"><h1>对话</h1></header>
+
+            <article class="msg user">
+              <div class="msg-meta"><span class="who">记录</span><time>09:12</time></div>
+              <p>今天把同步的冲突处理逻辑跑通了，中途发现快照 resumed 的边界其实在 transport 层，不在 engine。</p>
+            </article>
+            <article class="msg ai">
+              <div class="msg-meta"><span class="who">AI</span><time>09:12</time></div>
+              <p>这条我记进『Elsewhen 1.0 / 同步稳定性』了。你之前 10-24 的复盘里也写过 transport 边界，这次算是第二次证据。</p>
+            </article>
+            <article class="msg user">
+              <div class="msg-meta"><span class="who">记录</span><time>13:40</time></div>
+              <p>下午想专心写发布说明，但老被打断。是不是该把目标从 3 个减到 2 个？</p>
+            </article>
+            <article class="msg proposal-row">
+              <div class="msg-meta"><span class="who">AI · 提议</span><time>13:41</time></div>
+              <div class="proposal-card" id="proposalCard">
+                <p>检测到『发布 Elsewhen 1.0』已 3 天没有具体抓手推进。建议：把『写作节奏』暂停，本周只保留发布目标。你决定。</p>
+                <div class="proposal-actions">
+                  <button class="btn decide" data-decision="adopt">采纳</button>
+                  <button class="btn decide" data-decision="ignore">忽略</button>
+                  <button class="btn decide" data-decision="later">先放着</button>
+                </div>
+                <div class="proposal-result" id="proposalResult"><svg class="icon"><use href="#i-check"/></svg><span id="proposalResultText"></span></div>
+              </div>
+            </article>
+            <article class="msg user">
+              <div class="msg-meta"><span class="who">记录</span><time>20:05</time></div>
+              <p>重读《置身事内》，里面讲地方政府激励那段，和我做工具的取舍其实是一个结构。</p>
+            </article>
+            <article class="msg ai">
+              <div class="msg-meta"><span class="who">AI</span><time>20:06</time></div>
+              <p>已生成知识页草稿《激励结构 → 产品取舍》，来源 2 条记录，待你审阅。<button class="link-btn open-review">审阅</button></p>
+            </article>
+          </div>
+        </section>
+
+        <!-- 目标 -->
+        <section class="view" data-view="goals">
+          <div class="view-inner">
+            <header class="view-head"><h1>三个核心目标</h1><span class="meta">同时最多 3 个</span></header>
+            <div class="goal-list">
+              <article class="goal">
+                <div class="goal-top">
+                  <span class="track"><i class="dot"></i></span>
+                  <h2>发布 Elsewhen 1.0</h2>
+                  <span class="status running">进行中</span>
+                </div>
+                <dl class="goal-fields">
+                  <div><dt>核心动力</dt><dd>把本地优先的认知工具交到具体的人手里</dd></div>
+                  <div><dt>当前抓手</dt><dd>发布说明 + 同步稳定性</dd></div>
+                  <div><dt>已知卡点</dt><dd>知识页编辑体验</dd></div>
+                  <div><dt>完成判据</dt><dd>v1.0 安装包可下载</dd></div>
+                  <div><dt>状态</dt><dd><em>进行中（第 12 天）</em></dd></div>
+                </dl>
+              </article>
+              <article class="goal">
+                <div class="goal-top">
+                  <span class="track deviate"><i class="dot"></i></span>
+                  <h2>建立稳定写作节奏</h2>
+                  <span class="status running">进行中</span>
+                  <span class="tag-drift">偏离</span>
+                </div>
+                <dl class="goal-fields">
+                  <div><dt>核心动力</dt><dd>把思考沉淀成可复用的文字</dd></div>
+                  <div><dt>当前抓手</dt><dd>每周两篇</dd></div>
+                  <div><dt>状态</dt><dd><em>进行中（第 5 天）</em> · 连续 4 天未推进</dd></div>
+                </dl>
+              </article>
+              <article class="goal">
+                <div class="goal-top">
+                  <span class="track"><i class="dot"></i></span>
+                  <h2>完成《地方与国家》阅读笔记</h2>
+                  <span class="status paused">暂停</span>
+                </div>
+                <dl class="goal-fields">
+                  <div><dt>核心动力</dt><dd>理解激励结构</dd></div>
+                  <div><dt>状态</dt><dd>暂停（8 天前暂停）</dd></div>
+                </dl>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <!-- 知识 -->
+        <section class="view" data-view="knowledge">
+          <div class="view-inner">
+            <header class="view-head"><h1>知识库</h1></header>
+            <div class="chips" id="wikiChips">
+              <button class="chip active">人物</button>
+              <button class="chip">来源</button>
+              <button class="chip">能力</button>
+              <button class="chip">成本</button>
+              <button class="chip">项目</button>
+              <button class="chip">决策</button>
+              <button class="chip">洞察</button>
+            </div>
+            <article class="kpage">
+              <h2>《激励结构 → 产品取舍》</h2>
+              <div class="krow">
+                <span class="kfield">摘要</span>
+                <p>把「谁承担成本、谁拿收益」的框架，迁移到工具设计取舍。</p>
+              </div>
+              <div class="krow">
+                <span class="kfield">证据堆叠</span>
+                <div>
+                  <p>3 条来源记录（10-24 复盘 / 11-22 对话 / 读书笔记），1 条待审阅。</p>
+                  <div class="stack">
+                    <span class="seg">10-24 复盘</span>
+                    <span class="seg s2">11-22 对话</span>
+                    <span class="seg s3">读书笔记</span>
+                    <button class="seg pending open-review">待审阅</button>
+                  </div>
+                </div>
+              </div>
+              <div class="krow">
+                <span class="kfield">派生</span>
+                <p>观点 2 条、创作素材 1 条。</p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <!-- 回顾 -->
+        <section class="view" data-view="review">
+          <div class="view-inner">
+            <header class="view-head"><h1>回顾</h1></header>
+            <div class="segmented" id="segTabs">
+              <button>日</button><button class="active">周</button><button>月</button>
+            </div>
+            <p class="review-line">本周：记录 31 条；活跃目标偏离 1 次（写作节奏，连续 4 天未推进）；新增知识页 6；审阅提议采纳 4 / 忽略 2。</p>
+            <div class="stats">
+              <div class="stat"><b>31</b><span>记录 31 条</span></div>
+              <div class="stat"><b>1</b><span>活跃目标偏离 1 次</span></div>
+              <div class="stat"><b>6</b><span>新增知识页 6</span></div>
+              <div class="stat"><b>4 / 2</b><span>审阅提议采纳 / 忽略</span></div>
+            </div>
+            <blockquote class="reflect"><span class="who">事实 + 设问</span>本周『建立稳定写作节奏』连续 4 天没有新记录。是计划变了，还是这件事先放下了？</blockquote>
+          </div>
+        </section>
+
+        <!-- 情报 -->
+        <section class="view" data-view="intel">
+          <div class="view-inner">
+            <header class="view-head"><h1>情报</h1></header>
+            <p class="count-line">3 条未读</p>
+            <p class="filter-label">来源筛选</p>
+            <div class="chips" id="intelChips">
+              <button class="chip active">全部</button>
+              <button class="chip">X</button>
+              <button class="chip">网页</button>
+              <button class="chip">手动</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 同步 -->
+        <section class="view" data-view="sync">
+          <div class="view-inner">
+            <header class="view-head"><h1>同步</h1></header>
+            <div class="sync-head"><span class="pip"></span>已追平</div>
+            <div class="devices">
+              <div class="device"><svg class="icon"><use href="#i-laptop"/></svg>这台 MacBook</div>
+              <div class="device"><svg class="icon"><use href="#i-phone"/></svg>iPhone</div>
+            </div>
+            <p class="note">端到端加密，中继只见密文。</p>
+          </div>
+        </section>
+      </div>
+
+      <!-- composer -->
+      <div class="composer">
+        <span class="composer-hint">在下方输入框开始对话</span>
+        <div class="composer-row">
+          <input id="msgInput" type="text" placeholder="输入消息...">
+          <button class="btn btn-send" id="sendBtn"><svg class="icon"><use href="#i-send"/></svg>发送</button>
+        </div>
+        <div class="thinking" id="thinking">AI 正在思考…</div>
+      </div>
+    </main>
+
+    <!-- review drawer -->
+    <aside class="review-drawer" id="reviewDrawer">
+      <div class="drawer-head">
+        <h2>审阅</h2>
+        <button class="icon-btn" id="closeReview" aria-label="关闭审阅"><svg class="icon"><use href="#i-close"/></svg></button>
+      </div>
+      <div class="drawer-body">
+        <div class="drawer-block">
+          <span class="drawer-field">待审阅</span>
+          <p>已生成知识页草稿《激励结构 → 产品取舍》，来源 2 条记录，待你审阅。</p>
+          <button class="btn" id="drawerToKnowledge">审阅</button>
+        </div>
+        <div class="drawer-block">
+          <span class="drawer-field">证据堆叠</span>
+          <p>3 条来源记录（10-24 复盘 / 11-22 对话 / 读书笔记），1 条待审阅。</p>
+        </div>
+        <div class="drawer-block">
+          <span class="drawer-field">本周审阅</span>
+          <p>审阅提议采纳 4 / 忽略 2。</p>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="scrim" id="scrim"></div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(function(){
+  var app = document.getElementById('app');
+  var toast = document.getElementById('toast');
+  var toastTimer;
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toast.classList.remove('show'); }, 2400);
+  }
+
+  /* nav switching */
+  var names = {chat:'对话',knowledge:'知识',goals:'目标',intel:'情报',review:'回顾',sync:'同步'};
+  function go(view){
+    app.dataset.view = view;
+    document.querySelectorAll('.nav-item').forEach(function(b){
+      b.classList.toggle('active', b.dataset.view === view);
+    });
+    document.querySelectorAll('.view').forEach(function(v){
+      v.classList.toggle('active', v.dataset.view === view);
+    });
+    document.getElementById('curViewName').textContent = names[view] || '';
+    document.getElementById('todayBar').style.display = (view === 'chat') ? '' : 'none';
+    app.classList.remove('nav-open');
+    document.getElementById('settingsPop').hidden = true;
+    var sc = document.querySelector('.scroll'); if(sc) sc.scrollTop = 0;
+  }
+  document.getElementById('nav').addEventListener('click', function(e){
+    var b = e.target.closest('.nav-item'); if(b) go(b.dataset.view);
+  });
+  document.querySelectorAll('.tick').forEach(function(t){
+    t.addEventListener('click', function(){ go(t.dataset.goto); });
+  });
+
+  /* mobile drawer */
+  document.getElementById('menuBtn').addEventListener('click', function(){
+    app.classList.toggle('nav-open');
+  });
+  document.getElementById('scrim').addEventListener('click', function(){
+    app.classList.remove('nav-open');
+    app.classList.remove('review-open');
+  });
+
+  /* settings */
+  var setPop = document.getElementById('settingsPop');
+  document.getElementById('settingsBtn').addEventListener('click', function(e){
+    e.stopPropagation(); setPop.hidden = !setPop.hidden;
+  });
+  document.addEventListener('click', function(e){
+    if(!setPop.hidden && !setPop.contains(e.target) && e.target.id !== 'settingsBtn') setPop.hidden = true;
+  });
+
+  /* review drawer */
+  function openReview(){ app.classList.add('review-open'); }
+  function closeReview(){ app.classList.remove('review-open'); }
+  document.querySelectorAll('.open-review').forEach(function(b){
+    b.addEventListener('click', openReview);
+  });
+  document.getElementById('closeReview').addEventListener('click', closeReview);
+  document.getElementById('drawerToKnowledge').addEventListener('click', function(){
+    go('knowledge'); closeReview();
+  });
+
+  /* proposal decisions */
+  var decisions = {
+    adopt:'已采纳 · 本周只保留发布目标',
+    ignore:'已忽略 · 提议不生效',
+    later:'已搁置 · 稍后再决定'
+  };
+  document.querySelectorAll('.decide').forEach(function(b){
+    b.addEventListener('click', function(){
+      var card = document.getElementById('proposalCard');
+      if(card.classList.contains('resolved')) return;
+      card.classList.add('resolved');
+      document.getElementById('proposalResultText').textContent = decisions[b.dataset.decision];
+      showToast(decisions[b.dataset.decision]);
+    });
+  });
+
+  /* chip groups */
+  function bindChips(id){
+    var group = document.getElementById(id);
+    group.addEventListener('click', function(e){
+      var c = e.target.closest('.chip'); if(!c) return;
+      group.querySelectorAll('.chip').forEach(function(x){ x.classList.remove('active'); });
+      c.classList.add('active');
+    });
+  }
+  bindChips('wikiChips'); bindChips('intelChips');
+
+  /* review granularity */
+  var seg = document.getElementById('segTabs');
+  seg.addEventListener('click', function(e){
+    var b = e.target.closest('button'); if(!b) return;
+    seg.querySelectorAll('button').forEach(function(x){ x.classList.remove('active'); });
+    b.classList.add('active');
+  });
+
+  /* composer */
+  var input = document.getElementById('msgInput');
+  var thinking = document.getElementById('thinking');
+  var thinkTimer;
+  document.getElementById('sendBtn').addEventListener('click', function(){
+    var text = input.value.trim();
+    if(!text){ input.focus(); return; }
+    var article = document.createElement('article');
+    article.className = 'msg user';
+    var meta = document.createElement('div');
+    meta.className = 'msg-meta';
+    var who = document.createElement('span'); who.className = 'who'; who.textContent = '记录';
+    var tm = document.createElement('time');
+    var d = new Date();
+    tm.textContent = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    meta.appendChild(who); meta.appendChild(tm);
+    var p = document.createElement('p'); p.textContent = text;
+    article.appendChild(meta); article.appendChild(p);
+    document.querySelector('.view[data-view="chat"] .view-inner').insertBefore(article, document.querySelector('.view[data-view="chat"] .composer'));
+    input.value = '';
+    thinking.classList.add('on');
+    clearTimeout(thinkTimer);
+    thinkTimer = setTimeout(function(){ thinking.classList.remove('on'); }, 1800);
+  });
+  input.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('sendBtn').click(); }
+  });
+})();
+</script>
+</body>
+</html>

@@ -176,3 +176,33 @@ class GoalCompassNudge {
     );
   }
 }
+
+/// 目标讨论承接源：同计划前序目标（有非空专属讨论）的只读指针。
+///
+/// 讨论按 goal 1:1 隔离，但计划内步骤推进时实质讨论常发生在前一步的
+/// 会话里；这个模型只携带「去哪找前情」的定位信息（goal id + 会话 id +
+/// 条数），不携带消息内容——消息永远留在前序目标的专属会话里（单一来源）。
+class GoalChatPredecessor {
+  final String goalId;
+  final String goalContent;
+  final int messageCount;
+
+  /// 前序目标的 goal_mentor 会话 id：UI 用 listMessages 读完整原文。
+  final String conversationId;
+
+  const GoalChatPredecessor({
+    required this.goalId,
+    required this.goalContent,
+    required this.messageCount,
+    required this.conversationId,
+  });
+
+  factory GoalChatPredecessor.fromDto(api.GoalChatPredecessorDto dto) {
+    return GoalChatPredecessor(
+      goalId: dto.goalId,
+      goalContent: dto.goalContent,
+      messageCount: dto.messageCount.toInt(),
+      conversationId: dto.conversationId,
+    );
+  }
+}

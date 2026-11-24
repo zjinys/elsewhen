@@ -121,6 +121,33 @@ impl AiProvider for FakeProvider {
     }
 }
 
+#[test]
+fn summary_json_accepts_complete_fence_but_rejects_prose_and_empty_answers() {
+    let reply=good_reply();
+    assert!(parse_body(&AiReply::text(format!("```json\n{}\n```",reply.content)),"test").is_ok());
+    assert!(parse_body(&AiReply::text(format!("Here is the summary: {}",reply.content)),"test").is_err());
+    let error=parse_body(&AiReply::text(""),"test").unwrap_err().to_string();
+    assert!(error.contains("响应为空"));
+}
+
+#[test]
+fn failed_background_summary_cools_down_and_provider_change_can_retry() {
+    let (_db,store,conversation)=fixture();
+    add_history(&store,&conversation);
+    let provider=FakeProvider::new(AiReply::text("not JSON"));
+    background_preheat_with(&store,&conversation,&provider,"test","basis","test",2000).unwrap();
+    let calls=provider.requests.get();
+    assert!(calls>0);
+    background_preheat_with(&store,&conversation,&provider,"test","basis","test",2000).unwrap();
+    assert_eq!(provider.requests.get(),calls);
+    background_preheat_with(&store,&conversation,&provider,"test","new-basis","test",2000).unwrap();
+    assert!(provider.requests.get()>calls);
+    let calls=provider.requests.get();
+    store.connection.execute("UPDATE knowledge_background_runs SET started_at=datetime('now','-16 minutes') WHERE task='summary-preheat'",[]).unwrap();
+    background_preheat_with(&store,&conversation,&provider,"test","new-basis","test",2000).unwrap();
+    assert!(provider.requests.get()>calls);
+}
+
 mod page_marks {
     use super::*;
 

@@ -117,6 +117,11 @@ impl Store {
             "DELETE FROM sync_wire_outbox WHERE recipient_device_id=?1 AND state='pending'",
             [device],
         )?;
+        self.connection.execute(
+            "DELETE FROM sync_snapshot_export_chunks WHERE snapshot_id IN
+             (SELECT id FROM sync_snapshot_exports WHERE recipient_device_id=?1)",
+            [device],
+        )?;
         if let Some(tx) = tx {
             tx.commit()?;
         }

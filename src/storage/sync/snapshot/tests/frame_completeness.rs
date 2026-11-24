@@ -1,6 +1,15 @@
 use super::*;
 
 #[test]
+fn personal_memory_and_extraction_cursor_remain_explicitly_local() {
+    for table in ["personal_memory_claims", "personal_memory_decisions", "personal_memory_grants", "personal_memory_policy", "personal_memory_extraction_state"] {
+        assert!(!SNAPSHOT_CARRIED_TABLES.contains(&table));
+        assert!(SNAPSHOT_EXCLUDED_TABLES.iter().any(|(name,reason)| *name==table && reason.starts_with("local-personal-memory")));
+        assert!(!QUERIES.iter().any(|query|query.contains(table)));
+    }
+}
+
+#[test]
 fn frame_decoder_rejects_unknown_record_kinds_and_oversized_lengths() {
     let mut decoder = FrameDecoder::default();
     assert!(decoder.push(&u32::MAX.to_be_bytes(), |_| Ok(())).is_err());

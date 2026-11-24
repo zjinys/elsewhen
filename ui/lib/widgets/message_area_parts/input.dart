@@ -3,6 +3,10 @@ part of '../message_area.dart';
 //! 底部消息输入区。
 
 class _MessageInput extends ConsumerStatefulWidget {
+  const _MessageInput({required this.onMessageSent});
+
+  final VoidCallback onMessageSent;
+
   @override
   ConsumerState<_MessageInput> createState() => _MessageInputState();
 }
@@ -88,7 +92,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    FeedbackToast.of(context).show(
       SnackBar(
         content: Text(message),
         backgroundColor: const Color(0xFFB91C1C),
@@ -197,6 +201,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
       _pendingSubmissionKey = null;
       ref.invalidate(messagesProvider);
       ref.invalidate(conversationsProvider);
+      widget.onMessageSent();
     } catch (e) {
       // 写库失败：明确反馈（文字仍保留在输入框，可手动重发）
       _showError(context.errorMessage(context.l10n.send, e));
@@ -260,7 +265,7 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
     ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
     openWikiPageTab(ref, page);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(content: Text(context.l10n.enteredTopic(page.title))),
       );
     }
@@ -419,14 +424,8 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
             hintText: isGenerating
                 ? context.l10n.thinkingNext
                 : context.l10n.inputMessage,
-            hintStyle: TextStyle(
-              color: AppTheme.textTertiary,
-              fontSize: scale.input,
-            ),
-            textStyle: (contentFontStyle ?? const TextStyle()).copyWith(
-              color: AppTheme.textPrimary,
-              fontSize: scale.input,
-            ),
+            hintStyle: TextStyle(fontSize: scale.input),
+            textStyle: TextStyle(fontSize: scale.input),
             onSubmit: _handleSubmit,
             canSend: !busy,
             spinning: busy || (_isSubmitting && _controller.text.isEmpty),
@@ -443,16 +442,27 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
                       minWidth: 44,
                       minHeight: 44,
                     ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      padding: EdgeInsets.zero,
+                    ),
                     onPressed: () => setState(() => _showInputGuide = false),
                   )
                 : PopupMenuButton<String>(
                     tooltip: context.l10n.addContent,
-                    icon: const Icon(Icons.add_circle_outline, size: 20),
-                    // 图标默认继承 onSurface（近白），比提示文字亮一截，会和
-                    // 胶囊右端的发送键抢焦点；压到次级文字色，「＋」退回成
-                    // 语境图标，输入区只剩一个重心。
+                    icon: const Icon(Icons.add, size: 20),
+                    // 图标作为内嵌在输入框左侧的语境动作，采用次级文字色与透明背景，
+                    // 彻底去除独立外挂按钮感，与整条输入框融为一体。
                     iconColor: AppTheme.textSecondary,
                     padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 44,
+                      minHeight: 44,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      padding: EdgeInsets.zero,
+                    ),
                     onSelected: (value) {
                       if (value == 'directory') {
                         _pickDirectoryForImport();

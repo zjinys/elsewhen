@@ -47,7 +47,7 @@ Future<void> _editResearch(
     ref.invalidate(scoutStudiesProvider);
   } catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(context.errorMessage(context.l10n.scoutStudies, e)),
         ),
@@ -83,7 +83,7 @@ Future<void> _openResearchEditor(
     ref.invalidate(scoutDraftsProvider);
   } catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(context.errorMessage(context.l10n.scoutStudies, e)),
         ),
@@ -195,8 +195,8 @@ class ScoutResearchList extends ConsumerWidget {
                                       ref.invalidate(scoutDraftsProvider);
                                     } catch (e) {
                                       if (context.mounted) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
+                                        FeedbackToast.of(context)
+                                            .show(
                                               SnackBar(
                                                 content: Text(
                                                   context.errorMessage(
@@ -256,7 +256,7 @@ class ScoutResearchList extends ConsumerWidget {
                                     Text(
                                       '${study['title']}',
                                       style: TextStyle(
-                                        fontSize: 17,
+                                        fontSize: 16,
                                         fontWeight: FontWeight.w600,
                                         color: AppTheme.textPrimary,
                                       ),
@@ -276,7 +276,7 @@ class ScoutResearchList extends ConsumerWidget {
                                           TextButton.icon(
                                             icon: const Icon(
                                               Icons.compare_arrows,
-                                              size: 16,
+                                              size: DesignTokens.iconMicro,
                                             ),
                                             label: Text(theme),
                                             onPressed: () => showDialog<void>(
@@ -699,7 +699,7 @@ class _ResearchEditorState extends ConsumerState<_ResearchEditor> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FeedbackToast.of(context).show(
           SnackBar(
             content: Text(
               context.errorMessage(context.l10n.scoutSaveResearch, e),
@@ -780,7 +780,7 @@ class _EvidenceEditorState extends ConsumerState<_EvidenceEditor> {
                         }
                       } catch (e) {
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          FeedbackToast.of(context).show(
                             SnackBar(
                               content: Text(
                                 context.errorMessage(

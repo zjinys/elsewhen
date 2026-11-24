@@ -18,6 +18,7 @@ pub(super) fn stage_fragmented_operation(
         "sync_pending_operation_too_large"
     );
     let hash = crate::storage::sync::hash(payload);
+    let identity = store.sync_identity()?.context("sync_not_initialized")?;
     for (index, data) in payload.chunks(CHUNK_BYTES).enumerate() {
         let fragment = OperationFragment {
             version: PROTOCOL_VERSION,
@@ -30,7 +31,7 @@ pub(super) fn stage_fragmented_operation(
         };
         let header = EnvelopeHeader::new(
             &op.dataset_id,
-            &op.origin_device_id,
+            &identity.device_id,
             recipient,
             key_version,
             fragment.message_id(),

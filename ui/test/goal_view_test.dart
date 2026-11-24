@@ -27,6 +27,8 @@ api.GoalDto _dto({
   String? blocker,
   String? doneCriteria,
   String? supersededAt,
+  String? planId,
+  int? stepIndex,
 }) {
   return api.GoalDto(
     id: id,
@@ -40,6 +42,8 @@ api.GoalDto _dto({
     createdAt: '2026-09-28T10:00:00Z',
     updatedAt: '2026-09-28T10:00:00Z',
     supersededAt: supersededAt,
+    planId: planId,
+    stepIndex: stepIndex,
   );
 }
 
@@ -52,6 +56,8 @@ Goal _goal(
   String? currentFocus,
   String? blocker,
   String? doneCriteria,
+  String? planId,
+  int? stepIndex,
 }) => Goal.fromDto(
   _dto(
     id: id,
@@ -62,6 +68,8 @@ Goal _goal(
     currentFocus: currentFocus,
     blocker: blocker,
     doneCriteria: doneCriteria,
+    planId: planId,
+    stepIndex: stepIndex,
   ),
 );
 
@@ -143,7 +151,7 @@ void main() {
   }
 
   group('GoalWorkbenchPanel（左栏工作台）', () {
-    testWidgets('英文窄目标栏可筛选，用户目标原文保留', (tester) async {
+    testWidgets('英文窄目标栏三态全量展示，用户目标原文保留', (tester) async {
       await tester.binding.setSurfaceSize(const Size(320, 780));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(
@@ -155,16 +163,16 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Goals'), findsOneWidget);
-      expect(find.text('Near term'), findsOneWidget);
+      // 两态各一枚阶段徽章：活跃强调色 + 归档转灰，不逐字读也能区分
+      expect(find.text('Near term'), findsNWidgets(2));
       expect(find.text('保留用户的目标原文'), findsOneWidget);
-      await tester.tap(find.text('Paused'));
-      await tester.pumpAndSettle();
+      // 无筛选：归档态不再需要切胶囊，直接与活跃同屏可见
       expect(find.text('另一个暂停目标'), findsOneWidget);
       expect(find.text('暂停搁置'), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('计划树仅显示一次步骤，支持状态过滤、收起与选中', (tester) async {
+    testWidgets('计划树仅显示一次步骤，头部带计划状态与进度，支持收起与选中', (tester) async {
       final plan = GoalPlan(
         id: 'p-1',
         intentText: '3 年内月入 10 万',
@@ -213,8 +221,11 @@ void main() {
 
       expect(find.text('长程计划'), findsNothing);
       expect(find.text('3 年内月入 10 万'), findsOneWidget);
+      // 计划头状态徽标：有活跃步 → 进行中 + 进度
+      expect(find.text('进行中 0/3'), findsOneWidget);
       expect(find.text('第一步：验证付费意愿'), findsOneWidget);
-      expect(find.text('第二步：最小可售卖方案'), findsNothing);
+      // 无筛选：暂停步与活跃步同屏
+      expect(find.text('第二步：最小可售卖方案'), findsOneWidget);
       expect(find.text('进度 0/3'), findsNothing);
 
       await tester.tap(find.text('3 年内月入 10 万'));
@@ -229,16 +240,13 @@ void main() {
       await tester.tap(find.byTooltip('展开阶段'));
       await tester.pumpAndSettle();
       expect(find.text('第一步：验证付费意愿'), findsOneWidget);
-      await tester.tap(find.text('暂停搁置'));
-      await tester.pumpAndSettle();
-      expect(find.text('第一步：验证付费意愿'), findsOneWidget);
       expect(find.text('第二步：最小可售卖方案'), findsOneWidget);
       await tester.tap(find.text('第二步：最小可售卖方案'));
       await tester.pumpAndSettle();
       expect(container.read(selectedGoalIdProvider), nextStep.id);
     });
 
-    testWidgets('标题「目标」+ 右上「新建」按钮；过滤多选且单行三枚', (tester) async {
+    testWidgets('标题「目标」+ 右上「新建」按钮；三态全量展示', (tester) async {
       await tester.pumpWidget(
         _workbench(
           active: [
@@ -268,33 +276,12 @@ void main() {
       expect(find.text('添加'), findsNothing);
       expect(find.byType(TextField), findsNothing);
 
-      // 状态胶囊必须同处一行（三个标签顶边对齐）
-      final activeTop = tester.getTopLeft(find.text('活跃')).dy;
-      expect(tester.getTopLeft(find.text('暂停搁置')).dy, activeTop);
-      expect(tester.getTopLeft(find.text('已达成')).dy, activeTop);
-
-      // 多选：叠加展示暂停/已达成清单；取消活跃后其清单收起
-      await tester.tap(find.text('暂停搁置'));
-      await tester.pumpAndSettle();
-      expect(find.text('学 Rust'), findsOneWidget);
-      expect(find.text('发布 Elsewhen 1.0'), findsOneWidget); // 活跃仍选中
-
-      await tester.tap(find.text('已达成').first);
-      await tester.pumpAndSettle();
-      expect(find.text('搬家'), findsOneWidget);
-
-      await tester.tap(find.text('活跃'));
-      await tester.pumpAndSettle();
-      expect(find.text('发布 Elsewhen 1.0'), findsNothing);
+      // 无筛选：归档态直接与活跃同屏（分节徽标标状态）
       expect(find.text('学 Rust'), findsOneWidget);
       expect(find.text('搬家'), findsOneWidget);
-
-      // 最后一个选中项不可被取消：过滤集永不为空
-      await tester.tap(find.text('暂停搁置'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('已达成').first);
-      await tester.pumpAndSettle();
-      expect(find.text('搬家'), findsOneWidget);
+      // 归档节徽标 + 步骤状态标签均在
+      expect(find.text('暂停'), findsWidgets);
+      expect(find.text('已达成'), findsWidgets);
       expect(tester.takeException(), isNull);
     });
 
@@ -405,12 +392,63 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('发布 Elsewhen 1.0'), findsWidgets); // 详情卡 + 讨论面板标题
-      expect(find.textContaining('攻克多端同步快照收敛'), findsOneWidget); // 行动条
+      // 行动条 + 左侧清单行动行（宽轨主区左缘也渲染一份清单）
+      expect(find.textContaining('攻克多端同步快照收敛'), findsNWidgets(2));
+      // 困难只在详情卡展示（清单不渲染 blocker 行）
       expect(find.textContaining('网络环境证书配置繁琐'), findsOneWidget);
       expect(find.textContaining('验证个人认知系统闭环'), findsOneWidget);
       expect(find.textContaining('双端自动化测试全绿'), findsOneWidget);
       expect(find.byType(GoalChatPanel), findsOneWidget);
       expect(find.textContaining('在左侧'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('空会话完整展示同计划前序讨论原文，尾部带出处分割线', (tester) async {
+      useWideLayout(tester);
+      final repo = _PredecessorGoalRepo();
+      await tester.pumpWidget(
+        _mainView(
+          active: [
+            _goal('g1', 'D1~D2 锁定单一标的物', planId: 'p-1', stepIndex: 1),
+            _goal(
+              'g2',
+              'D3~D5 上线并完成首次精准触达',
+              planId: 'p-1',
+              stepIndex: 2,
+            ),
+          ],
+          repository: repo,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 默认选中首个活跃目标 g1：无前序（fake 对 g1 返回 null）→ 无承接区。
+      expect(find.textContaining('承接自'), findsNothing);
+
+      // 切到第二步 g2：其会话为空且存在有讨论的前序 → 完整读原文展示。
+      await tester.tap(find.text('D3~D5 上线并完成首次精准触达').last);
+      await tester.pumpAndSettle();
+      expect(
+        find.text('以上承接自《D1~D2 锁定单一标的物》的 20 条讨论'),
+        findsOneWidget,
+      );
+      // 完整原文（不截断）：超过 240 字符的长消息全文可见（幕僚气泡走
+      // MarkdownView → RichText，需 findRichText）；限量 5 条在 fake 侧
+      // 模拟（更早的 pm-0 不出现）。
+      expect(
+        find.textContaining('长消息结尾标记', findRichText: true),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('先跑通第一批联系人', findRichText: true),
+        findsWidgets,
+      );
+      expect(find.textContaining('这条更早，不该出现'), findsNothing);
+      // 选中仍停留在当前目标，不跳转。
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(GoalChatPanel)),
+      );
+      expect(container.read(selectedGoalIdProvider), 'g2');
       expect(tester.takeException(), isNull);
     });
 
@@ -430,8 +468,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 点击行动区域弹出调整当前行动对话框
-      await tester.tap(find.textContaining('首发阶段 A'));
+      // 点击行动区域弹出调整当前行动对话框（左侧清单也有一份行动文本，取详情卡的）
+      await tester.tap(find.textContaining('首发阶段 A').last);
       await tester.pumpAndSettle();
 
       expect(find.text('调整当前行动 · 发布 Elsewhen 1.0'), findsOneWidget);
@@ -590,4 +628,68 @@ class _FakeRepo extends ConversationRepository {
   @override
   Future<List<Message>> getMessages(String conversationId) async =>
       const <Message>[];
+}
+
+/// 前序承接测试用 fake：g2 的空会话返回同计划前序 g1（20 条讨论），
+/// 且 g1 的会话返回含超长消息的完整原文（验证 UI 不截断），
+/// 其余目标无前序。
+class _PredecessorGoalRepo extends FakeGoalChatRepo {
+  @override
+  Future<GoalChatPredecessor?> goalChatPredecessor(String goalId) async {
+    if (goalId == 'g2') {
+      return const GoalChatPredecessor(
+        goalId: 'g1',
+        goalContent: 'D1~D2 锁定单一标的物',
+        messageCount: 20,
+        conversationId: 'goal-conv-g1',
+      );
+    }
+    return null;
+  }
+
+  @override
+  Future<List<Message>> listRecentChatMessages(
+    String conversationId,
+    int limit,
+  ) async {
+    if (conversationId != 'goal-conv-g1') return const [];
+    final long = '长' * 300;
+    final all = [
+      Message(
+        id: 'pm-0',
+        conversationId: conversationId,
+        role: MessageRole.user,
+        content: '这条更早，不该出现在最后 5 条里',
+        createdAt: DateTime(2026),
+      ),
+      // 中间补足到 6 条，让 limit=5 生效切掉 pm-0。
+      ...List.generate(
+        4,
+        (i) => Message(
+          id: 'pm-m$i',
+          conversationId: conversationId,
+          role: i.isEven ? MessageRole.user : MessageRole.assistant,
+          content: '中间消息 $i',
+          createdAt: DateTime(2026),
+        ),
+      ),
+      Message(
+        id: 'pm-1',
+        conversationId: conversationId,
+        role: MessageRole.user,
+        content: '获客先从已有联系人里筛 20 个',
+        createdAt: DateTime(2026),
+      ),
+      Message(
+        id: 'pm-2',
+        conversationId: conversationId,
+        role: MessageRole.assistant,
+        content: '同意，先跑通第一批联系人再谈内容投放。$long长消息结尾标记',
+        createdAt: DateTime(2026),
+      ),
+    ];
+    return all.length > limit
+        ? all.sublist(all.length - limit)
+        : all;
+  }
 }

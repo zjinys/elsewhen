@@ -1,5 +1,7 @@
 //! Automatic cognitive insights, with a persisted run ledger and bounded input.
 mod integration;
+pub(crate) mod memory;
+pub(crate) use memory::run_semantic_extraction;
 mod reconsolidation;
 mod refresh;
 pub(crate) use reconsolidation::run_knowledge_reconsolidation;
@@ -15,6 +17,33 @@ use rusqlite::{Transaction, TransactionBehavior, params};
 pub(crate) use sources::run_automatic_source_compilation;
 use std::sync::Mutex;
 pub(crate) use tldr::run_page_tldr_backfill;
+
+/// 从最近用户消息提取保守记忆候选。写入幂等，故即使后台 tick 重复扫描也不会重复生成。
+pub fn run_automatic_memory_extraction(store: &Store) -> Result<i64> {
+    if !store.background_processing_allowed()? { return Ok(0); }
+    let tx = Transaction::new_unchecked(&store.connection, TransactionBehavior::Immediate)?;
+    let last: i64 = store.connection.query_row("SELECT last_message_rowid FROM personal_memory_extraction_state WHERE id=1", [], |row| row.get(0))?;
+    let mut stmt = store.connection.prepare("SELECT rowid,id,conversation_id,content,created_at FROM messages WHERE role='user' AND rowid>?1 ORDER BY rowid LIMIT 80")?;
+    let messages = stmt.query_map([last], |row| Ok((row.get::<_,i64>(0)?, crate::storage::MessageSummary { id: row.get(1)?, conversation_id: row.get(2)?, parent_message_id: None, role: "user".into(), content: row.get(3)?, created_at: row.get(4)?, input_message_id: None, kind: "chat".into(), message_ref: None })))?.collect::<rusqlite::Result<Vec<_>>>()?;
+    let mut count = 0;
+    let mut cursor = last;
+    for (rowid,message) in messages {
+        cursor = rowid;
+        if !crate::ai::memory::history::eligible(store, &message.id)? { continue; }
+        if !crate::storage::personal_memory::grants::conversation_current(store, &message.conversation_id)? { continue; }
+        for candidate in memory::extract(&message) {
+            if store.memory_policy(&format!("blocked:{}", candidate.kind))?.as_deref() == Some("true") { continue; }
+            store.propose_direct_memory(&message.conversation_id, &serde_json::json!({"content":candidate.content,"kind":candidate.kind,"subject":candidate.subject,"predicate":candidate.predicate,"source_message_id":candidate.message_id}))?;
+            count += 1;
+        }
+    }
+    if cursor > last {
+        let stamp = chrono::Utc::now().to_rfc3339();
+        store.connection.execute("INSERT INTO knowledge_background_runs(id,task,input_key,status,started_at,finished_at,result_count) VALUES(?1,'memory-extraction',?2,'succeeded',?3,?3,?4)", params![uuid::Uuid::new_v4().to_string(),format!("{last}:{cursor}"),stamp,count])?;
+        store.connection.execute("UPDATE personal_memory_extraction_state SET last_message_rowid=?1,updated_at=?2 WHERE id=1", params![cursor,chrono::Utc::now().to_rfc3339()])?; }
+    tx.commit()?;
+    Ok(count)
+}
 
 static RUNNING: Mutex<()> = Mutex::new(());
 

@@ -684,6 +684,63 @@ impl Store {
             .map_err(Into::into)
     }
 
+    /// 某会话最后 N 条 chat 轮次（kind='chat'、role ∈ user/assistant），
+    /// 时间正序、内容不截断。用于目标讨论的承接展示：只要尾部几条完整
+    /// 原文，不把整个会话拉到 UI。非 chat 消息（nudge/insight/brief）
+    /// 不算入条数，也不返回。
+    pub fn list_recent_chat_messages(
+        &self,
+        conversation_id: &str,
+        limit: usize,
+    ) -> Result<Vec<MessageSummary>> {
+        if let Some(snapshot) = &self.conversation_snapshot {
+            if snapshot.conversation_id == conversation_id {
+                let filtered: Vec<MessageSummary> = snapshot
+                    .messages
+                    .iter()
+                    .filter(|m| m.kind == "chat" && (m.role == "user" || m.role == "assistant"))
+                    .cloned()
+                    .collect();
+                let start = filtered.len().saturating_sub(limit);
+                return Ok(filtered[start..].to_vec());
+            }
+        }
+        // 按展示排序倒序取尾部 N 条，翻回时间正序在 Rust 里做（reverse）。
+        // 不写成「子查询 + 外层重排」：展示排序键用的是 join 别名
+        // （s / si），子查询外层看不到它们，写出来只会报 no such column。
+        let mut statement = self.connection.prepare(
+            "SELECT m.id, m.conversation_id, m.parent_message_id, m.role, m.content, m.created_at, l.input_message_id, m.kind, m.ref
+             FROM messages m
+                 LEFT JOIN sync_message_order s ON s.message_id=m.id
+                 LEFT JOIN message_response_links l ON l.message_id=m.id
+                 LEFT JOIN sync_message_order si ON si.message_id=l.input_message_id
+             WHERE m.conversation_id = ?1 AND m.kind = 'chat'
+               AND m.role IN ('user','assistant')
+             ORDER BY COALESCE(si.logical_clock, s.logical_clock, 0) DESC,
+                 COALESCE(s.logical_clock,0) DESC, COALESCE(s.origin_stream_id,'') DESC,
+                 COALESCE(s.origin_sequence,0) DESC, m.created_at DESC, m.id DESC
+             LIMIT ?2",
+        )?;
+        let rows = statement.query_map(params![conversation_id, limit as i64], |row| {
+            Ok(MessageSummary {
+                id: row.get(0)?,
+                conversation_id: row.get(1)?,
+                parent_message_id: row.get(2)?,
+                role: row.get(3)?,
+                content: row.get(4)?,
+                created_at: row.get(5)?,
+                input_message_id: row.get(6)?,
+                kind: row.get(7)?,
+                message_ref: row.get(8)?,
+            })
+        })?;
+        let mut messages = rows
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(anyhow::Error::from)?;
+        messages.reverse(); // 倒序取的尾部，翻回时间正序供阅读
+        Ok(messages)
+    }
+
     // Get child messages of a specific message (for branching conversations)
     pub fn get_child_messages(&self, parent_id: &str) -> Result<Vec<MessageSummary>> {
         let mut statement = self.connection.prepare(

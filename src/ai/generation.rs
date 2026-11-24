@@ -131,6 +131,19 @@ pub(crate) fn pause(store: &Store, duration: Duration) -> Result<()> {
     }
 }
 
+fn finish_memory_receipts(
+    store: &Store,
+    request: &str,
+    attempt: u32,
+    succeeded: bool,
+) -> Result<()> {
+    store.connection.execute("UPDATE personal_memory_receipts SET outcome='unknown' WHERE access_kind='injected' AND attempt_id LIKE ?1 AND outcome='prepared'",[format!("{request}:%")])?;
+    if succeeded {
+        store.connection.execute("UPDATE personal_memory_receipts SET outcome='sent' WHERE access_kind='injected' AND attempt_id=?1",[format!("{request}:{attempt}")])?;
+    }
+    Ok(())
+}
+
 pub(crate) fn request(
     store: &Store,
     provider: &dyn super::provider::AiProvider,
@@ -178,8 +191,33 @@ fn request_on_channel(
 ) -> Result<super::provider::AiReply> {
     let publish_draft = auxiliary_phase.is_none();
     check(store)?;
+    let memory_context = messages.clone();
     let Some(run) = &store.chat_run_identity else {
-        return provider.generate_reply_with_tools(messages, tools);
+        let request = uuid::Uuid::new_v4().to_string();
+        let mut last_attempt = 0;
+        let reply = provider.generate_observed(messages, tools, &mut |notification| {
+            if let super::provider::ProviderEvent::Budget {
+                attempt, report, ..
+            } = notification
+            {
+                anyhow::ensure!(
+                    super::memory::claims::current(store, &memory_context)?,
+                    "记忆来源已变化，请重试以使用当前版本"
+                );
+                last_attempt = attempt;
+                super::memory::claims::budget_receipts(
+                    store,
+                    &memory_context,
+                    &request,
+                    &request,
+                    attempt,
+                    report,
+                )?;
+            }
+            Ok(())
+        });
+        finish_memory_receipts(store, &request, last_attempt, reply.is_ok())?;
+        return reply;
     };
     store.renew_chat_run(&run.id, &run.owner)?;
     if publish_draft {
@@ -201,6 +239,10 @@ fn request_on_channel(
     // 与真实 prompt_tokens 配对成「低估比」，后续同会话预算按其收紧。
     let last_estimate = std::sync::Arc::new(std::sync::Mutex::new(None::<usize>));
     let estimate_sink = std::sync::Arc::clone(&last_estimate);
+    let mut last_memory_attempt = 0;
+    let conversation = store
+        .chat_run_conversation(&run.id)
+        .context("chat_run_conversation_missing")?;
     let reply = provider.generate_observed(messages, tools, &mut |notification| {
         if let Err(error) = check(store) {
             while let Some(text) = draft.take_checkpoint(true) {
@@ -214,6 +256,15 @@ fn request_on_channel(
                 if publish_draft { draft.push(delta); }
             }
             super::provider::ProviderEvent::Budget { attempt, trigger, report } => {
+                anyhow::ensure!(
+                    super::memory::claims::current(store, &memory_context)?
+                        && super::memory::history::context_current(store, &conversation, &memory_context)?,
+                    "记忆或会话授权已变化，请重试以读取当前版本"
+                );
+                last_memory_attempt = attempt;
+                super::memory::claims::budget_receipts(
+                    store, &memory_context, &request, &run.id, attempt, report,
+                )?;
                 let est = report.input_tokens_after;
                 *estimate_sink.lock().unwrap_or_else(|e| e.into_inner()) = Some(est);
                 event(store, "request_budget", json!({"request_id":request,"attempt":attempt,"trigger":trigger,"report":report}))?;
@@ -224,6 +275,7 @@ fn request_on_channel(
         }
         Ok(())
     });
+    finish_memory_receipts(store, &request, last_memory_attempt, reply.is_ok())?;
     while let Some(text) = draft.take_checkpoint(true) {
         store.flush_chat_run_checkpoint(&run.id, &run.owner, &text)?;
     }

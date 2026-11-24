@@ -68,6 +68,7 @@ class DesktopWindowService implements WindowService {
   /// 主窗口几何的本地配置存储（window.json，不落数据库）。
   final WindowGeometryStore _geometryStore = const WindowGeometryStore();
   Timer? _saveGeometryDebounce;
+  Future<void>? _showingWindow;
 
   // Window configurations
   // 主窗口默认 1440x900：三栏布局（侧栏+正文+440 聊天面板）下够用，
@@ -222,41 +223,7 @@ class DesktopWindowService implements WindowService {
 
   /// Switch to main application mode
   @override
-  Future<void> switchToMainMode() async {
-    if (!_isDesktop()) return;
-
-    currentMode = WindowMode.main;
-
-    // Wayland 下从捕获小窗切回时，直接对可见窗口连续 setSize/setBounds
-    // 会被 compositor 忽略（GTK min-size 变更后的 resize 需要重新映射才
-    // 可靠），实测窗口停留在捕获尺寸。改为先隐藏，设好全部几何再显示：
-    // hide/show 走一次 unmap/map，compositor 必然按新几何落位。
-    await windowManager.hide();
-
-    final saved = _geometryStore.load();
-    final target =
-        (saved != null &&
-            saved.width >= mainWindowMinSize.width &&
-            saved.height >= mainWindowMinSize.height)
-        ? ui.Size(saved.width, saved.height)
-        : await clampedMainSize();
-    await windowManager.setMinimumSize(mainWindowMinSize);
-    await windowManager.setSize(target);
-    await windowManager.center();
-
-    await windowManager.setAlwaysOnTop(false);
-    await _applyTitleBarHidden(); // Linux 跳过（GL 崩溃），见该方法注释
-    await windowManager.setTitle('Elsewhen');
-    await windowManager.show();
-    await windowManager.focus();
-    final after = await windowManager.getBounds();
-    ui.debugPrint(
-      'switchToMainMode: target=${target.width}x${target.height} '
-      'after=(${after.width}x${after.height})',
-    );
-
-    ui.debugPrint('Switched to main mode');
-  }
+  Future<void> switchToMainMode() => showWindow();
 
   /// 恢复上次关闭时保存的主窗口大小/位置（本地 window.json，不落库）。
   /// 返回 true 表示已按保存几何落位，调用方无需再 center。
@@ -335,22 +302,24 @@ class DesktopWindowService implements WindowService {
 
   /// Show window in current mode
   @override
-  Future<void> showWindow() async {
-    if (!_isDesktop()) return;
+  Future<void> showWindow() {
+    if (!_isDesktop()) return Future.value();
+    return _showingWindow ??= _restoreWindow().whenComplete(() {
+      _showingWindow = null;
+    });
+  }
 
+  Future<void> _restoreWindow() async {
     await windowManager.show();
     await windowManager.focus();
+    currentMode = WindowMode.main;
 
     ui.debugPrint('Window shown');
   }
 
   /// Close window (but keep app running in background)
   @override
-  Future<void> closeWindow() async {
-    if (!_isDesktop()) return;
-
-    await windowManager.hide();
-  }
+  Future<void> closeWindow() => hideWindow();
 
   /// Quit application
   @override

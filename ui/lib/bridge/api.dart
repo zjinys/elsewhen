@@ -36,6 +36,7 @@ export 'generated.dart/api/mcp.dart';
 export 'generated.dart/api/page_marks.dart';
 export 'generated.dart/api/period_stats.dart';
 export 'generated.dart/api/plans.dart';
+export 'generated.dart/api/personal_memory.dart';
 export 'generated.dart/api/provider_config.dart';
 export 'generated.dart/api/provider_reachability.dart';
 export 'generated.dart/api/records.dart';

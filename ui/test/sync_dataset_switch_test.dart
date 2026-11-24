@@ -54,7 +54,7 @@ api.SyncEnrollmentStateDto joinerComplete() => const api.SyncEnrollmentStateDto(
   localApplied: true,
   remoteApplied: true,
   notificationPending: false,
-      storageBlocked: false,
+  storageBlocked: false,
 );
 
 Future<void> pumpCard({
@@ -105,10 +105,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('已加入数据集「手机数据集」'), findsOneWidget);
-    expect(find.text('进入数据集'), findsOneWidget);
+    expect(find.text('选择数据集'), findsOneWidget);
     expect(datasetApi.switched, isFalse);
 
-    await tester.tap(find.text('进入数据集'));
+    await tester.tap(find.text('选择数据集'));
     await tester.pumpAndSettle();
 
     expect(datasetApi.selects, ['entry-1']);
@@ -117,7 +117,7 @@ void main() {
       findsOneWidget,
       reason: '选择只在下次进程启动生效，必须明确告知重启',
     );
-    expect(find.text('进入数据集'), findsNothing);
+    expect(find.text('选择数据集'), findsNothing);
   });
 
   /// 重启后的关键场景：配对会话已清空（joiner/enrollment 均为空状态），
@@ -151,9 +151,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('已加入数据集「手机数据集」'), findsOneWidget);
-    expect(find.text('进入数据集'), findsOneWidget);
+    expect(find.text('选择数据集'), findsOneWidget);
 
-    await tester.tap(find.text('进入数据集'));
+    await tester.tap(find.text('选择数据集'));
     await tester.pumpAndSettle();
     expect(datasetApi.selects, ['entry-1']);
     expect(find.textContaining('请完全退出并重新打开应用'), findsOneWidget);
@@ -190,7 +190,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('进入数据集'), findsNWidgets(2));
+      expect(find.text('选择数据集'), findsNWidgets(2));
 
       // 本机目录已被删除（discard 只删 staging + 本机密钥），控制器随后
       // notifyListeners；卡片必须当场重查而不是等用户重进页面。
@@ -198,7 +198,7 @@ void main() {
       controller.joiner.notifyListeners();
       await tester.pumpAndSettle();
 
-      expect(find.text('进入数据集'), findsOneWidget);
+      expect(find.text('选择数据集'), findsOneWidget);
       expect(find.textContaining('查询数据集失败'), findsNothing);
     },
   );
@@ -229,7 +229,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('已加入数据集'), findsNothing);
-    expect(find.text('进入数据集'), findsNothing);
+    expect(find.text('选择数据集'), findsNothing);
     expect(find.textContaining('已切换'), findsNothing);
   });
 }

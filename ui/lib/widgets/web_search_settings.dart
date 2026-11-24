@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../bridge/api.dart' as api;
 import '../theme/app_theme.dart';
+import 'feedback_toast.dart';
 
 /// 「外网搜索」设置区块：开启开关、搜索引擎选择、API key、API 地址。
 ///
@@ -116,15 +117,10 @@ class _WebSearchSettingsState extends State<WebSearchSettings> {
 
   void _toast(String message, {required bool ok}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: ok ? AppTheme.accentPrimary : AppTheme.error,
-        behavior: SnackBarBehavior.floating,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(999)),
-        ),
-      ),
+    showFeedbackToast(
+      context,
+      message: message,
+      kind: ok ? FeedbackKind.success : FeedbackKind.error,
     );
   }
 

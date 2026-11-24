@@ -256,7 +256,7 @@ class _EntityMergeControls extends ConsumerWidget {
         .toList();
     if (!context.mounted) return;
     if (pages.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(content: Text(context.l10n.entityNoMergeCandidates)),
       );
       return;
@@ -327,7 +327,7 @@ class _EntityMergeControls extends ConsumerWidget {
       await repo.mergeEntity(page.kind, page.slug, selected);
       _refresh(ref, selected);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FeedbackToast.of(context).show(
           SnackBar(
             content: Text(context.l10n.entityMergeSaved(targetPage.title)),
           ),
@@ -381,9 +381,9 @@ class _EntityMergeControls extends ConsumerWidget {
       await repo.undoEntityMerge(page.slug);
       _refresh(ref, targetSlug);
       if (context.mounted) {
-        ScaffoldMessenger.of(
+        FeedbackToast.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(context.l10n.entityMergeUndone)));
+        ).show(SnackBar(content: Text(context.l10n.entityMergeUndone)));
       }
     } catch (error) {
       if (context.mounted) {
@@ -456,7 +456,7 @@ class _EntityRelatedTodos extends ConsumerWidget {
                         _fmtWorkItemDate(context, todo.dueAt!),
                       ),
                       style: TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 11,
                         color: AppTheme.textTertiary,
                       ),
                     ),
@@ -464,7 +464,7 @@ class _EntityRelatedTodos extends ConsumerWidget {
                 tooltip: context.l10n.entityOpenWorkItem,
                 icon: Icon(
                   Icons.open_in_new,
-                  size: 16,
+                  size: DesignTokens.iconMicro,
                   color: AppTheme.accentPrimary,
                 ),
                 onPressed: () async {

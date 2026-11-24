@@ -132,9 +132,13 @@ class _FakeConversationRepo extends ConversationRepository {
 }
 
 extension on WidgetTester {
-  /// 分段推进时钟直到 SnackBar 完全退场
+  /// 分段推进时钟直到 操作提示完全退场
   Future<void> _clearSnackBars() async {
-    for (var i = 0; i < 12 && any(find.byType(SnackBar)); i++) {
+    for (
+      var i = 0;
+      i < 12 && any(find.byKey(const ValueKey('feedback-toast')));
+      i++
+    ) {
       await pump(const Duration(seconds: 1));
     }
   }

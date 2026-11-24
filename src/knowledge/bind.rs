@@ -181,11 +181,12 @@ pub fn record_usage(
     candidates: &[KnowledgeCitation],
     cited: &[KnowledgeCitation],
 ) -> Result<()> {
+    let usage_id = uuid::Uuid::new_v4().to_string();
     store.connection.execute(
         "INSERT INTO knowledge_usage(id,task,owner_id,candidates_json,cited_json,created_at)
         VALUES (?1,?2,?3,?4,?5,?6)",
         params![
-            uuid::Uuid::new_v4().to_string(),
+            usage_id,
             task,
             owner,
             serde_json::to_string(candidates)?,
@@ -193,6 +194,9 @@ pub fn record_usage(
             chrono::Utc::now().to_rfc3339()
         ],
     )?;
+    for citation in cited {
+        store.memory_page_access(&citation.page_slug, owner, &usage_id, "cited")?;
+    }
     Ok(())
 }
 

@@ -8,9 +8,13 @@ import { describe, expect, it } from "vitest";
 import { jsonSource, feedSource, SOURCES, type Item } from "../src/sources";
 
 describe("sources registry", () => {
-  it("contains only consumer/business sources (no dev-focused ones)", () => {
+  it("uses discovery instead of language presets or a required ID watchlist", () => {
     const ids = SOURCES.map((s) => s.id);
-    expect(ids).toContain("github-dart");
+    expect(ids).toContain("github-newcomers");
+    expect(ids).toContain("cws-discover");
+    expect(ids).not.toContain("github-dart");
+    expect(ids).not.toContain("github-rust");
+    expect(ids).not.toContain("cws-watchlist");
     expect(ids).toContain("producthunt-daily");
     expect(ids).toContain("appstore-us-top-free");
     expect(ids).not.toContain("hackernews");

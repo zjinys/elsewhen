@@ -45,8 +45,8 @@ impl Store {
         let stream = fragment.op_id.split_once(':').unwrap().0;
         let tx = self.begin_write_transaction()?;
         let active: bool = self.connection.query_row(
-            "SELECT EXISTS(SELECT 1 FROM sync_members WHERE device_id=?1 AND stream_id=?2 AND active=1)",
-            params![sender,stream], |r|r.get(0),
+            "SELECT EXISTS(SELECT 1 FROM sync_members WHERE stream_id=?1 AND active=1 AND (device_id=?2 OR ?3))",
+            params![stream,sender,self.sync_upstream_device()?.as_deref()==Some(sender)], |r|r.get(0),
         )?;
         ensure!(
             active && stream != identity.stream_id,

@@ -39,7 +39,7 @@ extension _RulesPrefs on _SettingsScreenState {
               setState(() => _ruleTriggerMode = mode);
             } catch (e) {
               if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
+              FeedbackToast.of(context).show(
                 SnackBar(
                   content: AppErrorMessage(
                     action: context.l10n.load,
@@ -120,7 +120,7 @@ extension _RulesPrefs on _SettingsScreenState {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: AppErrorMessage(
             action: context.l10n.load,
@@ -145,7 +145,7 @@ extension _RulesPrefs on _SettingsScreenState {
       setState(() => _recentRuleHits = hits);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: AppErrorMessage(
             action: context.l10n.load,
@@ -191,7 +191,7 @@ extension _RulesPrefs on _SettingsScreenState {
               children: [
                 Icon(
                   icon(hit.status),
-                  size: 14,
+                  size: DesignTokens.iconMicro,
                   color: hit.status == 'applicable'
                       ? AppTheme.accentPrimary
                       : AppTheme.textTertiary,
@@ -252,7 +252,7 @@ extension _RulesPrefs on _SettingsScreenState {
                   hit.isNotified
                       ? Icons.notifications_active_outlined
                       : Icons.inbox_outlined,
-                  size: 14,
+                  size: DesignTokens.iconMicro,
                   color: hit.isNotified
                       ? AppTheme.accentPrimary
                       : AppTheme.textTertiary,
@@ -273,7 +273,7 @@ extension _RulesPrefs on _SettingsScreenState {
                   height: 26,
                   child: IconButton(
                     padding: EdgeInsets.zero,
-                    iconSize: 14,
+                    iconSize: DesignTokens.icon,
                     tooltip: context.l10n.entityGuidanceHelpful,
                     icon: Icon(
                       hit.feedback == 'helpful'
@@ -292,7 +292,7 @@ extension _RulesPrefs on _SettingsScreenState {
                   height: 26,
                   child: IconButton(
                     padding: EdgeInsets.zero,
-                    iconSize: 14,
+                    iconSize: DesignTokens.icon,
                     tooltip: context.l10n.entityGuidanceNotRelevant,
                     icon: Icon(
                       hit.feedback == 'not_relevant'
@@ -402,7 +402,7 @@ extension _RulesPrefs on _SettingsScreenState {
       await _loadRules();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: AppErrorMessage(
             action: context.l10n.load,
@@ -424,7 +424,7 @@ extension _RulesPrefs on _SettingsScreenState {
       setState(() => _rules.removeWhere((r) => r.id == rule.id));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: AppErrorMessage(
             action: context.l10n.load,
@@ -536,7 +536,7 @@ extension _RulesPrefs on _SettingsScreenState {
                   _rules[i].hasTrigger
                       ? Icons.notifications_active_outlined
                       : Icons.notifications_none,
-                  size: 18,
+                  size: DesignTokens.icon,
                 ),
                 color: _rules[i].hasTrigger
                     ? AppTheme.accentPrimary
@@ -605,7 +605,7 @@ extension _RulesPrefs on _SettingsScreenState {
                   child: Text(
                     title,
                     style: TextStyle(
-                      fontSize: 17,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimary,
                       letterSpacing: -0.2,

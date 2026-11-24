@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../theme/app_theme.dart';
+import '../theme/content_font.dart';
 import 'app_pressable.dart';
 
 /// 统一输入条（胶囊形 composer）：左侧语境图标、中间输入框、右侧发送键。
@@ -70,6 +71,17 @@ class _ComposerFieldState extends State<ComposerField> {
 
   @override
   Widget build(BuildContext context) {
+    final contentFontStyle = ContentFont.styleOf(context);
+    final defaultStyle = (contentFontStyle ?? const TextStyle()).copyWith(
+      color: AppTheme.textPrimary,
+      fontSize: 14,
+      height: 1.35,
+    );
+    final effectiveTextStyle = defaultStyle.merge(widget.textStyle);
+    final effectiveHintStyle = defaultStyle
+        .copyWith(color: AppTheme.textTertiary)
+        .merge(widget.hintStyle);
+
     return Focus(
       onFocusChange: (focused) => setState(() => _focused = focused),
       child: AnimatedContainer(
@@ -78,76 +90,81 @@ class _ComposerFieldState extends State<ComposerField> {
         duration: const Duration(milliseconds: 120),
         curve: Curves.easeOut,
         padding: EdgeInsetsDirectional.only(
-          start: widget.leading == null ? AppTheme.space3 : 6,
+          start: widget.leading == null ? 16 : 6,
           end: 6,
         ),
         decoration: BoxDecoration(
-          color: AppTheme.surface2,
+          // 对话主场的锚点：常态比周围面板亮一档（surface2），聚焦时再抬升
+          // 一档到 surface3，配合主题强调色聚焦环把视线钉在输入区。
+          color: _focused ? AppTheme.surface3 : AppTheme.surface2,
           borderRadius: BorderRadius.circular(ComposerField.radius),
           border: Border.all(
             color: _focused ? AppTheme.accentPrimary : AppTheme.surface3,
             width: _focused ? 1.5 : 1,
           ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            // 48 = 输入框的最低高度（InputDecorator 的 kMinInteractiveDimension，
-            // 即使 isDense 也压不下去）。左右两个图标位与它同高，胶囊内三块
-            // 内容才真正同高同底，不会出现「图标比输入框矮 2px」的错位。
-            if (widget.leading != null)
-              SizedBox(
-                width: 48,
-                height: 48,
-                child: Center(child: widget.leading),
-              ),
-            Expanded(
-              child: TextField(
-                key: widget.fieldKey,
-                controller: widget.controller,
-                focusNode: widget.focusNode,
-                maxLines: widget.maxLines,
-                minLines: 1,
-                enabled: widget.enabled,
-                textAlignVertical: TextAlignVertical.center,
-                style: widget.textStyle,
-                decoration: InputDecoration(
-                  hintText: widget.hintText,
-                  hintStyle: widget.hintStyle,
-                  // 胶囊自身的填充与描边已经画好了，输入框退成透明的纯文本层：
-                  // 两套圆角叠在一起时，聚焦那 1.5px 描边会与胶囊外圈错开。
-                  border: InputBorder.none,
-                  // 垂直各 10：单行输入框即 48 高（=InputDecorator 的
-                  // kMinInteractiveDimension 下限，也是两侧图标位的高度），
-                  // 胶囊内三块内容因此同高同底。水平只留 8，文字与图标之间
-                  // 才不各隔一片。
-                  contentPadding: const EdgeInsetsDirectional.only(
-                    // 水平只留 4：图标位本身已有 14 的内边距，再叠 8 会让
-                    // 「＋」与首个字之间空出近 30px，像两个字块各站一边。
-                    start: AppTheme.space1,
-                    end: AppTheme.space2,
-                    top: 10,
-                    bottom: 10,
+          boxShadow: _focused
+              ? [
+                  // 聚焦环：与描边同源的外扩淡色光晕。
+                  BoxShadow(
+                    color: AppTheme.accentPrimary.withValues(alpha: 0.18),
+                    blurRadius: 6,
+                    spreadRadius: 1.5,
                   ),
-                  isDense: true,
+                ]
+              : const [],
+        ),
+        child: ValueListenableBuilder<TextEditingValue>(
+          valueListenable: widget.controller,
+          builder: (context, value, _) {
+            final isMultiLine = value.text.contains('\n');
+            return Row(
+              crossAxisAlignment: isMultiLine
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.center,
+              children: [
+                // 48 = 输入框的基准高度。左右两个图标位与它同高同心，
+                // 视觉上自然内嵌在输入框两端，保持像素级上下垂直对称。
+                if (widget.leading != null)
+                  SizedBox(
+                    width: 44,
+                    height: 48,
+                    child: Center(child: widget.leading),
+                  ),
+                Expanded(
+                  child: TextField(
+                    key: widget.fieldKey,
+                    controller: widget.controller,
+                    focusNode: widget.focusNode,
+                    maxLines: widget.maxLines,
+                    minLines: 1,
+                    enabled: widget.enabled,
+                    cursorHeight: 18,
+                    textAlignVertical: TextAlignVertical.center,
+                    style: effectiveTextStyle,
+                    decoration: InputDecoration(
+                      hintText: widget.hintText,
+                      hintStyle: effectiveHintStyle,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsetsDirectional.only(
+                        start: 2,
+                        end: 6,
+                        top: 14,
+                        bottom: 14,
+                      ),
+                      isDense: true,
+                    ),
+                    onSubmitted: (_) => widget.onSubmit(),
+                  ),
                 ),
-                onSubmitted: (_) => widget.onSubmit(),
-              ),
-            ),
-            const SizedBox(width: AppTheme.space1),
-            ValueListenableBuilder<TextEditingValue>(
-              valueListenable: widget.controller,
-              builder: (context, value, _) => ComposerSendButton(
-                // 空文本只降亮度、不禁用：`onSubmit` 自己会拦掉空文本，
-                // 而禁用一个只靠 controller 监听才刷新的按钮，会让「输入完
-                // 立刻回车/点击」因为还没重建的那一帧而毫无反应。
-                onPressed: widget.canSend ? widget.onSubmit : null,
-                dimmed: value.text.trim().isEmpty,
-                spinning: widget.spinning,
-                tooltip: widget.sendTooltip,
-              ),
-            ),
-          ],
+                ComposerSendButton(
+                  onPressed: widget.canSend ? widget.onSubmit : null,
+                  dimmed: value.text.trim().isEmpty,
+                  spinning: widget.spinning,
+                  tooltip: widget.sendTooltip,
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -177,11 +194,10 @@ class ComposerSendButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = onPressed != null;
-    // 空文本（dimmed）走中性表面色而不是淡化的强调色：强调色压暗后
-    // 会发闷、发脏（#7A5C3D 在深底上像一块泥），中性灰反而干净，
-    // 也把「有字才亮」的信息交给唯一的强调色节点。
+    // 空文本（dimmed）保持透明内嵌在胶囊内部，不画突兀的深色圆形底；
+    // 有文字时点亮为醒目的品牌强调色实心圆，发送引导极度清晰。
     final bg = !enabled || dimmed
-        ? AppTheme.surface3.withValues(alpha: enabled ? 1 : 0.7)
+        ? Colors.transparent
         : AppTheme.accentPrimary;
     // 转圈时把前景提亮一档：禁用态的中性底上，textTertiary 的弧线几乎看不见。
     final fg = !enabled || dimmed
@@ -196,22 +212,21 @@ class ComposerSendButton extends StatelessWidget {
         button: true,
         enabled: enabled,
         label: tooltip,
-        // 48 与左侧语境图标位同宽同高，胶囊两端的触控区与视觉留白都对称；
-        // 视觉上的圆仍是里面的 34。
+        // 44 与左侧语境图标位同宽同高，视觉留白两端严格对称。
         child: SizedBox(
-          width: 48,
+          width: 44,
           height: 48,
           child: Center(
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 140),
-              width: 34,
-              height: 34,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
               child: Center(
                 child: spinning
                     ? SizedBox(
-                        width: 18,
-                        height: 18,
+                        width: 16,
+                        height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           color: fg,

@@ -12,6 +12,8 @@ import 'adaptive_panel.dart';
 import 'goal_chat_panel.dart';
 import 'goal_compass_banner.dart';
 import '../l10n/localization.dart';
+import 'feedback_toast.dart';
+import '../theme/design_tokens.dart';
 
 // 目标页 AI 面板的预填草稿机制见 providers/goal_provider.dart
 // （goalPanelSeedProvider）：立项与拆解全程留在本页，不跳对话 tab。
@@ -36,7 +38,7 @@ void startGoalCoAuthor(WidgetRef ref, String seed, {String? goalId}) {
 
 /// 目标域「AI 共同立项 / 共同分解」的 Toast 文案。
 void showGoalCoAuthorToast(BuildContext context) {
-  ScaffoldMessenger.of(context).showSnackBar(
+  FeedbackToast.of(context).show(
     SnackBar(
       content: Text(context.l10n.goalCoAuthorReady),
       behavior: SnackBarBehavior.floating,
@@ -92,7 +94,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
 
   void _toast(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    FeedbackToast.of(context).show(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
   }
@@ -247,7 +249,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
               children: [
                 Icon(
                   Icons.track_changes_outlined,
-                  size: 17,
+                  size: DesignTokens.icon,
                   color: AppTheme.accentPrimary,
                 ),
                 const SizedBox(width: 7),
@@ -305,9 +307,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
                 decoration: BoxDecoration(
                   color: AppTheme.surface2.withValues(alpha: 0.45),
                   border: Border(
-                    right: BorderSide(
-                      color: AppTheme.surface3.withValues(alpha: 0.9),
-                    ),
+                    right: BorderSide(color: AppTheme.boundaryColor),
                   ),
                 ),
                 child: const GoalWorkbenchPanel(),
@@ -467,7 +467,7 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
           Text(
             context.l10n.goalTreeHelp,
             style: TextStyle(
-              fontSize: 11.5,
+              fontSize: TypographyTokens.secondary,
               height: 1.6,
               color: AppTheme.textTertiary,
             ),
@@ -549,9 +549,11 @@ class _GoalListViewState extends ConsumerState<GoalListView> {
 ///
 /// 原主区中列整体搬入左栏：标题「目标」+ 计数徽章 + 右上常驻「新建」
 /// 按钮（始终可点，表单弹出底部面板，见 [showGoalCreateSheet]）；
-/// 状态过滤多选（一行三枚，缺省活跃）；「和 AI 拆解 / 立新目标」入口
-/// 与按状态并集渲染的目标清单。选中经 [selectedGoalIdProvider] 与
-/// 主区详情/讨论共享；移动端抽屉形态下点选后自动收起抽屉。
+/// 目标工作台清单（左栏）：三态全量展示（活跃 → 暂停 → 已达成），
+/// 不做状态筛选——状态靠条目视觉区分（见 [_GoalListTile]），
+/// 活跃最多 3 条，清单本身不长，筛选是多余的一次点击。
+/// 选中经 [selectedGoalIdProvider] 与主区详情/讨论共享；移动端
+/// 抽屉形态下点选后自动收起抽屉。
 class GoalWorkbenchPanel extends ConsumerWidget {
   const GoalWorkbenchPanel({super.key});
 
@@ -560,11 +562,8 @@ class GoalWorkbenchPanel extends ConsumerWidget {
     final activeAsync = ref.watch(activeGoalsProvider);
     final pausedAsync = ref.watch(pausedGoalsProvider);
     final completedAsync = ref.watch(completedGoalsProvider);
-    final filter = ref.watch(goalStatusFilterProvider);
     final selectedId = ref.watch(selectedGoalIdProvider);
     final activeCount = activeAsync.value?.length ?? 0;
-    final pausedCount = pausedAsync.value?.length ?? 0;
-    final completedCount = completedAsync.value?.length ?? 0;
 
     void select(String id) {
       ref.read(selectedGoalIdProvider.notifier).set(id);
@@ -582,7 +581,7 @@ class GoalWorkbenchPanel extends ConsumerWidget {
             children: [
               Icon(
                 Icons.track_changes_outlined,
-                size: 19,
+                size: DesignTokens.icon,
                 color: AppTheme.accentPrimary,
               ),
               const SizedBox(width: 8),
@@ -625,35 +624,9 @@ class GoalWorkbenchPanel extends ConsumerWidget {
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   minimumSize: const Size(0, 30),
-                  textStyle: const TextStyle(fontSize: 11.5),
+                  textStyle: const TextStyle(fontSize: TypographyTokens.micro),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // 状态过滤：多选（一行三枚），决定清单内容（缺省活跃）。
-          Row(
-            children: [
-              for (final (statusFilter, count) in [
-                (GoalStatusFilter.active, activeCount),
-                (GoalStatusFilter.paused, pausedCount),
-                (GoalStatusFilter.completed, completedCount),
-              ]) ...[
-                Expanded(
-                  child: _StatusFilterChip(
-                    label: switch (statusFilter) {
-                      GoalStatusFilter.active => context.l10n.activeGoals,
-                      GoalStatusFilter.paused => context.l10n.pausedGoals,
-                      GoalStatusFilter.completed => context.l10n.achievedGoals,
-                    },
-                    count: count,
-                    selected: filter.contains(statusFilter),
-                    onTap: () => toggleGoalStatusFilter(ref, statusFilter),
-                  ),
-                ),
-                if (statusFilter != GoalStatusFilter.completed)
-                  const SizedBox(width: 6),
-              ],
             ],
           ),
           const SizedBox(height: 6),
@@ -680,7 +653,6 @@ class GoalWorkbenchPanel extends ConsumerWidget {
           _listSection(
             context: context,
             ref: ref,
-            filters: filter,
             activeAsync: activeAsync,
             pausedAsync: pausedAsync,
             completedAsync: completedAsync,
@@ -692,11 +664,10 @@ class GoalWorkbenchPanel extends ConsumerWidget {
     );
   }
 
-  /// 按状态多选渲染清单（并集，缺省活跃）。空态文案带下一步指引。
+  /// 三态全量渲染（活跃 → 暂停 → 已达成，不筛选）。空态带下一步指引。
   Widget _listSection({
     required BuildContext context,
     required WidgetRef ref,
-    required Set<GoalStatusFilter> filters,
     required AsyncValue<List<Goal>> activeAsync,
     required AsyncValue<List<Goal>> pausedAsync,
     required AsyncValue<List<Goal>> completedAsync,
@@ -720,12 +691,11 @@ class GoalWorkbenchPanel extends ConsumerWidget {
     );
 
     final sections = <(String?, List<Goal>)>[];
-    for (final (statusFilter, asyncValue, badge) in [
-      (GoalStatusFilter.active, activeAsync, null),
-      (GoalStatusFilter.paused, pausedAsync, context.l10n.pausedShort),
-      (GoalStatusFilter.completed, completedAsync, context.l10n.achievedGoals),
+    for (final (_, asyncValue, badge) in [
+      (GoalStatus.active, activeAsync, null),
+      (GoalStatus.paused, pausedAsync, context.l10n.pausedShort),
+      (GoalStatus.completed, completedAsync, context.l10n.achievedGoals),
     ]) {
-      if (!filters.contains(statusFilter)) continue;
       if (asyncValue.hasError) return failed(asyncValue.error!);
       final goals = asyncValue.value;
       if (goals == null) return loading();
@@ -736,13 +706,7 @@ class GoalWorkbenchPanel extends ConsumerWidget {
       (sum, section) => sum + section.$2.length,
     );
     if (total == 0) {
-      final activeOnly =
-          filters.length == 1 && filters.contains(GoalStatusFilter.active);
-      return empty(
-        activeOnly
-            ? context.l10n.noActiveGoalsCreate
-            : context.l10n.noGoalsInStatus,
-      );
+      return empty(context.l10n.noActiveGoalsCreate);
     }
     final board = ref.watch(planBoardProvider);
     if (board.hasError) return failed(board.error!);
@@ -830,7 +794,7 @@ class _GoalCreateFormState extends ConsumerState<_GoalCreateForm> {
     final content = _contentController.text.trim();
     if (content.isEmpty || _saving) return;
     setState(() => _saving = true);
-    final messenger = ScaffoldMessenger.of(context);
+    final messenger = FeedbackToast.of(context);
     final navigator = Navigator.of(context);
     final atCap =
         (ref.read(activeGoalsProvider).value?.length ?? 0) >= maxActiveGoals;
@@ -854,7 +818,7 @@ class _GoalCreateFormState extends ConsumerState<_GoalCreateForm> {
           : context.l10n.newGoalCreated(content);
       refreshGoalProviders(ref);
       navigator.pop();
-      messenger.showSnackBar(
+      messenger.show(
         SnackBar(
           content: Text(savedMessage),
           behavior: SnackBarBehavior.floating,
@@ -890,7 +854,7 @@ class _GoalCreateFormState extends ConsumerState<_GoalCreateForm> {
                     ? context.l10n.goalCapHint
                     : context.l10n.newGoalHint,
                 hintStyle: TextStyle(
-                  fontSize: 12.5,
+                  fontSize: TypographyTokens.secondary,
                   color: AppTheme.textTertiary,
                 ),
                 prefixIcon: const Icon(Icons.add_task, size: 16),
@@ -910,14 +874,14 @@ class _GoalCreateFormState extends ConsumerState<_GoalCreateForm> {
                     selected: _newPhase == phase,
                     onSelected: (_) => setState(() => _newPhase = phase),
                     visualDensity: VisualDensity.compact,
-                    labelStyle: const TextStyle(fontSize: 11.5),
+                    labelStyle: const TextStyle(fontSize: TypographyTokens.micro),
                   ),
                 TextButton.icon(
                   onPressed: () =>
                       setState(() => _expandFacets = !_expandFacets),
                   icon: Icon(
                     _expandFacets ? Icons.expand_less : Icons.expand_more,
-                    size: 16,
+                    size: DesignTokens.iconMicro,
                   ),
                   label: Text(
                     _expandFacets
@@ -926,7 +890,7 @@ class _GoalCreateFormState extends ConsumerState<_GoalCreateForm> {
                   ),
                   style: TextButton.styleFrom(
                     visualDensity: VisualDensity.compact,
-                    textStyle: const TextStyle(fontSize: 11.5),
+                    textStyle: const TextStyle(fontSize: TypographyTokens.micro),
                   ),
                 ),
               ],
@@ -997,7 +961,7 @@ class _GoalCreateFormState extends ConsumerState<_GoalCreateForm> {
                 child: Text(
                   context.l10n.newGoalCapacityHint(maxActiveGoals),
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: TypographyTokens.secondary,
                     color: AppTheme.accentPrimary,
                   ),
                 ),
@@ -1033,12 +997,14 @@ void _startGoalCoAuthor(WidgetRef ref, BuildContext context, int activeCount) {
   showGoalCoAuthorToast(context);
 }
 
-/// 目标清单项（左栏工作台）：阶段徽章 + 标题 + 当前行动阶段，
+/// 目标清单项（左栏工作台）：状态左色条 + 阶段徽章 + 标题 + 状态标注，
 /// 点击选中，主区详情与 AI 讨论跟随。
 ///
 /// 紧凑导航形态（非管理卡片）：管理动作（调整当前行动/暂停/达成/唤醒）
 /// 全部收敛到主区详情卡；这里只负责「看有哪些目标 + 选中一个」。
-/// [statusBadge] 非空时展示状态后缀（暂停/已达成，活跃态不展示）。
+/// 状态不只靠文字：当前阶段左侧强调色条；已达成整体降透明 + 标题划线
+/// + 徽章转灰；已暂停灰化。归档态阶段徽章同步转灰，活跃/归档一眼可分。
+/// [statusBadge] 非空时展示带图标的状态后缀（当前阶段/暂停/已达成）。
 class _GoalListTile extends StatelessWidget {
   const _GoalListTile({
     required this.goal,
@@ -1063,157 +1029,153 @@ class _GoalListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final focus = goal.currentFocus?.trim() ?? '';
     final blocker = goal.blocker?.trim() ?? '';
+    final archived = goal.isArchived;
+    final completed = goal.isCompleted;
+    // 状态视觉锚点：达成绿✓、暂停灰⏸、进行中强调色▶；配合左色条与
+    // 归档降透明，不逐字读标签也能分清三态。
+    final statusColor = completed
+        ? AppTheme.success
+        : goal.isPaused
+        ? AppTheme.textTertiary
+        : AppTheme.accentPrimary;
+    final contentColor = completed
+        ? AppTheme.textTertiary
+        : goal.isPaused
+        ? AppTheme.textSecondary
+        : AppTheme.textPrimary;
+    final borderColor = selected
+        ? AppTheme.accentPrimary.withValues(alpha: 0.45)
+        : AppTheme.surface3.withValues(alpha: 0.6);
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: InkWell(
-        onTap: onTap,
+      // 非均匀 Border（左状态色条）不能配 borderRadius，用 ClipRRect 裁出圆角。
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 7),
-          decoration: BoxDecoration(
-            color: selected ? AppTheme.surface2 : Colors.transparent,
+        child: Opacity(
+          opacity: archived ? 0.72 : 1.0,
+          child: InkWell(
+            onTap: onTap,
             borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-            border: Border.all(
-              color: selected
-                  ? AppTheme.accentPrimary.withValues(alpha: 0.45)
-                  : AppTheme.surface3.withValues(alpha: 0.6),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 7),
+              decoration: BoxDecoration(
+                color: selected ? AppTheme.surface2 : Colors.transparent,
+                border: Border(
+                  // 左色条 = 状态的第一视觉层：进行中强调色、达成绿、暂停灰；
+                  // 选中时仍让位给选中描边（左条同步提亮）。
+                  left: BorderSide(
+                    color: selected
+                        ? AppTheme.accentPrimary
+                        : statusColor.withValues(alpha: 0.9),
+                    width: 3,
+                  ),
+                  top: BorderSide(color: borderColor),
+                  right: BorderSide(color: borderColor),
+                  bottom: BorderSide(color: borderColor),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
-                      vertical: 1.5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accentPrimary.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      _goalPhaseLabel(context, goal.phase),
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.4,
-                        color: AppTheme.accentPrimary,
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1.5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: archived
+                              ? AppTheme.surface3
+                              : AppTheme.accentPrimary.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          _goalPhaseLabel(context, goal.phase),
+                          style: TextStyle(
+                            fontSize: TypographyTokens.micro,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.4,
+                            color: archived
+                                ? AppTheme.textTertiary
+                                : AppTheme.accentPrimary,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      goal.content,
-                      softWrap: true,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          goal.content,
+                          softWrap: true,
+                          style: TextStyle(
+                            fontSize: TypographyTokens.body,
+                            fontWeight: FontWeight.w600,
+                            color: contentColor,
+                            decoration: completed
+                                ? TextDecoration.lineThrough
+                                : TextDecoration.none,
+                          ),
+                        ),
                       ),
-                    ),
+                      if (statusBadge != null) ...[
+                        const SizedBox(width: 4),
+                        Icon(
+                          switch (goal.status) {
+                            GoalStatus.completed => Icons.check_circle,
+                            GoalStatus.paused => Icons.pause_circle_outline,
+                            GoalStatus.active => Icons.play_circle_outline,
+                          },
+                          size: DesignTokens.iconMicro,
+                          color: statusColor,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          statusBadge!,
+                          style: TextStyle(
+                            fontSize: TypographyTokens.micro,
+                            fontWeight: archived
+                                ? FontWeight.w500
+                                : FontWeight.w600,
+                            color: archived
+                                ? (completed
+                                      ? AppTheme.success.withValues(alpha: 0.8)
+                                      : AppTheme.textTertiary)
+                                : AppTheme.accentPrimary,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  if (statusBadge != null) ...[
-                    const SizedBox(width: 4),
+                  if (focus.isNotEmpty) ...[
+                    const SizedBox(height: 3),
                     Text(
-                      statusBadge!,
+                      '📍 $focus',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 11,
+                        color: archived
+                            ? AppTheme.textTertiary
+                            : AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                  if (showBlocker && blocker.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      '🚧 $blocker',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
                         color: AppTheme.textTertiary,
                       ),
                     ),
                   ],
                 ],
               ),
-              if (focus.isNotEmpty) ...[
-                const SizedBox(height: 3),
-                Text(
-                  '📍 $focus',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
-                ),
-              ],
-              if (showBlocker && blocker.isNotEmpty) ...[
-                const SizedBox(height: 3),
-                Text(
-                  '🚧 $blocker',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 状态过滤胶囊（活跃/暂停搁置/已达成）：多选切换 + 计数徽标。
-///
-/// 一行三枚（外层 Row + Expanded 定宽），故不带图标、收紧内边距，
-/// 保证「暂停搁置」这类长标签也单行放下不换行。
-class _StatusFilterChip extends StatelessWidget {
-  const _StatusFilterChip({
-    required this.label,
-    required this.count,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final int count;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final fg = selected ? AppTheme.accentPrimary : AppTheme.textTertiary;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppTheme.accentPrimary.withValues(alpha: 0.12)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: selected
-                ? AppTheme.accentPrimary.withValues(alpha: 0.45)
-                : AppTheme.surface3,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  color: fg,
-                ),
-              ),
             ),
-            const SizedBox(width: 4),
-            Text(
-              '$count',
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-                color: selected ? fg : AppTheme.textTertiary,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -1242,69 +1204,129 @@ class _PlanNavigationNode extends StatefulWidget {
 
 class _PlanNavigationNodeState extends State<_PlanNavigationNode> {
   bool expanded = true;
+
+  /// 计划级状态（由步骤推导，计划本身无独立状态字段）：
+  /// 全部达成 → 已达成；有活跃步 → 进行中；否则 → 已暂停。
+  /// 让大目标与步骤共用同一套状态视觉语言（图标/颜色见 [_GoalListTile]）。
+  (String, Color, IconData) _planStatus(BuildContext context) {
+    final entry = widget.entry;
+    if (entry.totalCount > 0 && entry.doneCount >= entry.totalCount) {
+      return (context.l10n.achievedGoals, AppTheme.success, Icons.check_circle);
+    }
+    if (entry.activeStep != null) {
+      return (
+        context.l10n.inProgressGoal,
+        AppTheme.accentPrimary,
+        Icons.play_circle_outline,
+      );
+    }
+    return (
+      context.l10n.pausedShort,
+      AppTheme.textTertiary,
+      Icons.pause_circle_outline,
+    );
+  }
+
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            IconButton(
-              tooltip: expanded
-                  ? context.l10n.collapsePhase
-                  : context.l10n.expandPhase,
-              visualDensity: VisualDensity.compact,
-              onPressed: () => setState(() => expanded = !expanded),
-              icon: Icon(
-                expanded ? Icons.expand_more : Icons.chevron_right,
-                size: 18,
-              ),
-            ),
-            Expanded(
-              child: InkWell(
-                onTap: () => widget.onSelect(
-                  widget.steps.any((g) => g.id == widget.entry.focusGoalId)
-                      ? widget.entry.focusGoalId!
-                      : widget.steps.first.id,
+  Widget build(BuildContext context) {
+    final entry = widget.entry;
+    final (statusLabel, statusColor, statusIcon) = _planStatus(context);
+    final allDone = entry.totalCount > 0 && entry.doneCount >= entry.totalCount;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              IconButton(
+                tooltip: expanded
+                    ? context.l10n.collapsePhase
+                    : context.l10n.expandPhase,
+                visualDensity: VisualDensity.compact,
+                onPressed: () => setState(() => expanded = !expanded),
+                icon: Icon(
+                  expanded ? Icons.expand_more : Icons.chevron_right,
+                  size: DesignTokens.icon,
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(
-                    widget.entry.plan.intentText,
-                    softWrap: true,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
+              ),
+              Expanded(
+                child: InkWell(
+                  onTap: () => widget.onSelect(
+                    widget.steps.any((g) => g.id == entry.focusGoalId)
+                        ? entry.focusGoalId!
+                        : widget.steps.first.id,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      entry.plan.intentText,
+                      softWrap: true,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: allDone
+                            ? AppTheme.textSecondary
+                            : AppTheme.textPrimary,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
-        if (expanded)
-          Padding(
-            padding: const EdgeInsets.only(left: 20),
-            child: Column(
-              children: [
-                for (final step in widget.steps)
-                  _GoalListTile(
-                    goal: step,
-                    selected: widget.selectedId == step.id,
-                    statusBadge: step.status == GoalStatus.active
-                        ? context.l10n.currentPhase
-                        : _goalStatusLabel(context, step.status),
-                    onTap: () => widget.onSelect(step.id),
+              // 计划级状态徽标：状态图标 + 标签 + 进度（done/total），
+              // 与步骤条目的状态色一致，大目标一眼可读。
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
                   ),
-              ],
-            ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(statusIcon, size: 11, color: statusColor),
+                      const SizedBox(width: 3),
+                      Text(
+                        '$statusLabel ${entry.doneCount}/${entry.totalCount}',
+                        style: TextStyle(
+                          fontSize: TypographyTokens.micro,
+                          fontWeight: FontWeight.w600,
+                          color: statusColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-      ],
-    ),
-  );
+          if (expanded)
+            Padding(
+              padding: const EdgeInsets.only(left: 20),
+              child: Column(
+                children: [
+                  for (final step in widget.steps)
+                    _GoalListTile(
+                      goal: step,
+                      selected: widget.selectedId == step.id,
+                      statusBadge: step.status == GoalStatus.active
+                          ? context.l10n.currentPhase
+                          : _goalStatusLabel(context, step.status),
+                      onTap: () => widget.onSelect(step.id),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ActiveGoalCard extends StatefulWidget {
@@ -1380,7 +1402,7 @@ class _ActiveGoalCardState extends State<_ActiveGoalCard> {
                   child: Text(
                     goal.content,
                     style: TextStyle(
-                      fontSize: 13.5,
+                      fontSize: TypographyTokens.body,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimary,
                     ),
@@ -1500,7 +1522,7 @@ class _ActiveGoalCardState extends State<_ActiveGoalCard> {
                         Expanded(
                           child: Text.rich(
                             TextSpan(
-                              style: const TextStyle(fontSize: 12.5),
+                              style: const TextStyle(fontSize: TypographyTokens.secondary),
                               children: [
                                 TextSpan(
                                   text: context.l10n.currentActionLabel,
@@ -1886,7 +1908,7 @@ class _GoalEditFullDialogState extends State<_GoalEditFullDialog> {
                       selected: _phase == phase,
                       onSelected: (_) => setState(() => _phase = phase),
                       visualDensity: VisualDensity.compact,
-                      labelStyle: const TextStyle(fontSize: 11.5),
+                      labelStyle: const TextStyle(fontSize: TypographyTokens.micro),
                     ),
                 ],
               ),

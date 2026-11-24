@@ -7,12 +7,16 @@ import { diffItems } from '../src/diff';
 import { findingPage } from '../src/feed';
 import { trends,productRoutes } from '../src/products';
 import { productIdentity,validateCollection } from '../src/contracts';
+import { refreshAffiliates, affiliateEvidence } from '../src/affiliate';
+import worker from '../src/index';
+import {cwsDiscoverySource, githubDiscoverySource} from '../src/sources';
+import type {Env} from '../worker-configuration';
 
 let mf:Miniflare, db:D1Database;
 beforeAll(async()=>{
  mf=new Miniflare(convertV4MiniflareOptions({modules:true,script:'export default {fetch(){return new Response("ok")}}',d1Databases:['DB'],compatibilityDate:'2026-11-15'}));
  db=await mf.getD1Database('DB');
- for(const file of ['0001_init.sql','0002_admin.sql','0003_finding_delta.sql','0004_research_observations.sql','0005_product_insights.sql']) {
+ for(const file of ['0001_init.sql','0002_admin.sql','0003_finding_delta.sql','0004_research_observations.sql','0005_product_insights.sql','0006_affiliate_evidence.sql']) {
    const sql=readFileSync(new NodeURL('../migrations/'+file,import.meta.url),'utf8').replace(/--[^\n]*/g,'');
    for(const statement of sql.split(';').filter(s=>s.trim())) await db.prepare(statement).run();
  }
@@ -137,4 +141,65 @@ it('upgrades legacy GitHub names to numeric identity without losing history',asy
  const products=await db.prepare("SELECT * FROM scout_products WHERE platform='github'").all();
  expect(products.results).toHaveLength(1);expect(products.results[0].platform_key).toBe('12345');
  expect((await db.prepare('SELECT * FROM scout_observations WHERE product_id=?').bind(products.results[0].product_id).all()).results).toHaveLength(2);
+});
+
+it('affiliate enrichment preserves observations, fixed evidence and failed-check history', async()=>{
+ const source='producthunt-affiliate-test';
+ await upsertSource(db,{id:source,name:'PH',enabled:true,specHash:'v',intervalMinutes:60});
+ const token=await acquireSource(db,source);
+ const items=[{id:'cash',title:'Cash product',website_url:'https://vendor.com/'},{id:'unknown',title:'Unknown product',website_url:'https://other.com/'}];
+ await recordRun(db,source,'2026-12-10T00:00:00Z',items,[],'2026-12-10T00:00:00Z',token!,'v',60);
+ const original=await db.prepare('SELECT payload_json FROM scout_products WHERE product_id=?').bind('["producthunt","cash"]').first();
+ const http=(async(input:string|URL|Request)=>new Response(String(input)==='https://vendor.com/'?'<a href="/affiliate">Affiliate program</a>':String(input)==='https://vendor.com/affiliate'?'<h1>Affiliate Program</h1><p>Join and earn 20% commission, up to $150 per customer.</p>':'<h1>Home</h1>',{headers:{'content-type':'text/html'}})) as typeof fetch;
+ await refreshAffiliates(db,http,new Date('2026-12-10T01:00:00Z'));
+ const evidence=(await affiliateEvidence(db,['["producthunt","cash"]'],new Date('2026-12-10T02:00:00Z'))).get('["producthunt","cash"]') as any;
+ expect(evidence).toMatchObject({status:'confirmed',reward_type:'cash',stale:false});
+ const url=new URL('https://test/v1/products?view=all&source=producthunt-affiliate-test&as_of=2026-12-10T02:00:00Z');
+ expect(((await (await productRoutes(db,url)).json()) as any).items.find((p:any)=>p.title==='Cash product').affiliate).toMatchObject({status:'confirmed'});
+ expect(await db.prepare('SELECT payload_json FROM scout_products WHERE product_id=?').bind('["producthunt","cash"]').first()).toEqual(original);
+ await refreshAffiliates(db,(async()=>new Response('',{status:503})) as typeof fetch,new Date('2026-12-18T01:00:00Z'));
+ const stale=(await affiliateEvidence(db,['["producthunt","cash"]'],new Date('2026-12-18T02:00:00Z'))).get('["producthunt","cash"]') as any;
+ expect(stale).toMatchObject({status:'confirmed',stale:true,check_outcome:'http_503'});
+ expect(stale.evidence_quote).toContain('$150');
+ expect(stale.checked_at).toBe(evidence.checked_at);
+ url.searchParams.set('as_of','2026-12-18T02:00:00Z');
+ expect(((await (await productRoutes(db,url)).json()) as any).items.find((p:any)=>p.title==='Cash product').affiliate.stale).toBe(true);
+});
+
+it('retires presets without deleting history and lists only current source specs', async () => {
+ const oldIds = ['github-dart', 'github-rust', 'cws-watchlist'];
+ for (const id of oldIds) await upsertSource(db, {id, name: id, enabled: true, specHash: 'old', intervalMinutes: 720});
+ const lease = await acquireSource(db, oldIds[0]);
+ await recordRun(db, oldIds[0], '2026-12-20T00:00:00Z', [{id:'retained',full_name:'old/retained'}], [], '2026-12-20', lease!, 'old', 720);
+ const before = await getLastSnapshot(db, oldIds[0]);
+ const sql = readFileSync(new NodeURL('../migrations/0007_discovery_sources.sql', import.meta.url), 'utf8').replace(/--[^\n]*/g, '');
+ for (const statement of sql.split(';').filter(s => s.trim())) await db.prepare(statement).run();
+ for (const id of oldIds) expect((await db.prepare('SELECT enabled FROM scout_sources WHERE id=?').bind(id).first())!.enabled).toBe(0);
+ expect(await getLastSnapshot(db, oldIds[0])).toEqual(before);
+ for (const spec of [githubDiscoverySource(), cwsDiscoverySource()]) await upsertSource(db, spec);
+ const env = {DB: db} as Env;
+ for (const path of ['/sources','/admin/sources']) {
+   const response = await worker.fetch(new Request('https://test'+path), env);
+   expect(response.status).toBe(200);
+   const rows = await response.json() as {id:string}[];
+   expect(rows.map(r => r.id)).toEqual(expect.arrayContaining(['github-newcomers','cws-discover']));
+   expect(rows.some(r => oldIds.includes(r.id))).toBe(false);
+ }
+ const response = await worker.fetch(new Request('https://test/admin/sources/github-dart', {method:'PATCH',body:JSON.stringify({enabled:true})}), env);
+ expect(response.status).toBe(404);
+ const detail = await productRoutes(db, new URL('https://test/v1/products/detail?id='+encodeURIComponent('["github","retained"]')));
+ expect(detail.status).toBe(200);
+ expect((await detail.json() as any).history).toHaveLength(1);
+});
+
+it('accepts optional CWS store links and bounds extra tracking without requiring IDs', async () => {
+ const env = {DB: db} as Env;
+ const put = (value: unknown) => worker.fetch(new Request('https://test/admin/settings/cws_ids', {method:'PUT',body:JSON.stringify({value})}), env);
+ const id = 'a'.repeat(32);
+ const response = await put(`https://chromewebstore.google.com/detail/extension/${id}?hl=en\n${id}`);
+ expect(await response.json()).toMatchObject({ids:[id]});
+ expect((await put(null)).status).toBe(400);
+ const ids = Array.from({length:21},(_,i)=>'a'.repeat(30)+String.fromCharCode(97+Math.floor(i/16),97+i%16));
+ expect((await put(ids.join(','))).status).toBe(400);
+ expect(await (await put('')).json()).toMatchObject({ids:[]});
 });

@@ -483,8 +483,12 @@ impl Store {
                 "INSERT OR IGNORE INTO sync_frontiers(origin_stream_id) VALUES(?1)",
                 [&device.stream_id],
             )?;
-            if member.active && device.device_id != identity.device_id {
-                self.connection.execute("INSERT OR IGNORE INTO sync_outbox(op_id,recipient_device_id) SELECT op_id,?1 FROM sync_operations WHERE local=1",[&device.device_id])?;
+            if member.active
+                && device.device_id != identity.device_id
+                && (identity.device_id == roster.owner.device_id
+                    || device.device_id == roster.owner.device_id)
+            {
+                self.connection.execute("INSERT OR IGNORE INTO sync_outbox(op_id,recipient_device_id) SELECT op_id,?1 FROM sync_operations WHERE origin_device_id!=?1 AND (local=1 OR (?2 AND state IN ('applied','conflict')))",params![device.device_id, identity.device_id == roster.owner.device_id])?;
             }
         }
         self.connection.execute(

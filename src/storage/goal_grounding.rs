@@ -21,12 +21,18 @@ pub(crate) struct GoalReference {
 impl Store {
     pub(crate) fn planning_profile(&self) -> Result<(PlanningProfile, Option<String>)> {
         match self.get_wiki_page(PROFILE)? {
+            Some(p) if p.status == "archived" || p.opinion.as_deref() == Some("reject") => {
+                Ok((PlanningProfile::default(), Some(p.updated_at)))
+            }
             Some(p) => Ok((
                 parse_profile(&p.content_md).context("个人档案格式已改变，请在知识页检查")?,
                 Some(p.updated_at),
             )),
             None => {
-                if let Some(old) = self.get_wiki_page("capability/personal-planning-profile")? {
+                if let Some(old) = self
+                    .get_wiki_page("capability/personal-planning-profile")?
+                    .filter(|p| p.status != "archived" && p.opinion.as_deref() != Some("reject"))
+                {
                     return Ok((parse_profile(&old.content_md)?, None));
                 }
                 Ok((PlanningProfile::default(), None))

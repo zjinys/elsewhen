@@ -32,7 +32,9 @@ APK，并且**证明**换上去的确实是它。
 
 ## 配置
 
-全部在 `config.env`，脚本里没有常量：设备序列号、`applicationId`、
+Release 使用固定发布证书：本机从忽略提交的 `ui/android/key.properties` 读取，CI 从 GitHub 加密 secrets 恢复；预期指纹在 `ui/android/release-signing.sha256`。缺少密钥不能临时生成或回退到 debug 签名。恢复和维护方法见 `references/runbook.md`「签名」。
+
+安装配置在 `config.env`，脚本里没有常量：设备序列号、`applicationId`、
 允许的签名证书 SHA-256、flutter 命令、是否总是重建、Android SDK 位置。
 敏感项写 `config.local.env`（已 `.gitignore`）。
 

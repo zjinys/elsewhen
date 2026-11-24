@@ -267,6 +267,9 @@ pub(crate) fn run_agent_loop_inner(
                 context.push(supplement);
             }
         }
+        super::memory::refresh_recalled_context(store, conversation_id, &mut request_context)?;
+        super::memory::claims::refresh(store, conversation_id, &mut request_context)?;
+        super::memory::history::refresh(store, conversation_id, &mut request_context);
         let reply = match super::generation::request(
             store,
             provider,

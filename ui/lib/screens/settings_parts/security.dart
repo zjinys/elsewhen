@@ -46,7 +46,7 @@ extension _SecurityTab on _SettingsScreenState {
           children: [
             Icon(
               _appLockEnabled ? Icons.lock : Icons.lock_open,
-              size: 18,
+              size: DesignTokens.icon,
               color: _appLockEnabled
                   ? AppTheme.accentPrimary
                   : AppTheme.textTertiary,
@@ -190,7 +190,7 @@ extension _SecurityTab on _SettingsScreenState {
     );
     if (verified != true) {
       if (verified == false && mounted && controller.text.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FeedbackToast.of(context).show(
           SnackBar(
             content: Text(
               context.l10n.l6IncorrectCurrentPasswordNotEnabled691f1,
@@ -203,7 +203,7 @@ extension _SecurityTab on _SettingsScreenState {
     final ok = await _appLockService.setBiometricUnlock(true);
     await _loadAppLockState();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(
             ok
@@ -251,7 +251,7 @@ extension _SecurityTab on _SettingsScreenState {
     if (result == true) {
       await _loadAppLockState();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FeedbackToast.of(context).show(
           SnackBar(content: Text(context.l10n.l6AppPasswordSeta5390)),
         );
       }
@@ -271,7 +271,7 @@ extension _SecurityTab on _SettingsScreenState {
     if (result == true) {
       await _loadAppLockState();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FeedbackToast.of(context).show(
           SnackBar(content: Text(context.l10n.l6AppPasswordChanged0493a)),
         );
       }
@@ -319,12 +319,12 @@ extension _SecurityTab on _SettingsScreenState {
     if (confirmed == true) {
       await _loadAppLockState();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FeedbackToast.of(context).show(
           SnackBar(content: Text(context.l10n.l6AppPasswordTurnedOff9f4c1)),
         );
       }
     } else if (confirmed == false && mounted && controller.text.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(
             context.l10n.l6IncorrectCurrentPasswordNotDisabled0660c,

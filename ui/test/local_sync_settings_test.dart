@@ -74,6 +74,8 @@ void main() {
           ),
         ),
       );
+      await tester.tap(find.text('连接新设备'));
+      await tester.pumpAndSettle();
       final prepare = find.widgetWithText(FilledButton, '准备本机');
       expect(tester.widget<FilledButton>(prepare).onPressed, isNotNull);
       // 共享 Provider/API Key 的确认改为点击后弹窗，不再常驻复选框。
@@ -87,6 +89,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(controller.state?.state, 'local_ready');
       expect(find.text('同步已开启'), findsOneWidget);
+      expect(find.text('创建短期邀请'), findsOneWidget);
+      await tester.tap(find.text('管理'));
+      await tester.pumpAndSettle();
       expect(find.text('锁定本机密钥'), findsOneWidget);
       expect(find.textContaining('同步完成'), findsNothing);
       // 本机信息卡：owner 可重命名（ready 态才有入口）；保存后显示新名。
@@ -117,7 +122,7 @@ void main() {
     },
   );
 
-  testWidgets('设备名称在状态卡之前，准备本机紧跟输入框，确认走弹窗', (tester) async {
+  testWidgets('选择连接新设备后填写名称，窄屏准备按钮与授权弹窗可用', (tester) async {
     tester.view.physicalSize = const Size(320, 780);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -140,12 +145,15 @@ void main() {
         ),
       ),
     );
+    expect(find.byType(TextField), findsNothing);
+    await tester.tap(find.text('连接新设备'));
+    await tester.pumpAndSettle();
     final nameField = find.byType(TextField);
     expect(nameField, findsOneWidget);
-    // 设备名称在「同步未开启」状态卡之前。
+    // 名称仅在选定连接意图之后显示。
     expect(
       tester.getTopLeft(nameField).dy,
-      lessThan(tester.getTopLeft(find.text('同步未开启')).dy),
+      greaterThan(tester.getTopLeft(find.text('同步未开启')).dy),
     );
     // 「准备本机」紧跟输入框右侧（同一行）；窄屏不溢出。
     final prepare = find.widgetWithText(FilledButton, '准备本机');

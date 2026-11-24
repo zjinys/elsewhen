@@ -95,7 +95,7 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
                               children: [
                                 Icon(
                                   Icons.egg_outlined,
-                                  size: 13,
+                                  size: DesignTokens.iconMicro,
                                   color: AppTheme.accentMuted,
                                 ),
                                 const SizedBox(width: 6),
@@ -154,29 +154,8 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
   }
 }
 
-/// 每种 kind 一个主题色：让「分组 + 条目」的颜色形成双重视觉索引
-Color _kindColor(String kind) {
-  const map = <String, Color>{
-    'profile': Color(0xFF7AA2F7), // 蓝
-    'person': Color(0xFFF7768E), // 人物用暖红，与「关系」区分
-    'recurring_cost': Color(0xFFF7768E), // 红
-    'capability': Color(0xFF9ECE6A), // 绿
-    'asset': Color(0xFFE0AF68), // 黄
-    'project': Color(0xFFBB9AF7), // 紫
-    'relationship': Color(0xFFF7768E),
-    'decision': Color(0xFF7DCFFF), // 青
-    'habit': Color(0xFF9ECE6A),
-    'constraint': Color(0xFFA9B1D6),
-    'insight': Color(0xFFE0AF68),
-    'topic': Color(0xFFA9B1D6), // 灰蓝
-    'method': Color(0xFF9ECE6A),
-    'case': Color(0xFF7DCFFF),
-    'principle': Color(0xFFBB9AF7),
-    'series': Color(0xFFE0AF68),
-    'source': Color(0xFF7AA2F7),
-  };
-  return map[kind] ?? AppTheme.accentMuted;
-}
+/// 每种 kind 一个主题色：统一切换至 AppTheme.knowledgeColor 低饱和色谱
+Color _kindColor(String kind) => AppTheme.knowledgeColor(kind);
 
 /// kind 色点 + 首字徽标：与分组标题同色的条目级视觉锚点
 class _KindBadge extends StatelessWidget {
@@ -200,7 +179,7 @@ class _KindBadge extends StatelessWidget {
       child: Text(
         label.characters.first,
         style: TextStyle(
-          fontSize: 10,
+          fontSize: TypographyTokens.micro,
           fontWeight: FontWeight.w700,
           color: color,
         ),
@@ -274,7 +253,7 @@ class _WikiPageItem extends StatelessWidget {
                         padding: const EdgeInsets.only(right: 4),
                         child: Icon(
                           page.isLocalPath ? Icons.folder_outlined : Icons.link,
-                          size: 12,
+                          size: DesignTokens.iconMicro,
                           color: AppTheme.textTertiary,
                         ),
                       ),
@@ -292,7 +271,7 @@ class _WikiPageItem extends StatelessWidget {
                       child: Text(
                         context.l10n.evidenceCount(page.evidenceCount),
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: TypographyTokens.micro,
                           color: AppTheme.accentPrimary,
                         ),
                       ),
@@ -324,7 +303,7 @@ class _WikiPageItem extends StatelessWidget {
                             Text(
                               '#$tag',
                               style: TextStyle(
-                                fontSize: 10.5,
+                                fontSize: TypographyTokens.micro,
                                 color: AppTheme.accentMuted,
                               ),
                             ),
@@ -332,7 +311,7 @@ class _WikiPageItem extends StatelessWidget {
                             Text(
                               '+${page.tags.length - 3}',
                               style: TextStyle(
-                                fontSize: 10.5,
+                                fontSize: TypographyTokens.micro,
                                 color: AppTheme.textTertiary,
                               ),
                             ),
@@ -343,7 +322,7 @@ class _WikiPageItem extends StatelessWidget {
                     Text(
                       prettyTime(page.updatedAt, strings: context.l10n),
                       style: TextStyle(
-                        fontSize: 10.5,
+                        fontSize: TypographyTokens.micro,
                         color: AppTheme.textTertiary,
                       ),
                     ),

@@ -341,6 +341,29 @@ pub fn list_messages(conversation_id: String) -> Result<Vec<MessageDto>> {
         .collect())
 }
 
+/// 读取某会话最后 N 条 chat 轮次（时间正序、内容完整，不含 nudge/
+/// insight/brief 等非对话消息）。目标讨论承接展示用。
+pub fn list_recent_chat_messages(conversation_id: String, limit: i64) -> Result<Vec<MessageDto>> {
+    let config = crate::config::AppConfig::load()?;
+    let store = Store::open(&config.database_path)?;
+    let limit = limit.clamp(1, 100) as usize;
+    let messages = store.list_recent_chat_messages(&conversation_id, limit)?;
+    Ok(messages
+        .into_iter()
+        .map(|m| MessageDto {
+            id: m.id,
+            conversation_id: m.conversation_id,
+            parent_message_id: m.parent_message_id,
+            role: m.role,
+            content: m.content,
+            created_at: m.created_at,
+            input_message_id: m.input_message_id,
+            kind: m.kind,
+            message_ref: m.message_ref,
+        })
+        .collect())
+}
+
 /// Get child messages of a specific message (for branching conversations)
 pub fn get_child_messages(parent_id: String) -> Result<Vec<MessageDto>> {
     let config = crate::config::AppConfig::load()?;

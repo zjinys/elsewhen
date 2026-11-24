@@ -4,26 +4,6 @@ part of '../message_area.dart';
 
 //! _MessageAreaState 的滚动锚定/搜索/载入更多/空态。
 extension _MessageAreaScrollSearch on _MessageAreaState {
-  /// 消息列表滚到底部（新消息 / 临时提示 / 会话切换时）。
-  /// 懒加载 ListView 滚动中会 build 出新条目、extent 变大，单次滚动目标
-  /// 会落后；因此跳到当前底部后在下一帧复查，extent 还有增长就继续跳，
-  /// 迭代至固定点 —— 保证真正停在最新消息位置。
-  void _scheduleScrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToBottom());
-  }
-
-  void _jumpToBottom() {
-    if (!_scrollController.hasClients) return;
-    _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
-      final pos = _scrollController.position;
-      if (pos.pixels < pos.maxScrollExtent - 1) {
-        _jumpToBottom();
-      }
-    });
-  }
-
   Widget _buildSearchBar(List<Message> messages) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
@@ -34,7 +14,7 @@ extension _MessageAreaScrollSearch on _MessageAreaState {
             tooltip: context.l10n.locateByDate,
             icon: Icon(
               Icons.calendar_today_outlined,
-              size: 18,
+              size: DesignTokens.icon,
               color: _selectedDate == null
                   ? AppTheme.textSecondary
                   : AppTheme.accentPrimary,
@@ -51,7 +31,7 @@ extension _MessageAreaScrollSearch on _MessageAreaState {
                 hintStyle: TextStyle(color: AppTheme.textTertiary),
                 prefixIcon: Icon(
                   Icons.search,
-                  size: 18,
+                  size: DesignTokens.icon,
                   color: AppTheme.textSecondary,
                 ),
                 suffixIcon: (_searchQuery.isNotEmpty || _selectedDate != null)
@@ -88,7 +68,7 @@ extension _MessageAreaScrollSearch on _MessageAreaState {
             tooltip: context.l10n.backToNow,
             icon: Icon(
               Icons.vertical_align_bottom,
-              size: 18,
+              size: DesignTokens.icon,
               color: AppTheme.textSecondary,
             ),
             onPressed: _returnToNow,
@@ -124,7 +104,7 @@ extension _MessageAreaScrollSearch on _MessageAreaState {
 
   void _returnToNow() {
     _clearLocation();
-    _scheduleScrollToBottom();
+    _scrollController.scrollToLatest();
   }
 
   /// 错误气泡上的「重新生成」：清掉本次失败提示后，
@@ -145,11 +125,7 @@ extension _MessageAreaScrollSearch on _MessageAreaState {
   }
 
   /// 加载更早消息：窗口向前扩展一页，然后回到顶部看旧内容
-  void _loadMore(int total) {
-    // 当前有效窗口：未展开时为「只看最近 N 条」的起点
-    final currentShown = _expanded
-        ? _shownSince
-        : (total > _windowSize ? total - _windowSize : 0);
+  void _loadMore(int total, int currentShown) {
     setState(() {
       _expanded = true;
       _shownSince = (currentShown - _pageSize).clamp(0, total);
@@ -165,12 +141,12 @@ extension _MessageAreaScrollSearch on _MessageAreaState {
     });
   }
 
-  Widget _buildLoadMoreButton(int total) {
+  Widget _buildLoadMoreButton(int total, int shownSince) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTheme.space4),
       child: Center(
         child: TextButton.icon(
-          onPressed: () => _loadMore(total),
+          onPressed: () => _loadMore(total, shownSince),
           icon: const Icon(Icons.keyboard_arrow_up, size: 18),
           label: Text(context.l10n.showEarlierMessages),
           style: TextButton.styleFrom(

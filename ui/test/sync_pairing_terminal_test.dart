@@ -80,19 +80,22 @@ api.SyncJoinStateDto joinState(String phase) => api.SyncJoinStateDto(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('joined is mapped to "all steps done", not to the last running step', () {
-    // 五步：'joined' 必须等于 steps.length（=5），否则第五步只能是「进行中」。
-    expect(joinerStageFor('joined'), 5);
-    // 既有映射不变。
-    expect(joinerStageFor('preview'), 0);
-    expect(joinerStageFor('awaiting_membership'), 4);
-    expect(joinerStageFor('enrollment_confirmation'), 4);
-    // 未知/未开始仍是 -1。注意 `requires_new_invitation`/`expired` 也走这一支。
-    expect(joinerStageFor('expired'), -1);
-  });
+  test(
+    'joined is mapped to "all steps done", not to the last running step',
+    () {
+      // 五步：'joined' 必须等于 steps.length（=5），否则第五步只能是「进行中」。
+      expect(joinerStageFor('joined'), 3);
+      // 既有映射不变。
+      expect(joinerStageFor('preview'), 0);
+      expect(joinerStageFor('awaiting_membership'), 2);
+      expect(joinerStageFor('enrollment_confirmation'), 2);
+      // 未知/未开始仍是 -1。注意 `requires_new_invitation`/`expired` 也走这一支。
+      expect(joinerStageFor('expired'), -1);
+    },
+  );
 
   test('owner stage reaches all-done only through deviceJoined', () {
-    const running = 4;
+    const running = 2;
     expect(
       ownerPairingStage(
         invitationId: 'inv-1',
@@ -110,7 +113,7 @@ void main() {
         approvalDelivered: true,
         deviceJoined: true,
       ),
-      5,
+      3,
     );
   });
 
@@ -137,8 +140,8 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expectAllStepsDone(tester, steps: 5);
-    expect(find.text('等待成员授权与初始同步'), findsOneWidget);
+    expectAllStepsDone(tester, steps: 3);
+    expect(find.text('同步数据'), findsOneWidget);
   });
 
   testWidgets('owner card renders the finished flow without a spinner', (
@@ -172,7 +175,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expectAllStepsDone(tester, steps: 5);
-    expect(find.text('新设备接入（在「管理」确认设备列表）'), findsOneWidget);
+    expectAllStepsDone(tester, steps: 3);
+    expect(find.text('新设备已连接，首次同步已完成'), findsOneWidget);
   });
 }

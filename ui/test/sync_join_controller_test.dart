@@ -1,5 +1,6 @@
 import 'package:elsewhen_ui/l10n/notice_messages.dart';
 import 'package:elsewhen_ui/l10n/app_localizations_zh.dart';
+
 import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
@@ -49,8 +50,8 @@ void main() {
           ),
         ),
       );
-      // 邀请码输入现在收在「通过 Key」弹窗里，先打开弹窗再输入。
-      await tester.tap(find.text('通过 Key'));
+      // 邀请码输入现在收在「粘贴邀请」弹窗里，先打开弹窗再输入。
+      await tester.tap(find.text('粘贴邀请'));
       await tester.pumpAndSettle();
       await tester.enterText(
         find.byType(TextField).first,
@@ -85,7 +86,10 @@ void main() {
     expect(f.bridge.proofs, 1);
     expect(f.storage.values['elsewhen.sync.revision.v1.join-install'], 'v1:2');
     expect(f.controller.state?.phase, 'proof_sent');
-    expect(resolveNotice(f.controller.notice, AppLocalizationsZh()), contains('没有切换'));
+    expect(
+      resolveNotice(f.controller.notice, AppLocalizationsZh()),
+      contains('没有切换'),
+    );
     await f.close();
   });
 
@@ -156,7 +160,10 @@ void main() {
     await f.join();
     f.bridge.failProof = true;
     await f.controller.inspectApproval();
-    expect(resolveNotice(f.controller.error, AppLocalizationsZh()), contains('中继步骤未确认'));
+    expect(
+      resolveNotice(f.controller.error, AppLocalizationsZh()),
+      contains('中继步骤未确认'),
+    );
     expect(f.controller.error, isNot(contains('SYNTHETIC_SECRET')));
     expect(f.bridge.proofs, 1);
     expect(f.bridge.released, isEmpty);
@@ -233,8 +240,8 @@ void main() {
           ),
         ),
       );
-      expect(find.text('通过 Key'), findsOneWidget);
-      await tester.tap(find.text('通过 Key'));
+      expect(find.text('粘贴邀请'), findsOneWidget);
+      await tester.tap(find.text('粘贴邀请'));
       await tester.pumpAndSettle();
       await tester.enterText(
         find.byType(TextField).first,
@@ -242,9 +249,10 @@ void main() {
       );
       await tester.tap(find.text('预览邀请（不联网）'));
       await pumpPairingSteps(tester);
-      final join = find.widgetWithText(FilledButton, '在独立暂存库发起加入');
+      final join = find.widgetWithText(FilledButton, '连接这台设备');
       expect(tester.widget<FilledButton>(join).onPressed, isNull);
-      expect(find.text('http://localhost:9876'), findsOneWidget);
+      expect(find.text('http://localhost:9876'), findsNothing);
+      expect(find.text('ab' * 32), findsOneWidget);
       await tester.ensureVisible(find.byType(CheckboxListTile));
       await tester.tap(find.byType(CheckboxListTile));
       await tester.pump();
@@ -252,17 +260,13 @@ void main() {
       await tester.tap(join);
       await pumpPairingSteps(tester);
       expect(f.bridge.requests, 1);
-      // 邀请细节默认折叠（离开 preview 阶段后），核对指纹前先展开。
-      await tester.tap(find.textContaining('邀请设备：'));
-      await pumpPairingSteps(tester);
-      expect(find.text('本机公钥指纹（请在已有设备核对）'), findsOneWidget);
-      final inspect = find.text('检查已有设备审批');
-      await tester.ensureVisible(inspect);
-      await tester.tap(inspect);
+      expect(find.text('请在已有设备核对本机指纹'), findsOneWidget);
+      expect(find.text('检查已有设备审批'), findsNothing);
+      await tester.pump(const Duration(seconds: 3));
       await pumpPairingSteps(tester);
       expect(f.bridge.proofs, 1);
       expect(f.controller.state?.phase, 'proof_sent');
-      expect(find.textContaining('安装证明已投递，等待授权与初始同步'), findsOneWidget);
+      expect(find.textContaining('正在准备并同步数据'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       await f.close();

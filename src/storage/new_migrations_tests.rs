@@ -8,6 +8,85 @@ fn memory_db() -> Connection {
     connection
 }
 
+#[test]
+fn v93_preserves_existing_memory_content_decisions_and_usage() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    initialize_test_version(&mut connection, 92).unwrap();
+    connection.execute("INSERT INTO personal_memory_claims(id,page_slug,body_hash,kind,subject,predicate,state,scope,conversation_id,version,confirmed_hash,basis_json,updated_at,review_after) VALUES('claim','saved','hash','procedural','user','preference','active','personal','owner',7,'hash','[]','t','t')",[]).unwrap();
+    connection.execute("INSERT INTO personal_memory_decisions(id,claim_id,conversation_id,operation,expected_version,args_json,created_at) VALUES('decision','claim','owner','confirm',6,'{}','t')",[]).unwrap();
+    connection.execute("INSERT INTO personal_memory_receipts(attempt_id,request_id,claim_id,claim_version,access_kind,outcome,created_at) VALUES('attempt','request','claim',7,'cited','sent','t')",[]).unwrap();
+    initialize(&mut connection).unwrap();
+    initialize(&mut connection).unwrap();
+    let values: (i64,String,bool,bool,String) = connection.query_row("SELECT version,confirmed_hash,pinned,excluded,salience FROM personal_memory_claims WHERE id='claim'",[],|row|Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?))).unwrap();
+    assert_eq!(values, (7, "hash".into(), false, false, "normal".into()));
+    for table in ["personal_memory_decisions", "personal_memory_receipts"] {
+        assert_eq!(
+            connection
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| row
+                    .get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+    }
+    assert_eq!(
+        connection
+            .query_row(
+                "SELECT COUNT(*) FROM personal_memory_goal_links",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+        0
+    );
+}
+
+#[test]
+fn v90_preserves_domain_rows_and_only_restarts_uncached_partial_exports() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    initialize_test_version(&mut connection, 89).unwrap();
+    connection.execute("INSERT INTO events(id,occurred_at,recorded_at,raw_text,source,created_at,updated_at) VALUES('saved','t','t','immutable original','test','t','t')",[]).unwrap();
+    for (id, state, index) in [
+        ("partial", "building", 32),
+        ("new", "building", 0),
+        ("complete", "ready", 45),
+        ("ack", "acknowledged", 45),
+    ] {
+        connection.execute("INSERT INTO sync_snapshot_exports(id,recipient_device_id,key_version,state,transport,blob_index) VALUES(?1,'peer',1,?2,'blob',?3)", rusqlite::params![id,state,index]).unwrap();
+    }
+    connection.execute("INSERT INTO sync_operations(op_id,origin_device_id,origin_stream_id,origin_sequence,payload,payload_hash,local,state) VALUES('stream:1','peer','stream',1,'{}','hash',0,'applied')",[]).unwrap();
+    initialize(&mut connection).unwrap();
+    let states: Vec<(String, String)> = connection
+        .prepare("SELECT id,state FROM sync_snapshot_exports ORDER BY id")
+        .unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    assert_eq!(
+        states,
+        vec![
+            ("ack".into(), "acknowledged".into()),
+            ("complete".into(), "ready".into()),
+            ("new".into(), "building".into()),
+            ("partial".into(), "aborted".into())
+        ]
+    );
+    let original: String = connection
+        .query_row("SELECT raw_text FROM events WHERE id='saved'", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    assert_eq!(original, "immutable original");
+    let sender: String = connection
+        .query_row(
+            "SELECT received_from_device_id FROM sync_operations WHERE op_id='stream:1'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(sender, "peer");
+}
+
 fn insert(connection: &Connection, id: &str, phase: &str, status: &str) {
     connection
         .execute(
@@ -136,9 +215,57 @@ fn migrations_are_discovered_from_the_directory() {
             "87-scout-research",
             "88-scout-analysis",
             "89-scout-research-drafts",
+            "90-sync-export-cache-and-ingress",
+            "91-wiki-tags",
+            "92-personal-memory",
+            "93-memory-strategies",
+            "94-personal-memory-content",
+            "95-backfill-memory-content",
+            "96-memory-extraction-cursor",
         ],
         "迁移子目录应形如 {{序号}}-{{名字}}，且序号从 1 起连续"
     );
+}
+
+#[test]
+fn v91_backfills_and_maintains_normalized_wiki_tags() {
+    let mut connection = Connection::open_in_memory().unwrap();
+    initialize_test_version(&mut connection, 90).unwrap();
+    connection
+        .execute(
+            "INSERT INTO wiki_pages(
+                id,slug,kind,title,summary,content_md,tags,source_event_ids,
+                evidence_count,first_seen_at,last_seen_at,status,created_at,updated_at,area
+             ) VALUES('p1','topic/p1','topic','P1','','body','[\"Rust\",\"产品\"]','[]',
+                      1,'t','t','active','t','t','insight')",
+            [],
+        )
+        .unwrap();
+    initialize(&mut connection).unwrap();
+
+    let tags: Vec<String> = connection
+        .prepare("SELECT name FROM wiki_tags ORDER BY name")
+        .unwrap()
+        .query_map([], |row| row.get(0))
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    assert_eq!(tags, vec!["Rust", "产品"]);
+
+    connection
+        .execute(
+            "UPDATE wiki_pages SET tags='[\"Rust\",\"创业\"]' WHERE id='p1'",
+            [],
+        )
+        .unwrap();
+    let memberships: Vec<String> = connection
+        .prepare("SELECT tag_name FROM wiki_page_tags WHERE page_id='p1' ORDER BY tag_name")
+        .unwrap()
+        .query_map([], |row| row.get(0))
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    assert_eq!(memberships, vec!["Rust", "创业"]);
 }
 
 /// 冻结约定与内容归属：基线里不该出现 `goals`。
@@ -167,7 +294,7 @@ fn migration_applies_goals_table() {
     let version: i64 = connection
         .query_row("PRAGMA main.user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 89, "全部迁移跑完，user_version 应为 89");
+    assert_eq!(version, 96, "全部迁移跑完，user_version 应为 96");
     assert_eq!(
         latest_version().unwrap(),
         version,
@@ -1332,4 +1459,18 @@ fn semantic_compass_upgrades_v79_and_retires_unverified_keyword_cards() {
             .unwrap(),
         0
     );
+}
+
+#[test]
+fn memory_content_migration_preserves_independent_text_and_missing_pages() {
+    let mut c = Connection::open_in_memory().unwrap();
+    initialize_test_version(&mut c, 94).unwrap();
+    c.execute_batch("INSERT INTO wiki_pages(id,slug,kind,title,content_md,first_seen_at,last_seen_at,created_at,updated_at) VALUES('page','saved','topic','title','original','t','t','t','t');
+    INSERT INTO personal_memory_claims(id,page_slug,body_hash,kind,subject,predicate,conversation_id,basis_json,updated_at,review_after,content) VALUES('old','saved','hash','semantic','user','old','owner','[]','t','t',NULL),('direct','saved','hash','semantic','user','direct','owner','[]','t','t','independent'),('missing','gone','hash','semantic','user','missing','owner','[]','t','t',NULL);").unwrap();
+    initialize(&mut c).unwrap();
+    initialize(&mut c).unwrap();
+    let read = |id| c.query_row("SELECT content FROM personal_memory_claims WHERE id=?1", [id], |r|r.get::<_,Option<String>>(0)).unwrap();
+    assert_eq!(read("old").as_deref(), Some("original"));
+    assert_eq!(read("direct").as_deref(), Some("independent"));
+    assert_eq!(read("missing"), None);
 }

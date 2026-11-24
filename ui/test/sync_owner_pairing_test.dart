@@ -1,5 +1,6 @@
 import 'package:elsewhen_ui/l10n/notice_messages.dart';
 import 'package:elsewhen_ui/l10n/app_localizations_zh.dart';
+
 import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
@@ -168,7 +169,10 @@ void main() {
         f.storage.values['elsewhen.sync.revision.v1.test-install'],
         'v1:2',
       );
-      expect(resolveNotice(f.controller.pairingNotice, AppLocalizationsZh()), contains('不表示设备已加入'));
+      expect(
+        resolveNotice(f.controller.pairingNotice, AppLocalizationsZh()),
+        contains('不表示设备已加入'),
+      );
       expect(f.controller.invitation, isNull);
       await f.close();
     },
@@ -253,8 +257,14 @@ void main() {
         f.controller.pairingPreview!,
         consent: true,
       );
-      expect(resolveNotice(f.controller.error, AppLocalizationsZh()), contains('批准已保存'));
-      expect(resolveNotice(f.controller.error, AppLocalizationsZh()), contains('自动重试'));
+      expect(
+        resolveNotice(f.controller.error, AppLocalizationsZh()),
+        contains('批准已保存'),
+      );
+      expect(
+        resolveNotice(f.controller.error, AppLocalizationsZh()),
+        contains('自动重试'),
+      );
       expect(f.controller.error, isNot(contains('SYNTHETIC_SECRET')));
       expect(f.controller.pendingPairingId, 'invite');
       f.pairing.failSend = false;
@@ -276,7 +286,10 @@ void main() {
       await f.controller.cancelInvitation();
       expect(f.controller.invitation, isNull);
       expect(f.controller.pairingPreview, isNull);
-      expect(resolveNotice(f.controller.error, AppLocalizationsZh()), contains('中继撤销尚未确认'));
+      expect(
+        resolveNotice(f.controller.error, AppLocalizationsZh()),
+        contains('中继撤销尚未确认'),
+      );
       expect(f.controller.error, isNot(contains('SYNTHETIC_SECRET')));
       await f.close();
     },
@@ -309,12 +322,12 @@ void main() {
       await tester.pump(const Duration(seconds: 4));
       // 邀请出示即渲染二维码（扫描通道），原文与复制仍是回退通道。
       // QrImageView 的 data 字段是私有的；存在性断言 + 同行 data: offer.code。
-      expect(find.byType(QrImageView), findsOneWidget);
+      expect(find.byType(QrImageView), findsNothing); // 请求已收到，直接核对设备。
       final review = find.text('核对并审批');
       await tester.ensureVisible(review);
       await tester.tap(review);
       await tester.pump(const Duration(seconds: 4));
-      final approveButton = find.widgetWithText(FilledButton, '批准这台设备');
+      final approveButton = find.widgetWithText(FilledButton, '允许连接');
       expect(tester.widget<FilledButton>(approveButton).onPressed, isNull);
       expect(find.textContaining('公钥指纹'), findsOneWidget);
       await tester.tap(

@@ -123,7 +123,7 @@ class EventCard extends StatelessWidget {
             label,
             style: TextStyle(
               color: AppTheme.textTertiary,
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.w500,
             ),
           ),

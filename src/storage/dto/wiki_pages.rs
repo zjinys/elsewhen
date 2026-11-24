@@ -26,6 +26,14 @@ pub struct WikiPageMeta {
     pub opinion: Option<String>,
 }
 
+/// Canonical tag vocabulary entry. Usage counts are computed from normalized
+/// page membership, not by scanning the compatibility JSON column.
+#[derive(Debug, Clone)]
+pub struct WikiTag {
+    pub name: String,
+    pub usage_count: i64,
+}
+
 pub(crate) fn map_wiki_page_meta(row: &rusqlite::Row) -> rusqlite::Result<WikiPageMeta> {
     let tags_raw: String = row.get(5)?;
     Ok(WikiPageMeta {

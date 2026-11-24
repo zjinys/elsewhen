@@ -1,1 +1,1 @@
-codex resume 01a0eaa7-2f4e-72a1-98e6-32580eb6010d
+claude --model claude-fable-5-2 --resume 471d3bc8-46fe-47b6-8ece-81778f412687

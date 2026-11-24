@@ -193,12 +193,11 @@ fn in_flight_export_blocks_new_claims_until_finished() {
     assert!(a.store.claim_sync_resnapshot("b").unwrap().is_none());
     assert_eq!(a.export_watermark(&claim.snapshot_id), 5);
 
-    // Aborted attempts free the member to RESUME the same request (same id:
-    // the rebuilt export is byte-identical under a reused id, so a partially
-    // delivered old transfer can never be confused with a new generation).
+    // An uncached legacy attempt cannot guarantee identical bytes. Rotate it;
+    // cached interrupted uploads have separate coverage in snapshot_resume.
     a.store.abort_snapshot_export(&claim.snapshot_id).unwrap();
     let retry = a.store.claim_sync_resnapshot("b").unwrap().unwrap();
-    assert_eq!(retry.snapshot_id, "resnap-b-1");
+    assert_eq!(retry.snapshot_id, "resnap-b-2");
 }
 
 #[test]
@@ -222,8 +221,7 @@ fn stalled_building_export_is_aborted_by_claim_so_the_request_can_resume() {
 
     // Backdate the progress stamp past the stall threshold: the export is now
     // dead (receiver never acked, blob chunks expired on the relay). Claim must
-    // abort it; the NEXT claim resumes the SAME request id via the aborted
-    // path instead of the deadlock the 2026-11-12 incident exposed.
+    // abort it and pick a new request because this legacy upload has no cache.
     a.store
         .connection
         .execute(
@@ -234,27 +232,23 @@ fn stalled_building_export_is_aborted_by_claim_so_the_request_can_resume() {
             ],
         )
         .unwrap();
-    // Abort and RESUME in the same claim pass: the current request is still
-    // open, so the caller gets a usable claim immediately instead of waiting
-    // another tick.
+    // A legacy partial upload has no stable cache, so abort and rotate in the
+    // same pass rather than mixing a newer view into already sent chunks.
     let retry = a.store.claim_sync_resnapshot("b").unwrap().unwrap();
-    assert_eq!(retry.snapshot_id, claim.snapshot_id);
-    // Same id, aborted state: begin must take the resume path (not
-    // requires_new_request) — that is the transfer-level fix.
-    // Resume (not a new request): the durable blob_index keeps whatever was
-    // already uploaded before the stall.
+    assert_ne!(retry.snapshot_id, claim.snapshot_id);
+    // No old uploaded prefix may be spliced into the new database view.
     let resumed = a
         .store
-        .begin_snapshot_export(&claim.snapshot_id, "b", 1)
+        .begin_snapshot_export(&retry.snapshot_id, "b", 1)
         .unwrap();
     assert!(
-        matches!(resumed, BeginExport::Resume { .. }),
-        "aborted export must resume, got {resumed:?}"
+        matches!(resumed, BeginExport::Begun),
+        "uncached export must get a new request, got {resumed:?}"
     );
     assert_eq!(
-        a.export_state(&claim.snapshot_id).unwrap(),
+        a.export_state(&retry.snapshot_id).unwrap(),
         "building",
-        "the aborted export was resumed back to building for the retry"
+        "a fresh request builds without reusing the old prefix"
     );
     // The next claim sees a fresh in-flight export again.
     assert!(a.store.claim_sync_resnapshot("b").unwrap().is_none());

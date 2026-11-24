@@ -9,19 +9,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/rust_bridge_repository.dart';
 import '../models/conversation.dart';
+import '../models/goal.dart' show GoalChatPredecessor;
 import '../models/tweet_fetch.dart';
 import '../providers/chat_run_provider.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/goal_provider.dart';
 import '../theme/app_theme.dart';
+import '../theme/content_font.dart';
 import 'chat_input_queue.dart';
 import 'chat_proposal_review.dart';
 import 'chat_run_status.dart';
 import 'composer_field.dart';
+import 'chat_reading_controller.dart';
 import 'goal_view.dart' show refreshGoalProviders;
 import 'goal_chat_ui_blocks.dart';
 import 'wiki_ai_chat_panel.dart';
 import '../l10n/localization.dart';
+import '../theme/design_tokens.dart';
 
 /// 目标页 AI 面板（goal_mentor）：每条活跃目标一个专属讨论会话
 /// （`ensureGoalChat`）；未选中目标时是 [studio] 立项工作室（保留会话
@@ -83,10 +87,22 @@ class _ChoicesBlock {
 }
 
 class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
+  /// 前序承接展示的条数（由 Rust 侧限量，完整原文、不截断）。
+  static const _predecessorMessageCount = 5;
+
   String? _conversationId;
   List<Message> _messages = [];
   bool _ready = false;
+  bool _messagesLoaded = false;
   bool _sending = false;
+
+  /// 同计划前序目标的讨论承接源（仅目标讨论形态、且本会话无消息时
+  /// 展示入口；切换目标时重置重取）。
+  GoalChatPredecessor? _predecessor;
+
+  /// 前序会话最后 5 条 chat 轮次的完整原文（真实消息模型，不截断；
+  /// Rust 侧限量，这里只管渲染）。只读展示。
+  List<Message> _predecessorMessages = const [];
   bool get _busy =>
       _sending ||
       (_conversationId != null &&
@@ -98,7 +114,7 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
   String? _error;
   final _inputController = TextEditingController();
   final _inputFocus = FocusNode();
-  final _scrollController = ScrollController();
+  final _scrollController = ChatReadingController();
 
   @override
   void initState() {
@@ -130,6 +146,10 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
         oldWidget.studio != widget.studio) {
       _conversationId = null;
       _messages = [];
+      _messagesLoaded = false;
+      _predecessor = null;
+      _predecessorMessages = const [];
+      _scrollController.reset();
       _ready = false;
       _sending = false;
       _error = null;
@@ -185,6 +205,21 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
     }
   }
 
+  /// 逐帧滚底：承接内容可能是长文，一帧内 maxScrollExtent 还未收敛，
+  /// scrollToLatest 内部已有逐帧重试；这里只负责等 ListView 挂上
+  /// controller（面板可能还没完成首次布局），限次数避免离屏无限重试。
+  void _scrollToLatestAfterFrames({required int attempts}) {
+    if (attempts <= 0) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _predecessorMessages.isEmpty) return;
+      if (_scrollController.hasClients) {
+        _scrollController.scrollToLatest();
+      } else {
+        _scrollToLatestAfterFrames(attempts: attempts - 1);
+      }
+    });
+  }
+
   Future<void> _loadMessages() async {
     final id = _conversationId;
     if (id == null) return;
@@ -192,8 +227,41 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
       final messages = await repo.listMessages(id);
       if (!mounted || _conversationId != id) return;
-      setState(() => _messages = messages);
-      _scrollToBottom();
+      setState(() {
+        _messages = messages;
+        _messagesLoaded = true;
+      });
+      // 空会话且是目标讨论形态：查同计划前序承接源，读其会话原文供
+      // 完整展示（截断的是提示词侧，UI 侧只设条数保险上限）。失败静默
+      // （承接展示是增强，不是必需路径）。
+      if (!widget.studio && widget.goalId.isNotEmpty && messages.isEmpty) {
+        try {
+          final predecessor = await repo.goalChatPredecessor(widget.goalId);
+          if (!mounted || _conversationId != id) return;
+          setState(() => _predecessor = predecessor);
+          if (predecessor != null) {
+            final predecessorMessages = await repo.listRecentChatMessages(
+              predecessor.conversationId,
+              _predecessorMessageCount,
+            );
+            if (!mounted || _conversationId != id) return;
+            setState(
+              () => _predecessorMessages = predecessorMessages,
+            );
+            // 承接消息不在 observeMessages 跟踪的当前会话列表里：初始的
+            // follow 滚底发生在空列表上，承接内容随后追加进列表时没人
+            // 再触发滚动，停在顶部。承接到位后补一次滚底——落在分割线
+            // （当前会话起点）与输入框，即用户要接续的位置。
+            _scrollToLatestAfterFrames(attempts: 4);
+          }
+        } catch (_) {
+          if (!mounted || _conversationId != id) return;
+          setState(() {
+            _predecessor = null;
+            _predecessorMessages = const [];
+          });
+        }
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = appFailure(e));
@@ -262,24 +330,15 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
       }
       if (mounted && _conversationId == id) {
         setState(() => _sending = false);
-        _scrollToBottom();
       }
     }
   }
 
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) return;
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-      );
-    });
-  }
+  void _scrollToBottom() => _scrollController.scrollToLatest();
 
   @override
   Widget build(BuildContext context) {
+    final contentFontStyle = ContentFont.styleOf(context);
     final id = _conversationId;
     // 预填种子（「和 AI 拆解」/ 航向校准「聚焦讨论」写 goalPanelSeedProvider）：
     // 填入输入框并聚焦，绝不自动发送。post-frame 消费，兼容面板还没挂载时
@@ -296,15 +355,16 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
     final durable = ref.watch(conversationRepositoryProvider).supportsChatRuns;
     if (id != null && durable) {
       ref.watch(chatRunStateProvider(id).select((value) => value.value?.busy));
-      ref.listen(goalChatMessagesProvider(id), (previous, next) {
-        if ((next.value?.length ?? 0) > (previous?.value?.length ?? 0)) {
-          _scrollToBottom();
-        }
-      });
     }
     final displayedMessages = id != null && durable
         ? ref.watch(goalChatMessagesProvider(id)).value ?? _messages
         : _messages;
+    if (_messagesLoaded ||
+        (id != null &&
+            durable &&
+            ref.watch(goalChatMessagesProvider(id)).hasValue)) {
+      _scrollController.observeMessages(displayedMessages);
+    }
     final runInput = id != null && durable
         ? ref.watch(
             chatRunStateProvider(id)
@@ -315,48 +375,69 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
         displayedMessages.isNotEmpty && displayedMessages.last.isUser
         ? displayedMessages.last.id
         : null;
-    final messages = ListView(
-      controller: _scrollController,
-      shrinkWrap: true,
-      padding: const EdgeInsets.all(AppTheme.space3),
-      children: [
-        WikiChatBubble(
-          message: ContentChatMessage(
-            role: 'assistant',
-            content: widget.studio
-                ? context.l10n.goalStudioWelcome
-                : context.l10n.goalChatWelcome,
-          ),
-        ),
-        for (final m in displayedMessages)
-          _buildMessage(
-            m,
-            canGenerate:
-                durable &&
-                !_busy &&
-                m.id == unansweredInput &&
-                m.id != runInput,
-          ),
-        if (durable && id != null) ChatRunStatus(conversationId: id),
-        if (durable && id != null) ChatInputQueue(conversationId: id),
-        if (_busy && !durable) const WikiChatBubble.pending(),
-        if (_error != null)
-          Padding(
-            padding: const EdgeInsets.only(top: AppTheme.space2),
-            child: AppErrorMessage(
-              action: context.l10n.load,
-              error: _error!,
-              style: TextStyle(fontSize: 12, color: AppTheme.error),
+    final messages = _scrollController.trackUserScroll(
+      ListView(
+        controller: _scrollController,
+        shrinkWrap: true,
+        padding: const EdgeInsets.all(AppTheme.space3),
+        children: [
+          WikiChatBubble(
+            message: ContentChatMessage(
+              role: 'assistant',
+              content: widget.studio
+                  ? context.l10n.goalStudioWelcome
+                  : context.l10n.goalChatWelcome,
             ),
           ),
-      ],
+          // 同计划前序承接：仅目标讨论形态、本会话无消息时展示。
+          // 前序会话的完整原文用同款气泡只读渲染（生成式 UI/选项块
+          // 只取剥离后的正文，不带任何交互），尾部一条带出处的分割线
+          // 与当前讨论分开；不跳转、不搬移历史消息。
+          if (!widget.studio &&
+              _messages.isEmpty &&
+              _predecessor != null &&
+              _predecessorMessages.isNotEmpty) ...[
+            for (final m in _predecessorMessages) _buildPredecessorMessage(m),
+            _PredecessorDivider(
+              goalContent: _predecessor!.goalContent,
+              count: _predecessor!.messageCount,
+            ),
+          ],
+          for (final m in displayedMessages)
+            _scrollController.anchorMessage(
+              m,
+              _buildMessage(
+                m,
+                canGenerate:
+                    durable &&
+                    !_busy &&
+                    m.id == unansweredInput &&
+                    m.id != runInput,
+              ),
+            ),
+          if (durable && id != null) ChatRunStatus(conversationId: id),
+          if (durable && id != null) ChatInputQueue(conversationId: id),
+          if (_busy && !durable) const WikiChatBubble.pending(),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppTheme.space2),
+              child: AppErrorMessage(
+                action: context.l10n.load,
+                error: _error!,
+                style: TextStyle(fontSize: 12, color: AppTheme.error),
+              ),
+            ),
+        ],
+      ),
     );
     return Container(
-      // 对话面板用「下沉」质感与详情白卡区分：surface0 底 + 上浮阴影，
-      // 无边框——避免三栏同一套「白卡+细边」长得一样。
+      // 对话面板用「下沉」质感与详情白卡区分：surface0 底 + 上浮阴影。
+      // 功能区要有可感知边界：一圈 boundaryColor 发丝线勾出面板范围，
+      // 避免面板融进留白（阴影只负责浮起，不负责划界）。
       decoration: BoxDecoration(
         color: AppTheme.surface0,
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        border: Border.all(color: AppTheme.boundaryColor),
         boxShadow: [
           BoxShadow(
             color: AppTheme.textPrimary.withValues(alpha: 0.06),
@@ -386,7 +467,7 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
                 children: [
                   Icon(
                     Icons.auto_awesome,
-                    size: 14,
+                    size: DesignTokens.iconMicro,
                     color: AppTheme.accentPrimary,
                   ),
                   const SizedBox(width: 6),
@@ -459,27 +540,46 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
               controller: _inputController,
               focusNode: _inputFocus,
               enabled: _ready && !_inputBusy,
-              // 与主对话输入框一致：默认 1 行、最多 4 行；
-              // Enter 发送、Shift+Enter 换行（onKeyEvent 拦截）。
               hintText: widget.studio
                   ? context.l10n.goalStudioInputHint
                   : context.l10n.goalChatInputHint,
-              hintStyle: TextStyle(
-                fontSize: 12,
-                color: AppTheme.textTertiary,
-              ),
-              textStyle: const TextStyle(fontSize: 13),
               onSubmit: () => _send(_inputController.text),
               canSend: _ready && !_inputBusy,
-              // 同知识页面板：生成中只禁用，不换成菊花。
-              spinning: false,
-              sendTooltip: _busy
-                  ? context.l10n.queueNext
-                  : context.l10n.send,
+              sendTooltip: _busy ? context.l10n.queueNext : context.l10n.send,
             ),
           ),
         ],
       ),
+    );
+  }
+
+  /// 前序承接消息的只读渲染：与正常气泡同款样式，但剥离生成式 UI/
+  /// 选项块后只出纯正文气泡，不带任何可点交互（选项按钮、生成按钮
+  /// 都不出现——那是前序会话的历史，不能在当前会话里触发动作）。
+  Widget _buildPredecessorMessage(Message message) {
+    if (!message.isUser) {
+      final ui = extractGoalUiBlock(message.content);
+      if (ui != null) {
+        if (ui.strippedContent.isEmpty) return const SizedBox.shrink();
+        return WikiChatBubble(
+          message: ContentChatMessage(
+            role: message.role.name,
+            content: ui.strippedContent,
+          ),
+        );
+      }
+      final choices = _extractChoices(message.content);
+      if (choices != null) {
+        return WikiChatBubble(
+          message: ContentChatMessage(
+            role: message.role.name,
+            content: choices.strippedContent,
+          ),
+        );
+      }
+    }
+    return WikiChatBubble(
+      message: ContentChatMessage(role: message.role.name, content: message.content),
     );
   }
 
@@ -634,5 +734,36 @@ class _GoalChatPanelState extends ConsumerState<GoalChatPanel> {
     if (options.isEmpty) return null;
     final stripped = content.replaceRange(match.start, match.end, '').trim();
     return _ChoicesBlock(strippedContent: stripped, options: options);
+  }
+}
+
+/// 前序承接分割线：居中小字标注出处与条数，与当前讨论分开。
+/// 不跳转、不搬移数据；原文仍在前序目标的会话里。
+/// 前序承接分割线：居中小字标注出处与条数，与当前讨论分开。
+/// 不跳转、不搬移数据；原文仍在前序目标的会话里。
+class _PredecessorDivider extends StatelessWidget {
+  const _PredecessorDivider({required this.goalContent, required this.count});
+
+  final String goalContent;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      child: Row(
+        children: [
+          const Expanded(child: Divider()),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              context.l10n.goalPredecessorEntry(goalContent, count),
+              style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+            ),
+          ),
+          const Expanded(child: Divider()),
+        ],
+      ),
+    );
   }
 }

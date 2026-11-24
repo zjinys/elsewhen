@@ -1,6 +1,7 @@
 //! 分析队列与投喂（chat rule check / shadow judgement / analysis queue / 决策支持材料 / 情绪洗涤）。
 
 use super::*;
+use serde_json::json;
 
 /// 与 process_analysis_queue 同形态：封顶 20 条/轮、单条失败记更新不阻塞。
 /// 注：confidence 解析失败按 None（字段可选）。
@@ -8,7 +9,15 @@ pub(crate) fn process_chat_rule_check_queue(
     store: &Store,
     provider: &dyn AiProvider,
 ) -> Result<i64> {
-    let Ok(hits) = store.pending_chat_hits(20) else {
+    process_chat_rule_check_queue_bounded(store, provider, 20)
+}
+
+pub(crate) fn process_chat_rule_check_queue_bounded(
+    store: &Store,
+    provider: &dyn AiProvider,
+    limit: i64,
+) -> Result<i64> {
+    let Ok(hits) = store.pending_chat_hits(limit) else {
         return Ok(0);
     };
     let mut judged = 0i64;
@@ -72,6 +81,14 @@ pub(crate) fn parse_shadow_judgement(content: &str) -> Result<(bool, Option<f64>
 }
 
 pub(crate) fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -> Result<i64> {
+    process_analysis_queue_bounded(store, provider, 50)
+}
+
+pub(crate) fn process_analysis_queue_bounded(
+    store: &Store,
+    provider: &dyn AiProvider,
+    limit: i64,
+) -> Result<i64> {
     let mut processed = 0;
     // Bound each invocation even when producers keep adding work or retries
     // become available while a slow provider is processing other records.
@@ -80,7 +97,7 @@ pub(crate) fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -
     // 无上限会占住 worker 约 50 分钟且中途无中断（P2 worker 限时）。
     // 每完成一条记录后检查，超限即停，余量留待下次 tick。
     let batch_start = std::time::Instant::now();
-    for _ in 0..(stats.pending + stats.retry).min(50) {
+    for _ in 0..(stats.pending + stats.retry).min(limit) {
         if batch_start.elapsed().as_secs() >= ANALYSIS_BATCH_MAX_SECS {
             break;
         }
@@ -168,6 +185,9 @@ pub(crate) fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -
                         &value.schema_version,
                         &serde_json::to_string(&value)?,
                     )?;
+                    // 主对话中的稳定用户自述先变成当前对话里的确认卡，
+                    // 由用户确认后才写入个人长期记忆。候选提案失败不影响本次分析结果。
+                    let _ = propose_memory_candidates_from_analysis(store, &job.event_id, &value);
                     // 规则判定回填（D1）：失败不影响已入库分析；pending 命中留待
                     // 下次 reanalyze 补判（幂等——只处理 pending 行）。
                     if !value.rule_confirmations.is_empty() {
@@ -268,6 +288,72 @@ pub(crate) fn process_analysis_queue(store: &Store, provider: &dyn AiProvider) -
         }
     }
     Ok(processed as i64)
+}
+
+/// 将分析结果中的长期记忆候选投递到主对话确认流。
+///
+/// 分析队列本身由后台 worker 周期性唤醒，因此这里不需要另建一套定时器。
+/// 只接受主对话的用户消息，并用事件幂等检查避免同一事件重复打扰用户。
+fn propose_memory_candidates_from_analysis(
+    store: &Store,
+    event_id: &str,
+    analysis: &EventAnalysisV1,
+) -> Result<()> {
+    let candidates: Vec<_> = analysis
+        .memory_candidates
+        .iter()
+        .filter(|candidate| candidate.confidence >= 0.65 && candidate.subject == "user")
+        .take(3)
+        .map(|candidate| {
+            json!({
+                "title": candidate.title,
+                "content": candidate.content,
+                "kind": candidate.kind,
+                "subject": candidate.subject,
+                "predicate": candidate.predicate,
+                "confidence": candidate.confidence,
+            })
+        })
+        .collect();
+    if candidates.is_empty() {
+        return Ok(());
+    }
+    let Some(conversation_id) = store.conversation_id_for_event(event_id)? else {
+        return Ok(());
+    };
+    let Some(message_id) = store.message_id_for_event(event_id)? else {
+        return Ok(());
+    };
+    let Some(conversation) = store.get_conversation(&conversation_id)? else {
+        return Ok(());
+    };
+    if conversation.wiki_page_slug.is_some()
+        || conversation.goal_id.is_some()
+        || conversation.assistant_mode != "personal_secretary"
+    {
+        return Ok(());
+    }
+    if store.action_exists_for_event(&conversation_id, "propose_memory_candidates", event_id)? {
+        return Ok(());
+    }
+    let summary = candidates
+        .iter()
+        .filter_map(|candidate| candidate.get("content").and_then(serde_json::Value::as_str))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let args = json!({
+        "title": "发现新的记忆候选",
+        "content": summary,
+        "candidates": candidates,
+        "source_event_id": event_id,
+        "source_message_id": message_id,
+    });
+    store.create_pending_action(
+        &conversation_id,
+        "propose_memory_candidates",
+        &args.to_string(),
+    )?;
+    Ok(())
 }
 
 /// D2 增量合并的自动入库窄集：person/target 双双来自 @/# 标注（用户写死的

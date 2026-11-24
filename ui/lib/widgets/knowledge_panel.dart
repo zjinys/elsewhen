@@ -21,8 +21,10 @@ import '../providers/wiki_provider.dart';
 import 'markdown_view.dart';
 import 'wiki_derivatives.dart';
 import '../theme/app_theme.dart';
+import 'feedback_toast.dart';
 
 // ── 知识面板拆分为 part（行为零变化，见 knowledge_panel_parts/）──
+import '../theme/design_tokens.dart';
 part 'knowledge_panel_parts/sources_links.dart';
 part 'knowledge_panel_parts/outputs_sources.dart';
 part 'knowledge_panel_parts/proposal_card.dart';
@@ -101,7 +103,7 @@ Future<void> _openPage(BuildContext context, WidgetRef ref, String slug) async {
     if (ModalRoute.of(context) is PopupRoute) Navigator.of(context).pop();
   } catch (error) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: AppErrorMessage(
             action: context.l10n.load,
@@ -403,7 +405,7 @@ class _KnowledgePageActionsState extends ConsumerState<KnowledgePageActions> {
                   children: [
                     Icon(
                       Icons.auto_awesome_outlined,
-                      size: 16,
+                      size: DesignTokens.iconMicro,
                       color: Theme.of(context).colorScheme.primary,
                     ),
                     const SizedBox(width: 8),

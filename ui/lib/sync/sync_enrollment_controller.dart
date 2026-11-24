@@ -46,6 +46,24 @@ class SyncEnrollmentController extends ChangeNotifier {
   final VoidCallback? onStateChanged;
   List<api.SyncEnrollmentStateDto> states = [];
   String? error;
+  String? errorInvitationId;
+  String? errorOperationId;
+
+  /// Inventory errors affect the session; a failed handoff only affects its flow.
+  String? errorFor({String? invitationId, String? operationId}) {
+    if (errorInvitationId != null &&
+        invitationId != null &&
+        invitationId != errorInvitationId) {
+      return null;
+    }
+    if (errorOperationId != null &&
+        operationId != null &&
+        operationId != errorOperationId) {
+      return null;
+    }
+    return error;
+  }
+
   bool paused = false;
   bool _armed = false;
   bool _closed = false;
@@ -158,9 +176,11 @@ class SyncEnrollmentController extends ChangeNotifier {
     _flight = done;
     // 原生调用没法取消，但**卡住不许把整条轮询链带走**：到点后丢弃这一轮
     // （epoch 前进让迟到的回包作废）并重新排队。
-    final watchdog = Timer(stalledTick, () => _onStalled(done));
     api.SyncEnrollmentStateDto? target;
+    final watchdog = Timer(stalledTick, () => _onStalled(done, target));
     error = null;
+    errorInvitationId = null;
+    errorOperationId = null;
     _changed();
     try {
       final inventory = await _bridge.list();
@@ -249,6 +269,8 @@ class SyncEnrollmentController extends ChangeNotifier {
     } on _EnrollmentCancelled {
       // Parent pause/close waits for native writes, then releases its own session.
     } catch (failure) {
+      errorInvitationId = target?.invitationId;
+      errorOperationId = target?.operationId ?? _operationId;
       debugPrint('[sync-pairing] enrollment: tick failed: $failure');
       final nativeFailure =
           failure is SyncKeyStoreException ||
@@ -300,8 +322,10 @@ class SyncEnrollmentController extends ChangeNotifier {
   /// 一次 tick 被判定失联后的自救：只丢弃结果并重排下一轮，不试图取消
   /// 那个卡住的原生调用（做不到）。原因写进 [error]，界面就能从「一直在转圈」
   /// 变成一句能看懂的话。
-  void _onStalled(Completer<void> done) {
+  void _onStalled(Completer<void> done, api.SyncEnrollmentStateDto? target) {
     if (_closed || !identical(_flight, done)) return;
+    errorInvitationId = target?.invitationId;
+    errorOperationId = target?.operationId ?? _operationId;
     _epoch++;
     _flight = null;
     _failures = (_failures + 1).clamp(0, 5);

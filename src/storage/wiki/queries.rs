@@ -3,6 +3,27 @@
 use super::*;
 
 impl Store {
+    /// List canonical tags used by non-derivative pages, ordered by reuse.
+    pub fn list_wiki_tags(&self) -> Result<Vec<WikiTag>> {
+        let mut statement = self.connection.prepare(
+            "SELECT t.name, COUNT(p.id) AS usage_count
+             FROM wiki_tags t
+             JOIN wiki_page_tags pt ON pt.tag_name = t.name
+             JOIN wiki_pages p ON p.id = pt.page_id
+             WHERE COALESCE(p.area, 'insight') <> 'derivative'
+             GROUP BY t.name
+             ORDER BY usage_count DESC, lower(t.name), t.name",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok(WikiTag {
+                name: row.get(0)?,
+                usage_count: row.get(1)?,
+            })
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(Into::into)
+    }
+
     pub fn get_wiki_page(&self, slug: &str) -> Result<Option<WikiPage>> {
         let mut statement = self.connection.prepare(
         "SELECT id, slug, kind, title, summary, content_md, tags, source_event_ids,

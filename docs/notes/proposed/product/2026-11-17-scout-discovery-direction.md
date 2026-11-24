@@ -2,6 +2,7 @@
 
 - 日期：2026-11-17
 - 状态：direction discussion（方向讨论，未批准为实施路线）
+- 2026-11-20 部分落地：用户要求修复仍在运行的语言预设与必填 CWS ID。GitHub 合并为不限语言的近 90 天新项目；CWS 改公开发现页自动采集，额外跟踪清单可选且无代码内置 ID。实现与验证见[商机研究工作区](../../implemented/feature/2026-11-17-scout-opportunity-workspace.md)。Gumroad 分类设置、周报和创作者研究仍属后续方向。
 - 关联：[商机研究路线 O0–O7](../../roadmap/2026-11-17-scout-opportunity-research-roadmap.md)、[翻译提案](../architecture/2026-11-17-on-demand-translation.md)（其情报侧优先级被本文下调）、Glasser 评估（无独立文档，结论收录本文 §6）
 - 触发：用户反馈「数据源单薄，但不想做复杂，且现有数据和功能不足以支撑模块」。经追问确认：每天会打开情报页；要的是「哪个赛道要起来了、哪些没意义」的决策支持；对博主/产品研究有兴趣但自知难。
 

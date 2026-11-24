@@ -246,10 +246,16 @@ pub fn trigger_analysis() -> Result<AnalysisTriggerResult> {
             .recover_interrupted_analysis_jobs()
             .context("analysis worker: recover interrupted jobs")
     })?;
-    let processed = process_analysis_queue(&store, provider.as_ref())?;
+    // Yield the shared workspace lease between AI jobs so network sync gets a
+    // turn even when captures keep arriving faster than the model processes.
+    let processed = process_analysis_queue_bounded(&store, provider.as_ref(), 1)?;
     // 对话影子校验判定阶段（迁移 54）：预筛在聊天生成链已落 pending，
     // 这里用同一 provider 逐条判定适用性。失败不档其它队列（下轮重试）。
-    let judged = process_chat_rule_check_queue(&store, provider.as_ref())?;
+    let judged = if processed == 0 {
+        process_chat_rule_check_queue_bounded(&store, provider.as_ref(), 1)?
+    } else {
+        0
+    };
     Ok(AnalysisTriggerResult::Processed {
         count: processed + judged,
     })

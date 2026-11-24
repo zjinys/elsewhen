@@ -10,7 +10,7 @@ it.skipIf(process.env.SCOUT_SCALE !== '1')('10k products and 1m observations sta
  const mf=new Miniflare(convertV4MiniflareOptions({modules:true,script:'export default {fetch(){return new Response("ok")}}',d1Databases:['DB'],compatibilityDate:'2026-11-15'}));
  try {
   const db=await mf.getD1Database('DB');
-  for(const file of ['0001_init.sql','0002_admin.sql','0003_finding_delta.sql','0004_research_observations.sql','0005_product_insights.sql']) {
+  for(const file of ['0001_init.sql','0002_admin.sql','0003_finding_delta.sql','0004_research_observations.sql','0005_product_insights.sql','0006_affiliate_evidence.sql']) {
    for(const s of readFileSync(new NodeURL('../migrations/'+file,import.meta.url),'utf8').replace(/--[^\n]*/g,'').split(';').filter(s=>s.trim()))await db.prepare(s).run();
   }
   await db.prepare("INSERT INTO scout_sources(id,name,enabled,spec_hash,interval_minutes) VALUES('scale','Scale',1,'scale-v1',180)").run();

@@ -120,6 +120,16 @@ Future<List<MessageDto>> listMessages({required String conversationId}) =>
       conversationId: conversationId,
     );
 
+/// 读取某会话最后 N 条 chat 轮次（时间正序、内容完整，不含 nudge/
+/// insight/brief 等非对话消息）。目标讨论承接展示用。
+Future<List<MessageDto>> listRecentChatMessages({
+  required String conversationId,
+  required PlatformInt64 limit,
+}) => RustLib.instance.api.crateApiConversationsListRecentChatMessages(
+  conversationId: conversationId,
+  limit: limit,
+);
+
 /// Get child messages of a specific message (for branching conversations)
 Future<List<MessageDto>> getChildMessages({required String parentId}) => RustLib
     .instance

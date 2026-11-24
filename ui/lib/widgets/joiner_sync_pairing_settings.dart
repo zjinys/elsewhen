@@ -2,6 +2,7 @@ import 'app_error_notice.dart';
 import '../l10n/localization.dart';
 
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
@@ -45,10 +46,16 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
   final _code = TextEditingController();
   final _name = TextEditingController(text: 'This device');
   bool _consent = false;
+  Timer? _clock;
 
   @override
   void initState() {
     super.initState();
+    _clock = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (mounted && widget.controller.state?.phase == 'preview') {
+        setState(() {});
+      }
+    });
     // 缺省设备名用真机器名；用户已改过名将保持原值。
     defaultDeviceName().then((name) {
       if (name != null && mounted && _name.text == 'This device') {
@@ -59,6 +66,7 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
 
   @override
   void dispose() {
+    _clock?.cancel();
     _code.dispose();
     _name.dispose();
     super.dispose();
@@ -70,10 +78,15 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
         builder: (_) => JoinerQrScanPage(
           onDetected: (code) => Navigator.of(context).pop(code),
           scannerBuilder: widget.scannerBuilder,
+          onPaste: () => Navigator.of(context).pop(''),
         ),
       ),
     );
-    if (!mounted || code == null || code.isEmpty) return;
+    if (!mounted || code == null) return;
+    if (code.isEmpty) {
+      await _pasteCode();
+      return;
+    }
     setState(() => _consent = false);
     await widget.controller.preview(code);
     if (mounted && widget.controller.active) _code.clear();
@@ -120,38 +133,39 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: Listenable.merge([widget.controller]),
+    listenable: Listenable.merge([
+      widget.controller,
+      if (widget.controller.enrollment != null) widget.controller.enrollment!,
+    ]),
     builder: (context, _) {
       final controller = widget.controller;
       final state = controller.state;
-      final phase = state?.phase;
+      final expiredPreview =
+          state?.phase == 'preview' &&
+          state!.expiresAtMs > 0 &&
+          DateTime.now().millisecondsSinceEpoch >= state.expiresAtMs;
+      final phase = expiredPreview ? 'expired' : state?.phase;
       final enrollment = controller.enrollment;
       final receiving =
           enrollment?.states
               .where(
-                (s) => s.role == 'joiner' && s.phase == 'receiving_snapshot',
+                (s) =>
+                    s.role == 'joiner' &&
+                    s.operationId == state?.operationId &&
+                    s.phase == 'receiving_snapshot',
               )
               .toList() ??
           const <api.SyncEnrollmentStateDto>[];
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Divider(height: 32),
-          // 这一段只是背景说明，日常操作时不需要读；折叠起来，让输入框和
-          // 进度直接暴露，需要时再点开。
-          _SyncExplanation(
-            title: context.l10n.l6JoinAnExistingDatasetb3b50,
-            body: context.l10n.l6EnrollmentUsesASeparateStagingDatabase0ddf7,
-          ),
           if (phase != null) ...[
             const SizedBox(height: 8),
             SyncPairingSteps(
               steps: [
-                context.l10n.l6PreviewAndVerifyInvitation1afde,
-                context.l10n.l6SendJoinRequestd5d20,
-                context.l10n.l6WaitingForOwnerApproval9e900,
-                context.l10n.l6ConfirmInstallation555cc,
-                context.l10n.l6WaitingForAuthorizationAndInitialSync6cedf,
+                context.l10n.pairingIdentify,
+                context.l10n.pairingConfirm,
+                context.l10n.pairingSyncData,
               ],
               current: joinerStageFor(phase),
             ),
@@ -164,7 +178,11 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
               ),
               const SizedBox(height: 8),
             ],
-            if (enrollment?.states.any((s) => s.storageBlocked) == true) ...[
+            if (enrollment?.states.any(
+                  (s) =>
+                      s.operationId == state?.operationId && s.storageBlocked,
+                ) ==
+                true) ...[
               const SizedBox(height: 8),
               Text(
                 context
@@ -182,12 +200,17 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
           // `'complete'` —— 那个字符串从来没有被产出过，于是这张带「进入数据集」
           // 的卡在真机上从未显示，用户除了一个永远转圈的第五步什么都没有。
           if (phase == 'joined') ...[
+            Text(
+              context.l10n.pairingDone,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 12),
             DatasetSwitchCard(
               api: widget.datasetApi,
               catalogChanges: controller,
             ),
           ],
-          if (!controller.active) ...[
+          if (!controller.active && phase != 'joined') ...[
             const SizedBox(height: 12),
             // 邀请码不再常驻一个 3 行文本框：两个入口，码走弹窗。
             Wrap(
@@ -195,19 +218,54 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
               runSpacing: 8,
               children: [
                 FilledButton.icon(
-                  onPressed: controller.busy ? null : _pasteCode,
-                  icon: const Icon(Icons.key_outlined),
-                  label: Text(context.l10n.l6UsingKey99422),
+                  onPressed: controller.busy
+                      ? null
+                      : (Platform.isAndroid || Platform.isIOS
+                            ? _scanCode
+                            : _pasteCode),
+                  icon: Icon(
+                    Platform.isAndroid || Platform.isIOS
+                        ? Icons.qr_code_scanner
+                        : Icons.content_paste,
+                  ),
+                  label: Text(
+                    Platform.isAndroid || Platform.isIOS
+                        ? context.l10n.l6ScanQrCodeb8a8f
+                        : context.l10n.pairingPaste,
+                  ),
                 ),
                 OutlinedButton.icon(
-                  onPressed: controller.busy ? null : () => _scanCode(),
+                  onPressed: controller.busy
+                      ? null
+                      : (Platform.isAndroid || Platform.isIOS
+                            ? _pasteCode
+                            : _scanCode),
                   icon: const Icon(Icons.qr_code_scanner),
-                  label: Text(context.l10n.l6ScanQrCodeb8a8f),
+                  label: Text(
+                    Platform.isAndroid || Platform.isIOS
+                        ? context.l10n.pairingPaste
+                        : context.l10n.l6ScanQrCodeb8a8f,
+                  ),
                 ),
               ],
             ),
           ],
-          if (state != null && controller.active) ...[
+          if (state != null && controller.active && phase != 'joined') ...[
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.devices_outlined),
+              title: Text(state.ownerName),
+              subtitle: Text(
+                context.l10n.l6InvitingDeviceArg0d440c(state.ownerName),
+              ),
+            ),
+            if (phase == 'preview' && state.ownerFingerprint.isNotEmpty)
+              SelectableText(state.ownerFingerprint),
+            if (phase == 'awaiting_approval' &&
+                state.localFingerprint != null) ...[
+              Text(context.l10n.pairingLocalFingerprint),
+              SelectableText(state.localFingerprint!),
+            ],
             const SizedBox(height: 12),
             // 邀请细节（数据集 ID、中继地址、两串公钥指纹、到期时间）很长但
             // 不常看：折叠起来，只在需要逐项核对指纹的「预览」阶段默认展开。
@@ -215,15 +273,8 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
               key: ValueKey('joiner-invite-details-${phase == 'preview'}'),
               tilePadding: EdgeInsets.zero,
               childrenPadding: const EdgeInsets.only(bottom: 8),
-              initiallyExpanded: phase == 'preview',
-              title: Text(
-                context.l10n.l6InvitingDeviceArg0d440c(
-                  (state.ownerName.isEmpty
-                          ? context.l10n.l6UnlockToVerifycd78c
-                          : state.ownerName)
-                      .toString(),
-                ),
-              ),
+              initiallyExpanded: false,
+              title: Text(context.l10n.pairingDetails),
               children: [
                 Align(
                   alignment: Alignment.centerLeft,
@@ -271,31 +322,17 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
             ),
             const SizedBox(height: 8),
             Text(switch (phase) {
-              'preview' =>
-                context.l10n.l6ReviewTheInvitationThenExplicitlyChoosece487,
-              'key_required' || 'key_confirmation' =>
-                context.l10n.l6PreparingAndVerifyingProtectedDeviceKeys60dc8,
-              'ready_to_request' =>
-                context.l10n.l6DeviceKeysAreReadyRequestDeliverye8427,
-              'awaiting_approval' =>
-                context.l10n.l6WaitingForAnExistingDeviceTo330c1,
-              'installation_confirmation' =>
-                context.l10n.l6WaitingForSystemConfirmationNoProof188b0,
-              'awaiting_membership' =>
-                context.l10n.l6InstallationIsSavedProofDeliveryIsf28de,
-              'proof_sent' =>
-                context
-                    .l10n
-                    .l6InstallationProofDeliveredWaitingForAuthorization5d65b,
-              'enrollment' =>
-                context
-                    .l10n
-                    .l6CoordinatingTheApprovedHandoffAutomaticallyCheck9b863,
-              'enrollment_confirmation' =>
-                context
-                    .l10n
-                    .l6ConfirmingHandoffRevisionsSendingResumesAftera5068,
-              'expired' => context.l10n.l6TheInvitationExpiredRequestANewf2a42,
+              'preview' => context.l10n.pairingVerifyHint,
+              'key_required' ||
+              'key_confirmation' ||
+              'ready_to_request' ||
+              'installation_confirmation' => context.l10n.pairingDataPrepared,
+              'awaiting_approval' => context.l10n.pairingWaitingApproval,
+              'awaiting_membership' ||
+              'proof_sent' ||
+              'enrollment' ||
+              'enrollment_confirmation' => context.l10n.pairingTransferring,
+              'expired' => context.l10n.pairingExpired,
               _ => context.l10n.l6JoiningRequiresANewInvitationOr2a99d,
             }),
             if (phase == 'preview') ...[
@@ -326,40 +363,58 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
                         Platform.operatingSystem,
                         consent: _consent,
                       ),
-                child: Text(context.l10n.l6RequestToJoinUsingASeparate835e5),
+                child: Text(context.l10n.pairingConnect),
               ),
             ],
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                if (phase == 'ready_to_request' || phase == 'awaiting_approval')
+                if (controller.error != null && phase == 'ready_to_request')
                   OutlinedButton(
                     onPressed: controller.busy ? null : controller.sendRequest,
-                    child: Text(context.l10n.l6ResendOriginalJoinRequest97725),
+                    child: Text(context.l10n.pairingRetry),
                   ),
-                if (phase == 'awaiting_approval')
-                  FilledButton(
+                if (controller.error != null && phase == 'awaiting_approval')
+                  OutlinedButton(
                     onPressed: controller.busy
                         ? null
                         : controller.inspectApproval,
-                    child: Text(context.l10n.l6CheckForApproval58c9a),
+                    child: Text(context.l10n.pairingRetry),
                   ),
-                if (phase == 'awaiting_membership' || phase == 'proof_sent')
+                if (controller.error != null &&
+                    (phase == 'awaiting_membership' || phase == 'proof_sent'))
                   OutlinedButton(
                     onPressed: controller.busy ? null : controller.sendProof,
-                    child: Text(
-                      context.l10n.l6ResendSavedInstallationProof3d80a,
-                    ),
+                    child: Text(context.l10n.pairingRetry),
                   ),
                 TextButton(
                   onPressed: controller.busy ? null : controller.cancel,
-                  child: Text(context.l10n.l6StopThisDeviceSEnrollmentb3a98),
+                  child: Text(
+                    phase == 'expired' || phase == 'requires_new_invitation'
+                        ? context.l10n.pairingChangeInvitation
+                        : context.l10n.pairingStop,
+                  ),
                 ),
               ],
             ),
-            if (state.approvalAckPending && phase == 'proof_sent')
-              Text(context.l10n.l6ApprovalCleanupIsNotConfirmedResending9fd47),
+          ],
+          if (enrollment?.errorFor(operationId: state?.operationId) != null &&
+              enrollment!.states.any(
+                (s) => s.operationId == state?.operationId,
+              )) ...[
+            const SizedBox(height: 8),
+            AppErrorMessage(
+              error: enrollment.errorFor(operationId: state?.operationId)!,
+              action: context.l10n.load,
+            ),
+            if (enrollment.paused)
+              OutlinedButton(
+                onPressed: controller.busy
+                    ? null
+                    : () => enrollment.arm(operationId: state?.operationId),
+                child: Text(context.l10n.pairingRetry),
+              ),
           ],
           if (controller.busy) ...[
             const SizedBox(height: 12),
@@ -376,11 +431,11 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
               ),
             ),
           ],
-          if (controller.notice != null) ...[
+          if (controller.notice != null && phase == null) ...[
             const SizedBox(height: 8),
             Text(context.notice(controller.notice!)),
           ],
-          if (!controller.active) ...[
+          if (!controller.active && phase != 'joined') ...[
             const SizedBox(height: 12),
             TextButton(
               onPressed: controller.busy ? null : controller.refreshEntries,
@@ -420,31 +475,6 @@ class _JoinerSyncPairingSettingsState extends State<JoinerSyncPairingSettings> {
       );
     },
   );
-}
-
-/// 折叠式说明块：标题常显，正文默认收起（用户反馈这些说明文案
-/// 平时不需要读，占位又长）。
-class _SyncExplanation extends StatelessWidget {
-  const _SyncExplanation({required this.title, required this.body});
-
-  final String title;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ExpansionTile(
-      tilePadding: EdgeInsets.zero,
-      childrenPadding: const EdgeInsets.only(bottom: 8),
-      title: Text(title, style: theme.textTheme.titleSmall),
-      children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Text(body, style: theme.textTheme.bodySmall),
-        ),
-      ],
-    );
-  }
 }
 
 /// 删除前确认：不可恢复（暂存数据 + 本机密钥一并抹除）。

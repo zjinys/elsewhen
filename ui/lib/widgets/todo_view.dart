@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../l10n/localization.dart';
 import 'app_error_notice.dart';
 
+import '../theme/design_tokens.dart';
 part 'todo_view_parts/todo_item.dart';
 part 'todo_view_parts/todo_edit_dialog.dart';
 
@@ -111,7 +112,7 @@ class _TodoListViewState extends ConsumerState<TodoListView> {
                 decoration: InputDecoration(
                   hintText: context.l10n.todoInputHint,
                   hintStyle: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: TypographyTokens.secondary,
                     color: AppTheme.textTertiary,
                   ),
                   prefixIcon: const Icon(Icons.add_task, size: 16),

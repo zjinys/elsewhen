@@ -21,6 +21,10 @@ class AppThemePalette {
   final Color warning;
   final Color error;
 
+  /// 区域边界：功能区与其它区域/留白之间的接缝线。比 surface3 实一档，
+  /// 深色下也要能被感知——各处不再各自调 alpha。
+  final Color boundary;
+
   const AppThemePalette({
     required this.surface0,
     required this.surface1,
@@ -35,40 +39,45 @@ class AppThemePalette {
     required this.success,
     required this.warning,
     required this.error,
+    required this.boundary,
   });
 
-  /// 深色：保留现有「深墨表面 + 暖橙强调」的视觉身份
+  /// 深色：深墨表面 + 靓蓝强调（与品牌资产 assets/brand 的 #6A6FE0 轨道
+  /// 同源）；暖橙退为语义色，仅在「进行中/提醒」类场景出现（warning 等）。
   static const dark = AppThemePalette(
     surface0: Color(0xFF05070C),
     surface1: Color(0xFF0A0D12),
     surface2: Color(0xFF0F131C),
     surface3: Color(0xFF161D2B),
     surface4: Color(0xFF1E2636),
-    accentPrimary: Color(0xFFE9A568),
-    accentMuted: Color(0xFF7A5C3D),
+    accentPrimary: Color(0xFF6A6FE0),
+    accentMuted: Color(0xFF3D4186),
     textPrimary: Color(0xFFE8E9EC),
     textSecondary: Color(0xFF9BA1AB),
     textTertiary: Color(0xFF5F6570),
     success: Color(0xFF6EE7B7),
     warning: Color(0xFFFBBF24),
     error: Color(0xFFEF4444),
+    boundary: Color(0xFF2A3450),
   );
 
-  /// 浅色：暖白纸面 + 深墨文字（accent 由所选 flex 色卡动态给到，见 AppTheme.apply）
+  /// 浅色：暖白纸面 + 靓蓝强调（同品牌源色加深以保证对比度；accent 由
+  /// 所选 flex 色卡动态给到，见 AppTheme.apply）
   static const light = AppThemePalette(
     surface0: Color(0xFFF4F5F7),
     surface1: Color(0xFFFFFFFF),
     surface2: Color(0xFFEFF1F4),
     surface3: Color(0xFFE1E4EA),
     surface4: Color(0xFFD3D8E0),
-    accentPrimary: Color(0xFFB45309),
-    accentMuted: Color(0xFFD9A05F),
+    accentPrimary: Color(0xFF4F53C4),
+    accentMuted: Color(0xFF8A8FF5),
     textPrimary: Color(0xFF1A1D21),
     textSecondary: Color(0xFF5A6068),
     textTertiary: Color(0xFF8A919B),
     success: Color(0xFF047857),
     warning: Color(0xFFB45309),
     error: Color(0xFFDC2626),
+    boundary: Color(0xFFCDD3DD),
   );
 }
 
@@ -96,6 +105,9 @@ class AppTheme {
   static Color get surface3 => _current.surface3;
   static Color get surface4 => _current.surface4;
 
+  /// 区域边界：功能区与其它区域/留白之间的接缝线（统一取色，不再各自调 alpha）。
+  static Color get boundaryColor => _current.boundary;
+
   static Color get accentPrimary => _accent;
   static Color get accentMuted => _current.accentMuted;
 
@@ -106,6 +118,29 @@ class AppTheme {
   static Color get success => _current.success;
   static Color get warning => _current.warning;
   static Color get error => _current.error;
+
+  /// 7 类核心知识语义色相（低饱和沉静墨水色谱，用于徽标、侧栏分组与卡片标签）。
+  /// 统一色相层级，消除各处手写 Tokyo Night 色板的失控现象。
+  static Color knowledgeColor(String kind) {
+    final dark = _brightness == Brightness.dark;
+    return switch (kind) {
+      'profile' || 'person' || 'relationship' =>
+        dark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5), // 人物/网络: 典雅靛蓝
+      'recurring_cost' || 'asset' =>
+        dark ? const Color(0xFFFBBF24) : const Color(0xFFD97706), // 成本/资产: 暖琥珀
+      'capability' || 'method' || 'habit' =>
+        dark ? const Color(0xFF34D399) : const Color(0xFF059669), // 能力/方法/习惯: 翡翠绿
+      'project' || 'goal' || 'principle' =>
+        dark ? const Color(0xFFA78BFA) : const Color(0xFF7C3AED), // 项目/目标/规律: 薰衣草紫
+      'decision' || 'case' =>
+        dark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7), // 决策/案例: 晴空青
+      'insight' || 'series' =>
+        dark ? const Color(0xFFF472B6) : const Color(0xFFDB2777), // 洞察: 玫瑰灰
+      'constraint' || 'topic' || 'source' =>
+        dark ? const Color(0xFF94A3B8) : const Color(0xFF64748B), // 主题/素材: 暖石板灰
+      _ => _current.accentMuted,
+    };
+  }
 
   // Spacing tokens
   static const space1 = 4.0;
@@ -232,10 +267,9 @@ class AppTheme {
         ),
       ),
       snackBarTheme: SnackBarThemeData(
-        // 全局 toast 化：右上角惯例通知位——离主操作区（底部输入条/
-        // 按钮）最远，不盖操作区，也不和底部手势条打架。胶囊 + 高饱和
-        // 描边，深浅模式都可读。语义色边与图标由 feedback_toast.dart
-        // 给；直接 new SnackBar 的旧调用点也吃到定位与胶囊质感。
+        // Fallback for framework snack bars. Operation feedback is positioned
+        // by FeedbackToast in the root overlay; margins cannot move a
+        // Scaffold snack bar to the top.
         behavior: SnackBarBehavior.floating,
         backgroundColor: palette.surface2.withValues(alpha: 0.98),
         contentTextStyle: TextStyle(
@@ -244,9 +278,9 @@ class AppTheme {
           fontWeight: FontWeight.w500,
         ),
         elevation: 8,
-        insetPadding: EdgeInsets.fromLTRB(120, 12, 16, 0),
+        insetPadding: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusFull),
+          borderRadius: BorderRadius.circular(radiusMedium),
           side: BorderSide(
             color: palette.accentPrimary.withValues(alpha: 0.45),
           ),
@@ -285,7 +319,7 @@ class AppTheme {
 
   /// 兼容引用（等价于默认预设的深色主题）
   static ThemeData get darkTheme =>
-      buildTheme(AppThemePreset.amber, Brightness.dark);
+      buildTheme(AppThemePreset.indigo, Brightness.dark);
 
   /// 表单文本框的统一样式（应用内的「唯一一把尺子」）。
   ///
@@ -331,7 +365,7 @@ class AppTheme {
   /// 与 [fieldDecoration] 配套的输入文字样式（13.5 / 主文字色）。
   /// TextField 默认取 bodyLarge（16sp），比参考字段大一圈。
   static TextStyle get fieldTextStyle =>
-      TextStyle(fontSize: 13.5, color: textPrimary);
+      TextStyle(fontSize: 14, color: textPrimary);
 
   /// 界面固定字体：[AppFonts.uiFont] 打头；回退链 = 平台西文回退（Linux 的
   /// Ubuntu/Cantarell 等）+ [AppFonts.cjkFallback]。显式列出中文字体，避免

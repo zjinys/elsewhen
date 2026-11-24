@@ -85,6 +85,16 @@ impl GoalStatus {
     }
 }
 
+/// 同计划前序目标的讨论承接源（见 [`Store::goal_chat_predecessor`]）。
+/// `tail` 为时间正序的 `(role, content)`，content 已截断到有界长度。
+#[derive(Debug, Clone)]
+pub struct GoalChatPredecessor {
+    pub goal_id: String,
+    pub goal_content: String,
+    pub message_count: i64,
+    pub tail: Vec<(String, String)>,
+}
+
 /// 一条目标（活跃、暂停或已达成）
 #[derive(Debug, Clone)]
 pub struct Goal {
@@ -214,6 +224,90 @@ impl Store {
             .connection
             .query_row(&sql, [id], row_to_goal)
             .optional()?)
+    }
+
+    /// 同计划前序目标的讨论承接源（目标推进时的讨论延续，方案 A）。
+    ///
+    /// 讨论按 goal 1:1 隔离，但计划内步骤推进时，实质讨论常发生在前一步的
+    /// 会话里（例如在第一步讨论中确认「第一步已跑通，接下来做第二步」）。
+    /// 这里为当前目标找承接来源：同计划、step_index 更小的目标中，取
+    /// step_index 最大且有非空 goal_mentor 会话的一个，连同其尾部消息
+    ///（有界：最多 8 条、每条截到 160 字符，只取 kind='chat' 的正文轮次）。
+    /// 只读不写：不搬移、不复制历史消息，承接只发生在上下文注入与 UI 入口。
+    pub fn goal_chat_predecessor(&self, goal_id: &str) -> Result<Option<GoalChatPredecessor>> {
+        const TAIL_LIMIT: usize = 8;
+        const LINE_CHAR_LIMIT: usize = 240;
+        let Some(goal) = self.get_goal(goal_id)? else {
+            return Ok(None);
+        };
+        let (Some(plan_id), Some(step_index)) = (&goal.plan_id, goal.step_index) else {
+            return Ok(None);
+        };
+        let mut candidates = self
+            .connection
+            .prepare(
+                "SELECT g.id, g.content,
+                    (SELECT COUNT(*) FROM messages m
+                     JOIN conversations c2 ON m.conversation_id = c2.id
+                     WHERE c2.goal_id = g.id AND c2.archived = 0
+                       AND c2.assistant_mode = 'goal_mentor' AND m.kind = 'chat'
+                       AND m.role IN ('user','assistant'))
+                 FROM goals g
+                 WHERE g.plan_id = ?1 AND g.id != ?2
+                   AND g.step_index IS NOT NULL AND g.step_index < ?3
+                 ORDER BY g.step_index DESC LIMIT 5",
+            )?
+            .query_map(params![plan_id, goal.id, step_index], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        // step_index 更大的前序优先（紧邻上一步）；无消息的跳过。
+        candidates.sort_by(|a, b| b.2.cmp(&a.2));
+        for (pre_id, pre_content, count) in candidates {
+            if count == 0 {
+                continue;
+            }
+            let mut tail: Vec<(String, String)> = self
+                .connection
+                .prepare(
+                    "SELECT m.role, m.content FROM messages m
+                     JOIN conversations c ON m.conversation_id = c.id
+                     WHERE c.goal_id = ?1 AND c.archived = 0
+                       AND c.assistant_mode = 'goal_mentor' AND m.kind = 'chat'
+                       AND m.role IN ('user','assistant')
+                     ORDER BY m.created_at DESC, m.id DESC LIMIT ?2",
+                )?
+                .query_map(params![pre_id, TAIL_LIMIT as i64], |row| {
+                    Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            tail.reverse(); // 查询倒序取尾，翻回时间正序供提示词阅读
+            let tail = tail
+                .into_iter()
+                .map(|(role, content)| {
+                    let total = content.chars().count();
+                    let rendered = if total > LINE_CHAR_LIMIT {
+                        let mut s: String = content.chars().take(LINE_CHAR_LIMIT - 1).collect();
+                        s.push('…');
+                        s
+                    } else {
+                        content.clone()
+                    };
+                    (role, rendered)
+                })
+                .collect();
+            return Ok(Some(GoalChatPredecessor {
+                goal_id: pre_id,
+                goal_content: pre_content,
+                message_count: count,
+                tail,
+            }));
+        }
+        Ok(None)
     }
 
     pub fn count_active_goals(&self) -> Result<i64> {

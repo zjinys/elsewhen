@@ -7,6 +7,7 @@ import '../models/settings.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
 import 'font_picker_dialog.dart';
+import '../theme/design_tokens.dart';
 
 /// 知识页「AA」浮层：编辑器（内容区）阅读参数覆盖层。
 ///
@@ -124,7 +125,7 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
                     ),
                     Icon(
                       Icons.font_download_outlined,
-                      size: 18,
+                      size: DesignTokens.icon,
                       color: AppTheme.textSecondary,
                     ),
                   ],

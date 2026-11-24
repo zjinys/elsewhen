@@ -406,7 +406,7 @@ class _ChatProposalReviewDialogState
               ),
               Icon(
                 Icons.chevron_right,
-                size: 18,
+                size: DesignTokens.icon,
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ],
@@ -476,7 +476,7 @@ class _ChatProposalReviewDialogState
               ),
               Icon(
                 Icons.chevron_right,
-                size: 18,
+                size: DesignTokens.icon,
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ],
@@ -513,6 +513,10 @@ class _ProposalContent extends StatelessWidget {
     // 不再走通用正文 + 参数 JSON 的路径。
     if (args.containsKey('intent_text') && args.containsKey('steps')) {
       return _PlanDraftCard(args: args);
+    }
+
+    if (args['candidates'] is List) {
+      return _MemoryCandidatesCard(args: args);
     }
 
     final hasGoalFacets =
@@ -595,6 +599,38 @@ class _ProposalContent extends StatelessWidget {
               SelectableText(const JsonEncoder.withIndent('  ').convert(rest)),
             ],
           ),
+        ],
+      ],
+    );
+  }
+}
+
+class _MemoryCandidatesCard extends StatelessWidget {
+  const _MemoryCandidatesCard({required this.args});
+  final Map<String, dynamic> args;
+
+  @override
+  Widget build(BuildContext context) {
+    final candidates = (args['candidates'] as List).whereType<Map>().toList();
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '确认后会加入个人记忆',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        for (final candidate in candidates) ...[
+          Text(
+            '${candidate['title'] ?? '记忆'}',
+            style: theme.textTheme.titleSmall,
+          ),
+          const SizedBox(height: 2),
+          MarkdownView(markdown: '${candidate['content'] ?? ''}'),
+          if (candidate != candidates.last) const Divider(height: 18),
         ],
       ],
     );

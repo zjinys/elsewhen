@@ -128,9 +128,9 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
       _editError = null;
     });
     _setDirty(false);
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
+    FeedbackToast.of(context)
+      ..dismiss()
+      ..show(
         SnackBar(
           content: Text(context.l10n.wikiSaved),
           behavior: SnackBarBehavior.floating,
@@ -189,6 +189,8 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final dark = AppTheme.brightness == Brightness.dark;
+    final kindColor = AppTheme.knowledgeColor(widget.page.kind);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(
@@ -199,7 +201,7 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
       ),
       decoration: BoxDecoration(
         color: AppTheme.surface1.withValues(alpha: 0.72),
-        border: Border(bottom: BorderSide(color: AppTheme.surface3, width: 1)),
+        border: Border(bottom: DesignTokens.hairlineSide(dark)),
       ),
       child: Align(
         alignment: Alignment.centerLeft,
@@ -221,14 +223,18 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: AppTheme.accentPrimary.withValues(alpha: 0.12),
+                      color: kindColor.withValues(alpha: dark ? 0.14 : 0.10),
                       borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                      border: Border.all(
+                        color: kindColor.withValues(alpha: dark ? 0.32 : 0.22),
+                        width: 0.5,
+                      ),
                     ),
                     child: Text(
                       context.pageKindLabel(widget.page.kind),
                       style: TextStyle(
                         fontSize: 11,
-                        color: AppTheme.accentPrimary,
+                        color: kindColor,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -307,7 +313,7 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
               page: widget.page,
             );
             if (changed == true && context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              FeedbackToast.of(context).show(
                 SnackBar(
                   content: Text(context.l10n.checkinsUpdated),
                   behavior: SnackBarBehavior.floating,
@@ -326,7 +332,7 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
                   plan?.enabled == true
                       ? Icons.notifications_active_outlined
                       : Icons.notifications_none,
-                  size: 17,
+                  size: DesignTokens.icon,
                   color: plan?.enabled == true
                       ? AppTheme.accentPrimary
                       : AppTheme.textTertiary,
@@ -341,7 +347,7 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
                             ? context.l10n.askRegularly
                             : context.l10n.wikiCheckins,
                         style: TextStyle(
-                          fontSize: 12.5,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: AppTheme.textPrimary,
                         ),
@@ -359,7 +365,7 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
                 ),
                 Icon(
                   Icons.chevron_right,
-                  size: 18,
+                  size: DesignTokens.icon,
                   color: AppTheme.textTertiary,
                 ),
               ],
@@ -438,7 +444,7 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
       child: InkWell(
         onTap: () {
           Clipboard.setData(ClipboardData(text: widget.page.title));
-          ScaffoldMessenger.of(context).showSnackBar(
+          FeedbackToast.of(context).show(
             SnackBar(
               content: Text(context.l10n.wikiTitleCopied),
               behavior: SnackBarBehavior.floating,
@@ -522,7 +528,7 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
               children: [
                 Icon(
                   widget.page.tags.isEmpty ? Icons.add : Icons.edit_outlined,
-                  size: 12,
+                  size: DesignTokens.iconMicro,
                   color: AppTheme.textTertiary,
                 ),
                 const SizedBox(width: 4),
@@ -592,7 +598,8 @@ extension _WikiPageBodyEdit on _WikiPageBodyState {
       ref.invalidate(wikiPageProvider(widget.page.slug));
       ref.invalidate(pageRelationsProvider(widget.page.slug));
       ref.invalidate(wikiPagesProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
+      ref.invalidate(wikiTagsProvider);
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(context.l10n.wikiTagsUpdated),
           behavior: SnackBarBehavior.floating,

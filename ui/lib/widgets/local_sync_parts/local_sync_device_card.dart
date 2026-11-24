@@ -120,7 +120,7 @@ class _LocalDeviceInfoCard extends StatelessWidget {
     final error = await onRename(newName);
     if (!context.mounted) return;
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: AppErrorMessage(action: context.l10n.save, error: error),
         ),
@@ -167,12 +167,12 @@ class _RelayLine extends StatelessWidget {
         ),
         IconButton(
           visualDensity: VisualDensity.compact,
-          iconSize: 16,
+          iconSize: DesignTokens.icon,
           tooltip: context.l10n.l6CopyRelayAddress61683,
           icon: const Icon(Icons.copy_outlined),
           onPressed: () {
             Clipboard.setData(ClipboardData(text: relay));
-            ScaffoldMessenger.of(context).showSnackBar(
+            FeedbackToast.of(context).show(
               SnackBar(content: Text(context.l10n.l6RelayAddressCopied7db6a)),
             );
           },

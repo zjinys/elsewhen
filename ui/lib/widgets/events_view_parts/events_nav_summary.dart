@@ -45,7 +45,7 @@ class EventsNavSummary extends ConsumerWidget {
           padding: EdgeInsets.all(AppTheme.space4),
           child: Text(
             context.l10n.l6CouldNotLoadEvent7ba1f,
-            style: TextStyle(fontSize: 12.5),
+            style: TextStyle(fontSize: 12),
           ),
         ),
       ),

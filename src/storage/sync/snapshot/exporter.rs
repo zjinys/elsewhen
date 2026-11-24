@@ -200,9 +200,8 @@ impl SnapshotExporter {
         Ok(None)
     }
 
-    /// 切出下一片明文数据并累加 manifest 账（片数/字节/整流摘要）。
-    /// 加密封装拆在 `next_encrypted_chunk`：blob 续传要能"跳过前 N 片"而不付
-    /// 每片一次签名的代价，跳过时摘要仍然照算（manifest 摘要必须覆盖全部片）。
+    /// Cut the next bounded plaintext chunk and accumulate the complete
+    /// manifest. Encrypted chunks are cached before any upload is announced.
     fn next_chunk_data(&mut self) -> Result<Option<Vec<u8>>> {
         if self.finished {
             return Ok(None);
@@ -258,18 +257,6 @@ impl SnapshotExporter {
         ))
     }
 
-    /// blob 续传：跳过已经传完的前 `count` 片。数据照读、摘要照算，只是不重封
-    /// 不重传（跳一片省一次 Ed25519 签名）。片数不够就是账对不上，直接报错。
-    pub(crate) fn skip_chunks(&mut self, count: usize) -> Result<()> {
-        for _ in 0..count {
-            ensure!(
-                self.next_chunk_data()?.is_some(),
-                "sync_snapshot_export_short"
-            );
-        }
-        Ok(())
-    }
-
     /// 声明这份快照走 blob 数据面：manifest 里带上传输方式与 blob 身份，接收端
     /// 只依据这两个**发送端签名覆盖**的字段决定去哪拉，不做任何运行时探测。
     pub(crate) fn declare_blob(&mut self, blob_id: &str) {
@@ -279,8 +266,8 @@ impl SnapshotExporter {
 
     pub(crate) fn finish(&mut self, key: &ContentKey, signer: &DeviceIdentity) -> Result<Vec<u8>> {
         ensure!(self.finished, "sync_snapshot_export_incomplete");
-        // `ring` 的 `Context::finish` 吃掉上下文，而 `finish` 现在借 &mut self
-        // （blob 续传要能反复切片后再收尾），所以用 clone 取摘要，光标不动。
+        // Digest finalization consumes the context; clone to keep repeat calls
+        // to finish idempotent without changing the exporter's cursor.
         self.manifest.digest = hex(ring::digest::Context::clone(&self.hash).finish().as_ref());
         let header = manifest_header(&self.manifest)?;
         crypto::seal(header, key, signer, &serde_json::to_vec(&self.manifest)?)?.to_bytes()

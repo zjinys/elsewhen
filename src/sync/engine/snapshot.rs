@@ -2,6 +2,7 @@
 //! a fresh staging database and request ID before accepting any snapshot content.
 
 use anyhow::{Context, Result, ensure};
+use rusqlite::OptionalExtension;
 
 use super::*;
 use crate::storage::sync::BeginExport;
@@ -165,7 +166,16 @@ fn stage_snapshot_inner(
     // 快照在 relay 上只有一个去处：数据面。不再有「没有上传上下文就退回信件」——
     // 那条路就是本次事故所在（重发整份、无线程进度、无收敛点）。拿不到上下文由
     // 调用方判成 `sync_protocol_unsupported`，而不是默默地慢。
-    let resume = match store.begin_snapshot_export(id, recipient, key_version)? {
+    let begun = store.begin_snapshot_export(id, recipient, key_version);
+    if begun
+        .as_ref()
+        .is_err_and(|error| error.to_string() == "sync_snapshot_export_requires_new_request")
+    {
+        // A legacy partial export cannot be reconstructed under its old ID.
+        // Enrollment must see aborted and choose a fresh authenticated transfer.
+        store.abort_snapshot_export(id)?;
+    }
+    let resume = match begun? {
         BeginExport::Done => return Ok(()),
         BeginExport::Begun => None,
         BeginExport::Resume {
@@ -174,20 +184,65 @@ fn stage_snapshot_inner(
         } => Some((blob_index, blob_id)),
     };
     let result = (|| {
-        let mut exporter = SnapshotExporter::new(store, recipient, id, key_version)?;
-        if with_authority {
-            let signed = exporter.signed_roster()?;
-            let header = EnvelopeHeader::new(
-                &signed.roster.dataset_id,
-                &signed.roster.owner.device_id,
-                recipient,
-                key_version,
-                membership_message_id(&signed)?,
+        if !store.snapshot_export_cached(id)? {
+            let blob_id = match resume.as_ref().and_then(|(_, id)| id.clone()) {
+                Some(id) => id,
+                None => {
+                    let blob = random_hex(24);
+                    store.set_snapshot_blob_id(id, &blob)?;
+                    blob
+                }
+            };
+            let mut exporter = SnapshotExporter::new(store, recipient, id, key_version)?;
+            exporter.declare_blob(&blob_id);
+            let tx = store.begin_write_transaction()?;
+            store.connection.execute(
+                "DELETE FROM sync_snapshot_export_chunks WHERE snapshot_id=?1",
+                [id],
             )?;
-            store.stage_snapshot_authority(id, &header, key, signer, &signed.encode()?)?;
+            if with_authority {
+                let signed = exporter.signed_roster()?;
+                let header = EnvelopeHeader::new(
+                    &signed.roster.dataset_id,
+                    &signed.roster.owner.device_id,
+                    recipient,
+                    key_version,
+                    membership_message_id(&signed)?,
+                )?;
+                store.stage_snapshot_authority(id, &header, key, signer, &signed.encode()?)?;
+                store.connection.execute(
+                    "UPDATE sync_snapshot_exports SET roster_revision=?2 WHERE id=?1",
+                    rusqlite::params![id, signed.roster.revision as i64],
+                )?;
+            }
+            let mut index = 0i64;
+            while let Some(bytes) = exporter.next_encrypted_chunk(key, signer)? {
+                store.connection.execute(
+                  "INSERT INTO sync_snapshot_export_chunks(snapshot_id,chunk_index,encrypted_envelope) VALUES(?1,?2,?3)",
+                  rusqlite::params![id,index,bytes],
+              )?;
+                index += 1;
+            }
+            let manifest = exporter.finish(key, signer)?;
+            let envelope = EncryptedEnvelope::from_bytes(&manifest)?;
+            let pinned: crate::storage::sync::snapshot::SnapshotManifest =
+                serde_json::from_slice(&crypto::open(
+                    &envelope,
+                    envelope.unverified_header(),
+                    key,
+                    &signer.public_key(),
+                )?)?;
+            let identity = store.sync_identity()?.context("sync_not_initialized")?;
+            store.connection.execute(
+              "UPDATE sync_snapshot_exports SET cached_manifest=?2, blob_clock=?3, local_watermark=?4 WHERE id=?1",
+              rusqlite::params![id,manifest,pinned.logical_clock,pinned.frontiers.get(&identity.stream_id).copied().unwrap_or(0)],
+          )?;
+            if let Some(tx) = tx {
+                tx.commit()?;
+            }
         }
         // 分片只去 blob；只有 manifest（`snapshot-end:{id}`）进 outbox 当信令。
-        upload_blob_chunks(store, upload, id, &mut exporter, key, signer, resume)
+        upload_blob_chunks(store, upload, id, key, signer, resume)
     })();
     if result.is_err() {
         store.abort_snapshot_export(id)?;
@@ -205,22 +260,17 @@ fn upload_blob_chunks(
     store: &Store,
     upload: &BlobUpload,
     id: &str,
-    exporter: &mut SnapshotExporter,
     key: &ContentKey,
     signer: &DeviceIdentity,
     resume: Option<(u64, Option<String>)>,
 ) -> Result<()> {
     let sink = upload.sink.as_ref();
     // blob 身份：同一份导出只开一次，重试用同一个 id（旧的靠 TTL 收）。
-    let blob_id = match resume.as_ref().and_then(|(_, blob_id)| blob_id.clone()) {
-        Some(blob_id) => blob_id,
-        None => {
-            let blob_id = random_hex(24);
-            store.set_snapshot_blob_id(id, &blob_id)?;
-            blob_id
-        }
-    };
-    exporter.declare_blob(&blob_id);
+    let blob_id: String = store.connection.query_row(
+        "SELECT blob_id FROM sync_snapshot_exports WHERE id=?1",
+        [id],
+        |r| r.get(0),
+    )?;
     let opened = sink.open(&blob_id)?;
     announce_blob_snapshot(store, upload, id, signer, key, &blob_id)?;
     // 续传点必须跟 relay 的事实对齐：blob 刚建（原来的被 TTL 收掉/换了 relay）
@@ -236,10 +286,9 @@ fn upload_blob_chunks(
             .map_or(0, |highest| highest as u64 + 1);
         stored.max(relayed)
     };
-    if start > 0 {
-        store.mark_snapshot_blob_progress(id, start)?;
-    }
-    exporter.skip_chunks(usize::try_from(start)?)?;
+    // Persist a recreated blob's zero cursor too: otherwise a crash before the
+    // first replacement chunk can resume from the obsolete uploaded index.
+    store.mark_snapshot_blob_progress(id, start)?;
     let mut sent_bytes = 0usize;
     let mut index = usize::try_from(start)?;
     let mut acked = current_ack(&sink.state(&blob_id)?, index);
@@ -249,7 +298,14 @@ fn upload_blob_chunks(
     // 重开一拍，把一条稳态流拆成一堆拍。
     let mut wait_deadline =
         std::time::Instant::now() + std::time::Duration::from_millis(upload.window_wait_ms);
-    while let Some(bytes) = exporter.next_encrypted_chunk(key, signer)? {
+    loop {
+        let bytes: Option<Vec<u8>> = store.connection.query_row(
+            "SELECT encrypted_envelope FROM sync_snapshot_export_chunks WHERE snapshot_id=?1 AND chunk_index=?2",
+            rusqlite::params![id,index as i64], |r|r.get(0),
+        ).optional()?;
+        let Some(bytes) = bytes else {
+            break;
+        };
         // 在途窗口：接收方还没 ack 的片数不能超过一窗，否则 relay 上就会堆下整份。
         while index.saturating_sub(acked) >= WINDOW_CHUNKS {
             if std::time::Instant::now() >= wait_deadline {
@@ -269,7 +325,11 @@ fn upload_blob_chunks(
         sent_bytes += bytes.len();
         store.mark_snapshot_blob_progress(id, index as u64)?;
     }
-    let manifest = exporter.finish(key, signer)?;
+    let manifest: Vec<u8> = store.connection.query_row(
+        "SELECT cached_manifest FROM sync_snapshot_exports WHERE id=?1",
+        [id],
+        |r| r.get(0),
+    )?;
     // 诊断：blob 上传收尾。`subject` 是快照 id 前缀（blob 事件不属于某封信，
     // 但这一行要能跟 relay 日志里的同一个 blob 对上），字节数是本拍真传上去的量。
     super::deliver::wire_log(
@@ -439,6 +499,13 @@ pub(crate) fn import_blob_snapshots(
             "sync_snapshot_identity_conflict"
         );
         let mut from = import.highest.map_or(0, |highest| highest + 1);
+        if from > 0 {
+            // Re-assert our durable prefix after relay TTL/recreation. The
+            // sender may have restarted at chunk zero while we still resume at
+            // `from`; without this cumulative ack it fills a window we never
+            // fetch and both sides wait forever. An absent blob can be retried.
+            let _ = download.source.ack(&import.blob_id, from - 1);
+        }
         // 诊断：blob 拉取只在 ELSEWHEN_DEBUG 下打进度（片号/长度，不打正文）。
         let trace = std::env::var("ELSEWHEN_DEBUG").is_ok();
         for _ in 0..rounds {

@@ -13,6 +13,254 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appTitle => 'Elsewhen';
 
   @override
+  String get memoryManager => 'Memory';
+
+  @override
+  String get memoryBackList => 'Back to memories';
+
+  @override
+  String get memoryMore => 'More memory actions';
+
+  @override
+  String get memoryStatus => 'Memory status';
+
+  @override
+  String get memoryKind => 'Memory type';
+
+  @override
+  String get memoryManagerHelp =>
+      'Inspect AI memories, sources, and scope. Changes take effect after you approve a review card.';
+
+  @override
+  String get memorySearchHint => 'Search titles, subjects, or relationships';
+
+  @override
+  String get memoryAll => 'All';
+
+  @override
+  String get memoryMain => 'Main conversation';
+
+  @override
+  String get memoryWiki => 'Knowledge discussions';
+
+  @override
+  String get memoryGoal => 'Goal discussions';
+
+  @override
+  String get memoryPending => 'Pending confirmation';
+
+  @override
+  String get memoryActive => 'Confirmed';
+
+  @override
+  String get memoryConflicted => 'Conflicted';
+
+  @override
+  String get memorySuperseded => 'Superseded';
+
+  @override
+  String get memoryDismissed => 'Dismissed';
+
+  @override
+  String get memoryDeleted => 'Deleted';
+
+  @override
+  String get memoryExcluded => 'Excluded';
+
+  @override
+  String get memoryIncluded => 'Not excluded';
+
+  @override
+  String get memorySemantic => 'Facts';
+
+  @override
+  String get memoryProcedural => 'Practices and preferences';
+
+  @override
+  String get memoryReference => 'Reference only';
+
+  @override
+  String get memoryConversation => 'Owning conversation';
+
+  @override
+  String get memoryPersonal => 'Personal';
+
+  @override
+  String get memoryCurrent => 'Sources current';
+
+  @override
+  String get memoryStale => 'Sources changed';
+
+  @override
+  String get memoryUnavailable => 'Currently unavailable';
+
+  @override
+  String get memoryUnassessed => 'Evidence not assessed';
+
+  @override
+  String get memorySupported => 'Supported by evidence';
+
+  @override
+  String get memoryContradicted => 'Contradicted by evidence';
+
+  @override
+  String get memoryInsufficient => 'Insufficient evidence';
+
+  @override
+  String get memoryPin => 'Pin';
+
+  @override
+  String get memoryUnpin => 'Unpin';
+
+  @override
+  String get memoryExclude => 'Exclude from automatic use';
+
+  @override
+  String get memoryInclude => 'Allow automatic use';
+
+  @override
+  String get memorySalience => 'Salience';
+
+  @override
+  String get memoryLow => 'Low';
+
+  @override
+  String get memoryNormal => 'Normal';
+
+  @override
+  String get memoryHigh => 'High';
+
+  @override
+  String get memoryConfirm => 'Confirm memory';
+
+  @override
+  String get memoryDismiss => 'Dismiss memory';
+
+  @override
+  String get memoryRestore => 'Restore as candidate';
+
+  @override
+  String get memoryConflict => 'Mark conflict';
+
+  @override
+  String get memorySupersede => 'Replace with a newer memory';
+
+  @override
+  String get memoryLinkGoal => 'Link a goal';
+
+  @override
+  String get memoryUnlinkGoal => 'Unlink';
+
+  @override
+  String get memoryGoalReason => 'Explain how this memory applies to the goal';
+
+  @override
+  String get memoryNoGoals => 'No active goals available to link';
+
+  @override
+  String get memoryNoReplacement => 'No eligible replacement memories';
+
+  @override
+  String get memoryChooseReplacement =>
+      'Choose a newer memory with the same owner, subject, and relationship';
+
+  @override
+  String get memoryEmpty => 'No matching memories';
+
+  @override
+  String get memoryEmptyHelp =>
+      'Try different search terms or filters to find memories.';
+
+  @override
+  String get memoryNoSaved => 'No memories created yet';
+
+  @override
+  String get memoryNoSavedHelp =>
+      'This page shows created memory entries. Existing chats and knowledge pages are not added automatically. You can ask the AI in a conversation to propose a memory from a saved knowledge page with sources. Creating a candidate does not confirm it or allow automatic use.';
+
+  @override
+  String get memorySelect => 'Select a memory to inspect its content';
+
+  @override
+  String get memorySources => 'Source evidence';
+
+  @override
+  String get memoryNoContent =>
+      'This version cannot be displayed: it was deleted, dismissed, or its page content changed.';
+
+  @override
+  String get memoryTruncated => 'Only part of the content is shown.';
+
+  @override
+  String get memoryNoSources => 'No source excerpts to display';
+
+  @override
+  String get memorySourceHidden =>
+      'The source changed or the entry is inactive; its excerpt is hidden.';
+
+  @override
+  String get memoryDecisions => 'Latest 20 manual decisions';
+
+  @override
+  String get memoryNoDecisions => 'No manual decisions yet';
+
+  @override
+  String get memoryNoLinks => 'No linked goals';
+
+  @override
+  String get memoryScope => 'Scope';
+
+  @override
+  String get memoryVersion => 'Version';
+
+  @override
+  String get memoryOwnerUnavailable =>
+      'The owning conversation is unavailable. Records can be inspected; restore the conversation before reviewing changes.';
+
+  @override
+  String get memoryReviewTitle => 'Review memory change';
+
+  @override
+  String get memoryReviewHelp =>
+      'Approval applies only to the operation and version shown here. Confirmation, salience, and goal links do not grant execution permission.';
+
+  @override
+  String get memoryApprove => 'Approve change';
+
+  @override
+  String get memoryReviewFailed =>
+      'The change did not complete. Close and refresh the detail before reviewing again.';
+
+  @override
+  String get memoryDeleteHelp =>
+      'Deletion disables this memory and preserves manual decisions. Original events and knowledge pages are retained.';
+
+  @override
+  String get memoryMaintenance => 'Inspect maintenance hints';
+
+  @override
+  String get memoryMaintenanceHelp =>
+      'Checks up to 200 recent, non-deleted memories visible to this conversation. Duplicate and source hints require human judgment; nothing is merged or deleted automatically.';
+
+  @override
+  String get memoryScanned => 'Entries checked';
+
+  @override
+  String get memoryExactDuplicates => 'Identical content groups';
+
+  @override
+  String get memorySharedSources => 'Shared source groups';
+
+  @override
+  String get memoryNearDuplicates => 'Lexical similarity hints';
+
+  @override
+  String get memoryBrokenSources => 'Changed or unavailable sources';
+
+  @override
+  String get memoryItems => 'memories';
+
+  @override
   String get initializationFailed => 'Initialization failed';
 
   @override
@@ -1445,6 +1693,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get goalChatWelcome =>
       '🎯 Let’s discuss this goal. I can help plan actions, examine obstacles and review completion criteria. Pausing, completing or resuming a goal requires your confirmation.';
+
+  @override
+  String goalPredecessorEntry(Object goal, int count) {
+    return 'The above continues from \"$goal\" ($count messages)';
+  }
 
   @override
   String goalPaused(String goal) {
@@ -4106,7 +4359,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Restart the app after switching to view all synced data.';
 
   @override
-  String get l6EnterDatasete3665 => 'Enter dataset';
+  String get l6EnterDatasete3665 => 'Select dataset';
 
   @override
   String get l6CouldNotLoadSyncStatusSyncb8a20 =>
@@ -6838,7 +7091,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String l6SwitchedToArg0QuitAndReopenc2285(String arg0) {
-    return 'Switched to “$arg0”. Quit and reopen the app to load its synced data.';
+    return 'Selected $arg0. Fully quit and reopen the app to use it.';
   }
 
   @override
@@ -7114,6 +7367,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String l6UserRecordArg0Arg1902d4(String arg0, String arg1) {
     return 'User record $arg0: $arg1';
+  }
+
+  @override
+  String l6SourceTitleArg0VersionArg1(Object arg0, Object arg1) {
+    return 'Source: $arg0 · Version $arg1';
+  }
+
+  @override
+  String l6UserRecordExcerptArg0(Object arg0) {
+    return 'User record: $arg0';
   }
 
   @override
@@ -7737,6 +8000,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scoutExtensionWatchlist => 'Extension watchlist';
 
   @override
+  String get scoutRecentProjects => 'New projects · 90 days';
+
+  @override
+  String get scoutExtensionDiscovery => 'Extension discovery';
+
+  @override
   String get scoutUsTopFree => 'US top free';
 
   @override
@@ -7777,6 +8046,44 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scoutPriceUnknown => 'Pricing unverified';
+
+  @override
+  String get scoutAffiliateConfirmed => 'Affiliate · Cash referral program';
+
+  @override
+  String get scoutAffiliateUnknown => 'Affiliate program unverified';
+
+  @override
+  String get scoutAffiliateUnavailable => 'Officially closed or unavailable';
+
+  @override
+  String get scoutAffiliateStale => 'Affiliate evidence needs rechecking';
+
+  @override
+  String get scoutAffiliateProgram => 'View program and eligibility';
+
+  @override
+  String scoutAffiliateChecked(String time) {
+    return 'Checked: $time';
+  }
+
+  @override
+  String get scoutPurposeMissing =>
+      'No description from this source yet. See the original introduction.';
+
+  @override
+  String get scoutReadIntroduction => 'Read introduction';
+
+  @override
+  String get scoutFreeDownload => 'Free download';
+
+  @override
+  String get scoutListedFree => 'Listed as free';
+
+  @override
+  String scoutFirstObservedOn(String date) {
+    return 'First monitored on $date';
+  }
 
   @override
   String get scoutWhyNow => 'Why look now';
@@ -8101,4 +8408,106 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scoutBriefHighlights => 'Worth a closer look';
+
+  @override
+  String get pairingConnectNew => 'Connect a new device';
+
+  @override
+  String get pairingJoinExisting => 'Join an existing device';
+
+  @override
+  String get pairingConnectHint =>
+      'Create an invitation on the device with your data, then scan it on the other device.';
+
+  @override
+  String get pairingJoinHint =>
+      'Scan or paste an invitation on this device to connect to existing data.';
+
+  @override
+  String get pairingIdentify => 'Identify devices';
+
+  @override
+  String get pairingConfirm => 'Confirm on both devices';
+
+  @override
+  String get pairingSyncData => 'Sync data';
+
+  @override
+  String get pairingDetails => 'Connection details';
+
+  @override
+  String get pairingConnectionSettings => 'Connection settings';
+
+  @override
+  String get pairingPaste => 'Paste invitation';
+
+  @override
+  String get pairingAllow => 'Allow connection';
+
+  @override
+  String get pairingConnect => 'Connect this device';
+
+  @override
+  String get pairingWaitingScan =>
+      'Choose “Join an existing device” on the new device and scan this code.';
+
+  @override
+  String get pairingWaitingApproval =>
+      'Verify this device and allow the connection on the existing device. This screen will continue automatically.';
+
+  @override
+  String get pairingTransferring =>
+      'Preparing and syncing data. Keep both devices running; transfer continues when the connection recovers.';
+
+  @override
+  String get pairingDone => 'Connected. Initial data is ready.';
+
+  @override
+  String get pairingOwnerDone => 'Device connected. Initial sync complete.';
+
+  @override
+  String get pairingAnother => 'Connect another device';
+
+  @override
+  String get pairingExpired => 'Invitation expired. Create a new one.';
+
+  @override
+  String get pairingRegenerate => 'Create a new invitation';
+
+  @override
+  String pairingRemaining(String minutes) {
+    return 'Invitation expires in $minutes min';
+  }
+
+  @override
+  String get pairingRetry => 'Retry connection';
+
+  @override
+  String get pairingChangeInvitation => 'Use another invitation';
+
+  @override
+  String get pairingStop => 'Stop connecting';
+
+  @override
+  String get pairingVerifyHint =>
+      'Before connecting, compare the public key fingerprint below with the existing device.';
+
+  @override
+  String get pairingLocalFingerprint =>
+      'Verify this fingerprint on the existing device';
+
+  @override
+  String get pairingNoRelay =>
+      'A working relay address is required for the first connection.';
+
+  @override
+  String get pairingDataPrepared => 'Preparing data';
+
+  @override
+  String syncConnectedDevices(String count) {
+    return '$count connected devices';
+  }
+
+  @override
+  String get syncLastRound => 'The latest local sync round ran';
 }

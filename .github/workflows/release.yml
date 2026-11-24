@@ -16,7 +16,7 @@
 # 签名现实（无证书的统一边界，README/Release 文案明示即可）：
 #   dmg = ad-hoc（Gatekeeper 首开右键 → 打开 / xattr -cr）
 #   msi = 无签名（SmartScreen 警告，仍可安装）
-#   apk = debug key 签名（本机安装 OK，不可上架 Play）
+#   apk = 固定证书签名（本地与 CI 共用；缺密钥或指纹不符则停止）
 #
 # ⚠ private 仓库 macOS 分钟 10× 计费：本 workflow 单次全矩阵约
 #   60-80 计费分钟（macOS job 计 10×）。public 仓库免费。
@@ -228,6 +228,14 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      - name: 恢复固定 Android 签名并核对指纹
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/elsewhen-release.jks
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: python3 scripts/android-signing.py restore
       - name: Read pinned Flutter version
         id: sdk
         shell: bash
@@ -252,7 +260,17 @@ jobs:
         run: flutter pub get
       - name: APK（arm64 单 ABI）
         working-directory: ui
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/elsewhen-release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: flutter build apk --release --target-platform android-arm64
+      - name: 核对 APK 固定签名
+        shell: bash
+        run: |
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          python3 scripts/android-signing.py verify-apk ui/build/app/outputs/flutter-apk/app-release.apk --apksigner "$signer"
       - name: 归集产物
         run: |
           mkdir -p out
@@ -265,6 +283,12 @@ jobs:
           name: dist-android
           path: out/*
           if-no-files-found: error
+      - name: 清理 Android 签名密钥
+        if: always()
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/elsewhen-release.jks
+        run: rm -f "$ANDROID_KEYSTORE_PATH"
 
   # ── 发布：全部平台产物附到 tag 对应的 GitHub Release ─────────
   release:

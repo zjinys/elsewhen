@@ -23,6 +23,7 @@ class WikiChatBubble extends ConsumerWidget {
       settingsProvider.select((s) => chatTypeScaleOf(s).panel),
     );
     final isUser = message.role == 'user';
+    final bubbleStyle = ChatBubbleStyle.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTheme.space3),
       child: Row(
@@ -32,7 +33,7 @@ class WikiChatBubble extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!isUser) ...[
-            _buildAvatar(),
+            _buildAvatar(bubbleStyle),
             const SizedBox(width: 8),
           ] else
             const SizedBox(width: 48),
@@ -44,12 +45,9 @@ class WikiChatBubble extends ConsumerWidget {
                   horizontal: 12,
                   vertical: 8,
                 ),
-                decoration: BoxDecoration(
-                  color: isUser
-                      ? AppTheme.accentPrimary.withValues(alpha: 0.15)
-                      : AppTheme.surface2,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                ),
+                decoration: isUser
+                    ? bubbleStyle.userBubble()
+                    : bubbleStyle.assistantCard(darkFill: AppTheme.surface2),
                 child: pending
                     ? Row(
                         mainAxisSize: MainAxisSize.min,
@@ -64,7 +62,7 @@ class WikiChatBubble extends ConsumerWidget {
                             context.l10n.thinkingShort,
                             style: TextStyle(
                               fontSize: 12,
-                              color: AppTheme.textSecondary,
+                              color: bubbleStyle.palette.textSecondary,
                             ),
                           ),
                         ],
@@ -76,7 +74,7 @@ class WikiChatBubble extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: fontSize,
                             height: 1.55,
-                            color: AppTheme.textPrimary,
+                            color: bubbleStyle.palette.textPrimary,
                           ),
                         ),
                       )
@@ -90,21 +88,21 @@ class WikiChatBubble extends ConsumerWidget {
     );
   }
 
-  Widget _buildAvatar() {
+  Widget _buildAvatar(ChatBubbleStyle bubbleStyle) {
     return Container(
       width: 26,
       height: 26,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: AppTheme.accentPrimary.withValues(alpha: 0.18),
+        color: bubbleStyle.accent.withValues(alpha: 0.18),
         shape: BoxShape.circle,
       ),
       child: Text(
         'EW',
         style: TextStyle(
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: AppTheme.accentPrimary,
+          color: bubbleStyle.accentInk,
         ),
       ),
     );
@@ -123,28 +121,43 @@ class _AiMessageBody extends ConsumerWidget {
     final fontSize = ref.watch(
       settingsProvider.select((s) => chatTypeScaleOf(s).panel),
     );
+    final bubbleStyle = ChatBubbleStyle.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
       children: [
         Align(
           alignment: Alignment.centerLeft,
-          child: MarkdownView(
-            markdown: content,
-            baseStyle: TextStyle(
-              fontSize: fontSize,
-              height: 1.55,
-              color: AppTheme.textPrimary,
-            ),
-          ),
+          // 桌面端包 SelectionArea：配合 MarkdownView 块的选择注册，
+          // 拖选 AI 输出后 Ctrl+C 即可复制（与主对话一致）；
+          // 移动端不用（避免长按选字与菜单手势竞争）。
+          child: isMobilePanel
+              ? MarkdownView(
+                  markdown: content,
+                  baseStyle: TextStyle(
+                    fontSize: fontSize,
+                    height: 1.55,
+                    color: bubbleStyle.palette.textPrimary,
+                  ),
+                )
+              : SelectionArea(
+                  child: MarkdownView(
+                    markdown: content,
+                    baseStyle: TextStyle(
+                      fontSize: fontSize,
+                      height: 1.55,
+                      color: bubbleStyle.palette.textPrimary,
+                    ),
+                  ),
+                ),
         ),
         // 复制入口放正文右下角，轻量不占行高。
         IconButton(
           tooltip: context.l10n.copyThisMessage,
           icon: Icon(
             Icons.copy_rounded,
-            size: 13,
-            color: AppTheme.textTertiary,
+            size: DesignTokens.iconMicro,
+            color: bubbleStyle.metadataColor,
           ),
           visualDensity: VisualDensity.compact,
           padding: EdgeInsets.zero,
@@ -152,7 +165,7 @@ class _AiMessageBody extends ConsumerWidget {
           onPressed: () async {
             await Clipboard.setData(ClipboardData(text: content));
             if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
+            FeedbackToast.of(context).show(
               SnackBar(
                 content: Text(context.l10n.copiedMessage),
                 duration: const Duration(seconds: 1),

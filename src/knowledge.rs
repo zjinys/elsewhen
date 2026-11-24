@@ -61,6 +61,7 @@ pub(crate) fn structured_text<'a>(reply: &'a AiReply, task: &str) -> Result<&'a 
 mod bind;
 pub mod health;
 mod propose;
+pub(crate) mod recall;
 pub mod select;
 
 pub use bind::{

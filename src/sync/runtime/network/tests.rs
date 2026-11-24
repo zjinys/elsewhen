@@ -3,6 +3,25 @@
 //! Requires ELSEWHEN_RELAY_TEST_URL (loopback only); run via relay npm test.
 
 use crate::{config::AppConfig, sync::runtime};
+mod three_devices;
+
+#[test]
+fn peer_budget_rotates_after_restart_without_starving_a_large_roster() {
+    let all: Vec<_> = (0..19)
+        .rev()
+        .map(|i| (format!("device-{i:02}"), [0; 32]))
+        .collect();
+    let mut seen = std::collections::HashSet::new();
+    let mut cursor = "0".to_string();
+    for _ in 0..3 {
+        let mut batch = all.clone();
+        super::rotate_peers(&mut batch, &cursor);
+        assert_eq!(batch.len(), 8);
+        seen.extend(batch.iter().map(|(id, _)| id.clone()));
+        cursor = batch.last().unwrap().0.clone();
+    }
+    assert_eq!(seen.len(), 19);
+}
 
 fn enrollment_run() -> crate::sync::transport_relay_smoke_tests::enrollment_ui::CompletedEnrollment
 {

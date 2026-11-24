@@ -78,8 +78,18 @@ fn parse_body(reply: &AiReply, model: &str) -> Result<SummaryBody> {
         "摘要响应未完整结束"
     );
     ensure!(reply.content.len() <= 65536, "摘要响应过大");
-    let body: SummaryBody =
-        serde_json::from_str(reply.content.trim()).context("摘要响应不是完整结构化 JSON")?;
+    let text = crate::knowledge::structured_text(reply, "摘要")?;
+    // Some compatible providers wrap a complete JSON object in a Markdown
+    // fence. Accept only a single whole-response fence, never extract a JSON
+    // fragment from prose or a truncated answer.
+    let text = text.strip_prefix("```json\n")
+        .or_else(|| text.strip_prefix("```\n"))
+        .and_then(|text| text.strip_suffix("```"))
+        .unwrap_or(text).trim();
+    let body: SummaryBody = serde_json::from_str(text).with_context(|| format!(
+        "摘要响应不是完整结构化 JSON（字符数={}，首字符={}，finish_reason={:?}）",
+        text.chars().count(), text.chars().next().map(|c|format!("U+{:04X}",c as u32)).unwrap_or_else(||"无".into()),reply.finish_reason
+    ))?;
     body.validate()?;
     ensure!(
         super::budget::text_tokens(model, &serde_json::to_string(&body)?) <= NODE_TOKEN_LIMIT,

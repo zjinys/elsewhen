@@ -10,6 +10,7 @@ import '../bridge/rust_bridge_repository.dart';
 import '../providers/conversation_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/window_service.dart';
+import '../theme/design_tokens.dart';
 import 'glass.dart';
 import '../l10n/localization.dart';
 
@@ -287,7 +288,7 @@ class _WindowButtonState extends State<_WindowButton> {
               curve: Curves.easeOutCubic,
               child: Icon(
                 widget.icon,
-                size: 15,
+                size: DesignTokens.iconMicro,
                 color: _isHovered ? hoverIconColor : normalIconColor,
               ),
             ),

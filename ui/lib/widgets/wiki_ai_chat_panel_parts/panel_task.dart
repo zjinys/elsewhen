@@ -28,8 +28,10 @@ extension _PanelTask on _WikiAiChatPanelState {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
       final messages = await repo.listMessages(id);
       if (!mounted || _conversationId != id) return;
-      setState(() => _messages = messages);
-      _scrollToBottom();
+      setState(() {
+        _messages = messages;
+        _messagesLoaded = true;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = appFailure(e));
@@ -128,7 +130,6 @@ extension _PanelTask on _WikiAiChatPanelState {
       }
       if (mounted && _conversationId == id) {
         setState(() => _sending = false);
-        _scrollToBottom();
       }
     }
   }
@@ -215,7 +216,7 @@ extension _PanelTask on _WikiAiChatPanelState {
       if (!mounted) return;
       ref.invalidate(wikiPageProvider(widget.slug));
       ref.invalidate(wikiPagesProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(content: Text(context.l10n.projectRescannedAssets)),
       );
     } catch (e) {
@@ -268,7 +269,7 @@ extension _PanelTask on _WikiAiChatPanelState {
         if (!mounted) return;
         ref.invalidate(wikiPageProvider(widget.slug));
         ref.invalidate(wikiPagesProvider);
-        ScaffoldMessenger.of(context).showSnackBar(
+        FeedbackToast.of(context).show(
           SnackBar(content: Text(context.l10n.projectPageReplaced)),
         );
         return;
@@ -281,13 +282,13 @@ extension _PanelTask on _WikiAiChatPanelState {
       );
       if (!mounted) return;
       ref.invalidate(wikiDerivativesProvider(widget.slug));
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(content: Text(context.l10n.savedAsDerivative(page.title))),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(appFailure(e))));
+      FeedbackToast.of(context)
+          .show(SnackBar(content: Text(appFailure(e))));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -324,9 +325,9 @@ extension _PanelTask on _WikiAiChatPanelState {
         if (!mounted) return;
         ref.invalidate(wikiPageProvider(widget.slug));
         ref.invalidate(wikiPagesProvider);
-        ScaffoldMessenger.of(
+        FeedbackToast.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(context.l10n.projectRescanned)));
+        ).show(SnackBar(content: Text(context.l10n.projectRescanned)));
       } catch (e) {
         if (!mounted) return;
         setState(() => _error = appFailure(e));
@@ -348,8 +349,8 @@ extension _PanelTask on _WikiAiChatPanelState {
       if (!mounted) return;
       ref.invalidate(wikiPageProvider(widget.slug));
       ref.invalidate(wikiPagesProvider);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(context.l10n.sourceReimported)));
+      FeedbackToast.of(context)
+          .show(SnackBar(content: Text(context.l10n.sourceReimported)));
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = appFailure(e));
@@ -368,14 +369,5 @@ extension _PanelTask on _WikiAiChatPanelState {
     return context.l10n.aiSummary;
   }
 
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) return;
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-      );
-    });
-  }
+  void _scrollToBottom() => _scrollController.scrollToLatest();
 }

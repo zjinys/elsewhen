@@ -440,7 +440,10 @@ fn citation_for_page_inner(
     }
     let mut event_ids = Vec::new();
     for id in &page.source_event_ids {
-        if !store.recordable_event(id)? {
+        if !store.recordable_event(id)?
+            || !store.memory_event_visible(id)?
+            || store.memory_source_suppressed("event", id)?
+        {
             return Ok(None);
         }
         event_ids.push(id.clone());

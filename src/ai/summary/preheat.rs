@@ -73,6 +73,15 @@ pub(crate) fn background_preheat_with(
     // MAX_REQUESTS 将来调大需重估。
     const MAX_TICK_REQUESTS: usize = 128;
     const MAX_BATCHES: usize = 6;
+    let input: (i64, i64) = store.connection.query_row(
+        "SELECT COALESCE(MAX(rowid),0),COUNT(*) FROM messages WHERE conversation_id=?1",
+        [conversation], |r|Ok((r.get(0)?,r.get(1)?)))?;
+    let input_key = content_hash(&json!([conversation,basis,model,budget,input,
+        store.prompt_dependency(&["summary.policy","summary.fixed_contract","task.processing.fixed_contract"])?]).to_string());
+    let cooling_down: bool = store.connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM knowledge_background_runs WHERE task='summary-preheat' AND input_key=?1 AND status='failed' AND julianday(started_at)>julianday('now','-15 minutes'))",
+        [&input_key], |r|r.get(0))?;
+    if cooling_down { return Ok(0); }
     let tick_started = chrono::Utc::now().to_rfc3339();
     let mut tick_requests = 0usize;
     let mut nodes_before_last: i64 =
@@ -142,7 +151,7 @@ pub(crate) fn background_preheat_with(
     }
     background_preheat_ledger(
         store,
-        conversation,
+        &input_key,
         tick_started,
         nodes_total,
         failure_detail.as_deref(),

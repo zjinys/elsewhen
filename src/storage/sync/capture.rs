@@ -150,7 +150,7 @@ impl Store {
             "UPDATE sync_frontiers SET applied_sequence=?2 WHERE origin_stream_id=?1",
             params![operation.origin_stream_id, seq],
         )?;
-        self.connection.execute("INSERT INTO sync_outbox(op_id,recipient_device_id) SELECT ?1,device_id FROM sync_members WHERE active=1 AND device_id!=?2 GROUP BY device_id",params![operation.op_id,operation.origin_device_id])?;
+        self.connection.execute("INSERT INTO sync_outbox(op_id,recipient_device_id) SELECT ?1,device_id FROM sync_members WHERE active=1 AND device_id!=?2 AND (?3 IS NULL OR device_id=?3) GROUP BY device_id",params![operation.op_id,operation.origin_device_id,self.sync_upstream_device()?])?;
         Ok(Some(operation.op_id))
     }
 

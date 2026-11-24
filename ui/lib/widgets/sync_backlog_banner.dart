@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import '../sync/sync_backlog_notice.dart';
 import '../sync/sync_setup_controller.dart';
 import '../theme/app_theme.dart';
+import '../theme/design_tokens.dart';
 
 /// 主界面的全局同步状态位（roadmap C8 / 缺陷 D4）。
 ///
@@ -68,7 +69,7 @@ class _SyncBacklogBannerState extends State<SyncBacklogBanner> {
                       notice.actionable
                           ? Icons.lock_outline
                           : Icons.sync_problem,
-                      size: 16,
+                      size: DesignTokens.iconMicro,
                       color: color,
                     ),
                     const SizedBox(width: 8),

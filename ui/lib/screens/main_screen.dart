@@ -123,17 +123,24 @@ class MainScreen extends ConsumerWidget {
                 if (!compact)
                   IconButton(
                     icon: const Icon(Icons.settings_outlined),
-                    iconSize: 16,
+                    iconSize: DesignTokens.icon,
                     color: const Color(0xFF6C7A89),
                     tooltip: context.l10n.settings,
                     onPressed: () async {
+                      // await 前先取全局 ProviderContainer：返回后 MainScreen
+                      // 可能已被卸载（此时 ref 已失效），container 不依赖
+                      // widget 生命周期，可以安全 invalidate。
+                      final container = ProviderScope.containerOf(
+                        context,
+                        listen: false,
+                      );
                       await Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => const SettingsScreen(),
                         ),
                       );
                       // 从设置页返回后刷新首次运行探测（横幅是否该消失）
-                      ref.invalidate(aiProviderConfiguredProvider);
+                      container.invalidate(aiProviderConfiguredProvider);
                     },
                   ),
               ],
@@ -216,9 +223,7 @@ class MainScreen extends ConsumerWidget {
                     child: Container(
                       decoration: BoxDecoration(
                         border: Border(
-                          left: BorderSide(
-                            color: AppTheme.surface3.withValues(alpha: 0.65),
-                          ),
+                          left: BorderSide(color: AppTheme.boundaryColor),
                         ),
                       ),
                       child: Material(

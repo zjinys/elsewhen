@@ -16,6 +16,7 @@ import 'markdown_view.dart';
 import '../utils/pretty_time.dart';
 import '../l10n/localization.dart';
 
+import '../theme/design_tokens.dart';
 part 'chat_proposal_parts/proposal_review_dialog.dart';
 part 'chat_proposal_parts/proposal_batch_dialog.dart';
 part 'chat_proposal_parts/proposal_detail_dialog.dart';
@@ -29,6 +30,7 @@ String _actionLabel(BuildContext context, String action) => switch (action) {
   'save_wiki_revision' => context.l10n.actionRevisePage,
   'rename_wiki_page' => context.l10n.actionRenamePage,
   'record_event' => context.l10n.actionRecordEvent,
+  'propose_memory_candidates' => context.l10n.memoryManager,
   'propose_people_relations' => context.l10n.actionPeopleRelations,
   'archive_conversations_by_title' => context.l10n.actionArchiveChats,
   'import_url_to_wiki' => context.l10n.actionImportSource,

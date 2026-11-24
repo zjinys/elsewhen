@@ -16,9 +16,15 @@ class ScoutSourceNavigation extends ConsumerWidget {
     final rows = {
       for (final s in summaries.value ?? <ScoutSourceSummary>[]) s.sourceId: s,
     };
-    final ids = {...rows.keys, ...names.keys}.toList()..sort();
+    // Once current sources arrive, historical mirror rows must not resurrect
+    // retired monitoring scopes. Offline fallback keeps history reachable.
+    final ids = {
+      ...(live.hasValue ? names.keys : rows.keys),
+      ?selected,
+    }.toList()..sort();
     void select(String? id, {bool? unreadOnly}) {
       ref.read(scoutSourceFilterProvider.notifier).set(id);
+      ref.read(scoutProductSourcesProvider.notifier).selectOnly(id);
       ref.read(scoutWorkspaceProvider.notifier).set(ScoutWorkspace.discover);
       if (unreadOnly != null) {
         ref.read(scoutUnreadOnlyProvider.notifier).set(unreadOnly);
@@ -101,20 +107,20 @@ class ScoutSourceNavigation extends ConsumerWidget {
                   ListTile(
                     dense: true,
                     selected: selected == id,
-                    leading: _SourceIcon(
-                      source: _sourceIdentity(context, id, names[id]),
+                    leading: ScoutSourceIcon(
+                      source: scoutSourceIdentity(context, id, names[id]),
                     ),
                     title: Text(
-                      _sourceIdentity(context, id, names[id]).platform,
+                      scoutSourceIdentity(context, id, names[id]).platform,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
-                      _sourceIdentity(context, id, names[id]).topic,
+                      scoutSourceIdentity(context, id, names[id]).topic,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 12,
                         color: AppTheme.textTertiary,
                       ),
                     ),
@@ -137,16 +143,17 @@ class ScoutSourceNavigation extends ConsumerWidget {
           if (settings != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              child: Text(
-                !settings.enabled
-                    ? context.l10n.scoutAutoPaused
-                    : settings.lastPolledAt == null
-                    ? context.l10n.scoutSourceNeverRun
-                    : context.l10n.scoutLastPolled(
-                        _formatTime(context, settings.lastPolledAt!),
+              child: settings.enabled && settings.lastPolledAt != null
+                  ? _ScoutLastPolled(timestamp: settings.lastPolledAt!)
+                  : Text(
+                      !settings.enabled
+                          ? context.l10n.scoutAutoPaused
+                          : context.l10n.scoutSourceNeverRun,
+                      style: TextStyle(
+                        color: AppTheme.textTertiary,
+                        fontSize: 12,
                       ),
-                style: TextStyle(color: AppTheme.textTertiary, fontSize: 11.5),
-              ),
+                    ),
             ),
         ],
       ),
@@ -154,7 +161,7 @@ class ScoutSourceNavigation extends ConsumerWidget {
   }
 }
 
-String _sourceName(WidgetRef ref, String id) {
+String scoutSourceDisplayName(WidgetRef ref, String id) {
   for (final s
       in ref.watch(scoutSourcesProvider).value ?? <api.ScoutSourceDto>[]) {
     if (s.id == id) return s.name;

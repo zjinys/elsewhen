@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import '../bridge/api.dart' as api;
 import '../sync/sync_provider_conflicts_controller.dart';
 import 'sync_conflict_section.dart';
+import '../theme/design_tokens.dart';
 
 /// Provider 同步冲突的只读审阅列表 + 显式裁决入口。
 ///
@@ -205,7 +206,7 @@ class _ProfileRow extends StatelessWidget {
                 children: [
                   Icon(
                     Icons.info_outline,
-                    size: 14,
+                    size: DesignTokens.iconMicro,
                     color: theme.colorScheme.tertiary,
                   ),
                   const SizedBox(width: 4),

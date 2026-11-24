@@ -1,3 +1,4 @@
+import '../theme/design_tokens.dart';
 import 'knowledge_workflows.dart';
 import 'adaptive_panel.dart';
 import '../l10n/localization.dart';
@@ -42,6 +43,7 @@ import 'markdown_view.dart';
 import 'knowledge_panel.dart';
 import 'knowledge_import.dart';
 import '../providers/knowledge_provider.dart';
+import 'feedback_toast.dart';
 
 part 'wiki_detail_import_section.dart';
 part 'wiki_page_parts/wiki_detail_entity_items.dart';

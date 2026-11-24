@@ -16,7 +16,7 @@ class _LocalPathChip extends ConsumerWidget {
         InkWell(
           onTap: () {
             Clipboard.setData(ClipboardData(text: path));
-            ScaffoldMessenger.of(context).showSnackBar(
+            FeedbackToast.of(context).show(
               SnackBar(
                 content: Text(context.l10n.wikiProjectPathCopied),
                 behavior: SnackBarBehavior.floating,
@@ -36,7 +36,7 @@ class _LocalPathChip extends ConsumerWidget {
               children: [
                 Icon(
                   Icons.folder_outlined,
-                  size: 11,
+                  size: DesignTokens.iconMicro,
                   color: AppTheme.textTertiary,
                 ),
                 const SizedBox(width: 4),
@@ -61,7 +61,7 @@ class _LocalPathChip extends ConsumerWidget {
         IconButton(
           tooltip: context.l10n.wikiEditProjectPath,
           visualDensity: VisualDensity.compact,
-          iconSize: 14,
+          iconSize: DesignTokens.icon,
           onPressed: () => _showEditPathDialog(context, ref),
           icon: Icon(Icons.edit_outlined, color: AppTheme.textTertiary),
         ),
@@ -131,7 +131,7 @@ class _LocalPathChip extends ConsumerWidget {
       ref.invalidate(wikiPageProvider(page.slug));
       ref.invalidate(wikiPagesProvider);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(content: Text(context.l10n.wikiProjectPathUpdated)),
       );
     } catch (e) {
@@ -153,7 +153,7 @@ class _SourceChip extends StatelessWidget {
     return InkWell(
       onTap: () {
         Clipboard.setData(ClipboardData(text: url));
-        ScaffoldMessenger.of(context).showSnackBar(
+        FeedbackToast.of(context).show(
           SnackBar(
             content: Text(context.l10n.wikiSourceLinkCopied),
             behavior: SnackBarBehavior.floating,

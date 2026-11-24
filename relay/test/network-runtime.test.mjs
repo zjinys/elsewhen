@@ -26,3 +26,23 @@ test('P3 steady-state network ticks move deltas after enrollment completes', { t
   });
   assert.ok(true);
 });
+
+test('three devices converge through the owner without leaf pair keys', { timeout: 240_000 }, async t => {
+  const relay = await startRelay();
+  t.after(() => relay.runtime.dispose());
+  const upstream = await relay.runtime.ready;
+  await run('cargo', [
+    'test', '--lib',
+    'sync::runtime::network::tests::three_devices::owner_routes_three_devices_and_their_application_receipts',
+    '--', '--ignored', '--exact',
+  ], {
+    cwd: fileURLToPath(new URL('../../', import.meta.url)),
+    env: {
+      ...process.env, ELSEWHEN_RELAY_TEST_URL: upstream,
+      NO_PROXY: 'localhost,127.0.0.1,::1', no_proxy: 'localhost,127.0.0.1,::1',
+    },
+    timeout: 220_000,
+    maxBuffer: 2 * 1024 * 1024,
+  });
+  assert.ok(true);
+});

@@ -11,6 +11,7 @@ class _EntityFacts extends ConsumerWidget {
     final facts = ref.watch(entityFactsProvider(slug)).value ?? const [];
     if (facts.isEmpty) return const SizedBox.shrink();
     final conflicts = _conflictingFactIds(facts);
+    final dark = AppTheme.brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(top: AppTheme.space4),
       child: Column(
@@ -40,7 +41,7 @@ class _EntityFacts extends ConsumerWidget {
                 children: [
                   Icon(
                     Icons.warning_amber_rounded,
-                    size: 16,
+                    size: DesignTokens.iconMicro,
                     color: AppTheme.warning,
                   ),
                   const SizedBox(width: 7),
@@ -48,7 +49,7 @@ class _EntityFacts extends ConsumerWidget {
                     child: Text(
                       context.l10n.entityFactConflictHelp,
                       style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 12,
                         height: 1.35,
                         color: AppTheme.textSecondary,
                       ),
@@ -62,11 +63,12 @@ class _EntityFacts extends ConsumerWidget {
           for (final fact in facts.take(8))
             Container(
               margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.surface2,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                border: Border.all(color: AppTheme.surface3),
+                color: dark ? AppTheme.surface2.withValues(alpha: 0.85) : AppTheme.surface1,
+                borderRadius: BorderRadius.circular(10),
+                border: DesignTokens.hairlineBorder(dark),
+                boxShadow: ShadowTokens.level1(dark),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,13 +76,13 @@ class _EntityFacts extends ConsumerWidget {
                   Icon(
                     conflicts.contains(fact.id)
                         ? Icons.warning_amber_rounded
-                        : Icons.fact_check_outlined,
-                    size: 14,
+                        : Icons.verified_outlined,
+                    size: DesignTokens.iconMicro,
                     color: conflicts.contains(fact.id)
                         ? AppTheme.warning
                         : AppTheme.accentPrimary,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,23 +91,54 @@ class _EntityFacts extends ConsumerWidget {
                           fact.factText,
                           style: TextStyle(
                             fontSize: 12,
-                            height: 1.4,
-                            color: AppTheme.textSecondary,
+                            height: 1.45,
+                            color: AppTheme.textPrimary,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         InkWell(
                           onTap: () =>
                               _showSource(context, ref, fact.sourceEventId),
-                          child: Text(
-                            context.l10n.entityFactSource(
-                              _factDate(context, fact.occurredAt),
-                              '${fact.confidence}',
-                              _shortId(fact.sourceEventId),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
                             ),
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: AppTheme.accentPrimary,
+                            decoration: BoxDecoration(
+                              color: AppTheme.accentPrimary.withValues(
+                                alpha: dark ? 0.12 : 0.08,
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: AppTheme.accentPrimary.withValues(
+                                  alpha: dark ? 0.25 : 0.15,
+                                ),
+                                width: 0.5,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.link_outlined,
+                                  size: 11,
+                                  color: AppTheme.accentPrimary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  context.l10n.entityFactSource(
+                                    _factDate(context, fact.occurredAt),
+                                    '${fact.confidence}',
+                                    _shortId(fact.sourceEventId),
+                                  ),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppTheme.accentPrimary,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -116,7 +149,7 @@ class _EntityFacts extends ConsumerWidget {
                     tooltip: context.l10n.entityRemoveFact,
                     icon: Icon(
                       Icons.close,
-                      size: 15,
+                      size: DesignTokens.iconMicro,
                       color: AppTheme.textTertiary,
                     ),
                     onPressed: () => _deleteFact(context, ref, fact.id),
@@ -182,9 +215,9 @@ class _EntityFacts extends ConsumerWidget {
       await repo.deleteEntityFact(id);
       ref.invalidate(entityFactsProvider(slug));
       if (context.mounted) {
-        ScaffoldMessenger.of(
+        FeedbackToast.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(context.l10n.entityFactRemoved)));
+        ).show(SnackBar(content: Text(context.l10n.entityFactRemoved)));
       }
     } catch (error) {
       if (context.mounted) {
@@ -208,9 +241,9 @@ class _EntityFacts extends ConsumerWidget {
     }
     if (!context.mounted) return;
     if (detail == null) {
-      ScaffoldMessenger.of(
+      FeedbackToast.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(context.l10n.entitySourceMissing)));
+      ).show(SnackBar(content: Text(context.l10n.entitySourceMissing)));
       return;
     }
     final EventAnalysisDetailDto source = detail;

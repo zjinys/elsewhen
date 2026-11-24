@@ -29,8 +29,78 @@ class DesignTokens {
   static const double dialogMaxWidth = 560;
   static const double contentMaxWidth = 1280;
 
+  // ── 触控与按压反馈 ──
+  /// 按下时的微收缩比例（物理回弹感）。
+  static const double pressScale = 0.98;
+
+  // ── 边框与发丝线（高质感切边） ──
+  /// 统一发丝细边框（0.5px，深色微白光，浅色微灰阴），消除生硬粗线。
+  static Border hairlineBorder(bool dark) => Border.all(
+    color: dark
+        ? Colors.white.withValues(alpha: 0.08)
+        : const Color(0xFF1E2638).withValues(alpha: 0.08),
+    width: 0.5,
+  );
+
+  /// 统一发丝细分割线
+  static BorderSide hairlineSide(bool dark) => BorderSide(
+    color: dark
+        ? Colors.white.withValues(alpha: 0.08)
+        : const Color(0xFF1E2638).withValues(alpha: 0.08),
+    width: 0.5,
+  );
+
+  /// 统一精工卡片装饰
+  static BoxDecoration cardDecoration(
+    bool dark, {
+    Color? surface,
+    double radius = 12,
+    bool withBorder = true,
+  }) => BoxDecoration(
+    color: surface,
+    borderRadius: BorderRadius.circular(radius),
+    border: withBorder ? hairlineBorder(dark) : null,
+    boxShadow: ShadowTokens.level1(dark),
+  );
+
   // ── 触控目标（移动端 ≥44） ──
   static const double minTouchTarget = 44;
+
+  // ── 图标尺寸（唯一一张表：只有两档） ──
+  /// 界面内常规图标（按钮、列表项、行内强调）统一 18。
+  /// 空态主图等超大图标另写在页面里（40/48），不在此表内。
+  static const double icon = 18;
+
+  /// 微图标：徽标、状态点、文字基线对齐的小图标统一 14。
+  /// 除这两个值外不再出现别的手写图标尺寸。
+  static const double iconMicro = 14;
+}
+
+/// 全局字阶规范（Typography Scale）：
+///
+/// 严格收敛至 5 个固定档位，杜绝 10, 10.5, 11.5, 12.5, 13.5 等碎屑半角字号：
+/// - micro (11): 时间戳、徽标角标、辅助小标签、快捷键提示（取代 10 / 10.5）
+/// - secondary (12): 状态栏按钮、次级说明、列表副标题、属性说明（取代 11.5 / 12.5）
+/// - body (14): 列表主标题、待办/目标正文、输入框正文、标准卡片内容（取代 13.5）
+/// - reading (15): AI 对话流沉浸阅读正文字号基准
+/// - title (16): 卡片主标题、弹窗/面板主标题
+class TypographyTokens {
+  TypographyTokens._();
+
+  /// 微注 / 标签 / 徽标 / 时间戳（统一 11px）
+  static const double micro = 11;
+
+  /// 次要文本 / 状态条按钮 / 属性说明 / 辅助信息（统一 12px）
+  static const double secondary = 12;
+
+  /// 列表项标题 / 待办·目标正文 / 输入框文字 / 常规卡片正文（统一 14px）
+  static const double body = 14;
+
+  /// 沉浸阅读基准（AI 消息正文字号，基准 15px）
+  static const double reading = 15;
+
+  /// 卡片标题 / 面板标题 / 弹窗标题（统一 16px）
+  static const double title = 16;
 }
 
 /// 时长与曲线：交互动画 120–250ms，全部 easeOut 家族（不用 easeIn）。

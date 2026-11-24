@@ -8,7 +8,9 @@ import 'chat_page_task_scope.dart';
 import 'chat_proposal_review.dart';
 import 'chat_run_status.dart';
 import 'composer_field.dart';
+import 'chat_reading_controller.dart';
 import 'chat_input_queue.dart';
+import 'adaptive_panel.dart';
 import '../providers/chat_run_provider.dart';
 import '../providers/settings_provider.dart';
 import '../bridge/api.dart' as api;
@@ -24,13 +26,16 @@ import '../models/wiki_page.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../theme/app_theme.dart';
+import '../theme/chat_bubble_style.dart';
 import '../theme/chat_type_scale.dart';
 import '../theme/content_font.dart';
 import 'markdown_view.dart';
 import 'knowledge_panel.dart';
 import 'knowledge_import.dart';
 import '../l10n/localization.dart';
+import 'feedback_toast.dart';
 
+import '../theme/design_tokens.dart';
 part 'wiki_ai_chat_panel_parts/panel_task.dart';
 part 'wiki_ai_chat_panel_parts/panel_render.dart';
 part 'wiki_ai_chat_panel_parts/panel_bubbles.dart';
@@ -62,6 +67,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
   String? _conversationId;
   List<Message> _messages = [];
   bool _ready = false;
+  bool _messagesLoaded = false;
   bool _sending = false;
   bool get _busy =>
       _sending ||
@@ -82,7 +88,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
   String? _pendingInputKey;
   final _inputController = TextEditingController();
   final _inputFocus = FocusNode();
-  final _scrollController = ScrollController();
+  final _scrollController = ChatReadingController();
 
   @override
   void initState() {
@@ -107,6 +113,8 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
     if (oldWidget.slug != widget.slug) {
       _conversationId = null;
       _messages = [];
+      _messagesLoaded = false;
+      _scrollController.reset();
       _ready = false;
       _sending = false;
       _pageTask = null;
@@ -173,17 +181,19 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
   Widget build(BuildContext context) {
     final id = _conversationId;
     final durable = ref.watch(conversationRepositoryProvider).supportsChatRuns;
+    final contentFontStyle = ContentFont.styleOf(context);
     if (id != null && durable) {
       ref.watch(chatRunStateProvider(id).select((value) => value.value?.busy));
-      ref.listen(wikiChatMessagesProvider(id), (previous, next) {
-        if ((next.value?.length ?? 0) > (previous?.value?.length ?? 0)) {
-          _scrollToBottom();
-        }
-      });
     }
     final displayedMessages = id != null && durable
         ? ref.watch(wikiChatMessagesProvider(id)).value ?? _messages
         : _messages;
+    if (_messagesLoaded ||
+        (id != null &&
+            durable &&
+            ref.watch(wikiChatMessagesProvider(id)).hasValue)) {
+      _scrollController.observeMessages(displayedMessages);
+    }
     final runInput = id != null && durable
         ? ref.watch(
             chatRunStateProvider(id)
@@ -209,39 +219,44 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
           // 有界高度（详情页右侧栏 / 底部弹窗）时消息区弹性撑满、输入框钉在底部；
           // 无界高度（正文内嵌对话块）时保持收缩布局，避免 Expanded 在滚动容器里报错。
           final fill = constraints.hasBoundedHeight;
-          final messages = ListView(
-            controller: _scrollController,
-            shrinkWrap: !fill,
-            padding: const EdgeInsets.all(AppTheme.space3),
-            children: [
-              WikiChatBubble(
-                message: ContentChatMessage(
-                  role: 'assistant',
-                  content: context.l10n.pageChatWelcome,
-                ),
-              ),
-              for (final m in displayedMessages)
-                _buildMessage(
-                  m,
-                  canGenerate:
-                      durable &&
-                      !_busy &&
-                      m.id == unansweredInput &&
-                      m.id != runInput,
-                ),
-              if (durable && id != null) ChatRunStatus(conversationId: id),
-              if (durable && id != null) ChatInputQueue(conversationId: id),
-              if (_busy && !durable) const WikiChatBubble.pending(),
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: AppTheme.space2),
-                  child: AppErrorMessage(
-                    action: context.l10n.load,
-                    error: _error!,
-                    style: TextStyle(fontSize: 12, color: AppTheme.error),
+          final messages = _scrollController.trackUserScroll(
+            ListView(
+              controller: _scrollController,
+              shrinkWrap: !fill,
+              padding: const EdgeInsets.all(AppTheme.space3),
+              children: [
+                WikiChatBubble(
+                  message: ContentChatMessage(
+                    role: 'assistant',
+                    content: context.l10n.pageChatWelcome,
                   ),
                 ),
-            ],
+                for (final m in displayedMessages)
+                  _scrollController.anchorMessage(
+                    m,
+                    _buildMessage(
+                      m,
+                      canGenerate:
+                          durable &&
+                          !_busy &&
+                          m.id == unansweredInput &&
+                          m.id != runInput,
+                    ),
+                  ),
+                if (durable && id != null) ChatRunStatus(conversationId: id),
+                if (durable && id != null) ChatInputQueue(conversationId: id),
+                if (_busy && !durable) const WikiChatBubble.pending(),
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppTheme.space2),
+                    child: AppErrorMessage(
+                      action: context.l10n.load,
+                      error: _error!,
+                      style: TextStyle(fontSize: 12, color: AppTheme.error),
+                    ),
+                  ),
+              ],
+            ),
           );
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -264,7 +279,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                     children: [
                       Icon(
                         Icons.auto_awesome,
-                        size: 14,
+                        size: DesignTokens.iconMicro,
                         color: AppTheme.accentPrimary,
                       ),
                       const SizedBox(width: 6),
@@ -293,7 +308,7 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                           message: context.l10n.moveChatWindow,
                           child: Icon(
                             Icons.drag_indicator,
-                            size: 17,
+                            size: DesignTokens.icon,
                             color: AppTheme.textTertiary,
                           ),
                         ),
@@ -438,19 +453,9 @@ class _WikiAiChatPanelState extends ConsumerState<WikiAiChatPanel> {
                   controller: _inputController,
                   focusNode: _inputFocus,
                   enabled: _ready && !_inputBusy,
-                  // 与主对话输入框一致：默认 1 行、最多 4 行；
-                  // Enter 发送、Shift+Enter 换行（onKeyEvent 拦截）。
                   hintText: context.l10n.askPageHint,
-                  hintStyle: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textTertiary,
-                  ),
-                  textStyle: const TextStyle(fontSize: 13),
                   onSubmit: () => _send(_inputController.text),
                   canSend: _ready && !_inputBusy,
-                  // 该面板没有菊花态：生成中按钮只是禁用，图标保持箭头
-                  // （旧实现也只有箭头），避免「生成中找不到发送键」。
-                  spinning: false,
                   sendTooltip: _busy
                       ? context.l10n.queueNext
                       : context.l10n.send,

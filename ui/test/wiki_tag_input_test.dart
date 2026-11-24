@@ -1,6 +1,7 @@
 // 创建主题对话框的标签框：点选已有标签 / 前缀补全，且提交值仍是同一串文本。
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:elsewhen_ui/models/wiki_page.dart';
@@ -32,6 +33,7 @@ final _fakePages = [
   _meta('a', ['编译知识', 'Rust', '小红书']),
   _meta('b', ['编译知识', 'Rust', '闲鱼']),
   _meta('c', ['编译知识', 'lens-3']),
+  _meta('d', ['烟丝']),
 ];
 
 Widget _harness(TextEditingController controller) => ProviderScope(
@@ -43,16 +45,36 @@ Widget _harness(TextEditingController controller) => ProviderScope(
     home: Scaffold(
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: WikiTagInput(
-          controller: controller,
-          hintText: '标签（可选，空格或逗号分隔）',
-        ),
+        child: WikiTagInput(controller: controller, hintText: '标签（可选，空格或逗号分隔）'),
       ),
     ),
   ),
 );
 
 void main() {
+  testWidgets('鼠标按下候选后停留再松开仍补全中文标签', (tester) async {
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(_harness(controller));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '烟');
+    await tester.pumpAndSettle();
+    expect(find.text('烟丝'), findsOneWidget);
+    final pointer = await tester.startGesture(
+      tester.getCenter(find.text('烟丝')),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await pointer.up();
+    await tester.pumpAndSettle();
+    expect(controller.text, '烟丝');
+    expect(find.text('已有标签，点击填入'), findsNothing);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).focusNode!.hasFocus,
+      isTrue,
+    );
+  });
+
   testWidgets('聚焦后列出已有标签，点一条即填入', (tester) async {
     final controller = TextEditingController();
     addTearDown(controller.dispose);
@@ -109,6 +131,24 @@ void main() {
     expect(find.text('已有标签，点击填入'), findsOneWidget);
     expect(find.text('Rust'), findsNothing);
     expect(find.text('编译知识'), findsOneWidget);
+  });
+
+  testWidgets('同一 token 的前缀改变时即时刷新候选，点外部收起', (tester) async {
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(_harness(controller));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'r');
+    await tester.pumpAndSettle();
+    expect(find.text('Rust'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '烟');
+    await tester.pumpAndSettle();
+    expect(find.text('Rust'), findsNothing);
+    expect(find.text('烟丝'), findsOneWidget);
+    await tester.tapAt(const Offset(750, 560));
+    await tester.pumpAndSettle();
+    expect(find.text('已有标签，点击填入'), findsNothing);
+    expect(controller.text, '烟');
   });
 
   test('词表按使用频次排序，频次相同按字典序', () {

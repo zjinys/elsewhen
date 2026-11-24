@@ -280,6 +280,10 @@ fn parse_plan_steps(args: &Value) -> Result<Vec<crate::storage::PlanStepDraft>> 
 pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<String> {
     let args: Value = serde_json::from_str(&pa.args_json)?;
     match pa.action.as_str() {
+        "review_memory" => Ok(store
+            .apply_memory_action(&pa.conversation_id, &args)?
+            .to_string()),
+        "propose_memory_candidates" => execute_memory_candidates(store, pa, &args),
         // 用户技能脚本：路径与环境校验在确认时重做一遍，不信任 pending 时的状态
         "run_skill_script" => {
             let data_dir = crate::config::AppConfig::load()?.data_dir;
@@ -893,6 +897,98 @@ pub fn execute_pending_action(store: &Store, pa: &PendingAction) -> Result<Strin
         }
         other => anyhow::bail!("未知待执行动作：{other}"),
     }
+}
+
+/// 执行用户在主对话中确认的记忆候选。
+///
+/// 候选确认同时创建可编辑的记忆页和个人范围的 active claim，避免用户还要
+/// 再去设置页确认第二次。调用方会把整个动作放进聊天提案事务中。
+fn execute_memory_candidates(store: &Store, pa: &PendingAction, args: &Value) -> Result<String> {
+    let source_message_id = arg_str(args, "source_message_id")?;
+    let candidates = args
+        .get("candidates")
+        .and_then(Value::as_array)
+        .context("记忆候选缺少 candidates")?;
+    anyhow::ensure!(!candidates.is_empty(), "没有可确认的记忆候选");
+
+    let mut confirmed = 0usize;
+    let mut skipped = 0usize;
+    for candidate in candidates.iter().take(3) {
+        let title = candidate
+            .get("title")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .context("记忆候选缺少标题")?;
+        let content = candidate
+            .get("content")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .context("记忆候选缺少内容")?;
+        let kind = candidate
+            .get("kind")
+            .and_then(Value::as_str)
+            .context("记忆候选缺少类型")?;
+        let subject = candidate
+            .get("subject")
+            .and_then(Value::as_str)
+            .context("记忆候选缺少主体")?;
+        let predicate = candidate
+            .get("predicate")
+            .and_then(Value::as_str)
+            .context("记忆候选缺少关系")?;
+        anyhow::ensure!(matches!(kind, "semantic" | "procedural"), "记忆类型不合法");
+        anyhow::ensure!(subject == "user", "个人记忆候选的主体必须是 user");
+        anyhow::ensure!(title.chars().count() <= 120, "记忆候选标题过长");
+        anyhow::ensure!(content.chars().count() <= 1000, "记忆候选内容过长");
+
+        let slug = format!(
+            "memory-{}",
+            &crate::storage::knowledge::content_hash(content)[..16]
+        );
+        let draft = crate::storage::WikiPageDraft {
+            slug: slug.clone(),
+            kind: "memory".to_string(),
+            title: title.to_string(),
+            summary: content.chars().take(160).collect(),
+            content_md: content.to_string(),
+            tags: vec!["memory".to_string()],
+            source_event_ids: vec![],
+            status: "active".to_string(),
+            reason: "用户在主对话中确认的个人记忆".to_string(),
+            source_url: None,
+        };
+        store.upsert_wiki_page(&draft, ContentPolicy::Always)?;
+        let claim = store.propose_memory(
+            &pa.conversation_id,
+            &json!({
+                "page_slug": slug,
+                "kind": kind,
+                "subject": subject,
+                "predicate": predicate,
+                "source_message_id": source_message_id,
+            }),
+        )?;
+        if claim.state != "pending" {
+            skipped += 1;
+            continue;
+        }
+        let mut confirm = json!({
+            "operation": "confirm",
+            "claim_id": claim.id,
+            "scope": "personal",
+            "reason": "用户在主对话中确认自动发现的记忆",
+        });
+        confirm["reviewed_basis"] = store.memory_action_basis(&pa.conversation_id, &confirm)?;
+        store.apply_memory_action(&pa.conversation_id, &confirm)?;
+        confirmed += 1;
+    }
+    Ok(if skipped == 0 {
+        format!("已确认 {confirmed} 条个人记忆")
+    } else {
+        format!("已确认 {confirmed} 条个人记忆，跳过 {skipped} 条已有人工决定的候选")
+    })
 }
 
 /// 用户从草稿预览中单独确认一篇知识页，其他待确认动作不受影响。

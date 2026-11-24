@@ -2,178 +2,251 @@ part of '../message_area.dart';
 
 //! 待定关系横幅与「今天」分隔条。
 
-class _PendingRelationsBanner extends ConsumerWidget {
+class _PendingMemoryBanner extends ConsumerWidget {
+  const _PendingMemoryBanner();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final conversationId = ref.watch(selectedConversationIdProvider);
     final actions = ref.watch(pendingActionsProvider).value ?? const [];
-    final relation = actions
-        .cast<dynamic>()
-        .where((a) => a.action == 'propose_people_relations')
-        .toList();
-    if (relation.isEmpty) return const SizedBox.shrink();
-    // argsJson 来自 DB，可能因旧数据/截断/版本迁移而非法：build 中 bare
-    // jsonDecode 一旦抛错会拖垮整个消息列表渲染，解析失败改为渲染占位。
-    Map<String, dynamic> payload = const <String, dynamic>{};
-    try {
-      final decoded = jsonDecode(relation.first.argsJson);
-      if (decoded is Map<String, dynamic>) {
-        payload = decoded;
-      }
-    } catch (_) {
-      // 保持默认空 payload：badge 渲染"无法解析"占位，不崩消息列表。
-    }
-    final people = (payload['people'] as List? ?? const [])
-        .map((item) => (item as Map)['name']?.toString() ?? '')
-        .where((name) => name.isNotEmpty)
-        .join('、');
-    final targets = (payload['relations'] as List? ?? const [])
-        .map((item) => (item as Map)['target']?.toString() ?? '')
-        .where((name) => name.isNotEmpty)
-        .toSet()
-        .join('、');
-    final degraded = payload.isEmpty && people.isEmpty && targets.isEmpty;
+    final count = actions
+        .whereType<PendingActionDto>()
+        .where((action) => action.action == 'propose_memory_candidates')
+        .length;
+    if (conversationId == null || count == 0) return const SizedBox.shrink();
+    final dark = AppTheme.brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       decoration: BoxDecoration(
-        color: AppTheme.accentPrimary.withValues(alpha: .1),
+        color: dark
+            ? AppTheme.accentPrimary.withValues(alpha: .12)
+            : AppTheme.accentPrimary.withValues(alpha: .08),
         borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppTheme.accentPrimary.withValues(alpha: dark ? .30 : .20),
+          width: 0.5,
+        ),
+        boxShadow: ShadowTokens.level1(dark),
       ),
       child: Row(
         children: [
           Icon(
             Icons.auto_awesome_outlined,
-            size: 18,
+            size: DesignTokens.icon,
             color: AppTheme.accentPrimary,
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              degraded
+              '发现 $count 条新的${context.l10n.memoryManager}候选',
+              style: const TextStyle(fontSize: 12, height: 1.5),
+            ),
+          ),
+          ChatProposalReviewButton(
+            conversationId: conversationId,
+            label: context.l10n.reviewProposals,
+            compact: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+typedef _RelationChoice = ({
+  int relationIndex,
+  String slugKey,
+  String name,
+  List<WikiPageRef> pages,
+});
+
+class _PendingRelationsBanner extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final actions = ref.watch(pendingActionsProvider).value ?? const [];
+    final proposals = actions
+        .whereType<PendingActionDto>()
+        .where((a) => a.action == 'propose_people_relations')
+        .toList();
+    if (proposals.isEmpty) return const SizedBox.shrink();
+    final pages = ref.watch(wikiPagesProvider).value ?? const [];
+    for (final proposal in proposals) {
+      final payload = _decodePayload(proposal.argsJson);
+      final relations = _items(payload['relations']);
+      final choices = <_RelationChoice>[];
+      var hasSavedChoice = false;
+      for (final (index, relation) in relations.indexed) {
+        if (relation is! Map<String, dynamic>) continue;
+        for (final (nameKey, slugKey) in const [
+          ('person', 'from_slug'),
+          ('target', 'to_slug'),
+        ]) {
+          final slug = relation[slugKey];
+          if (slug is String && slug.trim().isNotEmpty) {
+            hasSavedChoice = true;
+            continue;
+          }
+          final name = relation[nameKey]?.toString().trim() ?? '';
+          if (name.isEmpty) continue;
+          final normalized = name.toLowerCase();
+          final matches = pages
+              .where((page) => page.title.trim().toLowerCase() == normalized)
+              .toList();
+          if (matches.length > 1) {
+            choices.add((
+              relationIndex: index,
+              slugKey: slugKey,
+              name: name,
+              pages: matches,
+            ));
+          }
+        }
+      }
+      // 选好联系人后，提议仍待审；横幅只让位给下一条需要提示的提议。
+      if (hasSavedChoice && choices.isEmpty) continue;
+      return _buildBanner(
+        context,
+        payload,
+        relations,
+        choices.isEmpty
+            ? null
+            : () => _resolveAmbiguity(context, ref, proposal, payload, choices),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  Map<String, dynamic> _decodePayload(String json) {
+    try {
+      final decoded = jsonDecode(json);
+      if (decoded is Map<String, dynamic>) return decoded;
+    } on FormatException {
+      // 旧数据无法解析时，仍显示去审阅的提示。
+    }
+    return const {};
+  }
+
+  List<dynamic> _items(Object? value) => value is List ? value : const [];
+
+  Widget _buildBanner(
+    BuildContext context,
+    Map<String, dynamic> payload,
+    List<dynamic> relations,
+    VoidCallback? onChoose,
+  ) {
+    final people = _items(payload['people'])
+        .whereType<Map<String, dynamic>>()
+        .map((item) => item['name']?.toString() ?? '')
+        .where((name) => name.isNotEmpty)
+        .join('、');
+    final targets = relations
+        .whereType<Map<String, dynamic>>()
+        .map((item) => item['target']?.toString() ?? '')
+        .where((name) => name.isNotEmpty)
+        .toSet()
+        .join('、');
+    final dark = AppTheme.brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: dark
+            ? AppTheme.accentPrimary.withValues(alpha: .12)
+            : AppTheme.accentPrimary.withValues(alpha: .08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppTheme.accentPrimary.withValues(alpha: dark ? .30 : .20),
+          width: 0.5,
+        ),
+        boxShadow: ShadowTokens.level1(dark),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.auto_awesome_outlined,
+            size: DesignTokens.icon,
+            color: AppTheme.accentPrimary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              payload.isEmpty
                   ? context.l10n.contactsSuggestionInvalid
                   : context.l10n.contactsSuggestion(people, targets),
               style: const TextStyle(fontSize: 12, height: 1.5),
             ),
           ),
-          if (!degraded && _hasAmbiguity(ref, payload))
-            TextButton(
-              onPressed: () => _resolveAmbiguity(context, ref, relation.first),
-              child: Text(context.l10n.choose),
-            ),
+          if (onChoose != null)
+            TextButton(onPressed: onChoose, child: Text(context.l10n.choose)),
         ],
       ),
     );
   }
 
-  bool _hasAmbiguity(WidgetRef ref, Map<String, dynamic> payload) {
-    final pages = ref.read(wikiPagesProvider).value ?? const [];
-    final people = (payload['people'] as List? ?? const []).map(
-      (item) => (item as Map)['name']?.toString() ?? '',
-    );
-    final targets = (payload['relations'] as List? ?? const []).map(
-      (item) => (item as Map)['target']?.toString() ?? '',
-    );
-    return [...people, ...targets].any(
-      (name) =>
-          pages
-              .where(
-                (page) =>
-                    page.title.trim().toLowerCase() ==
-                    name.trim().toLowerCase(),
-              )
-              .length >
-          1,
-    );
-  }
-
-  /// 联系人/事项同名歧义的选择流程（P19）：
-  /// - `argsJson` 来自库里存的动作参数，历史脏数据或未来方言都可能让它不是
-  ///   JSON 对象——直接 `jsonDecode` 抛出会把整条流程炸掉，这里收口成提示。
-  /// - 选择全部收集完再**一次性**落库：中途 return 会让用户已经点过的选择被
-  ///   静默丢弃，所以取消时明确提示「未保存」，而不是无声退出。
-  /// - 每个对话框前查 `mounted`：前一个对话框本身就是一次异步 gap。
+  /// 一次保存这条提议的所有选择；中途取消时保留原提议与横幅。
   Future<void> _resolveAmbiguity(
     BuildContext context,
     WidgetRef ref,
-    dynamic action,
+    PendingActionDto action,
+    Map<String, dynamic> payload,
+    List<_RelationChoice> choices,
   ) async {
     final conversationId = ref.read(selectedConversationIdProvider);
     if (conversationId == null) return;
-    final Map<String, dynamic> payload;
-    try {
-      final decoded = jsonDecode(action.argsJson);
-      if (decoded is! Map) {
-        _notifyAmbiguity(context, context.l10n.contactArgsInvalid);
+    final relations = List.of(_items(payload['relations']));
+    for (final choice in choices) {
+      if (!context.mounted) return;
+      final selected = await _pickPage(
+        context,
+        choice.slugKey == 'from_slug'
+            ? context.l10n.chooseContactName(choice.name)
+            : context.l10n.chooseTargetName(choice.name),
+        choice.pages,
+      );
+      if (!context.mounted) return;
+      if (selected == null) {
+        _notifyAmbiguity(context, context.l10n.selectionCancelledUnsaved);
         return;
       }
-      payload = Map<String, dynamic>.from(decoded);
-    } catch (_) {
-      _notifyAmbiguity(context, context.l10n.contactArgsUnreadable);
+      relations[choice.relationIndex] = {
+        ...relations[choice.relationIndex] as Map<String, dynamic>,
+        choice.slugKey: selected.slug,
+      };
+    }
+    if (!context.mounted ||
+        ref.read(selectedConversationIdProvider) != conversationId) {
       return;
     }
-    final pages = ref.read(wikiPagesProvider).value ?? const [];
-    final relations = (payload['relations'] as List? ?? const [])
-        .map((item) => Map<String, dynamic>.from(item as Map))
-        .toList();
-    for (final relation in relations) {
-      final person = relation['person']?.toString() ?? '';
-      final target = relation['target']?.toString() ?? '';
-      final peopleMatches = pages
-          .where(
-            (page) =>
-                page.title.trim().toLowerCase() == person.trim().toLowerCase(),
-          )
-          .toList();
-      if (peopleMatches.length > 1) {
-        if (!context.mounted) return;
-        final selected = await _pickPage(
+    try {
+      final saved = await ref
+          .read(conversationRepositoryProvider)
+          .updatePendingActionArgs(
+            conversationId,
+            action,
+            jsonEncode({...payload, 'relations': relations}),
+          );
+      if (!context.mounted) return;
+      if (saved) {
+        ref.invalidate(pendingActionsProvider);
+      } else {
+        _notifyAmbiguity(
           context,
-          context.l10n.chooseContactName(person),
-          peopleMatches,
+          context.l10n.operationFailed(context.l10n.save),
         );
-        if (selected == null) {
-          if (!context.mounted) return;
-          _notifyAmbiguity(context, context.l10n.selectionCancelledUnsaved);
-          return;
-        }
-        relation['from_slug'] = selected.slug;
       }
-      final targetMatches = pages
-          .where(
-            (page) =>
-                page.title.trim().toLowerCase() == target.trim().toLowerCase(),
-          )
-          .toList();
-      if (targetMatches.length > 1) {
-        if (!context.mounted) return;
-        final selected = await _pickPage(
-          context,
-          context.l10n.chooseTargetName(target),
-          targetMatches,
-        );
-        if (selected == null) {
-          if (!context.mounted) return;
-          _notifyAmbiguity(context, context.l10n.selectionCancelledUnsaved);
-          return;
-        }
-        relation['to_slug'] = selected.slug;
-      }
+    } catch (error) {
+      if (!context.mounted) return;
+      showAppError(context, context.l10n.save, error);
     }
-    if (!context.mounted) return;
-    payload['relations'] = relations;
-    await ref
-        .read(conversationRepositoryProvider)
-        .updatePendingActionArgs(conversationId, action, jsonEncode(payload));
-    if (!context.mounted) return;
-    ref.invalidate(pendingActionsProvider);
   }
 
   /// 歧义选择流程的失败/取消提示（context 失效后静默丢弃，避免用已销毁的 context）。
   void _notifyAmbiguity(BuildContext context, String message) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    FeedbackToast.of(context).show(SnackBar(content: Text(message)));
   }
 
   Future<WikiPageRef?> _pickPage(

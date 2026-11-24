@@ -65,6 +65,7 @@ pub(crate) enum Apply {
 mod capture;
 mod receipt;
 mod receive;
+mod routing;
 
 pub(crate) fn hash(bytes: &[u8]) -> String {
     ring::digest::digest(&ring::digest::SHA256, bytes)

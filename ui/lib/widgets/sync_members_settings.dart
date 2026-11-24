@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../bridge/api.dart' as api;
 import '../sync/sync_roster_controller.dart';
+import '../theme/design_tokens.dart';
 
 /// 设置页的已授权设备列表 + owner 撤销入口（P4e 撤销 UX）。
 ///
@@ -156,7 +157,7 @@ class _MemberRow extends StatelessWidget {
         children: [
           Icon(
             member.active ? Icons.devices_other : Icons.phonelink_erase,
-            size: 18,
+            size: DesignTokens.icon,
             color: member.active
                 ? theme.colorScheme.primary
                 : theme.colorScheme.outline,

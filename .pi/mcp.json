@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "!echo Bearer $(gh auth token)"
+      },
+      "description": "GitHub 官方 MCP（远程 HTTP）：仓库、issue、PR、Actions/CI、代码搜索等操作"
+    }
+  }
+}

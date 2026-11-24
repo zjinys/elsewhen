@@ -32,22 +32,24 @@ adb devices
 
 ## 2. 签名
 
-当前用 Android debug 证书：
+当前使用固定发布密钥，沿用手机于 2026-11-19 重装后的证书，确保后续覆盖升级：
 
 ```
 Signer #1 certificate DN: C=US, O=Android, CN=Android Debug
 SHA-256: 00706741dc04dc8015a95d320112d7f95ba5dc008bb9631443a96fc0cab5b294
 ```
 
-（`ui/android/app/build.gradle.kts` 没配 `signingConfigs`，release 回落到 debug key。）
+证书源自原本机 debug key，但已经复制到独立发布密钥并配置固定签名；不再依赖每台机器自动创建的 debug key。证书私钥不随版本变化。
+
+- 本机密钥保存在 `~/.android/elsewhen-release.jks`，口令和 alias 由忽略提交的 `ui/android/key.properties` 保存，两者权限均为 0600。不要重新生成或提交这些文件。
+- 新环境恢复既有密钥后，按 `ui/android/key.properties.example` 配置，或使用 `ANDROID_KEYSTORE_PATH`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`。release 缺少配置会停止，不回退到临时 debug 签名；debug 构建仍可独立使用开发签名。
+- CI 使用 GitHub 加密 secrets `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`；恢复密钥和上传 APK 前均按 `ui/android/release-signing.sha256` 核验证书。`scripts/android-signing.py` 不输出私钥或口令，job 结束清理临时密钥。
 
 - **同一张证书**：`adb install -r` 覆盖成功，应用数据保留。
 - **不同证书**：`INSTALL_FAILED_UPDATE_INCOMPATIBLE`。只能先
   `adb uninstall <pkg>`（**应用数据全丢**）再装。这属于破坏性操作，脚本不代劳，
   只在 `install.sh` 里提前把两侧指纹都比给你看并中止。
-- 想换正式签名：在 `ui/android/app/build.gradle.kts` 加 `signingConfigs`，
-  密钥与口令放本地（不进仓库），然后把新指纹写进 `config.env` 的
-  `APK_EXPECTED_CERT_SHA256`（多个用空格分隔）。
+- 不要通过更换配置指纹来“修复”签名不一致；优先恢复既有私钥。更换证书涉及 Android 升级兼容，不属于日常发版操作。
 
 ## 3. 复核失败时
 

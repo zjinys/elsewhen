@@ -176,7 +176,7 @@ void main() {
       expect(tester.takeException(), isNull, reason: 'approval dialog layout');
       final approve = find.widgetWithText(
         FilledButton,
-        en.l6ApproveThisDeviced11af,
+        en.pairingAllow,
       );
       expect(tester.widget<FilledButton>(approve).onPressed, isNull);
       expect(find.textContaining('加入的设备'), findsWidgets);

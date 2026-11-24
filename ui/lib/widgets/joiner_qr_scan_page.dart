@@ -7,11 +7,12 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 ///
 /// [scannerBuilder] 是测试注入缝：默认用相机（mobile_scanner）；测试里注入
 /// 可模拟检测的替换件，避免在 CI 里真的打开相机。
-class JoinerQrScanPage extends StatelessWidget {
+class JoinerQrScanPage extends StatefulWidget {
   const JoinerQrScanPage({
     super.key,
     required this.onDetected,
     this.scannerBuilder,
+    this.onPaste,
   });
 
   /// 读到二维码后回调；重复检测会被忽略（本页只 pop 一次）。
@@ -21,25 +22,43 @@ class JoinerQrScanPage extends StatelessWidget {
   final Widget Function(BuildContext context, void Function(String code))?
   scannerBuilder;
 
+  final VoidCallback? onPaste;
+
+  @override
+  State<JoinerQrScanPage> createState() => _JoinerQrScanPageState();
+}
+
+class _JoinerQrScanPageState extends State<JoinerQrScanPage> {
+  bool _delivered = false;
+
+  void _deliver(String code) {
+    final trimmed = code.trim();
+    if (!mounted || trimmed.isEmpty || _delivered) return;
+    _delivered = true;
+    widget.onDetected(trimmed);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final delivered = <String>{};
-    void deliver(String code) {
-      final trimmed = code.trim();
-      if (trimmed.isEmpty || !delivered.add(trimmed)) return;
-      onDetected(trimmed);
-    }
-
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.l6ScanInvitationQrCode4882e)),
+      appBar: AppBar(
+        title: Text(context.l10n.l6ScanInvitationQrCode4882e),
+        actions: [
+          if (widget.onPaste != null)
+            TextButton(
+              onPressed: widget.onPaste,
+              child: Text(context.l10n.pairingPaste),
+            ),
+        ],
+      ),
       body:
-          scannerBuilder?.call(context, deliver) ??
+          widget.scannerBuilder?.call(context, _deliver) ??
           MobileScanner(
             onDetect: (capture) {
               for (final barcode in capture.barcodes) {
                 final value = barcode.rawValue;
                 if (value != null && value.isNotEmpty) {
-                  deliver(value);
+                  _deliver(value);
                   return;
                 }
               }
@@ -55,10 +74,12 @@ class JoinerQrScanPage extends StatelessWidget {
                     const SizedBox(height: 12),
                     Text(context.l10n.l6CameraAccessIsUnavailableCopyAnd95be5),
                     const SizedBox(height: 8),
-                    Text(
-                      '$error',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    if (widget.onPaste != null)
+                      FilledButton.icon(
+                        onPressed: widget.onPaste,
+                        icon: const Icon(Icons.content_paste),
+                        label: Text(context.l10n.pairingPaste),
+                      ),
                   ],
                 ),
               ),

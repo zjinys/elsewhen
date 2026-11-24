@@ -1,11 +1,13 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart' show SelectionRegistrar;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../theme/app_theme.dart';
 import '../theme/content_font.dart';
 import 'knowledge_page_dialog.dart';
 
+import '../theme/design_tokens.dart';
 part 'markdown_view_parts/markdown_parse.dart';
 part 'markdown_view_parts/markdown_blocks.dart';
 

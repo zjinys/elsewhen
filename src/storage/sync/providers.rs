@@ -98,7 +98,7 @@ impl Store {
         let message_id = format!("provider:{expected_revision}");
         // 同 revision 的重封密文不同（nonce 随机），但对方已 ack 过同 id 信封
         // 即视为已送达；只要求 hash 精确匹配会永远清不掉 dirty（重发事故）。
-        let missing:bool=self.connection.query_row("SELECT EXISTS(SELECT 1 FROM sync_members m WHERE m.active=1 AND m.device_id!=?1 AND NOT EXISTS(SELECT 1 FROM sync_wire_outbox w WHERE w.recipient_device_id=m.device_id AND w.message_id=?2 AND (w.payload_hash=?3 OR w.state='acknowledged')))",params![identity.device_id,message_id,digest],|r|r.get(0))?;
+        let missing:bool=self.connection.query_row("SELECT EXISTS(SELECT 1 FROM sync_members m WHERE m.active=1 AND m.device_id!=?1 AND (?4 IS NULL OR m.device_id=?4) AND NOT EXISTS(SELECT 1 FROM sync_wire_outbox w WHERE w.recipient_device_id=m.device_id AND w.message_id=?2 AND (w.payload_hash=?3 OR w.state='acknowledged')))",params![identity.device_id,message_id,digest,self.sync_upstream_device()?],|r|r.get(0))?;
         ensure!(!missing, "sync_provider_delivery_not_prepared");
         self.connection.execute(
             "DELETE FROM sync_provider_dirty WHERE revision_id=?1",

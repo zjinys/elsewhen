@@ -81,7 +81,7 @@ class _ScoutFindingDetailState extends ConsumerState<ScoutFindingDetail> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  '${_sourceName(ref, item.sourceId)} · ${context.l10n.scoutDetected} ${_exactTime(item.detectedAt)}',
+                  '${scoutSourceDisplayName(ref, item.sourceId)} · ${context.l10n.scoutDetected} ${_exactTime(item.detectedAt)}',
                   style: TextStyle(
                     fontSize: scale.meta,
                     color: AppTheme.textTertiary,
@@ -379,7 +379,7 @@ class _ScoutFindingDetailState extends ConsumerState<ScoutFindingDetail> {
 
   void _error(Object e) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(
             context.errorMessage(context.l10n.scoutActionFailed, e),

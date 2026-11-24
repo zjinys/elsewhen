@@ -3,6 +3,7 @@
 import type { Env } from "../worker-configuration";
 import { adminPage } from "./admin";
 import { productRoutes } from './products';
+import { refreshAffiliates } from './affiliate';
 import { refreshInsights } from './insights';
 import { findingPage } from './feed';
 import { validateCollection } from './contracts';
@@ -133,7 +134,8 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
 
   if (path === "/sources" && request.method === "GET") {
     const rows = await env.DB
-      .prepare("SELECT * FROM scout_sources WHERE enabled = 1 ORDER BY id")
+      .prepare(`SELECT * FROM scout_sources WHERE enabled = 1 AND id IN (${SOURCES.map(() => '?').join(',')}) ORDER BY id`)
+      .bind(...SOURCES.map(source => source.id))
       .all();
     return json(rows.results);
   }
@@ -265,14 +267,17 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
          FROM scout_sources s
          LEFT JOIN scout_runs r ON r.id = (
            SELECT id FROM scout_runs WHERE source_id = s.id ORDER BY id DESC LIMIT 1)
+         WHERE s.id IN (${SOURCES.map(() => '?').join(',')})
          ORDER BY s.id`
       )
+      .bind(...SOURCES.map(source => source.id))
       .all();
     return json(rows.results);
   }
 
   const srcMatch = path.match(/^\/admin\/sources\/([\w-]+)$/);
   if (srcMatch && request.method === "PATCH") {
+    if (!getSource(srcMatch[1])) return json({ error: "source retired or unknown" }, 404);
     const body = (await request.json()) as { enabled?: boolean; interval_minutes?: number };
     const sets: string[] = [];
     const binds: unknown[] = [];
@@ -303,16 +308,21 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
     return json(results);
   }
 
-  // CWS 清单扩展 ID（settings 表，重启不丢）
+  // Optional extras; automatic discovery works with an empty list.
   if (path === "/admin/settings/cws_ids" && request.method === "GET") {
     return json({ value: (await getSetting(env.DB, "cws_extra_ids")) ?? "" });
   }
   if (path === "/admin/settings/cws_ids" && request.method === "PUT") {
-    const body = (await request.json()) as { value: string };
-    const ids = body.value
-      .split(/[\s,]+/)
+    const body = (await request.json()) as { value?: unknown };
+    if (typeof body.value !== 'string' || body.value.length > 10000) return json({error:'invalid watchlist'},400);
+    // Accept store links as well as IDs, so an optional follow-up does not
+    // require finding or extracting the extension ID by hand.
+    const ids = [...new Set(body.value
+      .split(/[\s,;]+/)
       .map((s) => s.trim())
-      .filter((s) => /^[a-p]{32}$/.test(s));
+      .map(s => s.match(/^(?:https:\/\/chromewebstore\.google\.com\/detail\/[^/]+\/)?([a-p]{32})(?:[?#].*)?$/)?.[1])
+      .filter((s): s is string => Boolean(s)))];
+    if (ids.length > 20) return json({error:'最多额外跟踪 20 个扩展'},400);
     await setSetting(env.DB, "cws_extra_ids", ids.join(","));
     return json({ ok: true, ids });
   }
@@ -333,6 +343,8 @@ export default {
         await setSetting(env.DB,'observation_backfill_cursor',String(backfill.next));
         try { await refreshInsights(env.DB); }
         catch(e) { console.error(JSON.stringify({event:'insight_refresh_failed',error:String(e)})); }
+        try { await refreshAffiliates(env.DB); }
+        catch(e) { console.error(JSON.stringify({event:'affiliate_refresh_failed',error:String(e)})); }
         for (const r of results) {
           if (r.error) console.error(JSON.stringify({event:"scout_collection_failed",source:r.source,error:r.error}));
           else console.log(JSON.stringify({event:"scout_collection_succeeded",source:r.source,items:r.items,findings:r.findings}));

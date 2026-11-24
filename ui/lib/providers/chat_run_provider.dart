@@ -12,6 +12,7 @@ import '../bridge/api.dart';
 import '../bridge/rust_bridge_repository.dart';
 import '../models/conversation.dart';
 import '../sync/sync_keep_alive.dart';
+import '../utils/dismissed_runs_store.dart';
 import 'conversation_provider.dart';
 import 'todo_provider.dart';
 import 'wiki_provider.dart';
@@ -197,7 +198,12 @@ class ChatRunController extends ChangeNotifier {
     try {
       final snapshot = await repository.getLatestChatRun(conversationId);
       if (!_current(epoch)) return;
-      _acceptSnapshot(snapshot, replace: true);
+      if (snapshot != null &&
+          DismissedRunsStore.instance.isDismissed(snapshot.id)) {
+        _acceptSnapshot(null, replace: true);
+      } else {
+        _acceptSnapshot(snapshot, replace: true);
+      }
       _connectionError = null;
     } catch (_) {
       if (_current(epoch)) {
@@ -266,6 +272,41 @@ class ChatRunController extends ChangeNotifier {
   Future<void> retry() async {
     final view = state;
     if (view.canRetry) await start(view.run!.inputMessageId);
+  }
+
+  /// 取消当前生成并立即清除状态条展示。
+  void dismiss() {
+    final runId = _run?.id;
+    if (runId != null) {
+      DismissedRunsStore.instance.dismissRun(runId);
+    }
+    _timer?.cancel();
+    _epoch++;
+    _run = null;
+    _draft = '';
+    _draftSequence = 0;
+    _tools.clear();
+    _connectionError = null;
+    _pendingInputId = null;
+    _pendingKey = null;
+    _restoring = false;
+    _starting = false;
+    _stopping = false;
+    _polling = false;
+    _historyResynced = false;
+    _syncKeepAlive();
+    _notify();
+  }
+
+  /// 若仍在生成则取消，随后清理状态条。
+  Future<void> dismissOrCancel() async {
+    final run = _run;
+    if (run != null && chatRunIsActive(run.status)) {
+      try {
+        await stop();
+      } catch (_) {}
+    }
+    dismiss();
   }
 
   Future<void> stop() async {

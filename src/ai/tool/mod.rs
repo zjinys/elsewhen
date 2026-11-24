@@ -242,6 +242,7 @@ pub enum ToolPolicy {
 }
 
 mod history;
+mod memory_tools;
 mod plan_tools;
 mod skill_script;
 mod stats;
@@ -340,6 +341,9 @@ impl ToolRegistry {
             Box::new(GetWikiPageTool),
             Box::new(DailyTokenUsageTool),
             Box::new(SearchKnowledgeBaseTool),
+            Box::new(memory_tools::SearchMemories),
+            Box::new(memory_tools::ProposeMemory),
+            Box::new(memory_tools::ReviewMemory),
             Box::new(SynthesizeKnowledgeTool),
             Box::new(FetchTweetTool),
             Box::new(FetchPageTool),

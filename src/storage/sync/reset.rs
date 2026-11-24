@@ -21,7 +21,7 @@ use super::*;
 /// 代价是这张表需要跟着迁移走 —— 由
 /// `storage::sync::tests::local_identity::every_replication_table_is_covered_by_the_reset_list`
 /// 兜底：漏列会让用例变红，逼着做决定而不是靠记性。
-pub(crate) const REPLICATION_TABLES: [&str; 39] = [
+pub(crate) const REPLICATION_TABLES: [&str; 40] = [
     "sync_authority",
     "sync_authority_versions",
     "sync_checkpoint_operations",
@@ -52,6 +52,7 @@ pub(crate) const REPLICATION_TABLES: [&str; 39] = [
     "sync_replica",
     "sync_resnapshot_requests",
     "sync_snapshot_chunks",
+    "sync_snapshot_export_chunks",
     "sync_snapshot_export_wires",
     "sync_snapshot_exports",
     "sync_snapshot_target",

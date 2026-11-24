@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../bridge/api.dart' as api;
 import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
+import 'feedback_toast.dart';
 
 /// 「Scout 情报服务」设置区块（提案 2026-11-15 §4）。
 ///
@@ -150,7 +151,7 @@ class _ScoutSettingsState extends ConsumerState<ScoutSettings> {
 
   void _toast(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    FeedbackToast.of(context).show(
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,

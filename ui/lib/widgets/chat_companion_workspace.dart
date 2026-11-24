@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/localization.dart';
 import '../providers/conversation_provider.dart';
 import '../theme/app_theme.dart';
+import '../theme/design_tokens.dart';
 import 'adaptive_panel.dart';
 
 /// Only a mounted conversation workspace registers a host. Other screens keep
@@ -130,7 +131,7 @@ class _ChatCompanionWorkspaceState
 
   Widget _panel(_PanelRequest request) => Material(
     key: _panelKey,
-    color: AppTheme.surface1,
+    color: Colors.transparent,
     child: Column(
       children: [
         Padding(
@@ -140,7 +141,9 @@ class _ChatCompanionWorkspaceState
               Expanded(
                 child: Text(
                   request.title(context),
-                  style: Theme.of(context).textTheme.titleSmall,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               IconButton(
@@ -167,6 +170,7 @@ class _ChatCompanionWorkspaceState
     ref.listen(selectedConversationIdProvider, (previous, next) {
       if (previous != next) _close();
     });
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return PopScope(
       canPop: _request == null,
       onPopInvokedWithResult: (didPop, _) {
@@ -188,24 +192,36 @@ class _ChatCompanionWorkspaceState
             final wide = constraints.maxWidth >= 840;
             final request = _request;
             return Stack(
+              fit: StackFit.expand,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: ExcludeFocus(
-                        excluding: !wide && request != null,
-                        child: widget.child,
-                      ),
+                Positioned.fill(
+                  child: ExcludeFocus(
+                    excluding: !wide && request != null,
+                    child: widget.child,
+                  ),
+                ),
+                if (wide && request != null)
+                  Positioned(
+                    top: 58,
+                    right: 16,
+                    bottom: 24,
+                    width: math.min(
+                      440,
+                      math.max(360, constraints.maxWidth * 0.42),
                     ),
-                    if (wide && request != null) ...[
-                      const VerticalDivider(width: 1),
-                      SizedBox(
-                        width: math.min(420, constraints.maxWidth * 0.44),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: AppTheme.surface1,
+                        borderRadius: BorderRadius.circular(14),
+                        border: DesignTokens.hairlineBorder(dark),
+                        boxShadow: ShadowTokens.overlay(dark),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
                         child: _panel(request),
                       ),
-                    ],
-                  ],
-                ),
+                    ),
+                  ),
                 if (!wide && request != null) ...[
                   ModalBarrier(
                     key: const ValueKey("companion-modal-barrier"),
@@ -218,7 +234,22 @@ class _ChatCompanionWorkspaceState
                     child: SizedBox(
                       height: constraints.maxHeight * 0.85,
                       width: double.infinity,
-                      child: _panel(request),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface1,
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16),
+                          ),
+                          border: DesignTokens.hairlineBorder(dark),
+                          boxShadow: ShadowTokens.overlay(dark),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(16),
+                          ),
+                          child: _panel(request),
+                        ),
+                      ),
                     ),
                   ),
                 ],

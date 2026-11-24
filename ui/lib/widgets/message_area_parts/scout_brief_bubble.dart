@@ -9,6 +9,7 @@ class ScoutBriefBubble extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scale = ref.watch(settingsProvider.select(chatTypeScaleOf));
+    final bubbleStyle = ChatBubbleStyle.of(context);
     // Old volume-only cards remain stored, but no longer interrupt the chat.
     final content = message.content.trim();
     if (!content.startsWith('scout-brief-v2\n')) return const SizedBox.shrink();
@@ -32,8 +33,8 @@ class ScoutBriefBubble extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 30,
-            height: 30,
+            width: bubbleStyle.isLight ? 32 : 30,
+            height: bubbleStyle.isLight ? 32 : 30,
             decoration: BoxDecoration(
               color: AppTheme.accentPrimary.withValues(alpha: 0.12),
               shape: BoxShape.circle,
@@ -43,14 +44,16 @@ class ScoutBriefBubble extends ConsumerWidget {
             ),
             child: Icon(
               Icons.radar_outlined,
-              size: 15,
-              color: AppTheme.accentPrimary,
+              size: DesignTokens.iconMicro,
+              color: bubbleStyle.accentInk,
             ),
           ),
           const SizedBox(width: AppTheme.space3),
           Flexible(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 820),
+              constraints: BoxConstraints(
+                maxWidth: bubbleStyle.assistantMaxWidth,
+              ),
               child: InkWell(
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                 onTap: () {
@@ -60,16 +63,17 @@ class ScoutBriefBubble extends ConsumerWidget {
                   ref.read(scoutProductViewProvider.notifier).set('signals');
                   ref.read(scoutProductQueryProvider.notifier).set('');
                   ref.read(scoutSourceFilterProvider.notifier).set(null);
+                  ref.read(scoutProductSourcesProvider.notifier).clear();
                   ref.read(sidebarTabProvider.notifier).set(SidebarTab.scout);
                 },
                 child: Container(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surface1,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    border: Border.all(
-                      color: AppTheme.accentPrimary.withValues(alpha: 0.32),
-                    ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: bubbleStyle.isLight ? 16 : 14,
+                    vertical: 12,
+                  ),
+                  decoration: bubbleStyle.assistantCard(
+                    emphasized: true,
+                    darkBorder: AppTheme.accentPrimary.withValues(alpha: 0.32),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -79,7 +83,7 @@ class ScoutBriefBubble extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: scale.meta,
                           fontWeight: FontWeight.w600,
-                          color: AppTheme.accentPrimary,
+                          color: bubbleStyle.accentInk,
                         ),
                       ),
                       for (final item in items)
@@ -115,7 +119,7 @@ class ScoutBriefBubble extends ConsumerWidget {
                         context.l10n.scoutOpenFindings,
                         style: TextStyle(
                           fontSize: scale.meta,
-                          color: AppTheme.accentPrimary,
+                          color: bubbleStyle.accentInk,
                         ),
                       ),
                     ],

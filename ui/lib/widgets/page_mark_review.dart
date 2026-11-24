@@ -266,7 +266,7 @@ class _PageMarkCreateDialogState extends ConsumerState<_PageMarkCreateDialog> {
                           action: context.l10n.load,
                           error: error!,
                           style: TextStyle(
-                            fontSize: 13.5,
+                            fontSize: 14,
                             color: AppTheme.textPrimary,
                           ),
                         ),
@@ -362,7 +362,7 @@ class _BodyEditor extends StatelessWidget {
               ),
               child: Text(
                 entry.value,
-                style: TextStyle(fontSize: 13.5, color: AppTheme.textPrimary),
+                style: TextStyle(fontSize: 14, color: AppTheme.textPrimary),
               ),
             ),
             for (var i = 0; i < (body[entry.key] ?? const []).length; i++)
@@ -374,7 +374,7 @@ class _BodyEditor extends StatelessWidget {
                       initialValue: body[entry.key]![i],
                       maxLines: 2,
                       style: TextStyle(
-                        fontSize: 13.5,
+                        fontSize: 14,
                         color: AppTheme.textPrimary,
                       ),
                       onChanged: (value) => _editEntry(entry.key, i, value),
@@ -527,7 +527,7 @@ class _PageMarkListDialogState extends ConsumerState<_PageMarkListDialog> {
                                 '${mark.kind == "manual" ? context.l10n.manualLabel : context.l10n.automaticLabel} · '
                                 '${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(mark.createdAt))}',
                                 style: TextStyle(
-                                  fontSize: 13.5,
+                                  fontSize: 14,
                                   color: AppTheme.textPrimary,
                                 ),
                               ),

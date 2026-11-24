@@ -8,6 +8,8 @@ import '../theme/app_theme.dart';
 import '../l10n/localization.dart';
 import 'app_error_notice.dart';
 import 'habit_nudge_dialog.dart';
+import 'feedback_toast.dart';
+import '../theme/design_tokens.dart';
 
 /// 设置页「习惯提醒」列表的一行：习惯页 + 它当前的问候计划。
 class HabitReminderEntry {
@@ -118,7 +120,7 @@ class _HabitNudgeSettingsContentState
           context.l10n.habitReminderEmpty,
           style: TextStyle(
             color: AppTheme.textTertiary,
-            fontSize: 12.5,
+            fontSize: 12,
             height: 1.6,
           ),
         ),
@@ -174,7 +176,7 @@ class _HabitNudgeSettingsContentState
             plan?.enabled == true
                 ? Icons.notifications_active_outlined
                 : Icons.notifications_none,
-            size: 18,
+            size: DesignTokens.icon,
             color: plan?.enabled == true
                 ? AppTheme.accentPrimary
                 : AppTheme.textTertiary,
@@ -192,7 +194,7 @@ class _HabitNudgeSettingsContentState
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 13.5,
+                          fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: AppTheme.textPrimary,
                         ),
@@ -213,7 +215,7 @@ class _HabitNudgeSettingsContentState
                       child: Text(
                         status.$1,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: status.$2,
                         ),
@@ -245,7 +247,7 @@ class _HabitNudgeSettingsContentState
                   Text(
                     context.l10n.habitReminderUnset,
                     style: TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 12,
                       color: AppTheme.textTertiary,
                     ),
                   ),
@@ -285,7 +287,7 @@ class _HabitNudgeSettingsContentState
     final changed = await showHabitNudgeDialog(context, page: entry.page);
     if (changed == true && mounted) {
       ref.invalidate(habitReminderEntriesProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(context.l10n.checkinsUpdated),
           behavior: SnackBarBehavior.floating,
@@ -314,7 +316,7 @@ class _HabitNudgeSettingsContentState
       );
       if (!mounted) return;
       ref.invalidate(habitReminderEntriesProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(
             enabled

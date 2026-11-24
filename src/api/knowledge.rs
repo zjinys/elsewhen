@@ -107,8 +107,12 @@ pub fn tick_knowledge_insights() -> Result<i64> {
     if !store.background_processing_allowed()? {
         return Ok(0);
     }
+    let automatic_memories = crate::knowledge_background::run_automatic_memory_extraction(&store).unwrap_or_else(|error| {
+        crate::logging::log_debug(&format!("[memory-extraction] {error:#}"));
+        0
+    });
     let Some((provider, _)) = crate::wiki::digest_provider(&store)? else {
-        return Ok(0);
+        return Ok(automatic_memories);
     };
     // P1 追赶修复：长会话摘要后台预热（发生在知识任务之前——用户在
     // 主对话流里等待的就是这批摘要，优先回血）。预热是尽力而为的优化，
@@ -127,6 +131,8 @@ pub fn tick_knowledge_insights() -> Result<i64> {
         crate::knowledge_background::run_automatic_integration(&store, provider.as_ref())?;
     let reconsolidated =
         crate::knowledge_background::run_knowledge_reconsolidation(&store, provider.as_ref())?;
+    let semantic_memories = crate::knowledge_background::run_semantic_extraction(&store, provider.as_ref())?;
+    let memory_reviewed = store.review_memory(provider.as_ref())?;
     // 页级 TL;DR 索引回填（P1 分层检索）：失败不应阻断后续任务。
     let tldr = crate::knowledge_background::run_page_tldr_backfill(&store, provider.as_ref())
         .unwrap_or_else(|error| {
@@ -135,11 +141,14 @@ pub fn tick_knowledge_insights() -> Result<i64> {
             }
             0
         });
-    Ok(preheated
+    Ok(automatic_memories
+        + preheated
         + refreshed
         + compiled
         + integrated
         + reconsolidated
+        + semantic_memories
+        + memory_reviewed
         + tldr
         + crate::knowledge_background::run_automatic_insights(&store, provider.as_ref())?)
 }

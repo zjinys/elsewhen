@@ -174,7 +174,7 @@ extension _Integrations on _SettingsScreenState {
                       (servers.length).toString(),
                     ),
               style: TextStyle(
-                fontSize: 11.5,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.4,
                 color: AppTheme.textTertiary,
@@ -191,13 +191,13 @@ extension _Integrations on _SettingsScreenState {
                   _mcpBatchMode
                       ? Icons.close_outlined
                       : Icons.checklist_outlined,
-                  size: 15,
+                  size: DesignTokens.iconMicro,
                 ),
                 label: Text(
                   _mcpBatchMode
                       ? context.l10n.l6ExitSelectione23ed
                       : context.l10n.l6DeleteMultiple362ae,
-                  style: const TextStyle(fontSize: 12.5),
+                  style: const TextStyle(fontSize: 12),
                 ),
                 style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
@@ -222,7 +222,7 @@ extension _Integrations on _SettingsScreenState {
                     _mcpSelected.length == servers.length
                         ? context.l10n.l6DeselectAllba20e
                         : context.l10n.l6SelectAll3e44b,
-                    style: const TextStyle(fontSize: 12.5),
+                    style: const TextStyle(fontSize: 12),
                   ),
                 ),
               ],
@@ -232,7 +232,7 @@ extension _Integrations on _SettingsScreenState {
               icon: const Icon(Icons.add_outlined, size: 16),
               label: Text(
                 context.l10n.l6AddServer35085,
-                style: TextStyle(fontSize: 12.5),
+                style: TextStyle(fontSize: 12),
               ),
               style: OutlinedButton.styleFrom(
                 visualDensity: VisualDensity.compact,
@@ -343,7 +343,7 @@ extension _Integrations on _SettingsScreenState {
       await repository.setMcpServerTrusted(id: id, trusted: trusted);
       await _loadMcpServers();
       if (mounted && trusted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        FeedbackToast.maybeOf(context)?.show(
           SnackBar(
             content: Text(context.l10n.l6MarkedAsTrustedThisServerS74676),
           ),
@@ -351,7 +351,7 @@ extension _Integrations on _SettingsScreenState {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        FeedbackToast.maybeOf(context)?.show(
           SnackBar(
             content: AppErrorMessage(
               action: context.l10n.load,
@@ -373,7 +373,7 @@ extension _Integrations on _SettingsScreenState {
       await repository.setMcpServerAllowReadonlyAuto(id: id, allow: allow);
       await _loadMcpServers();
       if (mounted && allow) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        FeedbackToast.maybeOf(context)?.show(
           SnackBar(
             content: Text(context.l10n.l6ReadOnlyExemptionEnabledForTools0d43a),
           ),
@@ -381,7 +381,7 @@ extension _Integrations on _SettingsScreenState {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        FeedbackToast.maybeOf(context)?.show(
           SnackBar(
             content: AppErrorMessage(
               action: context.l10n.load,
@@ -404,7 +404,7 @@ extension _Integrations on _SettingsScreenState {
       await _loadMcpServers();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        FeedbackToast.maybeOf(context)?.show(
           SnackBar(
             content: AppErrorMessage(
               action: context.l10n.load,
@@ -454,7 +454,7 @@ extension _Integrations on _SettingsScreenState {
       } catch (e) {
         failures.add(id);
         if (mounted) {
-          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          FeedbackToast.maybeOf(context)?.show(
             SnackBar(
               content: AppErrorMessage(
                 action: context.l10n.load,
@@ -476,7 +476,7 @@ extension _Integrations on _SettingsScreenState {
     await _loadMcpServers();
     if (!mounted) return;
     if (failures.isEmpty) {
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      FeedbackToast.maybeOf(context)?.show(
         SnackBar(
           content: Text(
             context.l10n.l6ServersDeletedArg05fc2a((ok).toString()),
@@ -484,7 +484,7 @@ extension _Integrations on _SettingsScreenState {
         ),
       );
     } else {
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      FeedbackToast.maybeOf(context)?.show(
         SnackBar(
           content: Text(
             context.l10n.l6SucceededArg0FailedArg1Arg2Arg312d85(
@@ -508,7 +508,7 @@ extension _Integrations on _SettingsScreenState {
       await _loadMcpServers();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        FeedbackToast.maybeOf(context)?.show(
           SnackBar(
             content: AppErrorMessage(
               action: context.l10n.load,
@@ -678,11 +678,11 @@ extension _Integrations on _SettingsScreenState {
                     contentPadding: EdgeInsets.zero,
                     title: Text(
                       context.l10n.l6TrustedCallsSkipApproval6254b,
-                      style: TextStyle(fontSize: 13.5),
+                      style: TextStyle(fontSize: 14),
                     ),
                     subtitle: Text(
                       context.l10n.l6ToolsFromThisServerExecuteWithoutf61a4,
-                      style: TextStyle(fontSize: 11.5),
+                      style: TextStyle(fontSize: 12),
                     ),
                     value: trusted,
                     onChanged: (v) => setDialogState(() => trusted = v),
@@ -759,7 +759,7 @@ extension _Integrations on _SettingsScreenState {
       await _loadMcpServers();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        FeedbackToast.maybeOf(context)?.show(
           SnackBar(
             content: AppErrorMessage(
               action: context.l10n.load,
@@ -784,18 +784,18 @@ extension _Integrations on _SettingsScreenState {
     String headersJson,
   ) async {
     if (transport == 'stdio' && command.trim().isEmpty) {
-      ScaffoldMessenger.maybeOf(dialogContext)?.showSnackBar(
+      FeedbackToast.maybeOf(dialogContext)?.show(
         SnackBar(content: Text(context.l10n.l6EnterACommandBeforeTesting41aae)),
       );
       return;
     }
     if (transport == 'streamable-http' && !url.trim().startsWith('http')) {
-      ScaffoldMessenger.maybeOf(dialogContext)?.showSnackBar(
+      FeedbackToast.maybeOf(dialogContext)?.show(
         SnackBar(content: Text(context.l10n.l6EnterAnHttpSEndpointBeforec28cd)),
       );
       return;
     }
-    final messenger = ScaffoldMessenger.maybeOf(dialogContext);
+    final messenger = FeedbackToast.maybeOf(dialogContext);
     final repository =
         ref.read(storageRepositoryProvider) as RustBridgeRepository;
     try {
@@ -817,7 +817,7 @@ extension _Integrations on _SettingsScreenState {
         ),
       );
       if (!mounted) return;
-      messenger?.showSnackBar(
+      messenger?.show(
         SnackBar(
           content: Text(
             tools.isEmpty
@@ -836,7 +836,7 @@ extension _Integrations on _SettingsScreenState {
       );
     } catch (e) {
       if (!mounted) return;
-      messenger?.showSnackBar(
+      messenger?.show(
         SnackBar(
           content: AppErrorMessage(
             action: context.l10n.load,
@@ -879,7 +879,7 @@ class _McpStatusLine extends StatelessWidget {
               text,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: 12,
                 height: 1.6,
                 color: AppTheme.textTertiary,
               ),
@@ -963,7 +963,7 @@ class _McpServerCard extends StatelessWidget {
               ),
               child: Icon(
                 _isHttp ? Icons.public_outlined : Icons.terminal_outlined,
-                size: 18,
+                size: DesignTokens.icon,
                 color: leadColor,
               ),
             ),
@@ -981,7 +981,7 @@ class _McpServerCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 13.5,
+                          fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: enabled
                               ? AppTheme.textPrimary
@@ -1030,7 +1030,7 @@ class _McpServerCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: 12,
                     color: enabled
                         ? AppTheme.textSecondary
                         : AppTheme.textTertiary,
@@ -1045,7 +1045,7 @@ class _McpServerCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 12,
                       color: AppTheme.textTertiary,
                     ),
                   ),
@@ -1061,7 +1061,7 @@ class _McpServerCard extends StatelessWidget {
               tooltip: context.l10n.moreActions,
               icon: Icon(
                 Icons.more_horiz,
-                size: 18,
+                size: DesignTokens.icon,
                 color: AppTheme.textTertiary,
               ),
               color: AppTheme.surface3,
@@ -1091,7 +1091,7 @@ class _McpServerCard extends StatelessWidget {
                         server.trusted
                             ? Icons.shield_outlined
                             : Icons.verified_user_outlined,
-                        size: 16,
+                        size: DesignTokens.iconMicro,
                         color: server.trusted
                             ? AppTheme.textSecondary
                             : AppTheme.accentPrimary,
@@ -1113,7 +1113,7 @@ class _McpServerCard extends StatelessWidget {
                         server.allowReadonlyAuto
                             ? Icons.lock_outlined
                             : Icons.lock_open_outlined,
-                        size: 16,
+                        size: DesignTokens.iconMicro,
                         color: server.allowReadonlyAuto
                             ? AppTheme.textSecondary
                             : AppTheme.success,
@@ -1185,7 +1185,7 @@ class _McpBadge extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: color,
             ),

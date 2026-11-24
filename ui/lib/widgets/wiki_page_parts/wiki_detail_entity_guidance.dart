@@ -119,7 +119,7 @@ class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
                         height: 26,
                         child: IconButton(
                           padding: EdgeInsets.zero,
-                          iconSize: 14,
+                          iconSize: DesignTokens.icon,
                           tooltip: context.l10n.entityGuidanceHelpful,
                           icon: Icon(
                             item.feedback == 'helpful'
@@ -138,7 +138,7 @@ class _EntityGuidanceState extends ConsumerState<_EntityGuidance> {
                         height: 26,
                         child: IconButton(
                           padding: EdgeInsets.zero,
-                          iconSize: 14,
+                          iconSize: DesignTokens.icon,
                           tooltip: context.l10n.entityGuidanceNotRelevant,
                           icon: Icon(
                             item.feedback == 'not_relevant'

@@ -68,6 +68,7 @@ class _DigestInsightBubbleState extends ConsumerState<DigestInsightBubble> {
   Widget build(BuildContext context) {
     // 洞察卡正文与对话气泡同基准推算字号（原 15.5/13.5/11/12）。
     final scale = ref.watch(settingsProvider.select(chatTypeScaleOf));
+    final bubbleStyle = ChatBubbleStyle.of(context);
     final surfacings =
         ref.watch(digestInsightSurfacingsProvider).value ?? const [];
     DigestInsightSurfacingDto? surfacing;
@@ -96,8 +97,8 @@ class _DigestInsightBubbleState extends ConsumerState<DigestInsightBubble> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 30,
-            height: 30,
+            width: bubbleStyle.isLight ? 32 : 30,
+            height: bubbleStyle.isLight ? 32 : 30,
             decoration: BoxDecoration(
               color: AppTheme.accentPrimary.withValues(alpha: 0.12),
               shape: BoxShape.circle,
@@ -107,24 +108,26 @@ class _DigestInsightBubbleState extends ConsumerState<DigestInsightBubble> {
             ),
             child: Icon(
               Icons.lightbulb_outline,
-              size: 15,
-              color: AppTheme.accentPrimary,
+              size: DesignTokens.iconMicro,
+              color: bubbleStyle.accentInk,
             ),
           ),
           const SizedBox(width: AppTheme.space3),
           Flexible(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 820),
+              constraints: BoxConstraints(
+                maxWidth: bubbleStyle.assistantMaxWidth,
+              ),
               child: Container(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                decoration: BoxDecoration(
-                  color: AppTheme.surface1,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                  border: Border.all(
-                    color: actionable
-                        ? AppTheme.accentPrimary.withValues(alpha: 0.32)
-                        : AppTheme.surface3.withValues(alpha: 0.7),
-                  ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: bubbleStyle.isLight ? 16 : 14,
+                  vertical: 12,
+                ),
+                decoration: bubbleStyle.assistantCard(
+                  emphasized: actionable,
+                  darkBorder: actionable
+                      ? AppTheme.accentPrimary.withValues(alpha: 0.32)
+                      : AppTheme.surface3.withValues(alpha: 0.7),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,14 +139,14 @@ class _DigestInsightBubbleState extends ConsumerState<DigestInsightBubble> {
                           style: TextStyle(
                             fontSize: scale.meta,
                             fontWeight: FontWeight.w600,
-                            color: AppTheme.accentPrimary,
+                            color: bubbleStyle.accentInk,
                           ),
                         ),
                         Text(
                           ' • ${DateFormat.Hm(context.l10n.localeName).format(widget.message.createdAt)}',
                           style: TextStyle(
                             fontSize: scale.meta,
-                            color: AppTheme.textTertiary,
+                            color: bubbleStyle.metadataColor,
                           ),
                         ),
                       ],
@@ -192,7 +195,7 @@ class _DigestInsightBubbleState extends ConsumerState<DigestInsightBubble> {
                             context.l10n.insightSource(pageSlug),
                             style: TextStyle(
                               fontSize: scale.button,
-                              color: AppTheme.accentPrimary,
+                              color: bubbleStyle.accentInk,
                               decoration: TextDecoration.underline,
                               decorationColor: AppTheme.accentMuted,
                             ),
@@ -256,7 +259,7 @@ class _DigestInsightBubbleState extends ConsumerState<DigestInsightBubble> {
                         _statusLabel(status, surfacing?.actionType),
                         style: TextStyle(
                           fontSize: 12,
-                          color: AppTheme.textTertiary,
+                          color: bubbleStyle.metadataColor,
                         ),
                       ),
                   ],
@@ -296,12 +299,12 @@ class _DigestInsightBubbleState extends ConsumerState<DigestInsightBubble> {
         'dismiss' => context.l10n.insightDismissed,
         _ => context.l10n.recorded,
       };
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(content: Text(label), behavior: SnackBarBehavior.floating),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(context.errorMessage(context.l10n.edit, e)),
           behavior: SnackBarBehavior.floating,
@@ -321,7 +324,7 @@ class _DigestInsightBubbleState extends ConsumerState<DigestInsightBubble> {
       final page = await ref.read(wikiPageProvider(pageSlug).future);
       if (!mounted) return;
       if (page == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        FeedbackToast.of(context).show(
           SnackBar(
             content: Text(context.l10n.pageNotFoundDeleted),
             behavior: SnackBarBehavior.floating,
@@ -334,7 +337,7 @@ class _DigestInsightBubbleState extends ConsumerState<DigestInsightBubble> {
       final repo = ref.read(storageRepositoryProvider) as RustBridgeRepository;
       await repo.actOnDigestInsight(widget.message.id, 'habit_nudge');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(context.l10n.habitCheckinsEnabled),
           behavior: SnackBarBehavior.floating,
@@ -342,7 +345,7 @@ class _DigestInsightBubbleState extends ConsumerState<DigestInsightBubble> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(context.errorMessage(context.l10n.edit, e)),
           behavior: SnackBarBehavior.floating,

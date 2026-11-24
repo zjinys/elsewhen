@@ -1,7 +1,56 @@
+import java.util.Properties
+import java.security.KeyStore
+import java.security.MessageDigest
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// 本地从忽略提交的 key.properties 读取；CI 只在签名步骤注入环境变量。
+val releaseKeyProperties = Properties().apply {
+    val propertiesPath = providers.gradleProperty("androidSigningProperties").orNull
+        ?: "key.properties"
+    val propertiesFile = rootProject.file(propertiesPath)
+    if (propertiesFile.isFile) propertiesFile.inputStream().use { load(it) }
+}
+fun releaseSigningValue(env: String, property: String): String? =
+    System.getenv(env)?.takeIf { it.isNotBlank() }
+        ?: releaseKeyProperties.getProperty(property)?.takeIf { it.isNotBlank() }
+
+val releaseStorePath = releaseSigningValue("ANDROID_KEYSTORE_PATH", "storeFile")
+val releaseStorePassword = releaseSigningValue("ANDROID_KEYSTORE_PASSWORD", "storePassword")
+val releaseKeyAlias = releaseSigningValue("ANDROID_KEY_ALIAS", "keyAlias")
+val releaseKeyPassword = releaseSigningValue("ANDROID_KEY_PASSWORD", "keyPassword")
+val releaseSigningReady = listOf(
+    releaseStorePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword,
+).all { it != null }
+
+val checkReleaseSigning = tasks.register("checkReleaseSigning") {
+    doLast {
+        check(releaseSigningReady) {
+            "Release 签名未配置：请配置 ui/android/key.properties 或 ANDROID_KEYSTORE_* / ANDROID_KEY_* 环境变量。不得回退到临时 debug 签名。"
+        }
+        check(rootProject.file(releaseStorePath!!).isFile) {
+            "Release 签名密钥文件不存在，请恢复既有密钥，不要重新生成证书。"
+        }
+        val certificate = try {
+            KeyStore.getInstance(rootProject.file(releaseStorePath), releaseStorePassword!!.toCharArray())
+                .getCertificate(releaseKeyAlias)
+        } catch (_: Exception) {
+            error("无法读取固定签名证书，请检查密钥文件、alias 和口令。")
+        }
+        check(certificate != null) { "固定签名 alias 不存在。" }
+        val fingerprint = MessageDigest.getInstance("SHA-256").digest(certificate.encoded)
+            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        check(fingerprint == rootProject.file("release-signing.sha256").readText().trim()) {
+            "签名证书与 release-signing.sha256 不同，停止构建以免生成无法覆盖升级的 APK。"
+        }
+    }
+}
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn(checkReleaseSigning)
 }
 
 android {
@@ -49,11 +98,20 @@ android {
         }
     }
 
+    signingConfigs {
+        if (releaseSigningReady) {
+            create("release") {
+                storeFile = rootProject.file(releaseStorePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (releaseSigningReady) signingConfigs.getByName("release") else null
         }
     }
 }

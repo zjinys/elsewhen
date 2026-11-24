@@ -3,6 +3,7 @@ import '../l10n/localization.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../theme/app_theme.dart';
+import '../theme/design_tokens.dart';
 
 class EventInput extends StatefulWidget {
   final Function(String) onSubmit;
@@ -84,7 +85,7 @@ class _EventInputState extends State<EventInput> {
           onPressed: () => _showConversationGuide(context),
           icon: Icon(
             Icons.help_outline,
-            size: 19,
+            size: DesignTokens.icon,
             color: AppTheme.textTertiary,
           ),
         ),

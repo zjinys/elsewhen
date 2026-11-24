@@ -65,8 +65,8 @@ impl Store {
         Ok(touched)
     }
 
-    /// False means this exact transfer is already ready (or acknowledged). An
-    /// interrupted export needs a new request, not a different view under old IDs.
+    /// Cached transfers resume their immutable encrypted bytes. A legacy export
+    /// without that cache can only resume while its source clock is unchanged.
     pub(crate) fn begin_snapshot_export(
         &self,
         id: &str,
@@ -90,9 +90,9 @@ impl Store {
             active && recipient != identity.device_id,
             "sync_snapshot_recipient_not_authorized"
         );
-        // logical_clock 与导出视图一起钉住：blob 续传跨拍重开 exporter，只有数据
-        // 一格没动才允许接着传。漂了就必须换新请求 id —— 半新半旧的片拼出来的
-        // 快照 manifest 摘要对不上，接收端整份作废。
+        // Complete encrypted caches are independent of newer source writes.
+        // Legacy uncached exports still need the clock fence: reconstructing
+        // them from a newer view would splice two different snapshot versions.
         let logical_clock = self.replica_logical_clock()?;
         let existing: Option<(String, i64, String, i64, Option<String>, i64)> = self
             .connection
@@ -143,7 +143,7 @@ impl Store {
                 "sync_snapshot_export_requires_new_request"
             );
             ensure!(
-                blob_clock == logical_clock,
+                self.snapshot_export_cached(id)? || blob_clock == logical_clock,
                 "sync_snapshot_export_requires_new_request"
             );
             // 从 `aborted` 续传时把状态摆回 `building`：否则后续 `abort_snapshot_export`
@@ -213,6 +213,13 @@ impl Store {
             tx.commit()?;
         }
         Ok(BeginExport::Begun)
+    }
+
+    pub(crate) fn snapshot_export_cached(&self, id: &str) -> Result<bool> {
+        Ok(self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sync_snapshot_exports WHERE id=?1 AND cached_manifest IS NOT NULL)",
+            [id], |r| r.get(0),
+        )?)
     }
 
     /// 记下这份导出的 blob 身份。开一次就一直复用，重试不再开新 blob。
@@ -353,6 +360,10 @@ impl Store {
         )?;
         self.connection.execute(
             "UPDATE sync_snapshot_exports SET state='acknowledged' WHERE id=?1",
+            [id],
+        )?;
+        self.connection.execute(
+            "DELETE FROM sync_snapshot_export_chunks WHERE snapshot_id=?1",
             [id],
         )?;
         // The recipient has confirmed the snapshot: seed its application

@@ -1,3 +1,4 @@
+import '../theme/design_tokens.dart';
 import '../l10n/localization.dart';
 
 import 'dart:async';
@@ -546,7 +547,7 @@ class _WikiEditorToolbarState extends State<_WikiEditorToolbar> {
       tooltip: tooltip,
       onPressed: onPressed,
       icon: Icon(icon),
-      iconSize: 18,
+      iconSize: DesignTokens.icon,
       visualDensity: VisualDensity.compact,
       padding: const EdgeInsets.all(6),
       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),

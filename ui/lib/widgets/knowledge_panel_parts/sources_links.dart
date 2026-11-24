@@ -33,7 +33,7 @@ class KnowledgeSourcesSection extends ConsumerWidget {
                   children: [
                     Icon(
                       Icons.info_outline,
-                      size: 14,
+                      size: DesignTokens.iconMicro,
                       color: AppTheme.textTertiary,
                     ),
                     const SizedBox(width: 6),
@@ -96,14 +96,14 @@ class KnowledgeSourcesSection extends ConsumerWidget {
                     children: [
                       Icon(
                         Icons.inbox_outlined,
-                        size: 16,
+                        size: DesignTokens.iconMicro,
                         color: AppTheme.textTertiary,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         context.l10n.l6NoVerifiableSourcesYet8b47f,
                         style: TextStyle(
-                          fontSize: 12.5,
+                          fontSize: 12,
                           color: AppTheme.textTertiary,
                         ),
                       ),
@@ -128,7 +128,7 @@ class KnowledgeSourcesSection extends ConsumerWidget {
                       ),
                       child: Icon(
                         Icons.history_edu_outlined,
-                        size: 16,
+                        size: DesignTokens.iconMicro,
                         color: AppTheme.accentPrimary,
                       ),
                     ),
@@ -142,7 +142,7 @@ class KnowledgeSourcesSection extends ConsumerWidget {
                     subtitle: Text(
                       id,
                       style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 12,
                         fontFamily: 'monospace',
                         color: AppTheme.textTertiary,
                       ),
@@ -235,7 +235,7 @@ class KnowledgeSourcesSection extends ConsumerWidget {
                             Text(
                               context.l10n.l6OriginalSourceVersions24704,
                               style: TextStyle(
-                                fontSize: 13.5,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -296,7 +296,7 @@ class KnowledgeSourcesSection extends ConsumerWidget {
                               Text(
                                 context.l10n.l6KnowledgeRevisions42307,
                                 style: TextStyle(
-                                  fontSize: 13.5,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),

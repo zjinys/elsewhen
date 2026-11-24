@@ -1,6 +1,85 @@
 {
   "@@locale": "en",
   "appTitle": "Elsewhen",
+  "memoryManager": "Memory",
+  "memoryBackList": "Back to memories",
+  "memoryMore": "More memory actions",
+  "memoryStatus": "Memory status",
+  "memoryKind": "Memory type",
+  "memoryManagerHelp": "Inspect AI memories, sources, and scope. Changes take effect after you approve a review card.",
+  "memorySearchHint": "Search titles, subjects, or relationships",
+  "memoryAll": "All",
+  "memoryMain": "Main conversation",
+  "memoryWiki": "Knowledge discussions",
+  "memoryGoal": "Goal discussions",
+  "memoryPending": "Pending confirmation",
+  "memoryActive": "Confirmed",
+  "memoryConflicted": "Conflicted",
+  "memorySuperseded": "Superseded",
+  "memoryDismissed": "Dismissed",
+  "memoryDeleted": "Deleted",
+  "memoryExcluded": "Excluded",
+  "memoryIncluded": "Not excluded",
+  "memorySemantic": "Facts",
+  "memoryProcedural": "Practices and preferences",
+  "memoryReference": "Reference only",
+  "memoryConversation": "Owning conversation",
+  "memoryPersonal": "Personal",
+  "memoryCurrent": "Sources current",
+  "memoryStale": "Sources changed",
+  "memoryUnavailable": "Currently unavailable",
+  "memoryUnassessed": "Evidence not assessed",
+  "memorySupported": "Supported by evidence",
+  "memoryContradicted": "Contradicted by evidence",
+  "memoryInsufficient": "Insufficient evidence",
+  "memoryPin": "Pin",
+  "memoryUnpin": "Unpin",
+  "memoryExclude": "Exclude from automatic use",
+  "memoryInclude": "Allow automatic use",
+  "memorySalience": "Salience",
+  "memoryLow": "Low",
+  "memoryNormal": "Normal",
+  "memoryHigh": "High",
+  "memoryConfirm": "Confirm memory",
+  "memoryDismiss": "Dismiss memory",
+  "memoryRestore": "Restore as candidate",
+  "memoryConflict": "Mark conflict",
+  "memorySupersede": "Replace with a newer memory",
+  "memoryLinkGoal": "Link a goal",
+  "memoryUnlinkGoal": "Unlink",
+  "memoryGoalReason": "Explain how this memory applies to the goal",
+  "memoryNoGoals": "No active goals available to link",
+  "memoryNoReplacement": "No eligible replacement memories",
+  "memoryChooseReplacement": "Choose a newer memory with the same owner, subject, and relationship",
+  "memoryEmpty": "No matching memories",
+  "memoryEmptyHelp": "Try different search terms or filters to find memories.",
+  "memoryNoSaved": "No memories created yet",
+  "memoryNoSavedHelp": "This page shows created memory entries. Existing chats and knowledge pages are not added automatically. You can ask the AI in a conversation to propose a memory from a saved knowledge page with sources. Creating a candidate does not confirm it or allow automatic use.",
+  "memorySelect": "Select a memory to inspect its content",
+  "memorySources": "Source evidence",
+  "memoryNoContent": "This version cannot be displayed: it was deleted, dismissed, or its page content changed.",
+  "memoryTruncated": "Only part of the content is shown.",
+  "memoryNoSources": "No source excerpts to display",
+  "memorySourceHidden": "The source changed or the entry is inactive; its excerpt is hidden.",
+  "memoryDecisions": "Latest 20 manual decisions",
+  "memoryNoDecisions": "No manual decisions yet",
+  "memoryNoLinks": "No linked goals",
+  "memoryScope": "Scope",
+  "memoryVersion": "Version",
+  "memoryOwnerUnavailable": "The owning conversation is unavailable. Records can be inspected; restore the conversation before reviewing changes.",
+  "memoryReviewTitle": "Review memory change",
+  "memoryReviewHelp": "Approval applies only to the operation and version shown here. Confirmation, salience, and goal links do not grant execution permission.",
+  "memoryApprove": "Approve change",
+  "memoryReviewFailed": "The change did not complete. Close and refresh the detail before reviewing again.",
+  "memoryDeleteHelp": "Deletion disables this memory and preserves manual decisions. Original events and knowledge pages are retained.",
+  "memoryMaintenance": "Inspect maintenance hints",
+  "memoryMaintenanceHelp": "Checks up to 200 recent, non-deleted memories visible to this conversation. Duplicate and source hints require human judgment; nothing is merged or deleted automatically.",
+  "memoryScanned": "Entries checked",
+  "memoryExactDuplicates": "Identical content groups",
+  "memorySharedSources": "Shared source groups",
+  "memoryNearDuplicates": "Lexical similarity hints",
+  "memoryBrokenSources": "Changed or unavailable sources",
+  "memoryItems": "memories",
   "initializationFailed": "Initialization failed",
   "initializationError": "Initialization failed: {error}",
   "startingApp": "Starting…",
@@ -426,6 +505,15 @@
   "generateReply": "Generate reply",
   "goalStudioWelcome": "🎯 Describe your long-term intention. I will assess feasibility and assumptions, then propose a plan and milestones. You confirm before anything is saved.",
   "goalChatWelcome": "🎯 Let’s discuss this goal. I can help plan actions, examine obstacles and review completion criteria. Pausing, completing or resuming a goal requires your confirmation.",
+  "goalPredecessorEntry": "The above continues from \"{goal}\" ({count} messages)",
+  "@goalPredecessorEntry": {
+    "placeholders": {
+      "goal": {},
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "goalPaused": "Paused “{goal}”",
   "goalCompletedToast": "🎉 Completed goal “{goal}”!",
   "goalReactivated": "Reactivated “{goal}”",
@@ -1431,7 +1519,7 @@
   "l6RejectPlan8b441": "Reject plan",
   "l6LoadEarlierPlans65e31": "Load earlier plans",
   "l6RestartTheAppAfterSwitchingToea99d": "Restart the app after switching to view all synced data.",
-  "l6EnterDatasete3665": "Enter dataset",
+  "l6EnterDatasete3665": "Select dataset",
   "l6CouldNotLoadSyncStatusSyncb8a20": "Could not load sync status\n(Sync may not be enabled yet)",
   "l6Processorb4366": "Processor",
   "l6NoSyncYet8ce44": "No sync yet",
@@ -2911,7 +2999,7 @@
       }
     }
   },
-  "l6SwitchedToArg0QuitAndReopenc2285": "Switched to “{arg0}”. Quit and reopen the app to load its synced data.",
+  "l6SwitchedToArg0QuitAndReopenc2285": "Selected {arg0}. Fully quit and reopen the app to use it.",
   "@l6SwitchedToArg0QuitAndReopenc2285": {
     "placeholders": {
       "arg0": {
@@ -3148,6 +3236,19 @@
       "arg1": {
         "type": "String"
       }
+    }
+  },
+  "l6SourceTitleArg0VersionArg1": "Source: {arg0} · Version {arg1}",
+  "@l6SourceTitleArg0VersionArg1": {
+    "placeholders": {
+      "arg0": {},
+      "arg1": {}
+    }
+  },
+  "l6UserRecordExcerptArg0": "User record: {arg0}",
+  "@l6UserRecordExcerptArg0": {
+    "placeholders": {
+      "arg0": {}
     }
   },
   "l6UnverifiedPageArg01a6ef": "Unverified page · {arg0}",
@@ -3447,6 +3548,8 @@
   "scoutNotionTemplates": "Notion templates",
   "scoutDigitalPlanners": "Digital planners",
   "scoutExtensionWatchlist": "Extension watchlist",
+  "scoutRecentProjects": "New projects · 90 days",
+  "scoutExtensionDiscovery": "Extension discovery",
   "scoutUsTopFree": "US top free",
   "scoutDiscover": "Discover leads",
   "scoutStudies": "Research",
@@ -3460,6 +3563,31 @@
   "scoutHistoryIncomplete": "Incomplete or discontinuous observations",
   "scoutWindow": "Trends and coverage",
   "scoutPriceUnknown": "Pricing unverified",
+  "scoutAffiliateConfirmed": "Affiliate · Cash referral program",
+  "scoutAffiliateUnknown": "Affiliate program unverified",
+  "scoutAffiliateUnavailable": "Officially closed or unavailable",
+  "scoutAffiliateStale": "Affiliate evidence needs rechecking",
+  "scoutAffiliateProgram": "View program and eligibility",
+  "scoutAffiliateChecked": "Checked: {time}",
+  "@scoutAffiliateChecked": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "scoutPurposeMissing": "No description from this source yet. See the original introduction.",
+  "scoutReadIntroduction": "Read introduction",
+  "scoutFreeDownload": "Free download",
+  "scoutListedFree": "Listed as free",
+  "scoutFirstObservedOn": "First monitored on {date}",
+  "@scoutFirstObservedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "scoutWhyNow": "Why look now",
   "scoutNoSignal": "No verified window signal yet. Observe this product for now.",
   "scoutStale": "Offline cache; data may be stale",
@@ -3601,5 +3729,49 @@
     }
   },
   "scoutNotRelevant": "Not relevant",
-  "scoutBriefHighlights": "Worth a closer look"
+  "scoutBriefHighlights": "Worth a closer look",
+  "pairingConnectNew": "Connect a new device",
+  "pairingJoinExisting": "Join an existing device",
+  "pairingConnectHint": "Create an invitation on the device with your data, then scan it on the other device.",
+  "pairingJoinHint": "Scan or paste an invitation on this device to connect to existing data.",
+  "pairingIdentify": "Identify devices",
+  "pairingConfirm": "Confirm on both devices",
+  "pairingSyncData": "Sync data",
+  "pairingDetails": "Connection details",
+  "pairingConnectionSettings": "Connection settings",
+  "pairingPaste": "Paste invitation",
+  "pairingAllow": "Allow connection",
+  "pairingConnect": "Connect this device",
+  "pairingWaitingScan": "Choose “Join an existing device” on the new device and scan this code.",
+  "pairingWaitingApproval": "Verify this device and allow the connection on the existing device. This screen will continue automatically.",
+  "pairingTransferring": "Preparing and syncing data. Keep both devices running; transfer continues when the connection recovers.",
+  "pairingDone": "Connected. Initial data is ready.",
+  "pairingOwnerDone": "Device connected. Initial sync complete.",
+  "pairingAnother": "Connect another device",
+  "pairingExpired": "Invitation expired. Create a new one.",
+  "pairingRegenerate": "Create a new invitation",
+  "pairingRemaining": "Invitation expires in {minutes} min",
+  "@pairingRemaining": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "pairingRetry": "Retry connection",
+  "pairingChangeInvitation": "Use another invitation",
+  "pairingStop": "Stop connecting",
+  "pairingVerifyHint": "Before connecting, compare the public key fingerprint below with the existing device.",
+  "pairingLocalFingerprint": "Verify this fingerprint on the existing device",
+  "pairingNoRelay": "A working relay address is required for the first connection.",
+  "pairingDataPrepared": "Preparing data",
+  "syncConnectedDevices": "{count} connected devices",
+  "@syncConnectedDevices": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastRound": "The latest local sync round ran"
 }

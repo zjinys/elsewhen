@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'support/chat_run_fixture.dart';
 
 void main() {
-  test('evidence projection preserves returned identity and ignores private fields', () {
+  test('evidence projection shows useful labels and ignores internal IDs', () {
     final details = toolProgressDetails(
       'search_knowledge_base',
       'read',
@@ -30,8 +30,8 @@ void main() {
       }),
     );
     expect(details, contains('原始证据'));
-    expect(details, contains('snapshot-7'));
-    expect(details, contains('old-hash'));
+    expect(details, isNot(contains('snapshot-7')));
+    expect(details, isNot(contains('old-hash')));
     expect(details, isNot(contains('private reasoning')));
     expect(details, isNot(contains('secret')));
     expect(details, contains('最终回答引用另行核验'));
@@ -112,7 +112,7 @@ void main() {
       await tester.tap(find.text('实际工具步骤（最近 1 项）'));
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.textContaining('原始证据'), findsOneWidget);
-      expect(find.textContaining('old-hash'), findsOneWidget);
+      expect(find.textContaining('old-hash'), findsNothing);
       expect(find.textContaining('reasoning_content'), findsNothing);
       expect(find.text('查询已完成'), findsOneWidget);
       await tester.pumpWidget(const SizedBox.shrink());

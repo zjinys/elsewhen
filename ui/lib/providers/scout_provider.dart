@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import '../utils/scout_text.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/api.dart' as api;
@@ -134,30 +136,12 @@ class ScoutFindingItem {
   /// 极简 HTML 清理：剥标签 + 解常用实体 + 压空白。不做完整 DOM 解析——
   /// 来源是已知白名单域的 RSS 摘要，正则足够且不引入依赖。
   static String _stripHtml(String s) {
-    // summary 常是双重转义的 RSS 摘要（&lt;p&gt;…&lt;/p&gt;），先解实体
-    // 才能露出真实标签，再剥一次。
-    var t = s;
-    for (var i = 0; i < 2; i++) {
-      t = _decodeEntities(t.replaceAll(RegExp(r'<[^>]*>'), ' '));
-    }
-    t = t.replaceAll(RegExp(r'\s+'), ' ').trim();
-    // 去掉 RSS 尾部的导航词残留（Discussion/Link/Comments 等孤词结尾）。
-    t = t.replaceAll(
-      RegExp(r'\s*\|\s*(Discussion|Link|Comments)\s*$', caseSensitive: false),
-      '',
-    );
+    final t = cleanScoutText(s, feedNavigation: true);
     return t.length > 140 ? '${t.substring(0, 140)}…' : t;
   }
 
   /// 解常用 HTML 实体（title/summary 来自 RSS 原文，转义很常见）。
-  static String _decodeEntities(String s) => s
-      .replaceAll('&amp;', '&')
-      .replaceAll('&lt;', '<')
-      .replaceAll('&gt;', '>')
-      .replaceAll('&quot;', '"')
-      .replaceAll('&#39;', "'")
-      .replaceAll('&apos;', "'")
-      .replaceAll('&nbsp;', ' ');
+  static String _decodeEntities(String s) => cleanScoutText(s);
 
   /// 一条 finding 的「关键指标」行（可跨源归一）。
   ///

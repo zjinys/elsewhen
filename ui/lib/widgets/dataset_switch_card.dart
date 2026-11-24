@@ -7,6 +7,7 @@ import 'package:material_ui/material_ui.dart';
 import '../bridge/api.dart' as api;
 
 import '../sync/sync_dataset_switch_api.dart';
+import '../theme/design_tokens.dart';
 
 /// 数据集切换引导：原生 catalog（sync-workspace.db）里出现 ready 且未选中的
 /// 数据集时，提示用户「进入数据集」。选择只写 catalog 的 selected_id，
@@ -146,7 +147,7 @@ class _DatasetSwitchCardState extends State<DatasetSwitchCard> {
             children: [
               Icon(
                 Icons.folder_open,
-                size: 18,
+                size: DesignTokens.icon,
                 color: theme.colorScheme.primary,
               ),
               const SizedBox(width: 6),

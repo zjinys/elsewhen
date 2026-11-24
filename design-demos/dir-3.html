@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elsewhen · 复利图谱界面方案</title>
+<style>
+  :root{
+    --ink:#171A21;
+    --text:#242936;
+    --muted:#5B6472;
+    --faint:#7A8391;
+    --line:#E5E8EF;
+    --line-soft:#EEF0F5;
+    --surface:#FFFFFF;
+    --surface-2:#F7F8FB;
+    --canvas:#E9ECF2;
+    --brand:#5B63D3;
+    --brand-dark:#454DB8;
+    --c1:#DC2626;
+    --c2:#EA580C;
+    --c3:#CA8A04;
+    --c4:#16A34A;
+    --c5:#0891B2;
+    --c6:#7C3AED;
+    --c7:#DB2777;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--canvas);
+    color:var(--text);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    font-size:14px;
+    line-height:1.62;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0;
+    -webkit-font-smoothing:antialiased;
+  }
+  button,input{font:inherit;color:inherit}
+  button{cursor:pointer;border:0;background:none}
+  :focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+  .app{
+    width:1440px;height:900px;
+    background:var(--surface);
+    border:1px solid #D8DCE5;
+    border-radius:14px;
+    box-shadow:0 24px 70px rgba(23,26,33,.16);
+    display:flex;flex-direction:column;
+    overflow:hidden;
+    position:relative;
+  }
+
+  /* 顶栏 */
+  .topbar{
+    height:52px;flex:none;
+    border-bottom:1px solid var(--line);
+    display:flex;align-items:center;
+    padding:0 18px;gap:18px;
+    background:var(--surface);
+  }
+  .win-buttons{display:flex;gap:8px;align-items:center}
+  .win-dot{width:12px;height:12px;border-radius:50%;background:#D9DDE5}
+  .win-dot.close{background:#E7A9A4}
+  .win-dot.min{background:#E5CE9A}
+  .win-dot.max{background:#A9CDB6}
+  .topbar .spacer{flex:1}
+  .top-title{font-size:13px;font-weight:600;color:var(--ink)}
+  .icon-btn{
+    width:44px;height:44px;border-radius:8px;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--muted);
+  }
+  .icon-btn:hover{background:var(--surface-2);color:var(--ink)}
+  .icon-btn svg{width:20px;height:20px}
+
+  /* 布局 */
+  .body{flex:1;display:flex;min-height:0}
+  .sidebar{
+    width:240px;flex:none;
+    border-right:1px solid var(--line);
+    background:var(--surface-2);
+    display:flex;flex-direction:column;
+    overflow-y:auto;
+    padding:16px 12px 12px;
+  }
+  .brand{padding:0 8px 12px}
+  .brand svg{width:148px;height:auto;display:block}
+  .slogan{font-size:12px;color:var(--muted);margin-top:4px;letter-spacing:.2px}
+
+  .nav{display:flex;flex-direction:column;gap:2px}
+  .nav-item{
+    min-height:42px;
+    display:flex;align-items:center;gap:12px;
+    padding:0 12px;border-radius:8px;
+    color:#3E4654;font-size:14px;font-weight:500;
+    text-align:left;width:100%;
+  }
+  .nav-item svg{width:20px;height:20px;flex:none;color:#5C6573}
+  .nav-item:hover{background:#EDEFF5}
+  .nav-item.active{background:var(--brand);color:#fff;font-weight:600}
+  .nav-item.active svg{color:#fff}
+  .nav-item .count{margin-left:auto;font-size:12px;color:var(--brand);font-weight:600}
+  .nav-item.active .count{color:#fff}
+
+  .side-div{height:1px;background:var(--line);margin:18px 8px}
+
+  .tax-title{font-size:12px;font-weight:600;color:var(--ink);padding:0 12px;margin:0 0 8px}
+  .cat{
+    width:100%;min-height:42px;
+    display:flex;align-items:center;gap:11px;
+    padding:0 12px;border-radius:8px;
+    font-size:14px;color:#414A58;text-align:left;
+  }
+  .cat:hover{background:#EDEFF5}
+  .cat.active{background:#E6E8F6;color:var(--brand-dark);font-weight:600}
+  .dot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block}
+  .c1{background:var(--c1)}.c2{background:var(--c2)}.c3{background:var(--c3)}
+  .c4{background:var(--c4)}.c5{background:var(--c5)}.c6{background:var(--c6)}.c7{background:var(--c7)}
+  .legend-note{
+    font-size:12px;line-height:1.5;color:var(--muted);
+    margin:12px 12px 0;padding:10px 11px;
+    background:#fff;border:1px solid var(--line);border-radius:8px;
+  }
+  .legend-note b{color:var(--brand-dark);font-weight:600}
+  .goals-mini{padding:0 4px}
+  .gm-item{padding:10px 8px;border-bottom:1px solid var(--line-soft);font-size:13px;color:#3E4654}
+  .gm-item:last-child{border-bottom:0}
+  .gm-item .gm-dot{width:7px;height:7px;border-radius:50%;background:var(--brand);display:inline-block;margin-right:8px}
+  .gm-item.paused .gm-dot{background:#9AA2AF}
+
+  .main{flex:1;min-width:0;overflow:hidden;position:relative}
+  .surface{display:none;height:100%}
+  .surface.active{display:block}
+  .surface:not(.knowledge){overflow-y:auto}
+  .surface.knowledge.active{display:flex}
+  .inner{max-width:860px;margin:0 auto;padding:30px 44px 64px}
+
+  h1,h2,h3{margin:0;color:var(--ink);font-weight:600;line-height:1.35}
+  h1{font-size:26px;letter-spacing:-.3px}
+  h2{font-size:15px}
+  h3{font-size:13px}
+  p{margin:0}
+  .muted{color:var(--muted)}
+
+  /* 知识面 */
+  .kb-main{flex:1;overflow-y:auto;padding:34px 44px 80px}
+  .kb-wrap{max-width:720px;margin:0 auto}
+  .crumb{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--muted);margin-bottom:14px}
+  .crumb-sep{color:#B7BEC9}
+  .kb-head{padding-bottom:24px;border-bottom:1px solid var(--line)}
+  .kb-meta{font-size:13px;color:var(--muted);margin-top:8px}
+  .kb-section{padding:26px 0;border-bottom:1px solid var(--line-soft)}
+  .kb-section:last-child{border-bottom:0}
+  .kb-section h2{margin-bottom:12px}
+  .lead{font-size:18px;line-height:1.7;color:var(--ink);font-weight:500}
+  .body-text{font-size:14px;color:var(--text);line-height:1.75}
+  .src-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+  .src{
+    display:flex;align-items:center;gap:9px;
+    padding:12px;border:1px solid var(--line);border-radius:8px;
+    font-size:13px;color:#3E4654;background:var(--surface);
+  }
+  .derive{display:flex;gap:24px;flex-wrap:wrap}
+  .derive .d-num{font-size:20px;color:var(--ink);font-weight:600}
+  .derive .d-item{font-size:13px;color:var(--muted)}
+  .derive .d-box{min-width:130px}
+
+  /* 证据栏 */
+  .kb-evidence{
+    width:320px;flex:none;
+    border-left:1px solid var(--line);
+    background:var(--surface-2);
+    padding:28px 24px;overflow-y:auto;
+  }
+  .ev-title-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:18px}
+  .ev-badge{font-size:12px;color:var(--brand-dark);background:#E6E8F6;padding:4px 9px;border-radius:999px;font-weight:600}
+  .stack-viz{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px}
+  .stack-top{display:flex;align-items:baseline;gap:8px;margin-bottom:16px}
+  .stack-num{font-size:40px;line-height:1;font-weight:600;color:var(--ink)}
+  .stack-unit{font-size:13px;color:var(--muted)}
+  .stack-bars{display:flex;flex-direction:column;gap:8px}
+  .sbar{display:flex;align-items:center;gap:10px;min-height:22px}
+  .sbar .fill{width:104px;height:14px;flex:none;background:#3A4250;border-radius:2px}
+  .sbar .lbl{font-size:12px;color:#4C5563}
+  .sbar.pending .fill{background:transparent;border:1px dashed #9AA2AF}
+  .sbar.pending .lbl{color:var(--muted)}
+  .stack-note{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.55}
+  .toc{margin-top:26px}
+  .toc h3{margin-bottom:10px;color:var(--ink)}
+  .toc a{
+    display:flex;align-items:center;min-height:40px;
+    font-size:13px;color:#4C5563;text-decoration:none;
+    padding:0 8px;border-left:2px solid transparent;
+  }
+  .toc a:hover{border-left-color:var(--brand);color:var(--brand-dark);background:#EDEFF5}
+  .ev-close{display:none}
+
+  /* 今天状态条 */
+  .status-strip{
+    background:var(--surface-2);border:1px solid var(--line);border-radius:10px;
+    padding:14px 18px;margin-bottom:26px;
+    display:flex;flex-wrap:wrap;gap:6px 24px;align-items:center;
+  }
+  .status-strip .s-date{font-size:15px;font-weight:600;color:var(--ink)}
+  .status-strip .s-meta{font-size:13px;color:var(--muted)}
+
+  /* 对话 */
+  .stream{display:flex;flex-direction:column;gap:18px}
+  .msg{display:flex;flex-direction:column;gap:6px;max-width:78%}
+  .msg.me{align-self:flex-end;align-items:flex-end}
+  .msg.ai{align-self:flex-start;align-items:flex-start}
+  .who{font-size:12px;color:var(--muted)}
+  .bubble{padding:12px 16px;border-radius:10px;font-size:14px;line-height:1.72}
+  .msg.me .bubble{background:var(--brand);color:#fff;border-bottom-right-radius:3px}
+  .msg.ai .bubble{background:var(--surface-2);border:1px solid var(--line);color:var(--text);border-bottom-left-radius:3px}
+  .proposal{
+    align-self:flex-start;max-width:82%;width:100%;
+    background:#fff;border:1px solid #C9CDDC;border-left:3px solid var(--brand);
+    border-radius:10px;padding:16px 18px;
+  }
+  .proposal .ptag{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--brand-dark);margin-bottom:8px}
+  .proposal .ptag .spark{width:14px;height:14px;color:var(--brand)}
+  .proposal .ptext{font-size:14px;line-height:1.72;color:var(--text)}
+  .pactions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .pbtn{
+    min-height:44px;padding:0 18px;border-radius:8px;
+    border:1px solid #C9CDDC;background:#fff;
+    font-size:13px;font-weight:600;color:#3E4654;
+  }
+  .pbtn:hover{background:var(--surface-2)}
+  .pbtn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  .pbtn.primary:hover{background:var(--brand-dark)}
+  .pbtn.chosen{background:#E6E8F6;border-color:var(--brand);color:var(--brand-dark)}
+  .pstate{font-size:12px;color:var(--brand-dark);margin-top:12px;min-height:18px;font-weight:600}
+  .proposal[data-state]{opacity:.82}
+  .composer{margin-top:26px;border-top:1px solid var(--line);padding-top:18px}
+  .composer-hint{font-size:12px;color:var(--muted);margin-bottom:10px;min-height:18px}
+  .composer-row{display:flex;gap:10px}
+  .composer input{
+    flex:1;min-height:46px;border:1px solid #C9CDDC;border-radius:8px;
+    padding:0 14px;font-size:14px;background:#fff;
+  }
+  .composer input::placeholder{color:#8A929E}
+  .send-btn{min-height:46px;padding:0 26px;border-radius:8px;background:var(--brand);color:#fff;font-weight:600;font-size:14px}
+  .send-btn:hover{background:var(--brand-dark)}
+
+  /* 目标 */
+  .page-head{margin-bottom:22px}
+  .page-head h1{font-size:24px}
+  .page-sub{font-size:13px;color:var(--muted);margin-top:7px}
+  .goals{display:flex;flex-direction:column;gap:14px}
+  .goal{border:1px solid var(--line);border-radius:10px;padding:18px 20px;background:#fff}
+  .goal.active{border-top:2px solid var(--brand)}
+  .goal.paused{border-top:2px solid #B0B7C2}
+  .goal-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .goal-name{font-size:17px;font-weight:600;color:var(--ink)}
+  .goal-state{font-size:12px;font-weight:600;color:var(--brand-dark);background:#EDEFFB;padding:4px 10px;border-radius:999px;white-space:nowrap}
+  .goal.paused .goal-state{color:#5B6472;background:#ECEEF2}
+  .fields{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 24px}
+  .field{display:flex;flex-direction:column;gap:2px}
+  .field .k{font-size:12px;color:var(--muted)}
+  .field .v{font-size:14px;color:var(--text);line-height:1.6}
+  .field.full{grid-column:1/-1}
+
+  /* 回顾 */
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:24px}
+  .seg-btn{min-width:64px;min-height:44px;padding:0 18px;font-size:13px;color:#4C5563;background:#fff}
+  .seg-btn+ .seg-btn{border-left:1px solid var(--line)}
+  .seg-btn.active{background:var(--brand);color:#fff;font-weight:600}
+  .review-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  .stat{border:1px solid var(--line);border-radius:10px;padding:18px 20px;background:#fff}
+  .stat .k{font-size:13px;color:var(--muted)}
+  .stat .v{font-size:28px;font-weight:600;color:var(--ink);margin:6px 0 2px}
+  .stat .v.up{color:#C0342B}
+  .stat .v.down{color:#1E8A55}
+  .stat .note{font-size:12px;color:var(--muted)}
+  .mirror{margin-top:24px;border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:10px;padding:20px 22px;background:var(--surface-2)}
+  .mirror h2{font-size:14px;margin-bottom:10px}
+  .mirror p{font-size:15px;line-height:1.8;color:var(--text)}
+
+  /* 情报 / 同步 */
+  .chips{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px}
+  .chip{min-height:44px;padding:0 18px;border:1px solid var(--line);border-radius:999px;font-size:13px;color:#4C5563;background:#fff}
+  .chip.active{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  .notice{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:10px;padding:18px 20px;background:#fff}
+  .notice .big{font-size:24px;font-weight:600;color:var(--ink)}
+  .device{border:1px solid var(--line);border-radius:10px;padding:16px 20px;background:#fff;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:16px}
+  .device .nm{font-size:15px;font-weight:600;color:var(--ink)}
+  .device .st{font-size:13px;color:#1E8A55;font-weight:600}
+  .locknote{margin-top:18px;font-size:13px;color:var(--muted)}
+
+  /* 移动端证据开关 */
+  .ev-toggle{display:none}
+  .ev-scrim{display:none}
+
+  /* toast */
+  .toast{
+    position:fixed;left:50%;bottom:32px;transform:translate(-50%,16px);
+    background:var(--ink);color:#fff;font-size:13px;
+    padding:12px 20px;border-radius:8px;
+    opacity:0;pointer-events:none;transition:.2s;z-index:50;
+    box-shadow:0 8px 24px rgba(23,26,33,.25);
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  /* 图标通用 */
+  svg.ico{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  .spark{width:14px;height:14px}
+
+  @media (max-width:700px){
+    body{padding:0;display:block;background:#fff}
+    .app{width:100%;height:100vh;min-height:100vh;border:0;border-radius:0;box-shadow:none}
+    .topbar{height:48px;padding:0 12px;gap:10px}
+    .top-title{font-size:13px}
+    .win-buttons{display:none}
+    .body{flex-direction:column}
+    .sidebar{
+      width:100%;flex:none;border-right:0;border-bottom:1px solid var(--line);
+      padding:12px 0 8px;overflow:visible;
+    }
+    .brand{padding:0 16px 10px}
+    .brand svg{width:130px}
+    .slogan{display:none}
+    .nav{
+      flex-direction:row;overflow-x:auto;gap:4px;
+      padding:0 12px 8px;scrollbar-width:none;
+      border-bottom:1px solid var(--line-soft);
+    }
+    .nav::-webkit-scrollbar,.tax::-webkit-scrollbar{display:none}
+    .nav-item{
+      flex:0 0 auto;width:74px;min-height:52px;
+      flex-direction:column;gap:3px;justify-content:center;
+      padding:4px 0;font-size:12px;border-radius:8px;
+    }
+    .nav-item svg{width:20px;height:20px}
+    .nav-item .count{display:none}
+    .side-div{display:none}
+    .tax-title{display:none}
+    .tax{
+      display:flex!important;overflow-x:auto;gap:6px;
+      padding:10px 14px 2px;scrollbar-width:none;
+    }
+    .cat{
+      flex:0 0 auto;width:auto;min-height:44px;
+      padding:0 12px;border:1px solid var(--line);border-radius:999px;
+      font-size:13px;
+    }
+    .cat.active{border-color:var(--brand)}
+    .legend-note,.goals-mini{display:none}
+    .main{flex:1;min-height:0}
+    .surface:not(.knowledge) .inner{padding:22px 18px 96px}
+    .surface{font-size:16px}
+    .body-text,.lead,.bubble,.ptext,.field .v,.mirror p{font-size:16px}
+    .kb-main{padding:22px 18px 110px}
+    h1{font-size:23px}
+    .src-grid{grid-template-columns:1fr}
+    .fields{grid-template-columns:1fr}
+    .review-grid{grid-template-columns:1fr}
+    .msg{max-width:92%}
+    .proposal{max-width:100%}
+    .composer-row{flex-direction:column}
+    .send-btn{width:100%}
+    .status-strip{gap:6px 16px}
+    .status-strip .s-date{font-size:16px}
+    .status-strip .s-meta{font-size:14px}
+
+    .kb-evidence{
+      position:absolute;left:0;right:0;bottom:0;top:auto;
+      width:100%;max-height:78%;
+      border-left:0;border-top:1px solid var(--line);
+      border-radius:14px 14px 0 0;
+      transform:translateY(105%);transition:transform .24s ease;
+      z-index:30;box-shadow:0 -10px 30px rgba(23,26,33,.14);
+      padding:18px 18px 30px;
+    }
+    .app.ev-open .kb-evidence{transform:translateY(0)}
+    .ev-close{
+      display:flex;align-items:center;justify-content:center;
+      width:100%;min-height:44px;margin-bottom:14px;
+      border:1px solid var(--line);border-radius:8px;
+      font-size:14px;color:var(--muted);background:#fff;
+    }
+    .ev-toggle{
+      display:flex;align-items:center;justify-content:center;
+      position:absolute;right:16px;bottom:18px;z-index:25;
+      min-width:74px;height:48px;padding:0 18px;
+      border-radius:999px;background:var(--brand);color:#fff;
+      font-size:14px;font-weight:600;
+      box-shadow:0 6px 18px rgba(91,99,211,.35);
+    }
+    .ev-scrim{
+      display:block;position:absolute;inset:0;z-index:20;
+      background:rgba(23,26,33,.28);opacity:0;pointer-events:none;transition:.24s;
+    }
+    .app.ev-open .ev-scrim{opacity:1;pointer-events:auto}
+    .toast{bottom:78px}
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20 14.5a3 3 0 0 1-3 3H8l-4 3V6a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3z"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 4.5h6.5A2.5 2.5 0 0 1 13 7v13a2.5 2.5 0 0 0-2.5-2.5H4z"/><path d="M20 4.5h-3.5A2.5 2.5 0 0 0 14 7v13a2.5 2.5 0 0 1 2.5-2.5H20z"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M4 13l2-7h12l2 7v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M4 13h5l1 2h4l1-2h5"/></symbol>
+    <symbol id="i-review" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></symbol>
+    <symbol id="i-sync" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14-4L4 9"/><path d="M4 5v4h4"/><path d="M4 13a8 8 0 0 0 14 4l2-2"/><path d="M20 19v-4h-4"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1-2.8 2.8-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21h-4v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1L4.2 17l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3v-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8L4.2 7 7 4.2l.1.1a1.6 1.6 0 0 0 1.8.3A1.6 1.6 0 0 0 10 3.1V3h4v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1L19.8 7l-.1.1a1.6 1.6 0 0 0-.3 1.8 1.6 1.6 0 0 0 1.5 1h.1v4h-.1a1.6 1.6 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z"/></symbol>
+  </defs>
+</svg>
+
+<div class="app" id="app">
+
+  <header class="topbar">
+    <div class="win-buttons" aria-hidden="true">
+      <span class="win-dot close"></span><span class="win-dot min"></span><span class="win-dot max"></span>
+    </div>
+    <div class="spacer"></div>
+    <div class="top-title" id="topTitle">知识</div>
+    <button class="icon-btn" id="settingsBtn" aria-label="设置">
+      <svg class="ico"><use href="#i-settings"/></svg>
+    </button>
+  </header>
+
+  <div class="body">
+
+    <aside class="sidebar">
+      <div class="brand">
+        <svg viewBox="0 0 720 220" aria-label="Elsewhen"><defs><linearGradient id="mark3" x1="30" y1="24" x2="200" y2="200" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#3E4453"/><stop offset="0.55" stop-color="#5A60D8"/><stop offset="1" stop-color="#7B81F0"/></linearGradient></defs><path d="M140.1 27.3 A88 88 0 1 0 195.0 87.2" fill="none" stroke="url(#mark3)" stroke-width="28" stroke-linecap="round"/><circle cx="148.6" cy="78.2" r="12" fill="#6A6FE0"/><text x="248" y="134" font-family="Inter,system-ui,sans-serif" font-size="68" font-weight="520" letter-spacing="-2.5" fill="#171A21">Elsewhen</text></svg>
+        <div class="slogan">记录此刻，复利此生。</div>
+      </div>
+
+      <nav class="nav" id="nav" aria-label="一级导航">
+        <button class="nav-item" data-target="chat"><svg class="ico"><use href="#i-chat"/></svg><span>对话</span></button>
+        <button class="nav-item active" data-target="knowledge"><svg class="ico"><use href="#i-book"/></svg><span>知识</span></button>
+        <button class="nav-item" data-target="goals"><svg class="ico"><use href="#i-target"/></svg><span>目标</span></button>
+        <button class="nav-item" data-target="intel"><svg class="ico"><use href="#i-inbox"/></svg><span>情报</span><span class="count">3</span></button>
+        <button class="nav-item" data-target="review"><svg class="ico"><use href="#i-review"/></svg><span>回顾</span></button>
+        <button class="nav-item" data-target="sync"><svg class="ico"><use href="#i-sync"/></svg><span>同步</span></button>
+      </nav>
+
+      <div class="side-div"></div>
+
+      <div id="taxWrap">
+        <p class="tax-title">知识分类</p>
+        <div class="tax" id="tax">
+          <button class="cat" data-cat="人物"><span class="dot c1"></span><span>人物</span></button>
+          <button class="cat" data-cat="来源"><span class="dot c2"></span><span>来源</span></button>
+          <button class="cat" data-cat="能力"><span class="dot c3"></span><span>能力</span></button>
+          <button class="cat" data-cat="成本"><span class="dot c4"></span><span>成本</span></button>
+          <button class="cat" data-cat="项目"><span class="dot c5"></span><span>项目</span></button>
+          <button class="cat" data-cat="决策"><span class="dot c6"></span><span>决策</span></button>
+          <button class="cat active" data-cat="洞察"><span class="dot c7"></span><span>洞察</span></button>
+        </div>
+        <div class="legend-note">七个色点按连续色相环排列，相邻类别色相相邻。<b>靛蓝只用于界面系统态</b>，不参与类别编码。</div>
+      </div>
+
+      <div class="goals-mini" id="goalsMini" style="display:none">
+        <p class="tax-title" style="padding-left:8px">核心目标</p>
+        <div class="gm-item"><span class="gm-dot"></span>发布 Elsewhen 1.0</div>
+        <div class="gm-item"><span class="gm-dot"></span>建立稳定写作节奏</div>
+        <div class="gm-item paused"><span class="gm-dot"></span>完成《地方与国家》阅读笔记</div>
+      </div>
+    </aside>
+
+    <main class="main">
+
+      <!-- 知识 -->
+      <section class="surface knowledge active" data-surface="knowledge">
+        <div class="kb-main">
+          <div class="kb-wrap">
+            <div class="crumb"><span class="dot c7"></span><span id="kbCat">洞察</span><span class="crumb-sep">/</span><span>知识页</span></div>
+            <div class="kb-head">
+              <h1>激励结构 → 产品取舍</h1>
+              <p class="kb-meta">3 条记录支持，1 条待审阅</p>
+            </div>
+
+            <div class="kb-section" id="sec-summary">
+              <h2>摘要</h2>
+              <p class="lead">把「谁承担成本、谁拿收益」的框架，迁移到工具设计取舍。</p>
+            </div>
+
+            <div class="kb-section" id="sec-evidence">
+              <h2>证据堆叠</h2>
+              <p class="body-text">同一事实被 3 条记录支持，可信度随条数累积。</p>
+              <div class="src-grid">
+                <div class="src"><span class="dot c2"></span><span>10-24 复盘</span></div>
+                <div class="src"><span class="dot c1"></span><span>11-22 对话</span></div>
+                <div class="src"><span class="dot c7"></span><span>读书笔记</span></div>
+              </div>
+            </div>
+
+            <div class="kb-section" id="sec-derive">
+              <h2>派生</h2>
+              <div class="derive">
+                <div class="d-box"><div class="d-num">2</div><div class="d-item">观点</div></div>
+                <div class="d-box"><div class="d-num">1</div><div class="d-item">创作素材</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="kb-evidence" id="kbEvidence">
+          <button class="ev-close" id="evClose">关闭</button>
+          <div class="ev-title-row">
+            <h2>证据堆叠</h2>
+            <span class="ev-badge">可信度 高</span>
+          </div>
+          <div class="stack-viz">
+            <div class="stack-top"><span class="stack-num">3</span><span class="stack-unit">条记录支持</span></div>
+            <div class="stack-bars">
+              <div class="sbar"><span class="fill"></span><span class="lbl">10-24 复盘</span></div>
+              <div class="sbar"><span class="fill"></span><span class="lbl">11-22 对话</span></div>
+              <div class="sbar"><span class="fill"></span><span class="lbl">读书笔记</span></div>
+              <div class="sbar pending"><span class="fill"></span><span class="lbl">待审阅</span></div>
+            </div>
+            <p class="stack-note">每多一条来源，堆叠就增长一段；待审阅的虚线不计入条数。</p>
+          </div>
+          <div class="toc">
+            <h3>本页目录</h3>
+            <a href="#" data-to="sec-summary">摘要</a>
+            <a href="#" data-to="sec-evidence">证据堆叠</a>
+            <a href="#" data-to="sec-derive">派生</a>
+          </div>
+        </aside>
+      </section>
+
+      <!-- 对话 -->
+      <section class="surface" data-surface="chat">
+        <div class="inner">
+          <div class="status-strip">
+            <span class="s-date">今天 · 11 月 22 日 周日</span>
+            <span class="s-meta">今日 4 条记录 · 1,260 tokens · 本地模型</span>
+            <span class="s-meta">目标：发布 Elsewhen 1.0 · 第 12 天 / 共 30 天</span>
+          </div>
+
+          <div class="stream" id="stream">
+            <div class="msg me"><span class="who">09:12</span><div class="bubble">今天把同步的冲突处理逻辑跑通了，中途发现快照 resumed 的边界其实在 transport 层，不在 engine。</div></div>
+            <div class="msg ai"><span class="who">09:12</span><div class="bubble">这条我记进『Elsewhen 1.0 / 同步稳定性』了。你之前 10-24 的复盘里也写过 transport 边界，这次算是第二次证据。</div></div>
+            <div class="msg me"><span class="who">13:40</span><div class="bubble">下午想专心写发布说明，但老被打断。是不是该把目标从 3 个减到 2 个？</div></div>
+
+            <div class="proposal" id="proposal">
+              <div class="ptag"><svg class="ico spark"><use href="#i-spark"/></svg>AI 提议 · 13:41</div>
+              <p class="ptext">检测到『发布 Elsewhen 1.0』已 3 天没有具体抓手推进。建议：把『写作节奏』暂停，本周只保留发布目标。你决定。</p>
+              <div class="pactions">
+                <button class="pbtn primary" data-act="adopt">采纳</button>
+                <button class="pbtn" data-act="ignore">忽略</button>
+                <button class="pbtn" data-act="later">先放着</button>
+              </div>
+              <div class="pstate" id="pstate"></div>
+            </div>
+
+            <div class="msg me"><span class="who">20:05</span><div class="bubble">重读《置身事内》，里面讲地方政府激励那段，和我做工具的取舍其实是一个结构。</div></div>
+            <div class="msg ai"><span class="who">20:06</span><div class="bubble">已生成知识页草稿《激励结构 → 产品取舍》，来源 2 条记录，待你审阅。</div></div>
+          </div>
+
+          <div class="composer">
+            <div class="composer-hint" id="chatHint">在下方输入框开始对话。</div>
+            <div class="composer-row">
+              <input id="msgInput" type="text" placeholder="输入消息..." aria-label="输入消息">
+              <button class="send-btn" id="sendBtn">发送</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 目标 -->
+      <section class="surface" data-surface="goals">
+        <div class="inner">
+          <div class="page-head">
+            <h1>核心目标</h1>
+            <p class="page-sub">最多 3 个。三件事同时可见，才知道把时间给了谁。</p>
+          </div>
+          <div class="goals">
+            <div class="goal active">
+              <div class="goal-top"><span class="goal-name">发布 Elsewhen 1.0</span><span class="goal-state">进行中 · 第 12 天</span></div>
+              <div class="fields">
+                <div class="field full"><span class="k">核心动力</span><span class="v">把本地优先的认知工具交到具体的人手里</span></div>
+                <div class="field"><span class="k">当前抓手</span><span class="v">发布说明 + 同步稳定性</span></div>
+                <div class="field"><span class="k">已知卡点</span><span class="v">知识页编辑体验</span></div>
+                <div class="field full"><span class="k">完成判据</span><span class="v">v1.0 安装包可下载</span></div>
+              </div>
+            </div>
+            <div class="goal active">
+              <div class="goal-top"><span class="goal-name">建立稳定写作节奏</span><span class="goal-state">进行中 · 第 5 天</span></div>
+              <div class="fields">
+                <div class="field full"><span class="k">核心动力</span><span class="v">把思考沉淀成可复用的文字</span></div>
+                <div class="field"><span class="k">当前抓手</span><span class="v">每周两篇</span></div>
+              </div>
+            </div>
+            <div class="goal paused">
+              <div class="goal-top"><span class="goal-name">完成《地方与国家》阅读笔记</span><span class="goal-state">暂停 · 8 天前暂停</span></div>
+              <div class="fields">
+                <div class="field full"><span class="k">核心动力</span><span class="v">理解激励结构</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 回顾 -->
+      <section class="surface" data-surface="review">
+        <div class="inner">
+          <div class="page-head"><h1>回顾</h1></div>
+          <div class="seg">
+            <button class="seg-btn" data-grain="day">日</button>
+            <button class="seg-btn active" data-grain="week">周</button>
+            <button class="seg-btn" data-grain="month">月</button>
+          </div>
+          <div class="review-grid">
+            <div class="stat"><div class="k">记录</div><div class="v">31</div><div class="note">本周条数</div></div>
+            <div class="stat"><div class="k">活跃目标偏离</div><div class="v up">1</div><div class="note">写作节奏，连续 4 天未推进</div></div>
+            <div class="stat"><div class="k">新增知识页</div><div class="v">6</div><div class="note">本周</div></div>
+            <div class="stat"><div class="k">审阅提议</div><div class="v"><span class="up">采纳 4</span> / <span class="down">忽略 2</span></div><div class="note">本周</div></div>
+          </div>
+          <div class="mirror">
+            <h2>本周的一面镜子</h2>
+            <p>本周『建立稳定写作节奏』连续 4 天没有新记录。是计划变了，还是这件事先放下了？</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 情报 -->
+      <section class="surface" data-surface="intel">
+        <div class="inner">
+          <div class="page-head"><h1>情报</h1><p class="page-sub">来源筛选</p></div>
+          <div class="chips">
+            <button class="chip active">全部</button>
+            <button class="chip">X</button>
+            <button class="chip">网页</button>
+            <button class="chip">手动</button>
+          </div>
+          <div class="notice"><span class="big">3</span><span class="muted">条未读</span></div>
+        </div>
+      </section>
+
+      <!-- 同步 -->
+      <section class="surface" data-surface="sync">
+        <div class="inner">
+          <div class="page-head"><h1>同步</h1><p class="page-sub">设备</p></div>
+          <div class="device"><span class="nm">这台 MacBook</span><span class="st">已追平</span></div>
+          <div class="device"><span class="nm">iPhone</span><span class="st">已追平</span></div>
+          <p class="locknote">端到端加密，中继只见密文。</p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <div class="ev-scrim" id="evScrim"></div>
+  <button class="ev-toggle" id="evToggle">证据</button>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  var app=document.getElementById('app');
+  var navItems=[].slice.call(document.querySelectorAll('.nav-item'));
+  var surfaces=[].slice.call(document.querySelectorAll('.surface'));
+  var title=document.getElementById('topTitle');
+  var taxWrap=document.getElementById('taxWrap');
+  var goalsMini=document.getElementById('goalsMini');
+  var toastEl=document.getElementById('toast');
+  var toastTimer;
+  var titles={knowledge:'知识',chat:'对话',goals:'目标',intel:'情报',review:'回顾',sync:'同步'};
+
+  function toast(msg){
+    toastEl.textContent=msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(function(){toastEl.classList.remove('show');},2300);
+  }
+
+  function show(name){
+    navItems.forEach(function(n){n.classList.toggle('active',n.dataset.target===name);});
+    surfaces.forEach(function(s){s.classList.toggle('active',s.dataset.surface===name);});
+    title.textContent=titles[name]||'';
+    taxWrap.style.display=name==='knowledge'?'':'none';
+    goalsMini.style.display=name==='knowledge'?'none':'';
+    app.classList.remove('ev-open');
+  }
+  navItems.forEach(function(n){n.addEventListener('click',function(){show(n.dataset.target);});});
+
+  // 知识分类：切换高亮与面包屑
+  var cats=[].slice.call(document.querySelectorAll('.cat'));
+  cats.forEach(function(c){
+    c.addEventListener('click',function(){
+      cats.forEach(function(x){x.classList.toggle('active',x===c);});
+      document.getElementById('kbCat').textContent=c.dataset.cat;
+      document.querySelector('.crumb .dot').className='dot '+ (c.querySelector('.dot').className.replace('dot ',''));
+    });
+  });
+
+  // 对话：AI 提议三态反馈
+  var proposal=document.getElementById('proposal');
+  var pstate=document.getElementById('pstate');
+  var pmsg={adopt:'已采纳 · 本周只保留发布目标',ignore:'已忽略这条提议',later:'先放着 · 保留在待定'};
+  [].slice.call(proposal.querySelectorAll('.pbtn')).forEach(function(b){
+    b.addEventListener('click',function(){
+      var k=b.dataset.act;
+      proposal.dataset.state=k;
+      [].slice.call(proposal.querySelectorAll('.pbtn')).forEach(function(x){x.classList.toggle('chosen',x===b);});
+      pstate.textContent=pmsg[k];
+      toast(pmsg[k]);
+    });
+  });
+
+  // 对话：发送（内容即用户输入，不虚构）
+  var stream=document.getElementById('stream');
+  var input=document.getElementById('msgInput');
+  var send=document.getElementById('sendBtn');
+  var hint=document.getElementById('chatHint');
+  function doSend(){
+    var v=input.value.trim();
+    if(!v){toast('在下方输入框开始对话。');return;}
+    var row=document.createElement('div');
+    row.className='msg me';
+    var b=document.createElement('div');
+    b.className='bubble';
+    b.textContent=v;
+    row.appendChild(b);
+    stream.appendChild(row);
+    input.value='';
+    hint.textContent='AI 正在思考…';
+    stream.scrollTop=stream.scrollHeight;
+    setTimeout(function(){
+      hint.textContent='在下方输入框开始对话。';
+    },1300);
+  }
+  send.addEventListener('click',doSend);
+  input.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doSend();}});
+
+  // 设置入口（二级页）
+  document.getElementById('settingsBtn').addEventListener('click',function(){toast('设置 · 二级页');});
+
+  // 回顾粒度 / 情报筛选：真实状态切换
+  [].slice.call(document.querySelectorAll('.seg-btn')).forEach(function(b){
+    b.addEventListener('click',function(){
+      [].slice.call(document.querySelectorAll('.seg-btn')).forEach(function(x){x.classList.toggle('active',x===b);});
+      toast('粒度：'+b.textContent);
+    });
+  });
+  [].slice.call(document.querySelectorAll('.chip')).forEach(function(b){
+    b.addEventListener('click',function(){
+      [].slice.call(document.querySelectorAll('.chip')).forEach(function(x){x.classList.toggle('active',x===b);});
+      toast('来源筛选：'+b.textContent);
+    });
+  });
+
+  // 目录跳转
+  [].slice.call(document.querySelectorAll('.toc a')).forEach(function(a){
+    a.addEventListener('click',function(e){
+      e.preventDefault();
+      var t=document.getElementById(a.dataset.to);
+      if(t){t.scrollIntoView({behavior:'smooth',block:'start'});}
+    });
+  });
+
+  // 移动端证据栏
+  var evToggle=document.getElementById('evToggle');
+  var evClose=document.getElementById('evClose');
+  var evScrim=document.getElementById('evScrim');
+  evToggle.addEventListener('click',function(){app.classList.toggle('ev-open');});
+  evClose.addEventListener('click',function(){app.classList.remove('ev-open');});
+  evScrim.addEventListener('click',function(){app.classList.remove('ev-open');});
+})();
+</script>
+</body>
+</html>

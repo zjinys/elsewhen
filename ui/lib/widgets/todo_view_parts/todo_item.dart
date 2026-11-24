@@ -52,7 +52,7 @@ class _TodoItem extends StatelessWidget {
                       todo.isDone
                           ? Icons.check_circle
                           : Icons.radio_button_unchecked,
-                      size: 18,
+                      size: DesignTokens.icon,
                       color: todo.isDone
                           ? AppTheme.accentPrimary
                           : AppTheme.textTertiary,
@@ -83,7 +83,7 @@ class _TodoItem extends StatelessWidget {
                             todo.title,
                             style: TextStyle(
                               color: AppTheme.textPrimary,
-                              fontSize: 13.5,
+                              fontSize: TypographyTokens.body,
                               fontWeight: FontWeight.w500,
                               decoration: todo.isDone
                                   ? TextDecoration.lineThrough
@@ -113,7 +113,7 @@ class _TodoItem extends StatelessWidget {
                                   children: [
                                     Icon(
                                       Icons.menu_book_outlined,
-                                      size: 12,
+                                      size: DesignTokens.iconMicro,
                                       color: AppTheme.accentPrimary,
                                     ),
                                     const SizedBox(width: 3),
@@ -133,7 +133,7 @@ class _TodoItem extends StatelessWidget {
                               padding: const EdgeInsets.only(right: 8),
                               child: Icon(
                                 Icons.alarm,
-                                size: 13,
+                                size: DesignTokens.iconMicro,
                                 color: AppTheme.accentPrimary,
                               ),
                             ),
@@ -173,7 +173,7 @@ class _TodoItem extends StatelessWidget {
                 splashRadius: 16,
                 icon: Icon(
                   Icons.more_horiz,
-                  size: 16,
+                  size: DesignTokens.iconMicro,
                   color: AppTheme.textTertiary,
                 ),
                 color: AppTheme.surface2,
@@ -192,7 +192,7 @@ class _TodoItem extends StatelessWidget {
                       children: [
                         Icon(
                           Icons.edit_outlined,
-                          size: 16,
+                          size: DesignTokens.iconMicro,
                           color: AppTheme.accentPrimary,
                         ),
                         const SizedBox(width: AppTheme.space2),
@@ -209,7 +209,7 @@ class _TodoItem extends StatelessWidget {
                       children: [
                         Icon(
                           Icons.delete_outline,
-                          size: 16,
+                          size: DesignTokens.iconMicro,
                           color: AppTheme.error,
                         ),
                         const SizedBox(width: AppTheme.space2),

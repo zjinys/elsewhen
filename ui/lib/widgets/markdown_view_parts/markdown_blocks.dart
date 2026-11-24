@@ -2,6 +2,23 @@ part of '../markdown_view.dart';
 
 //! 块级渲染组件（_BlockWidget，图片竞技场兜底）
 
+/// 富文本块统一入口：[registrar] 来自环境的 SelectionArea（桌面主对话/
+/// 知识库详情会包），带上后裸 RichText 也能拖选复制；无选择环境时为
+/// null，行为与普通 RichText 完全一致。
+RichText _selectableRich(
+  TextSpan text, {
+  required SelectionRegistrar? registrar,
+  required Color selectionColor,
+  TextAlign? align,
+}) {
+  return RichText(
+    textAlign: align ?? TextAlign.left,
+    text: text,
+    selectionRegistrar: registrar,
+    selectionColor: selectionColor,
+  );
+}
+
 class _BlockWidget extends StatefulWidget {
   final _Block block;
   final TextStyle base;
@@ -25,6 +42,16 @@ class _BlockWidgetState extends State<_BlockWidget> {
 
   /// 供下方解析方法取样式：block 的样式在每次 build 由父级重新下发。
   TextStyle get base => widget.base;
+
+  /// 选择环境：桌面主对话/知识库详情包了 SelectionArea 时非空，
+  /// 裸 RichText 挂上 registrar 才能拖选复制；无选择环境返回 null。
+  SelectionRegistrar? get _selectionRegistrar =>
+      SelectionContainer.maybeOf(context);
+
+  /// 选择高亮色：跟随环境默认（主对话 SelectionArea 配套）。
+  Color get _selectionColor =>
+      DefaultSelectionStyle.of(context).selectionColor ??
+      DefaultSelectionStyle.defaultColor;
 
   void _releaseRecognizers() {
     if (_recognizers.isEmpty) return;
@@ -80,6 +107,9 @@ class _BlockWidgetState extends State<_BlockWidget> {
     // 上一轮 build 产出的 span 已随本次更新整体失效，此刻回收其识别器，
     // 避免长驻 element 上按重建次数累积。
     _releaseRecognizers();
+    // 选择支持：环境里有 SelectionArea（桌面主对话/知识库详情）时，
+    // 给裸 RichText 挂上选择代理——否则拖选永远选不中（只有代码块例外）。
+    // 无 SelectionArea 的环境（移动端、各类气泡）registrar 为 null，行为不变。
     final block = widget.block;
     return switch (block) {
       _TableBlock(:final header, :final aligns, :final rows) => _buildTable(
@@ -94,7 +124,11 @@ class _BlockWidgetState extends State<_BlockWidget> {
       _Heading(:final level, :final text) => _buildHeading(level, text),
       _Paragraph(:final text) => Padding(
         padding: const EdgeInsets.only(bottom: AppTheme.space3),
-        child: RichText(text: _inlineSpans(text, base)),
+        child: _selectableRich(
+          _inlineSpans(text, base),
+          registrar: _selectionRegistrar,
+          selectionColor: _selectionColor,
+        ),
       ),
       _List(:final items, :final ordered) => Padding(
         padding: const EdgeInsets.only(bottom: AppTheme.space3),
@@ -121,8 +155,8 @@ class _BlockWidgetState extends State<_BlockWidget> {
             left: BorderSide(color: AppTheme.accentPrimary, width: 3),
           ),
         ),
-        child: RichText(
-          text: _inlineSpans(
+        child: _selectableRich(
+          _inlineSpans(
             text,
             base.copyWith(
               fontSize: 14,
@@ -130,6 +164,8 @@ class _BlockWidgetState extends State<_BlockWidget> {
               height: 1.7,
             ),
           ),
+          registrar: _selectionRegistrar,
+          selectionColor: _selectionColor,
         ),
       ),
       _CodeBlock(:final code) => Container(
@@ -146,7 +182,7 @@ class _BlockWidgetState extends State<_BlockWidget> {
           child: SelectableText(
             code,
             style: TextStyle(
-              fontSize: 12.5,
+              fontSize: 12,
               color: AppTheme.textPrimary,
               fontFamily: 'monospace',
               height: 1.6,
@@ -224,12 +260,14 @@ class _BlockWidgetState extends State<_BlockWidget> {
             ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 360),
-              child: RichText(
-                textAlign: alignOf(idx) ?? TextAlign.left,
-                text: _inlineSpans(
+              child: _selectableRich(
+                _inlineSpans(
                   idx < cells.length ? cells[idx] : '',
                   isHeader ? headerStyle : cellStyle,
                 ),
+                align: alignOf(idx),
+                registrar: _selectionRegistrar,
+                selectionColor: _selectionColor,
               ),
             ),
           ),
@@ -281,7 +319,7 @@ class _BlockWidgetState extends State<_BlockWidget> {
                       checked
                           ? Icons.check_box_outlined
                           : Icons.check_box_outline_blank,
-                      size: 16,
+                      size: DesignTokens.iconMicro,
                       color: checked
                           ? AppTheme.accentPrimary
                           : AppTheme.textTertiary,
@@ -300,14 +338,16 @@ class _BlockWidgetState extends State<_BlockWidget> {
                   ),
           ),
           Expanded(
-            child: RichText(
-              text: _inlineSpans(
+            child: _selectableRich(
+              _inlineSpans(
                 text,
                 base.copyWith(
                   color: checked ? AppTheme.textTertiary : base.color,
                   decoration: checked ? TextDecoration.lineThrough : null,
                 ),
               ),
+              registrar: _selectionRegistrar,
+              selectionColor: _selectionColor,
             ),
           ),
         ],

@@ -46,7 +46,7 @@ class _KnowledgeOutputsSectionState
               children: [
                 Icon(
                   Icons.info_outline,
-                  size: 14,
+                  size: DesignTokens.iconMicro,
                   color: AppTheme.textTertiary,
                 ),
                 const SizedBox(width: 6),
@@ -135,14 +135,14 @@ class _KnowledgeOutputsSectionState
                                   output.slug.startsWith('knowledge-topic/')
                                       ? Icons.hub_outlined
                                       : Icons.menu_book_outlined,
-                                  size: 16,
+                                  size: DesignTokens.iconMicro,
                                   color: AppTheme.accentPrimary,
                                 ),
                               ),
                               title: Text(
                                 output.title,
                                 style: const TextStyle(
-                                  fontSize: 13.5,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -160,7 +160,7 @@ class _KnowledgeOutputsSectionState
                                               )).toString(),
                                             ),
                                   style: TextStyle(
-                                    fontSize: 11.5,
+                                    fontSize: 12,
                                     color: AppTheme.textTertiary,
                                   ),
                                 ),
@@ -305,7 +305,7 @@ class _SourceTile extends StatelessWidget {
               ),
               child: Icon(
                 Icons.article_outlined,
-                size: 18,
+                size: DesignTokens.icon,
                 color: AppTheme.accentPrimary,
               ),
             ),
@@ -315,7 +315,7 @@ class _SourceTile extends StatelessWidget {
                   child: Text(
                     source.title,
                     style: const TextStyle(
-                      fontSize: 13.5,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
                     maxLines: 1,
@@ -350,7 +350,7 @@ class _SourceTile extends StatelessWidget {
                   if (source.locator != null) ...[
                     Icon(
                       isUrl ? Icons.link : Icons.notes,
-                      size: 13,
+                      size: DesignTokens.iconMicro,
                       color: isUrl
                           ? AppTheme.accentPrimary
                           : AppTheme.textTertiary,
@@ -363,7 +363,7 @@ class _SourceTile extends StatelessWidget {
                               child: Text(
                                 source.locator!,
                                 style: TextStyle(
-                                  fontSize: 11.5,
+                                  fontSize: 12,
                                   color: AppTheme.accentPrimary,
                                   decoration: TextDecoration.underline,
                                 ),
@@ -374,7 +374,7 @@ class _SourceTile extends StatelessWidget {
                           : Text(
                               source.locator!,
                               style: TextStyle(
-                                fontSize: 11.5,
+                                fontSize: 12,
                                 color: AppTheme.textTertiary,
                               ),
                               maxLines: 1,
@@ -394,7 +394,7 @@ class _SourceTile extends StatelessWidget {
                   Text(
                     _shortTime(source.capturedAt),
                     style: TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 12,
                       color: AppTheme.textTertiary,
                     ),
                   ),

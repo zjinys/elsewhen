@@ -16,6 +16,7 @@ class SyncJoinController extends ChangeNotifier {
     SyncKeyStore? keyStore,
     SyncJoinApi? bridge,
     this.enrollment,
+    this.pollInterval = const Duration(seconds: 3),
     this.isSessionBusy,
     this.previewEnabled = // 默认开启（P4d 全链路已完成）；发布门禁前如需关断：--dart-define=ELSEWHEN_SYNC_PREVIEW=false
     const bool.fromEnvironment(
@@ -30,6 +31,8 @@ class SyncJoinController extends ChangeNotifier {
   final SyncEnrollmentController? enrollment;
   final bool Function()? isSessionBusy;
   final bool previewEnabled;
+  final Duration pollInterval;
+  Timer? _coordinationTimer;
   api.SyncJoinStateDto? state;
   List<api.SyncJoinEntryDto> entries = [];
   String? error;
@@ -83,6 +86,7 @@ class SyncJoinController extends ChangeNotifier {
         return;
       }
       _accept(next);
+      _scheduleCoordination();
       notice = appNotice('l6TheApprovedHandoffIsBeingCoordinated7e9e2');
       _changed();
     } catch (_) {
@@ -97,7 +101,43 @@ class SyncJoinController extends ChangeNotifier {
     _changed();
   }
 
+  void _scheduleCoordination() {
+    _coordinationTimer?.cancel();
+    if (_closed || _disposed || !active) return;
+    if (!const [
+      'ready_to_request',
+      'awaiting_approval',
+      'installation_confirmation',
+      'awaiting_membership',
+    ].contains(state?.phase)) {
+      return;
+    }
+    final operation = _operation;
+    _coordinationTimer = Timer(pollInterval, () async {
+      if (_closed || _disposed || operation != _operation) return;
+      if (busy || isSessionBusy?.call() == true) {
+        _scheduleCoordination();
+        return;
+      }
+      switch (state?.phase) {
+        case 'ready_to_request':
+          await sendRequest();
+        case 'awaiting_approval':
+          await inspectApproval();
+        case 'installation_confirmation':
+          await _action(() async {
+            await _confirm(state!);
+            _requireOpen();
+            _accept(await _bridge.sendProof(operation!));
+          });
+        case 'awaiting_membership':
+          await sendProof();
+      }
+    });
+  }
+
   void _resumeEnrollment() {
+    _scheduleCoordination();
     if (!_closed &&
         !_disposed &&
         active &&
@@ -322,6 +362,7 @@ class SyncJoinController extends ChangeNotifier {
 
   Future<void> close() async {
     _closed = true;
+    _coordinationTimer?.cancel();
     await enrollment?.pause();
     await _actionDone?.future;
     try {

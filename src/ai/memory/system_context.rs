@@ -99,6 +99,27 @@ pub(crate) fn build_system_context(
                     if let Some(done) = &goal.done_criteria {
                         prompt.push_str(&strings.render("done", &[("value", (done).to_string())])?);
                     }
+                    // 同计划前序承接：步骤推进时实质讨论常在前一步的会话里，
+                    // 不注入则新步骤的幕僚「从零开始」失忆。只注入有界尾部
+                    // （8 条、每条截到 160 字）并标注来源；不搬移历史消息，
+                    // 原文仍留在前序目标的专属会话里（单一来源不变）。
+                    if let Some(predecessor) = store.goal_chat_predecessor(goal_id)? {
+                        prompt.push_str(&strings.render(
+                            "goal_predecessor",
+                            &[
+                                ("goal", predecessor.goal_content.clone()),
+                                ("count", predecessor.message_count.to_string()),
+                            ],
+                        )?);
+                        for (role, content) in &predecessor.tail {
+                            let key = if role == "user" {
+                                "goal_predecessor_user"
+                            } else {
+                                "goal_predecessor_assistant"
+                            };
+                            prompt.push_str(&strings.render(key, &[("value", content.clone())])?);
+                        }
+                    }
                 }
             }
         }
@@ -171,33 +192,8 @@ pub(crate) fn build_system_context(
         prompt.push_str(strings.literal("profile_sufficiency")?);
     }
 
-    if !is_knowledge_mentor {
-        if let Ok((profile, _)) = store.planning_profile() {
-            let fields = [
-                (strings.literal("skills")?, profile.skills),
-                (strings.literal("resources")?, profile.resources),
-                (strings.literal("limits")?, profile.limits),
-                (strings.literal("preferences_missing")?, profile.preferences),
-            ];
-            if fields.iter().any(|(_, v)| !v.trim().is_empty()) {
-                prompt.push_str(strings.literal("profile_facts")?);
-                for (label, value) in fields {
-                    if !value.trim().is_empty() {
-                        prompt.push_str(&strings.render(
-                            "profile_field",
-                            &[
-                                ("label", (label.to_string()).to_string()),
-                                (
-                                    "value",
-                                    (value.chars().take(500).collect::<String>()).to_string(),
-                                ),
-                            ],
-                        )?);
-                    }
-                }
-            }
-        }
-        prompt.push_str(strings.literal("profile_discipline")?);
+    if let Some(profile) = personal_profile_context(store, conversation_id)? {
+        context.push(profile);
     }
     if let Some((goal_id, ..)) = &goal_chat {
         if let Ok((references, _)) = store.goal_references(goal_id) {
@@ -344,6 +340,48 @@ pub(crate) fn build_system_context(
     Ok(context)
 }
 
+pub(crate) fn personal_profile_context(
+    store: &Store,
+    conversation_id: &str,
+) -> Result<Option<ContextMessage>> {
+    if store
+        .get_conversation(conversation_id)?
+        .is_some_and(|c| c.assistant_mode == "knowledge_mentor" || c.wiki_page_slug.is_some())
+    {
+        return Ok(None);
+    }
+    let resources = store.prompt_for_run("chat.context.fixed_contract")?;
+    let strings = crate::storage::prompts::render::TextResources::parse(&resources)?;
+    let mut text = strings.literal("profile_facts")?.to_owned();
+    // An invalid/withdrawn profile contributes no cached facts. Keep the
+    // discipline available so explicit corrections can use the existing tool.
+    if let Ok((profile, _)) = store.planning_profile() {
+        for (key, value) in [
+            ("skills", profile.skills),
+            ("resources", profile.resources),
+            ("limits", profile.limits),
+            ("preferences_missing", profile.preferences),
+        ] {
+            if !value.trim().is_empty() {
+                text.push_str(&strings.render(
+                    "profile_field",
+                    &[
+                        ("label", strings.literal(key)?.into()),
+                        ("value", value.chars().take(500).collect()),
+                    ],
+                )?);
+            }
+        }
+    }
+    text.push_str(strings.literal("profile_discipline")?);
+    Ok(Some(ContextMessage::new("system", text).with_segment(
+        SegmentPurpose::PersonalProfile,
+        SegmentOrigin::KnowledgePage,
+        Some("profile/me"),
+        OmissionPolicy::Required,
+    )))
+}
+
 pub(crate) fn recent_background(
     store: &Store,
     conversation_id: &str,
@@ -402,6 +440,13 @@ pub(crate) fn today_memory_background(
     let mut entries: Vec<(String, String)> = store
         .daily_entries(today)?
         .into_iter()
+        .filter(|entry| {
+            store.recordable_event(&entry.event_id).unwrap_or(false)
+                && store.memory_event_visible(&entry.event_id).unwrap_or(false)
+                && !store
+                    .memory_source_suppressed("event", &entry.event_id)
+                    .unwrap_or(true)
+        })
         .map(|entry| (entry.recorded_at, entry.raw_text))
         .collect();
     if entries.is_empty() {
@@ -450,48 +495,40 @@ pub(crate) fn user_cognition_profile_background(
     if is_isolated {
         return Ok(None);
     }
-    let cutoff = (chrono::Utc::now() - chrono::Duration::days(30)).to_rfc3339();
-    let mut statement = store.connection.prepare(
-        "SELECT kind,title,summary FROM wiki_pages
-         WHERE kind IN ('insight','habit','recurring_cost') AND status='active'
-           AND updated_at>=?1
-         ORDER BY updated_at DESC LIMIT 5",
-    )?;
-    let rows = statement.query_map([cutoff], |row| {
-        Ok((
-            row.get::<_, String>(0)?,
-            row.get::<_, String>(1)?,
-            row.get::<_, String>(2)?,
-        ))
-    })?;
-    let mut lines: Vec<String> = Vec::new();
-    let mut used = 0usize;
-    for row in rows {
-        let (kind, title, summary) = row?;
-        let label = match kind.as_str() {
-            "insight" => strings.literal("cognition_insight")?,
-            "habit" => strings.literal("cognition_habit")?,
-            _ => strings.literal("cognition_cost")?,
+    let messages = super::history::messages(store, conversation_id)?;
+    let query = messages
+        .iter()
+        .rev()
+        .find(|message| message.role == "user")
+        .map(|message| message.content.clone())
+        .unwrap_or_default();
+    let mut facts = Vec::new();
+    for citation in crate::knowledge::select_knowledge(store, &query, "personal-background", 2400)?
+    {
+        let Some(page) = store.get_wiki_page(&citation.page_slug)? else {
+            continue;
         };
-        let summary: String = summary.chars().take(60).collect();
-        let line = if summary.trim().is_empty() {
-            format!("- [{label}] {title}")
-        } else {
-            format!("- [{label}] {title}：{summary}")
-        };
-        used += line.chars().count() + 1;
-        if used > 300 {
+        if !matches!(page.kind.as_str(), "insight" | "habit" | "recurring_cost") {
+            continue;
+        }
+        facts.push(citation);
+        if facts.len() == 3 {
             break;
         }
-        lines.push(line);
     }
-    if lines.is_empty() {
+    if facts.is_empty() {
         return Ok(None);
     }
-    let prompt = strings.render("cognition_background", &[("facts", lines.join("\n"))])?;
-    let message = ContextMessage::new("system", prompt).with_segment(
+    // Reuse the evidence envelope so citation/version checks and usage do not
+    // treat these generated patterns as established personal facts.
+    let _ = strings;
+    let message = ContextMessage::new(
+        "system",
+        crate::knowledge::context_text_for_run(store, &facts)?,
+    )
+    .with_segment(
         SegmentPurpose::CrossConversation,
-        SegmentOrigin::StoredMessage,
+        SegmentOrigin::KnowledgeSelection,
         Some("user-cognition-profile"),
         OmissionPolicy::OptionalBackground,
     );

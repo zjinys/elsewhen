@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/api.dart' as api;
+import '../utils/scout_text.dart';
 import 'scout_provider.dart';
 import 'state_holder.dart';
 
@@ -12,7 +13,7 @@ class ScoutProduct {
   final Map<String, dynamic> data;
   ScoutProduct(this.data);
   String get id => '${data['product_id']}';
-  String get title => '${data['title'] ?? ''}';
+  String get title => cleanScoutText(data['title']);
   Map<String, dynamic> get payload =>
       Map<String, dynamic>.from(data['payload'] as Map? ?? {});
   String get source =>
@@ -25,11 +26,40 @@ class ScoutProduct {
       .whereType<Map>()
       .map((e) => Map<String, dynamic>.from(e))
       .toList();
-  String? get description =>
-      ((payload['description'] ?? payload['summary']) as String?)
-          ?.replaceAll(RegExp(r'<[^>]*>'), ' ')
-          .replaceAll(RegExp(r'\s+'), ' ')
-          .trim();
+  String? get description {
+    for (final key in [
+      'description',
+      'summary',
+      'tagline',
+      'short_description',
+    ]) {
+      final value = cleanScoutText(payload[key], feedNavigation: true);
+      if (value.isNotEmpty && value != title) return value;
+    }
+    return null;
+  }
+
+  String? get category {
+    for (final key in [
+      'genres_0_name',
+      'primaryGenreName',
+      'category',
+      'language',
+    ]) {
+      final value = cleanScoutText(payload[key]);
+      if (value.isNotEmpty) return value;
+    }
+    return null;
+  }
+
+  String? get maker {
+    for (final key in ['artistName', 'seller_name', 'developer', 'author']) {
+      final value = cleanScoutText(payload[key]);
+      if (value.isNotEmpty) return value;
+    }
+    return null;
+  }
+
   String? get link =>
       (payload['html_url'] ?? payload['url'] ?? payload['link']) as String?;
 }
@@ -88,6 +118,78 @@ class ScoutResearchRepository {
       ),
     ) as Map<String, dynamic>,
   );
+
+  /// Merge bounded source queries before slicing a globally ordered page.
+  /// Reuse the server cursor so sparse sources cannot hide later matches.
+  Future<ScoutProductPage> productsForSources(
+    String query,
+    Set<String> sources, {
+    String? cursor,
+    String? asOf,
+    String view = 'signals',
+  }) async {
+    final ids = sources.toList()..sort();
+    if (ids.length <= 1) {
+      return products(
+        query,
+        ids.firstOrNull,
+        cursor: cursor,
+        asOf: asOf,
+        view: view,
+      );
+    }
+    final first = await products(
+      query,
+      ids.first,
+      cursor: cursor,
+      asOf: asOf,
+      view: view,
+    );
+    final pages = [
+      first,
+      ...await Future.wait([
+        for (final source in ids.skip(1))
+          products(query, source, cursor: cursor, asOf: first.asOf, view: view),
+      ]),
+    ];
+    if (pages.any(
+      (page) => page.instance != first.instance || page.asOf != first.asOf,
+    )) {
+      throw StateError(
+        'Scout source pages must share one observation boundary',
+      );
+    }
+    final unique = <String, ScoutProduct>{};
+    for (final page in pages) {
+      for (final product in page.items) {
+        unique.putIfAbsent(product.id, () => product);
+      }
+    }
+    final ordered = unique.values.toList()
+      ..sort((a, b) {
+        final byTime = (b.data['observed_at'] as String).compareTo(
+          a.data['observed_at'] as String,
+        );
+        return byTime != 0 ? byTime : b.id.compareTo(a.id);
+      });
+    final items = ordered.take(40).toList();
+    final more =
+        ordered.length > items.length || pages.any((p) => p.next != null);
+    return ScoutProductPage({
+      'instance_id': first.instance,
+      'as_of': first.asOf,
+      'items': [for (final product in items) product.data],
+      'next': more && items.isNotEmpty
+          ? jsonEncode([items.last.data['observed_at'], items.last.id])
+          : null,
+      'index_pending': pages.fold<int>(
+        0,
+        (max, p) => p.indexPending > max ? p.indexPending : max,
+      ),
+      'stale': pages.any((p) => p.stale),
+    });
+  }
+
   Future<Map<String, dynamic>> detail(String id, {int? before}) async =>
       jsonDecode(await api.scoutProductDetail(productId: id, before: before))
           as Map<String, dynamic>;
@@ -156,6 +258,27 @@ final scoutProductViewProvider = NotifierProvider<StateHolder<String>, String>(
   () => StateHolder('signals'),
 );
 
+/// Discovery supports an OR selection; activity keeps its existing single source.
+/// Selecting a source from navigation starts a new discovery selection.
+class ScoutProductSources extends Notifier<Set<String>> {
+  @override
+  Set<String> build() {
+    final source = ref.watch(scoutSourceFilterProvider);
+    return {?source};
+  }
+
+  void toggle(String source) => state = Set.unmodifiable(
+    state.contains(source)
+        ? (Set.of(state)..remove(source))
+        : {...state, source},
+  );
+  void clear() => state = const {};
+  void selectOnly(String? source) => state = {?source};
+}
+
+final scoutProductSourcesProvider =
+    NotifierProvider<ScoutProductSources, Set<String>>(ScoutProductSources.new);
+
 class ScoutProductsNotifier extends AsyncNotifier<ScoutProductPage> {
   bool _loadingMore = false;
   @override
@@ -163,9 +286,9 @@ class ScoutProductsNotifier extends AsyncNotifier<ScoutProductPage> {
     ref.watch(scoutRevisionProvider);
     return ref
         .watch(scoutResearchRepositoryProvider)
-        .products(
+        .productsForSources(
           ref.watch(scoutProductQueryProvider),
-          ref.watch(scoutSourceFilterProvider),
+          ref.watch(scoutProductSourcesProvider),
           view: ref.watch(scoutProductViewProvider),
         );
   }
@@ -177,9 +300,9 @@ class ScoutProductsNotifier extends AsyncNotifier<ScoutProductPage> {
     try {
       final next = await ref
           .read(scoutResearchRepositoryProvider)
-          .products(
+          .productsForSources(
             ref.read(scoutProductQueryProvider),
-            ref.read(scoutSourceFilterProvider),
+            ref.read(scoutProductSourcesProvider),
             cursor: page!.next,
             asOf: page.asOf,
             view: ref.read(scoutProductViewProvider),

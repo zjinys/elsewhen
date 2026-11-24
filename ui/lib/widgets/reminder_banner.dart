@@ -1,9 +1,12 @@
+import 'dart:io';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../bridge/api.dart' as api;
 import '../bridge/rust_bridge_repository.dart';
 import '../theme/app_theme.dart';
+import '../theme/design_tokens.dart';
 
 import 'package:intl/intl.dart';
 
@@ -25,10 +28,22 @@ class ReminderBanner extends ConsumerWidget {
         if (due.isEmpty) return const SizedBox.shrink();
         // 单条独占一条：一次只弹最旧的一条，其余排队
         final d = due.first;
+        final dark = AppTheme.brightness == Brightness.dark;
         return Container(
           width: double.infinity,
-          color: AppTheme.accentPrimary.withValues(alpha: 0.12),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          margin: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: dark
+                ? AppTheme.accentPrimary.withValues(alpha: 0.14)
+                : AppTheme.accentPrimary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: AppTheme.accentPrimary.withValues(alpha: dark ? 0.32 : 0.20),
+              width: 0.5,
+            ),
+            boxShadow: ShadowTokens.level1(dark),
+          ),
           child: Row(
             children: [
               Icon(Icons.alarm, size: 18, color: AppTheme.accentPrimary),

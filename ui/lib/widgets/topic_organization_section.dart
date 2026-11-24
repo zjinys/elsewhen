@@ -10,6 +10,7 @@ import '../models/wiki_page.dart';
 import '../providers/knowledge_provider.dart';
 import '../theme/app_theme.dart';
 import 'markdown_view.dart';
+import '../theme/design_tokens.dart';
 
 class TopicOrganizationSection extends ConsumerStatefulWidget {
   final WikiPage page;
@@ -104,19 +105,19 @@ class _TopicOrganizationSectionState
             ),
             child: Icon(
               Icons.account_tree_outlined,
-              size: 16,
+              size: DesignTokens.iconMicro,
               color: AppTheme.textSecondary,
             ),
           ),
           title: Text(
             context.l10n.l6OrganizeTopicscabf2,
-            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(
               context.l10n.l6MergeSimilarTopicsOrSplitA6542f,
-              style: TextStyle(fontSize: 11.5, color: AppTheme.textTertiary),
+              style: TextStyle(fontSize: 12, color: AppTheme.textTertiary),
             ),
           ),
           children: [
@@ -136,7 +137,7 @@ class _TopicOrganizationSectionState
                       children: [
                         Icon(
                           Icons.info_outline,
-                          size: 15,
+                          size: DesignTokens.iconMicro,
                           color: AppTheme.textTertiary,
                         ),
                         const SizedBox(width: 8),
@@ -146,7 +147,7 @@ class _TopicOrganizationSectionState
                                 .l10n
                                 .l6OldTopicsAreArchivedAfterConfirmationf5e56,
                             style: TextStyle(
-                              fontSize: 11.5,
+                              fontSize: 12,
                               color: AppTheme.textSecondary,
                               height: 1.4,
                             ),
@@ -164,7 +165,7 @@ class _TopicOrganizationSectionState
                             decoration: InputDecoration(
                               hintText: context.l10n.l6SearchTopicsToMergef60aa,
                               hintStyle: TextStyle(
-                                fontSize: 12.5,
+                                fontSize: 12,
                                 color: AppTheme.textTertiary,
                               ),
                               isDense: true,
@@ -187,7 +188,7 @@ class _TopicOrganizationSectionState
                                 ),
                               ),
                             ),
-                            style: const TextStyle(fontSize: 12.5),
+                            style: const TextStyle(fontSize: 12),
                             onChanged: (v) => _query = v,
                             onSubmitted: (_) => _search(),
                           ),
@@ -399,7 +400,7 @@ class _TopicOrganizationSectionState
                                         title: Text(
                                           topic.title,
                                           style: const TextStyle(
-                                            fontSize: 12.5,
+                                            fontSize: 12,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
@@ -438,7 +439,7 @@ class _TopicOrganizationSectionState
                                                               .toString(),
                                                         ),
                                                     style: TextStyle(
-                                                      fontSize: 11.5,
+                                                      fontSize: 12,
                                                       color: AppTheme
                                                           .textSecondary,
                                                     ),

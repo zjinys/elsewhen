@@ -65,23 +65,44 @@ class _ScoutProductWorkspaceState extends ConsumerState<ScoutProductWorkspace> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Align(
             alignment: Alignment.centerLeft,
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: [
-                for (final option in ['signals', 'growth', 'price', 'all'])
-                  ChoiceChip(
-                    label: Text(switch (option) {
-                      'signals' => context.l10n.scoutWhyNow,
-                      'growth' => context.l10n.scoutGrowthSignals,
-                      'price' => context.l10n.scoutPriceSignals,
-                      _ => context.l10n.scoutAllProducts,
-                    }),
-                    selected: view == option,
-                    onSelected: (_) =>
-                        ref.read(scoutProductViewProvider.notifier).set(option),
-                  ),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final options = [
+                  for (final option in [
+                    'signals',
+                    'growth',
+                    'price',
+                    'all',
+                  ])
+                    ChoiceChip(
+                      label: Text(switch (option) {
+                        'signals' => context.l10n.scoutWhyNow,
+                        'growth' => context.l10n.scoutGrowthSignals,
+                        'price' => context.l10n.scoutPriceSignals,
+                        _ => context.l10n.scoutAllProducts,
+                      }),
+                      selected: view == option,
+                      onSelected: (_) => ref
+                          .read(scoutProductViewProvider.notifier)
+                          .set(option),
+                    ),
+                ];
+                // 来源筛选不在这里：来源数量无上限，平铺 chip 放不下，
+                // 已收进左侧导航的情报来源面板（sidebar_scout_tab.dart）。
+                return constraints.maxWidth < 640
+                    ? SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (final option in options) ...[
+                              option,
+                              const SizedBox(width: 8),
+                            ],
+                          ],
+                        ),
+                      )
+                    : Wrap(spacing: 8, runSpacing: 6, children: options);
+              },
             ),
           ),
         ),
@@ -144,59 +165,86 @@ class _ScoutProductWorkspaceState extends ConsumerState<ScoutProductWorkspace> {
                     child: visible.isEmpty && p.next == null
                         ? Center(child: Text(context.l10n.scoutNoProducts))
                         : LayoutBuilder(
-                            builder: (context, c) => GridView.builder(
-                              key: PageStorageKey(
-                                'scout-products-${ref.watch(scoutProductQueryProvider)}:${ref.watch(scoutSourceFilterProvider)}:$view',
-                              ),
-                              padding: const EdgeInsets.all(16),
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: ((c.maxWidth - 32) / 320)
-                                        .floor()
-                                        .clamp(1, 4),
-                                    mainAxisExtent: 360,
-                                    crossAxisSpacing: 14,
-                                    mainAxisSpacing: 14,
-                                  ),
-                              itemCount:
-                                  visible.length + (p.next == null ? 0 : 1),
-                              itemBuilder: (context, i) => i == visible.length
-                                  ? Center(
-                                      child: TextButton(
-                                        onPressed: () async {
-                                          try {
-                                            await ref
-                                                .read(
-                                                  scoutProductPageProvider
-                                                      .notifier,
-                                                )
-                                                .more();
-                                          } catch (e) {
-                                            if (context.mounted) {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                    SnackBar(
-                                                      content: Text(
-                                                        context.errorMessage(
-                                                          context
-                                                              .l10n
-                                                              .scoutLoadMore,
-                                                          e,
+                            builder: (context, c) {
+                              final columns = ((c.maxWidth - 32) / 320)
+                                  .floor()
+                                  .clamp(1, 4);
+                              final rows = (visible.length / columns).ceil();
+                              final sources =
+                                  ref
+                                      .watch(scoutProductSourcesProvider)
+                                      .toList()
+                                    ..sort();
+                              return ListView.separated(
+                                key: PageStorageKey(
+                                  'scout-products-${ref.watch(scoutProductQueryProvider)}:${jsonEncode(sources)}:$view',
+                                ),
+                                padding: const EdgeInsets.all(16),
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(height: 14),
+                                itemCount: rows + (p.next == null ? 0 : 1),
+                                itemBuilder: (context, i) => i == rows
+                                    ? Center(
+                                        child: TextButton(
+                                          onPressed: () async {
+                                            try {
+                                              await ref
+                                                  .read(
+                                                    scoutProductPageProvider
+                                                        .notifier,
+                                                  )
+                                                  .more();
+                                            } catch (e) {
+                                              if (context.mounted) {
+                                                FeedbackToast.of(context)
+                                                    .show(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          context.errorMessage(
+                                                            context
+                                                                .l10n
+                                                                .scoutLoadMore,
+                                                            e,
+                                                          ),
                                                         ),
                                                       ),
-                                                    ),
-                                                  );
+                                                    );
+                                              }
                                             }
-                                          }
-                                        },
-                                        child: Text(context.l10n.scoutLoadMore),
+                                          },
+                                          child: Text(
+                                            context.l10n.scoutLoadMore,
+                                          ),
+                                        ),
+                                      )
+                                    : Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          for (
+                                            var column = 0;
+                                            column < columns;
+                                            column++
+                                          ) ...[
+                                            if (column > 0)
+                                              const SizedBox(width: 14),
+                                            Expanded(
+                                              child:
+                                                  i * columns + column <
+                                                      visible.length
+                                                  ? _ProductCard(
+                                                      product:
+                                                          visible[i * columns +
+                                                              column],
+                                                      instance: p.instance,
+                                                    )
+                                                  : const SizedBox.shrink(),
+                                            ),
+                                          ],
+                                        ],
                                       ),
-                                    )
-                                  : _ProductCard(
-                                      product: visible[i],
-                                      instance: p.instance,
-                                    ),
-                            ),
+                              );
+                            },
                           ),
                   ),
                 ],
@@ -214,122 +262,347 @@ class _ProductCard extends ConsumerWidget {
   final String instance;
   const _ProductCard({required this.product, required this.instance});
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Card(
-    margin: EdgeInsets.zero,
-    clipBehavior: Clip.antiAlias,
-    color: AppTheme.surface1,
-    child: InkWell(
-      onTap: () => _showProduct(context, product, instance),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(child: ScoutSourceBadge(sourceId: product.source)),
-                if ((ref.watch(scoutStudiesProvider).value ??
-                        <Map<String, dynamic>>[])
-                    .any(
-                      (s) =>
-                          s['instance_id'] == instance &&
-                          (s['product_id'] == product.id ||
-                              (product.data['aliases'] as List? ?? []).contains(
-                                s['product_id'],
-                              )),
-                    ))
+  Widget build(BuildContext context, WidgetRef ref) {
+    final facts = _productFacts(context, product);
+    final source = scoutSourceIdentity(
+      context,
+      product.source,
+      scoutSourceDisplayName(ref, product.source),
+    );
+    final hasDescription = product.description != null;
+    final identity = [
+      product.category,
+      product.maker,
+    ].whereType<String>().join(' · ');
+    final isFirstObservation =
+        product.reasons.isNotEmpty &&
+        product.reasons.first['kind'] == 'new_scope';
+    final firstObservedAt = isFirstObservation
+        ? '${product.reasons.first['to_at'] ?? ''}'
+        : '';
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      color: AppTheme.surface1,
+      child: InkWell(
+        onTap: () => _showProduct(context, product, instance),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
                   Tooltip(
-                    message: context.l10n.scoutStudies,
-                    child: Icon(
-                      Icons.bookmark_outline,
-                      size: 16,
-                      color: AppTheme.accentPrimary,
+                    message: '${source.platform} · ${source.topic}',
+                    child: ScoutSourceIcon(source: source),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      product.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
+                      ),
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(
-              product.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+                  if ((ref.watch(scoutStudiesProvider).value ??
+                          <Map<String, dynamic>>[])
+                      .any(
+                        (s) =>
+                            s['instance_id'] == instance &&
+                            (s['product_id'] == product.id ||
+                                (product.data['aliases'] as List? ?? [])
+                                    .contains(s['product_id'])),
+                      ))
+                    Tooltip(
+                      message: context.l10n.scoutStudies,
+                      child: Icon(
+                        Icons.bookmark_outline,
+                        size: DesignTokens.iconMicro,
+                        color: AppTheme.accentPrimary,
+                      ),
+                    ),
+                ],
               ),
-            ),
-            if (product.description != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 7),
-                child: Text(
-                  product.description!,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                ),
-              ),
-            const SizedBox(height: 12),
-            Text(
-              _lead(context, product),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 13,
-                color: product.reasons.isEmpty
-                    ? AppTheme.textSecondary
-                    : AppTheme.accentPrimary,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              _price(context, product),
-              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              context.l10n.scoutGapsHelp,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 10.5, color: AppTheme.textTertiary),
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                TextButton(
-                  onPressed: () =>
-                      _editResearch(context, ref, product, instance),
-                  child: Text(context.l10n.scoutStudy),
-                ),
-                TextButton(
-                  onPressed: () => _editResearch(
-                    context,
-                    ref,
-                    product,
-                    instance,
-                    initialState: 'watching',
+              if (product.data['affiliate'] case final Map affiliate)
+                if (affiliate['status'] == 'confirmed' &&
+                    affiliate['reward_type'] == 'cash' &&
+                    affiliate['stale'] == false)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      context.l10n.scoutAffiliateConfirmed,
+                      style: TextStyle(
+                        color: AppTheme.success,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                  child: Text(context.l10n.scoutStateWatching),
-                ),
-                const Spacer(),
-                IconButton(
-                  tooltip: context.l10n.scoutNotRelevant,
-                  icon: const Icon(Icons.visibility_off_outlined, size: 17),
-                  onPressed: () => _editResearch(
-                    context,
-                    ref,
-                    product,
-                    instance,
-                    initialState: 'rejected',
+              if (identity.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    identity,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
+                    ),
                   ),
                 ),
+              const SizedBox(height: 8),
+              Text(
+                product.description ?? context.l10n.scoutPurposeMissing,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: hasDescription
+                      ? AppTheme.textPrimary
+                      : AppTheme.textSecondary,
+                ),
+              ),
+              if (!hasDescription && product.link != null)
+                TextButton.icon(
+                  onPressed: () => launchUrl(
+                    Uri.parse(product.link!),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  icon: const Icon(Icons.open_in_new, size: 13),
+                  label: Text(context.l10n.scoutReadIntroduction),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+              if (facts.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 6,
+                  children: [
+                    for (final fact in facts)
+                      Tooltip(
+                        message: fact.label,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              fact.icon,
+                              size: DesignTokens.iconMicro,
+                              color: AppTheme.textSecondary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              fact.value,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               ],
-            ),
-          ],
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.surface2,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      isFirstObservation
+                          ? Icons.add_circle_outline
+                          : Icons.insights_outlined,
+                      size: DesignTokens.iconMicro,
+                      color: AppTheme.textSecondary,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Tooltip(
+                        message: isFirstObservation
+                            ? context.l10n.scoutNewScope
+                            : context.l10n.scoutWhyNow,
+                        child: Text(
+                          isFirstObservation
+                              ? context.l10n.scoutFirstObservedOn(
+                                  _day(firstObservedAt),
+                                )
+                              : _lead(context, product),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.45,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  FilledButton.tonal(
+                    onPressed: () =>
+                        _editResearch(context, ref, product, instance),
+                    style: FilledButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    child: Text(context.l10n.scoutStudy),
+                  ),
+                  TextButton(
+                    onPressed: () => _editResearch(
+                      context,
+                      ref,
+                      product,
+                      instance,
+                      initialState: 'watching',
+                    ),
+                    child: Text(context.l10n.scoutStateWatching),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: context.l10n.scoutNotRelevant,
+                    icon: const Icon(Icons.visibility_off_outlined, size: 17),
+                    onPressed: () => _editResearch(
+                      context,
+                      ref,
+                      product,
+                      instance,
+                      initialState: 'rejected',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
+}
+
+typedef _ProductFact = ({IconData icon, String label, String value});
+
+class _AffiliateDetail extends StatelessWidget {
+  const _AffiliateDetail({required this.value});
+  final Object? value;
+  @override
+  Widget build(BuildContext context) {
+    final data = value is Map ? value as Map : const {};
+    final quote = data['evidence_quote'];
+    final link = Uri.tryParse('${data['program_url'] ?? ''}');
+    final checked = data['checked_at'];
+    final label = data['stale'] == true
+        ? context.l10n.scoutAffiliateStale
+        : data['status'] == 'confirmed' && data['reward_type'] == 'cash'
+        ? context.l10n.scoutAffiliateConfirmed
+        : data['status'] == 'unavailable'
+        ? context.l10n.scoutAffiliateUnavailable
+        : context.l10n.scoutAffiliateUnknown;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+          if (quote is String && quote.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: SelectableText(quote),
+            ),
+          if (checked is String)
+            Text(
+              context.l10n.scoutAffiliateChecked(_exactTime(checked)),
+              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+            ),
+          if (link != null && link.scheme == 'https' && link.host.isNotEmpty)
+            TextButton.icon(
+              onPressed: () =>
+                  launchUrl(link, mode: LaunchMode.externalApplication),
+              icon: const Icon(Icons.open_in_new, size: 14),
+              label: Text(context.l10n.scoutAffiliateProgram),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+List<_ProductFact> _productFacts(BuildContext context, ScoutProduct product) {
+  final payload = product.payload;
+  final result = <_ProductFact>[];
+  final rank = payload['rank'];
+  if (rank is num && rank.isFinite && rank > 0) {
+    result.add((
+      icon: Icons.leaderboard_outlined,
+      label: context.l10n.scoutMetricRank,
+      value: '#${rank.toInt()}',
+    ));
+  }
+  final rating = payload['rating'] ?? payload['ratings_average'];
+  final count = payload['rating_count'] ?? payload['ratings_count'];
+  if (rating is num && rating.isFinite && rating >= 0 && rating <= 5) {
+    final reviews = count is num && count.isFinite && count >= 0
+        ? ' · ${NumberFormat.compact(locale: context.l10n.localeName).format(count)} ${context.l10n.scoutMetricReviews}'
+        : '';
+    result.add((
+      icon: Icons.star_outline,
+      label:
+          '${context.l10n.scoutMetricRating} · ${context.l10n.scoutMetricReviews}',
+      value: '${rating.toStringAsFixed(1)}/5$reviews',
+    ));
+  }
+  final stars = payload['stargazers_count'];
+  if (stars is num && stars.isFinite && stars >= 0) {
+    result.add((
+      icon: Icons.star_outline,
+      label: context.l10n.scoutMetricStars,
+      value: NumberFormat.compact(locale: context.l10n.localeName)
+          .format(stars),
+    ));
+  }
+  final price = payload['price_cents'];
+  final currency = payload['currency_code'];
+  if (price is num &&
+      price.isFinite &&
+      price >= 0 &&
+      currency is String &&
+      currency.isNotEmpty) {
+    result.add((
+      icon: Icons.sell_outlined,
+      label: context.l10n.scoutKnownPrice,
+      value: price == 0
+          ? product.source.startsWith('appstore')
+                ? context.l10n.scoutFreeDownload
+                : context.l10n.scoutListedFree
+          : '$currency ${(price / 100).toStringAsFixed(2)}',
+    ));
+  }
+  return result.take(3).toList();
 }
 
 String _price(BuildContext context, ScoutProduct p) {
@@ -453,6 +726,38 @@ class _ProductDetail extends ConsumerWidget {
                   padding: const EdgeInsets.only(top: 12),
                   child: SelectableText(product.description!),
                 ),
+              if (product.description == null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    context.l10n.scoutPurposeMissing,
+                    style: TextStyle(color: AppTheme.textSecondary),
+                  ),
+                ),
+              if ([
+                product.category,
+                product.maker,
+              ].whereType<String>().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(
+                    [
+                      product.category,
+                      product.maker,
+                    ].whereType<String>().join(' · '),
+                    style: TextStyle(color: AppTheme.textSecondary),
+                  ),
+                ),
+              if (_productFacts(context, product).isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(
+                    _productFacts(
+                      context,
+                      product,
+                    ).map((f) => '${f.label}: ${f.value}').join(' · '),
+                  ),
+                ),
               if ((ref.watch(scoutStudiesProvider).value ??
                       <Map<String, dynamic>>[])
                   .any(
@@ -472,6 +777,11 @@ class _ProductDetail extends ConsumerWidget {
                   ),
                 ),
               heading(context.l10n.scoutWhyNow),
+              if (product.source.startsWith('producthunt'))
+                _AffiliateDetail(
+                  value:
+                      detail.value?['affiliate'] ?? product.data['affiliate'],
+                ),
               Text(_lead(context, product)),
               heading(context.l10n.scoutKnownPrice),
               Text(_price(context, product)),
@@ -577,7 +887,7 @@ class _ProductDetail extends ConsumerWidget {
                                 .more();
                           } catch (e) {
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              FeedbackToast.of(context).show(
                                 SnackBar(
                                   content: Text(
                                     context.errorMessage(

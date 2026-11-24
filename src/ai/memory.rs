@@ -3,6 +3,8 @@ use crate::storage::Store;
 use anyhow::Result;
 use serde_json::json;
 
+pub(crate) mod claims;
+pub(crate) mod history;
 mod segments;
 pub use segments::{
     ContextSegment, OmissionPolicy, SegmentOrigin, SegmentPurpose, SelectionOmission,
@@ -12,7 +14,9 @@ pub use segments::{
 mod message;
 mod prompts;
 mod providers;
+mod recall;
 mod system_context;
+pub(crate) use recall::refresh_recalled_context;
 
 pub use message::ContextMessage;
 #[cfg(test)]

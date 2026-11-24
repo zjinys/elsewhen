@@ -13,6 +13,245 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appTitle => 'Elsewhen';
 
   @override
+  String get memoryManager => '记忆';
+
+  @override
+  String get memoryBackList => '返回记忆列表';
+
+  @override
+  String get memoryMore => '更多记忆操作';
+
+  @override
+  String get memoryStatus => '记忆状态';
+
+  @override
+  String get memoryKind => '记忆类型';
+
+  @override
+  String get memoryManagerHelp => '查看 AI 的记忆、来源和适用范围。修改需核对审阅卡后生效。';
+
+  @override
+  String get memorySearchHint => '搜索标题、主体或关系';
+
+  @override
+  String get memoryAll => '全部';
+
+  @override
+  String get memoryMain => '主对话';
+
+  @override
+  String get memoryWiki => '知识页讨论';
+
+  @override
+  String get memoryGoal => '目标讨论';
+
+  @override
+  String get memoryPending => '待确认';
+
+  @override
+  String get memoryActive => '已确认';
+
+  @override
+  String get memoryConflicted => '存在冲突';
+
+  @override
+  String get memorySuperseded => '已被替代';
+
+  @override
+  String get memoryDismissed => '已否定';
+
+  @override
+  String get memoryDeleted => '已删除';
+
+  @override
+  String get memoryExcluded => '已排除';
+
+  @override
+  String get memoryIncluded => '未排除';
+
+  @override
+  String get memorySemantic => '事实记忆';
+
+  @override
+  String get memoryProcedural => '做法与偏好';
+
+  @override
+  String get memoryReference => '仅作参考';
+
+  @override
+  String get memoryConversation => '所属会话';
+
+  @override
+  String get memoryPersonal => '个人通用';
+
+  @override
+  String get memoryCurrent => '来源有效';
+
+  @override
+  String get memoryStale => '来源已变化';
+
+  @override
+  String get memoryUnavailable => '当前不可用';
+
+  @override
+  String get memoryUnassessed => '尚未核查证据';
+
+  @override
+  String get memorySupported => '证据支持';
+
+  @override
+  String get memoryContradicted => '证据不支持';
+
+  @override
+  String get memoryInsufficient => '证据不足';
+
+  @override
+  String get memoryPin => '固定';
+
+  @override
+  String get memoryUnpin => '取消固定';
+
+  @override
+  String get memoryExclude => '排除自动使用';
+
+  @override
+  String get memoryInclude => '恢复自动使用';
+
+  @override
+  String get memorySalience => '显著性';
+
+  @override
+  String get memoryLow => '低';
+
+  @override
+  String get memoryNormal => '普通';
+
+  @override
+  String get memoryHigh => '高';
+
+  @override
+  String get memoryConfirm => '确认记忆';
+
+  @override
+  String get memoryDismiss => '否定记忆';
+
+  @override
+  String get memoryRestore => '恢复为候选';
+
+  @override
+  String get memoryConflict => '标记冲突';
+
+  @override
+  String get memorySupersede => '由新记忆替代';
+
+  @override
+  String get memoryLinkGoal => '关联目标';
+
+  @override
+  String get memoryUnlinkGoal => '解除关联';
+
+  @override
+  String get memoryGoalReason => '说明这条记忆如何适用于该目标';
+
+  @override
+  String get memoryNoGoals => '暂无可关联的活跃目标';
+
+  @override
+  String get memoryNoReplacement => '没有符合条件的替代记忆';
+
+  @override
+  String get memoryChooseReplacement => '选择同会话、同主体关系的新记忆';
+
+  @override
+  String get memoryEmpty => '没有符合条件的记忆';
+
+  @override
+  String get memoryEmptyHelp => '请调整搜索词或筛选条件，再查看记忆。';
+
+  @override
+  String get memoryNoSaved => '尚未创建记忆';
+
+  @override
+  String get memoryNoSavedHelp =>
+      '这里显示已创建的记忆条目，不会自动列出旧聊天或知识页。目前可在对话中请 AI 基于已保存且有来源的知识页提出记忆候选；创建候选不等于确认或允许自动使用。';
+
+  @override
+  String get memorySelect => '选择一条记忆查看内容';
+
+  @override
+  String get memorySources => '来源依据';
+
+  @override
+  String get memoryNoContent => '该版本正文当前不可展示；已删除、否定或正文版本已变化。';
+
+  @override
+  String get memoryTruncated => '这里只展示部分内容。';
+
+  @override
+  String get memoryNoSources => '没有可展示的来源摘录';
+
+  @override
+  String get memorySourceHidden => '来源已变化或条目已停用，摘录不展示。';
+
+  @override
+  String get memoryDecisions => '最近 20 条人工决定';
+
+  @override
+  String get memoryNoDecisions => '暂无人工决定';
+
+  @override
+  String get memoryNoLinks => '暂未关联目标';
+
+  @override
+  String get memoryScope => '适用范围';
+
+  @override
+  String get memoryVersion => '版本';
+
+  @override
+  String get memoryOwnerUnavailable => '所属会话当前不可用，可查看记录；恢复会话后才能审阅修改。';
+
+  @override
+  String get memoryReviewTitle => '核对记忆修改';
+
+  @override
+  String get memoryReviewHelp => '批准仅应用本次展示的操作和版本。确认、显著性与目标关联都不授予执行权限。';
+
+  @override
+  String get memoryApprove => '批准修改';
+
+  @override
+  String get memoryReviewFailed => '修改未完成，请关闭后刷新详情重新审阅。';
+
+  @override
+  String get memoryDeleteHelp => '删除会停用此记忆并保留人工决定，原始事件与知识页仍保留。';
+
+  @override
+  String get memoryMaintenance => '检查维护线索';
+
+  @override
+  String get memoryMaintenanceHelp =>
+      '检查此会话可见的最新至多 200 条未删除记忆。重复与断链仅供人工判断，不会自动合并或删除。';
+
+  @override
+  String get memoryScanned => '已检查条目';
+
+  @override
+  String get memoryExactDuplicates => '相同正文组';
+
+  @override
+  String get memorySharedSources => '共享来源组';
+
+  @override
+  String get memoryNearDuplicates => '词面相近线索';
+
+  @override
+  String get memoryBrokenSources => '来源变化或不可用';
+
+  @override
+  String get memoryItems => '条记忆';
+
+  @override
   String get initializationFailed => '初始化失败';
 
   @override
@@ -812,12 +1051,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String conversationCount(int count) {
-    return '对话$count次';
+    return '对话 $count 次';
   }
 
   @override
   String todoCountItems(int count) {
-    return '待办$count项';
+    return '待办 $count';
   }
 
   @override
@@ -1357,6 +1596,11 @@ class AppLocalizationsZh extends AppLocalizations {
       '🎯 我们来聊聊这个目标。我可以帮你拆解行动、检视困难、回顾完成标准；需要暂停、标记达成或重启目标时，我会先给出提议，等你确认后才生效。';
 
   @override
+  String goalPredecessorEntry(Object goal, int count) {
+    return '以上承接自《$goal》的 $count 条讨论';
+  }
+
+  @override
   String goalPaused(String goal) {
     return '已将「$goal」暂时搁置';
   }
@@ -1504,7 +1748,7 @@ class AppLocalizationsZh extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '目标$count',
+      other: '目标 $count',
       zero: '目标',
     );
     return '$_temp0';
@@ -3827,7 +4071,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get l6RestartTheAppAfterSwitchingToea99d => '切换后重启应用即可看到全部同步数据。';
 
   @override
-  String get l6EnterDatasete3665 => '进入数据集';
+  String get l6EnterDatasete3665 => '选择数据集';
 
   @override
   String get l6CouldNotLoadSyncStatusSyncb8a20 => '同步状态读取失败\n（同步可能尚未启用）';
@@ -6398,7 +6642,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String l6SwitchedToArg0QuitAndReopenc2285(String arg0) {
-    return '已切换到「$arg0」。请完全退出并重新打开应用，即可看到同步的数据。';
+    return '已选择 $arg0，请完全退出并重新打开应用后使用。';
   }
 
   @override
@@ -6667,6 +6911,16 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String l6UserRecordArg0Arg1902d4(String arg0, String arg1) {
     return '用户记录 $arg0：$arg1';
+  }
+
+  @override
+  String l6SourceTitleArg0VersionArg1(Object arg0, Object arg1) {
+    return '来源：$arg0 · 版本 $arg1';
+  }
+
+  @override
+  String l6UserRecordExcerptArg0(Object arg0) {
+    return '用户记录：$arg0';
   }
 
   @override
@@ -7256,6 +7510,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scoutExtensionWatchlist => '扩展关注清单';
 
   @override
+  String get scoutRecentProjects => '近 90 天新项目';
+
+  @override
+  String get scoutExtensionDiscovery => '扩展发现';
+
+  @override
   String get scoutUsTopFree => '美国免费榜';
 
   @override
@@ -7293,6 +7553,43 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scoutPriceUnknown => '收费信息待核实';
+
+  @override
+  String get scoutAffiliateConfirmed => 'Affiliate · 可申请推广返佣';
+
+  @override
+  String get scoutAffiliateUnknown => 'Affiliate 暂未确认';
+
+  @override
+  String get scoutAffiliateUnavailable => '官网明确关闭或不提供 Affiliate';
+
+  @override
+  String get scoutAffiliateStale => 'Affiliate 证据待重新核实';
+
+  @override
+  String get scoutAffiliateProgram => '查看推广计划与申请条件';
+
+  @override
+  String scoutAffiliateChecked(String time) {
+    return '核查时间：$time';
+  }
+
+  @override
+  String get scoutPurposeMissing => '来源未提供用途简介，可查看原始介绍。';
+
+  @override
+  String get scoutReadIntroduction => '查看原始介绍';
+
+  @override
+  String get scoutFreeDownload => '免费下载';
+
+  @override
+  String get scoutListedFree => '标价免费';
+
+  @override
+  String scoutFirstObservedOn(String date) {
+    return '$date 首次进入监控';
+  }
 
   @override
   String get scoutWhyNow => '为什么现在看';
@@ -7597,4 +7894,98 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scoutBriefHighlights => '值得关注';
+
+  @override
+  String get pairingConnectNew => '连接新设备';
+
+  @override
+  String get pairingJoinExisting => '加入已有设备';
+
+  @override
+  String get pairingConnectHint => '在有数据的设备上创建邀请，让另一台设备扫码加入。';
+
+  @override
+  String get pairingJoinHint => '在这台设备上扫码或粘贴邀请，连接已有数据。';
+
+  @override
+  String get pairingIdentify => '识别设备';
+
+  @override
+  String get pairingConfirm => '双端确认';
+
+  @override
+  String get pairingSyncData => '同步数据';
+
+  @override
+  String get pairingDetails => '连接详情';
+
+  @override
+  String get pairingConnectionSettings => '连接设置';
+
+  @override
+  String get pairingPaste => '粘贴邀请';
+
+  @override
+  String get pairingAllow => '允许连接';
+
+  @override
+  String get pairingConnect => '连接这台设备';
+
+  @override
+  String get pairingWaitingScan => '请在新设备上选择“加入已有设备”，扫描下方二维码。';
+
+  @override
+  String get pairingWaitingApproval => '请在已有设备上核对这台设备，并允许连接。这里会自动继续。';
+
+  @override
+  String get pairingTransferring => '正在准备并同步数据，请保持两台设备运行。连接恢复后会继续。';
+
+  @override
+  String get pairingDone => '已连接，首次数据已准备好';
+
+  @override
+  String get pairingOwnerDone => '新设备已连接，首次同步已完成';
+
+  @override
+  String get pairingAnother => '再连接一台设备';
+
+  @override
+  String get pairingExpired => '邀请已过期，请重新生成';
+
+  @override
+  String get pairingRegenerate => '重新生成邀请';
+
+  @override
+  String pairingRemaining(String minutes) {
+    return '邀请剩余 $minutes 分钟';
+  }
+
+  @override
+  String get pairingRetry => '重试连接';
+
+  @override
+  String get pairingChangeInvitation => '更换邀请';
+
+  @override
+  String get pairingStop => '停止连接';
+
+  @override
+  String get pairingVerifyHint => '连接前，请与已有设备核对下方公钥指纹。';
+
+  @override
+  String get pairingLocalFingerprint => '请在已有设备核对本机指纹';
+
+  @override
+  String get pairingNoRelay => '首次连接需要配置可用的中继地址。';
+
+  @override
+  String get pairingDataPrepared => '正在准备数据';
+
+  @override
+  String syncConnectedDevices(String count) {
+    return '已连接 $count 台设备';
+  }
+
+  @override
+  String get syncLastRound => '最近一轮本机同步已运行';
 }

@@ -508,3 +508,189 @@ fn list_events_carries_real_identity_and_meta() {
 
     let _ = std::fs::remove_file(path);
 }
+
+#[test]
+fn goal_chat_predecessor_returns_nearest_preceding_step_tail() {
+    use crate::storage::{GoalPhase, PlanStepDraft};
+
+    let path = temporary_database();
+    let store = Store::open(&path).unwrap();
+
+    let plan = store
+        .create_plan_with_steps(
+            "验证承接链",
+            "愿景",
+            "[]",
+            &[
+                PlanStepDraft {
+                    content: "D1~D2".into(),
+                    phase: GoalPhase::Near,
+                    why: None,
+                    current_focus: None,
+                    blocker: None,
+                    done_criteria: None,
+                },
+                PlanStepDraft {
+                    content: "D3~D5".into(),
+                    phase: GoalPhase::Near,
+                    why: None,
+                    current_focus: None,
+                    blocker: None,
+                    done_criteria: None,
+                },
+                PlanStepDraft {
+                    content: "D6~D7".into(),
+                    phase: GoalPhase::Mid,
+                    why: None,
+                    current_focus: None,
+                    blocker: None,
+                    done_criteria: None,
+                },
+            ],
+        )
+        .unwrap();
+    let steps = store.list_plan_steps(&plan.id).unwrap();
+    let (first, second, third) = (&steps[0], &steps[1], &steps[2]);
+
+    // 无计划的独立目标：没有承接源。
+    let lone = store.create_goal("无计划目标", GoalPhase::Near).unwrap();
+    assert!(store.goal_chat_predecessor(&lone.id).unwrap().is_none());
+
+    // 第二步：前序第一步尚无讨论 → None。
+    assert!(store.goal_chat_predecessor(&second.id).unwrap().is_none());
+
+    // 第一步开始专属讨论（5 条 chat 轮次）。
+    let first_conv = store
+        .create_goal_chat_conversation(&first.id, "[目标] D1~D2")
+        .unwrap();
+    for (role, content) in [
+        ("user", "第一个问题"),
+        ("assistant", "第一个回答"),
+        ("user", "第二个问题"),
+        ("assistant", "第二个回答"),
+        ("user", "现在可以认为第一步已经完成了"),
+    ] {
+        store
+            .send_message(&first_conv, role, content, None)
+            .unwrap();
+    }
+
+    let predecessor = store.goal_chat_predecessor(&second.id).unwrap().unwrap();
+    assert_eq!(predecessor.goal_id, first.id);
+    assert_eq!(predecessor.goal_content, "D1~D2");
+    assert_eq!(predecessor.message_count, 5);
+    let tail: Vec<&str> = predecessor
+        .tail
+        .iter()
+        .map(|(_, content)| content.as_str())
+        .collect();
+    assert!(tail.contains(&"现在可以认为第一步已经完成了"));
+    // 时间正序：最后一条是最新消息。
+    assert_eq!(
+        predecessor.tail.last().unwrap().1,
+        "现在可以认为第一步已经完成了"
+    );
+    assert_eq!(predecessor.tail.first().unwrap().0, "user");
+
+    // 第三步：前序候选里第一步有讨论、第二步没有 → 承接到第一步。
+    let predecessor_of_third = store.goal_chat_predecessor(&third.id).unwrap().unwrap();
+    assert_eq!(predecessor_of_third.goal_id, first.id);
+
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn list_recent_chat_messages_returns_last_n_in_order() {
+    let path = temporary_database();
+    let store = Store::open(&path).unwrap();
+
+    let conv_id = store.create_conversation(Some("Chat"), None).unwrap();
+    for i in 0..6 {
+        store
+            .send_message(&conv_id, "user", &format!("提问 {i}"), None)
+            .unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        store
+            .send_message(&conv_id, "assistant", &format!("回复 {i}"), None)
+            .unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+
+    // limit=5 取最后 5 条（时间正序、完整原文，不是最早的 5 条）。
+    let recent = store.list_recent_chat_messages(&conv_id, 5).unwrap();
+    assert_eq!(recent.len(), 5);
+    // 12 条里的最后 5 条：回复 3 → 回复 5（边界落在 assistant 上）。
+    assert_eq!(recent.first().unwrap().content, "回复 3");
+    assert_eq!(recent.last().unwrap().content, "回复 5");
+
+    // 超过总条数时全给，且保持时间正序。
+    let all = store.list_recent_chat_messages(&conv_id, 100).unwrap();
+    assert_eq!(all.len(), 12);
+    assert_eq!(all.first().unwrap().content, "提问 0");
+    assert_eq!(all.last().unwrap().content, "回复 5");
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn goal_chat_predecessor_tail_is_bounded() {
+    use crate::storage::{GoalPhase, PlanStepDraft};
+
+    let path = temporary_database();
+    let store = Store::open(&path).unwrap();
+    let plan = store
+        .create_plan_with_steps(
+            "验证有界性",
+            "愿景",
+            "[]",
+            &[
+                PlanStepDraft {
+                    content: "第一步".into(),
+                    phase: GoalPhase::Near,
+                    why: None,
+                    current_focus: None,
+                    blocker: None,
+                    done_criteria: None,
+                },
+                PlanStepDraft {
+                    content: "第二步".into(),
+                    phase: GoalPhase::Near,
+                    why: None,
+                    current_focus: None,
+                    blocker: None,
+                    done_criteria: None,
+                },
+            ],
+        )
+        .unwrap();
+    let steps = store.list_plan_steps(&plan.id).unwrap();
+    let conv = store
+        .create_goal_chat_conversation(&steps[0].id, "[目标] 第一步")
+        .unwrap();
+    for i in 0..30 {
+        store
+            .send_message(&conv, "user", &format!("消息 {i}"), None)
+            .unwrap();
+        store
+            .send_message(&conv, "assistant", &format!("回复 {i}"), None)
+            .unwrap();
+    }
+    let predecessor = store.goal_chat_predecessor(&steps[1].id).unwrap().unwrap();
+    assert_eq!(predecessor.message_count, 60);
+    // 尾部固定 8 条，且是最新的一批。
+    assert_eq!(predecessor.tail.len(), 8);
+    assert_eq!(predecessor.tail.last().unwrap().1, "回复 29");
+    assert_eq!(predecessor.tail.first().unwrap().1, "消息 26");
+
+    // 长消息截断到 160 字符（含省略号），不留全文。
+    let long = "长".repeat(400);
+    let conv2 = store
+        .create_goal_chat_conversation(&steps[0].id, "[目标] 第一步·补充")
+        .unwrap();
+    store.send_message(&conv2, "user", &long, None).unwrap();
+    let predecessor = store.goal_chat_predecessor(&steps[1].id).unwrap().unwrap();
+    let last = predecessor.tail.last().unwrap();
+    assert_eq!(last.1.chars().count(), 240);
+    assert!(last.1.ends_with('…'));
+
+    let _ = std::fs::remove_file(path);
+}

@@ -10,7 +10,8 @@ use uuid::Uuid;
 
 use super::{
     ContentPolicy, EventRecord, RenameWikiOutcome, Store, WIKI_PAGE_COLS, WIKI_PAGE_META_COLS,
-    WikiPage, WikiPageDraft, WikiPageMeta, WikiUpsertOutcome, map_wiki_page, map_wiki_page_meta,
+    WikiPage, WikiPageDraft, WikiPageMeta, WikiTag, WikiUpsertOutcome, map_wiki_page,
+    map_wiki_page_meta,
 };
 
 mod content;

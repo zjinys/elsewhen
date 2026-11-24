@@ -1,12 +1,12 @@
-import 'app_error_notice.dart';
-
-import 'dart:math';
+import 'dart:math' show Random;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../theme/design_tokens.dart';
 import '../providers/chat_run_provider.dart';
 import '../providers/conversation_provider.dart';
+import '../utils/dismissed_runs_store.dart';
 import '../theme/app_theme.dart';
 import '../l10n/localization.dart';
 
@@ -29,8 +29,8 @@ class ChatRunStatus extends ConsumerWidget {
     }
     final controller = ref.read(chatRunControllerProvider(conversationId));
     final status = run?.status;
-    // 完成即静默：成功终态不再占屏；停止/中断保留条目（挂着重试入口）。
-    if (status == 'completed') {
+    // 完成即静默：成功终态或已被用户主动取消的 run 不再占屏。
+    if (status == 'completed' || DismissedRunsStore.instance.isDismissed(run?.id)) {
       return const SizedBox.shrink();
     }
     final preparing = _gerundPhase(view) == 'preparing';
@@ -50,14 +50,16 @@ class ChatRunStatus extends ConsumerWidget {
             'cancelling' => context.l10n.stopping,
             _ => _gerundLabel(context, preparing, gerundIndex),
           };
+    final dark = AppTheme.brightness == Brightness.dark;
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(12, 4, 12, 10),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: AppTheme.surface2,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        border: Border.all(color: AppTheme.surface3),
+        color: dark ? AppTheme.surface2.withValues(alpha: 0.85) : AppTheme.surface1,
+        borderRadius: BorderRadius.circular(10),
+        border: DesignTokens.hairlineBorder(dark),
+        boxShadow: ShadowTokens.level1(dark),
       ),
       child: Material(
         type: MaterialType.transparency,
@@ -87,11 +89,11 @@ class ChatRunStatus extends ConsumerWidget {
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
-                if (view.canRetry && view.connectionError == null)
+                if (view.canRetry && view.connectionError == null) ...[
                   TextButton.icon(
                     onPressed: controller.retry,
                     icon: const Icon(Icons.refresh, size: 16),
-                    label: Text(context.l10n.regenerateThis),
+                    label: Text(context.l10n.regenerate),
                     style: TextButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -99,6 +101,26 @@ class ChatRunStatus extends ConsumerWidget {
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
+                  TextButton.icon(
+                    onPressed: () async {
+                      final runId = view.run?.id;
+                      if (runId != null) {
+                        await DismissedRunsStore.instance.dismissRun(runId);
+                      }
+                      clearReplyFailed(ref, conversationId);
+                      await controller.dismissOrCancel();
+                    },
+                    icon: const Icon(Icons.close, size: 15),
+                    label: Text(context.l10n.cancel),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      foregroundColor: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
                 if (view.connectionError != null)
                   TextButton(
                     onPressed: view.starting || view.restoring
@@ -113,16 +135,6 @@ class ChatRunStatus extends ConsumerWidget {
                   ),
               ],
             ),
-            if (view.connectionError != null)
-              Text(
-                context.notice(view.connectionError!),
-                style: TextStyle(fontSize: 12, color: AppTheme.error),
-              ),
-            if (run?.errorText != null && !view.active)
-              AppErrorMessage(
-                error: run!.errorText!,
-                action: context.l10n.load,
-              ),
             if (view.tools.isNotEmpty)
               ExpansionTile(
                 tilePadding: EdgeInsets.zero,

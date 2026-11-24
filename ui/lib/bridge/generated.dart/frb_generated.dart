@@ -25,6 +25,7 @@ import 'api/mcp.dart';
 import 'api/named_secrets.dart';
 import 'api/page_marks.dart';
 import 'api/period_stats.dart';
+import 'api/personal_memory.dart';
 import 'api/plans.dart';
 import 'api/prompts.dart';
 import 'api/provider_config.dart';
@@ -120,7 +121,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.14.0-beta.2';
 
   @override
-  int get rustContentHash => 1282260005;
+  int get rustContentHash => 1674587236;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -379,6 +380,11 @@ abstract class RustLibApi extends BaseApi {
     required String reason,
   });
 
+  Future<ChatDecisionDto> crateApiPersonalMemoryDecidePersonalMemoryAction({
+    required ChatReviewRequest request,
+    required bool accept,
+  });
+
   Future<void> crateApiConversationsDeclineKnowledgeDraft({
     required String conversationId,
     required String actionId,
@@ -463,6 +469,12 @@ abstract class RustLibApi extends BaseApi {
     required String name,
     required String title,
     String? value,
+  });
+
+  Future<void> crateApiPersonalMemoryEditPersonalMemory({
+    required String claimId,
+    required PlatformInt64 expectedVersion,
+    required String content,
   });
 
   Future<PlatformInt64> crateApiChatRunsEnqueueChatInput({
@@ -642,6 +654,10 @@ abstract class RustLibApi extends BaseApi {
     required String date,
   });
 
+  Future<String> crateApiPersonalMemoryGetPersonalMemoryDetail({
+    required String claimId,
+  });
+
   Future<PlanDto?> crateApiPlansGetPlan({required String id});
 
   Future<PlanningProfileDto> crateApiGoalGroundingGetPlanningProfile();
@@ -684,12 +700,20 @@ abstract class RustLibApi extends BaseApi {
 
   Future<WikiPageDto?> crateApiWikiGetWikiPage({required String slug});
 
+  Future<GoalChatPredecessorDto?> crateApiGoalsGoalChatPredecessor({
+    required String goalId,
+  });
+
   Future<String> crateApiTweetGuessImportKind({required String url});
 
   Future<String> crateApiRecordsInitBridge({String? databasePath});
 
   Future<SyncInvitationPreviewDto?>
   crateApiSyncInviteInspectOwnerSyncInvitation({required String invitationId});
+
+  Future<String> crateApiPersonalMemoryInspectPersonalMemoryMaintenance({
+    required String conversationId,
+  });
 
   Future<SyncJoinStateDto> crateApiSyncJoinInspectSyncJoinApproval({
     required String operationId,
@@ -873,6 +897,12 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<SyncJoinEntryDto>> crateApiSyncJoinListPendingSyncJoins();
 
+  Future<String> crateApiPersonalMemoryListPersonalMemories({
+    required String filterJson,
+    required int offset,
+    required int limit,
+  });
+
   Future<List<GoalDto>> crateApiPlansListPlanSteps({required String planId});
 
   Future<List<PlanDto>> crateApiPlansListPlans();
@@ -889,6 +919,11 @@ abstract class RustLibApi extends BaseApi {
     required String key,
     required String locale,
     required int offset,
+  });
+
+  Future<List<MessageDto>> crateApiConversationsListRecentChatMessages({
+    required String conversationId,
+    required PlatformInt64 limit,
   });
 
   Future<List<ChatRuleHitDto>> crateApiRulesListRecentChatRuleHits({
@@ -973,6 +1008,8 @@ abstract class RustLibApi extends BaseApi {
     String? area,
   });
 
+  Future<List<WikiTagDto>> crateApiWikiListWikiTags();
+
   Future<LocalSyncStateDto> crateApiSyncInviteLockLocalSync();
 
   Future<void> crateApiReviewReportStoreMarkDeviationReportRead({
@@ -1017,6 +1054,13 @@ abstract class RustLibApi extends BaseApi {
   Future<String> crateApiKnowledgePrepareKnowledgeSourceRepair({
     required String slug,
     required List<String> snapshotIds,
+  });
+
+  Future<ChatProposalDto> crateApiPersonalMemoryPreparePersonalMemoryAction({
+    required String claimId,
+    required PlatformInt64 expectedVersion,
+    required String detailToken,
+    required String argsJson,
   });
 
   Future<SyncJoinStateDto> crateApiSyncJoinPrepareSyncJoinKey({
@@ -3308,6 +3352,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<ChatDecisionDto> crateApiPersonalMemoryDecidePersonalMemoryAction({
+    required ChatReviewRequest request,
+    required bool accept,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_box_autoadd_chat_review_request(request);
+          var arg1 = cst_encode_bool(accept);
+          return wire
+              .wire__crate__api__personal_memory__decide_personal_memory_action(
+                port_,
+                arg0,
+                arg1,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_chat_decision_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPersonalMemoryDecidePersonalMemoryActionConstMeta,
+        argValues: [request, accept],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiPersonalMemoryDecidePersonalMemoryActionConstMeta =>
+      const TaskConstMeta(
+        debugName: "decide_personal_memory_action",
+        argNames: ["request", "accept"],
+      );
+
+  @override
   Future<void> crateApiConversationsDeclineKnowledgeDraft({
     required String conversationId,
     required String actionId,
@@ -3976,6 +4055,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "edit_named_secret",
         argNames: ["name", "title", "value"],
+      );
+
+  @override
+  Future<void> crateApiPersonalMemoryEditPersonalMemory({
+    required String claimId,
+    required PlatformInt64 expectedVersion,
+    required String content,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(claimId);
+          var arg1 = cst_encode_i_64(expectedVersion);
+          var arg2 = cst_encode_String(content);
+          return wire.wire__crate__api__personal_memory__edit_personal_memory(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPersonalMemoryEditPersonalMemoryConstMeta,
+        argValues: [claimId, expectedVersion, content],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPersonalMemoryEditPersonalMemoryConstMeta =>
+      const TaskConstMeta(
+        debugName: "edit_personal_memory",
+        argNames: ["claimId", "expectedVersion", "content"],
       );
 
   @override
@@ -5384,6 +5499,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<String> crateApiPersonalMemoryGetPersonalMemoryDetail({
+    required String claimId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(claimId);
+          return wire
+              .wire__crate__api__personal_memory__get_personal_memory_detail(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPersonalMemoryGetPersonalMemoryDetailConstMeta,
+        argValues: [claimId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPersonalMemoryGetPersonalMemoryDetailConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_personal_memory_detail",
+        argNames: ["claimId"],
+      );
+
+  @override
   Future<PlanDto?> crateApiPlansGetPlan({required String id}) {
     return handler.executeNormal(
       NormalTask(
@@ -5782,6 +5928,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "get_wiki_page", argNames: ["slug"]);
 
   @override
+  Future<GoalChatPredecessorDto?> crateApiGoalsGoalChatPredecessor({
+    required String goalId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(goalId);
+          return wire.wire__crate__api__goals__goal_chat_predecessor(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData:
+              dco_decode_opt_box_autoadd_goal_chat_predecessor_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiGoalsGoalChatPredecessorConstMeta,
+        argValues: [goalId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGoalsGoalChatPredecessorConstMeta =>
+      const TaskConstMeta(
+        debugName: "goal_chat_predecessor",
+        argNames: ["goalId"],
+      );
+
+  @override
   Future<String> crateApiTweetGuessImportKind({required String url}) {
     return handler.executeNormal(
       NormalTask(
@@ -5854,6 +6031,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "inspect_owner_sync_invitation",
         argNames: ["invitationId"],
+      );
+
+  @override
+  Future<String> crateApiPersonalMemoryInspectPersonalMemoryMaintenance({
+    required String conversationId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          return wire
+              .wire__crate__api__personal_memory__inspect_personal_memory_maintenance(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta:
+            kCrateApiPersonalMemoryInspectPersonalMemoryMaintenanceConstMeta,
+        argValues: [conversationId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiPersonalMemoryInspectPersonalMemoryMaintenanceConstMeta =>
+      const TaskConstMeta(
+        debugName: "inspect_personal_memory_maintenance",
+        argNames: ["conversationId"],
       );
 
   @override
@@ -7259,6 +7469,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_pending_sync_joins", argNames: []);
 
   @override
+  Future<String> crateApiPersonalMemoryListPersonalMemories({
+    required String filterJson,
+    required int offset,
+    required int limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(filterJson);
+          var arg1 = cst_encode_u_32(offset);
+          var arg2 = cst_encode_u_32(limit);
+          return wire.wire__crate__api__personal_memory__list_personal_memories(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_String,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPersonalMemoryListPersonalMemoriesConstMeta,
+        argValues: [filterJson, offset, limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPersonalMemoryListPersonalMemoriesConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_personal_memories",
+        argNames: ["filterJson", "offset", "limit"],
+      );
+
+  @override
   Future<List<GoalDto>> crateApiPlansListPlanSteps({required String planId}) {
     return handler.executeNormal(
       NormalTask(
@@ -7395,6 +7641,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "list_prompt_revisions",
         argNames: ["key", "locale", "offset"],
+      );
+
+  @override
+  Future<List<MessageDto>> crateApiConversationsListRecentChatMessages({
+    required String conversationId,
+    required PlatformInt64 limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(conversationId);
+          var arg1 = cst_encode_i_64(limit);
+          return wire
+              .wire__crate__api__conversations__list_recent_chat_messages(
+                port_,
+                arg0,
+                arg1,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_message_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiConversationsListRecentChatMessagesConstMeta,
+        argValues: [conversationId, limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiConversationsListRecentChatMessagesConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_recent_chat_messages",
+        argNames: ["conversationId", "limit"],
       );
 
   @override
@@ -8065,6 +8345,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<List<WikiTagDto>> crateApiWikiListWikiTags() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire.wire__crate__api__wiki__list_wiki_tags(port_);
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_wiki_tag_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiWikiListWikiTagsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWikiListWikiTagsConstMeta =>
+      const TaskConstMeta(debugName: "list_wiki_tags", argNames: []);
+
+  @override
   Future<LocalSyncStateDto> crateApiSyncInviteLockLocalSync() {
     return handler.executeNormal(
       NormalTask(
@@ -8442,6 +8743,47 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "prepare_knowledge_source_repair",
         argNames: ["slug", "snapshotIds"],
+      );
+
+  @override
+  Future<ChatProposalDto> crateApiPersonalMemoryPreparePersonalMemoryAction({
+    required String claimId,
+    required PlatformInt64 expectedVersion,
+    required String detailToken,
+    required String argsJson,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(claimId);
+          var arg1 = cst_encode_i_64(expectedVersion);
+          var arg2 = cst_encode_String(detailToken);
+          var arg3 = cst_encode_String(argsJson);
+          return wire
+              .wire__crate__api__personal_memory__prepare_personal_memory_action(
+                port_,
+                arg0,
+                arg1,
+                arg2,
+                arg3,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_chat_proposal_dto,
+          decodeErrorData: dco_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiPersonalMemoryPreparePersonalMemoryActionConstMeta,
+        argValues: [claimId, expectedVersion, detailToken, argsJson],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiPersonalMemoryPreparePersonalMemoryActionConstMeta =>
+      const TaskConstMeta(
+        debugName: "prepare_personal_memory_action",
+        argNames: ["claimId", "expectedVersion", "detailToken", "argsJson"],
       );
 
   @override
@@ -13016,6 +13358,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GoalChatPredecessorDto dco_decode_box_autoadd_goal_chat_predecessor_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_goal_chat_predecessor_dto(raw);
+  }
+
+  @protected
   GoalCompassAssessmentDto dco_decode_box_autoadd_goal_compass_assessment_dto(
     dynamic raw,
   ) {
@@ -13722,6 +14072,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   double dco_decode_f_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as double;
+  }
+
+  @protected
+  GoalChatPredecessorDto dco_decode_goal_chat_predecessor_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return GoalChatPredecessorDto(
+      goalId: dco_decode_String(arr[0]),
+      goalContent: dco_decode_String(arr[1]),
+      messageCount: dco_decode_i_64(arr[2]),
+      conversationId: dco_decode_String(arr[3]),
+    );
   }
 
   @protected
@@ -15036,6 +15400,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<WikiTagDto> dco_decode_list_wiki_tag_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeList(raw).map(dco_decode_wiki_tag_dto).toList();
+  }
+
+  @protected
   LocalSyncStateDto dco_decode_local_sync_state_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = dcoDecodeList(raw);
@@ -15283,6 +15653,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_f_64(raw);
+  }
+
+  @protected
+  GoalChatPredecessorDto? dco_decode_opt_box_autoadd_goal_chat_predecessor_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_goal_chat_predecessor_dto(raw);
   }
 
   @protected
@@ -16511,6 +16891,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WikiTagDto dco_decode_wiki_tag_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = dcoDecodeList(raw);
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return WikiTagDto(
+      name: dco_decode_String(arr[0]),
+      usageCount: dco_decode_i_64(arr[1]),
+    );
+  }
+
+  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_String(deserializer);
@@ -16731,6 +17123,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_f_64(deserializer));
+  }
+
+  @protected
+  GoalChatPredecessorDto sse_decode_box_autoadd_goal_chat_predecessor_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_goal_chat_predecessor_dto(deserializer));
   }
 
   @protected
@@ -17609,6 +18009,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   double sse_decode_f_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getFloat64();
+  }
+
+  @protected
+  GoalChatPredecessorDto sse_decode_goal_chat_predecessor_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_goalId = sse_decode_String(deserializer);
+    var var_goalContent = sse_decode_String(deserializer);
+    var var_messageCount = sse_decode_i_64(deserializer);
+    var var_conversationId = sse_decode_String(deserializer);
+    return GoalChatPredecessorDto(
+      goalId: var_goalId,
+      goalContent: var_goalContent,
+      messageCount: var_messageCount,
+      conversationId: var_conversationId,
+    );
   }
 
   @protected
@@ -19762,6 +20179,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<WikiTagDto> sse_decode_list_wiki_tag_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <WikiTagDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_wiki_tag_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   LocalSyncStateDto sse_decode_local_sync_state_dto(
     SseDeserializer deserializer,
   ) {
@@ -20103,6 +20532,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_f_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  GoalChatPredecessorDto? sse_decode_opt_box_autoadd_goal_chat_predecessor_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_goal_chat_predecessor_dto(deserializer));
     } else {
       return null;
     }
@@ -21728,6 +22170,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WikiTagDto sse_decode_wiki_tag_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_usageCount = sse_decode_i_64(deserializer);
+    return WikiTagDto(name: var_name, usageCount: var_usageCount);
+  }
+
+  @protected
   bool cst_encode_bool(bool raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw;
@@ -21953,6 +22403,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_f_64(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_goal_chat_predecessor_dto(
+    GoalChatPredecessorDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_goal_chat_predecessor_dto(self, serializer);
   }
 
   @protected
@@ -22623,6 +23082,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_f_64(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putFloat64(self);
+  }
+
+  @protected
+  void sse_encode_goal_chat_predecessor_dto(
+    GoalChatPredecessorDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.goalId, serializer);
+    sse_encode_String(self.goalContent, serializer);
+    sse_encode_i_64(self.messageCount, serializer);
+    sse_encode_String(self.conversationId, serializer);
   }
 
   @protected
@@ -24313,6 +24784,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_wiki_tag_dto(
+    List<WikiTagDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_wiki_tag_dto(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_local_sync_state_dto(
     LocalSyncStateDto self,
     SseSerializer serializer,
@@ -24575,6 +25058,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_f_64(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_goal_chat_predecessor_dto(
+    GoalChatPredecessorDto? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_goal_chat_predecessor_dto(self, serializer);
     }
   }
 
@@ -25757,5 +26253,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.sourceUrl, serializer);
     sse_encode_String(self.area, serializer);
     sse_encode_opt_String(self.opinion, serializer);
+  }
+
+  @protected
+  void sse_encode_wiki_tag_dto(WikiTagDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_i_64(self.usageCount, serializer);
   }
 }

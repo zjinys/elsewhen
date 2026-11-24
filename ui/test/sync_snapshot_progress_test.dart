@@ -30,7 +30,7 @@ api.SyncEnrollmentStateDto enrollmentState({
   localApplied: false,
   remoteApplied: false,
   notificationPending: false,
-      storageBlocked: false,
+  storageBlocked: false,
 );
 
 void main() {
@@ -41,13 +41,11 @@ void main() {
   ) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: Scaffold(
-          body: SyncSnapshotProgress(received: 2, total: 4),
-        ),
+        home: Scaffold(body: SyncSnapshotProgress(received: 2, total: 4)),
       ),
     );
     expect(find.text('初始快照传输'), findsOneWidget);
-    expect(find.text('2/4'), findsOneWidget);
+    expect(find.text('50% · 2/4'), findsOneWidget);
     final indicator = tester.widget<LinearProgressIndicator>(
       find.byType(LinearProgressIndicator),
     );
@@ -70,6 +68,7 @@ void main() {
         code: 'SYNTHETIC',
         expiresAtMs: 0,
       );
+      controller.pendingPairingId = 'inv-1';
       controller.enrollment.states = [
         enrollmentState(
           role: 'owner',
@@ -89,7 +88,7 @@ void main() {
       );
       await tester.pump();
       expect(find.text('正在发送初始快照'), findsOneWidget);
-      expect(find.text('2/5'), findsOneWidget);
+      expect(find.text('40% · 2/5'), findsOneWidget);
       final indicator = tester.widget<LinearProgressIndicator>(
         find.byType(LinearProgressIndicator),
       );
@@ -104,7 +103,10 @@ void main() {
       final enrollment = SyncEnrollmentController(
         keyStore: SyncKeyStore(storage: storage),
       );
-      final joiner = SyncJoinController(keyStore: SyncKeyStore(storage: storage), enrollment: enrollment);
+      final joiner = SyncJoinController(
+        keyStore: SyncKeyStore(storage: storage),
+        enrollment: enrollment,
+      );
       addTearDown(joiner.dispose);
       enrollment.states = [
         enrollmentState(
@@ -138,7 +140,7 @@ void main() {
       );
       await tester.pump();
       expect(find.text('正在接收初始快照'), findsOneWidget);
-      expect(find.text('3/7'), findsOneWidget);
+      expect(find.text('42% · 3/7'), findsOneWidget);
       final indicator = tester.widget<LinearProgressIndicator>(
         find.byType(LinearProgressIndicator),
       );

@@ -112,6 +112,12 @@ extension RepoConversations on RustBridgeRepository {
     return dtos.map(WikiPageMeta.fromDto).toList();
   }
 
+  /// Canonical tag vocabulary, independent of the bounded page metadata list.
+  Future<List<String>> listWikiTags() async {
+    final dtos = await api.listWikiTags();
+    return dtos.map((tag) => tag.name).toList(growable: false);
+  }
+
   /// 创建记事本（kind=memo 唯一建档入口）
   Future<WikiPage> createWikiPage({
     required String title,

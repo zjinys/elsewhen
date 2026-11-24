@@ -161,6 +161,7 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     ("sync_snapshot_chunks", "per-device-sync-state"),
     ("sync_snapshot_export_wires", "per-device-sync-state"),
     ("sync_snapshot_exports", "per-device-sync-state"),
+    ("sync_snapshot_export_chunks", "per-device-sync-state"),
     ("sync_snapshot_target", "per-device-sync-state"),
     ("sync_snapshots", "per-device-sync-state"),
     ("sync_wire_receipts", "per-device-sync-state"),
@@ -263,6 +264,23 @@ pub(crate) const SNAPSHOT_EXCLUDED_TABLES: &[(&str, &str)] = &[
     ("knowledge_topic_plans", "local-knowledge-pipeline"),
     ("knowledge_topic_replacements", "local-knowledge-pipeline"),
     ("knowledge_usage", "local-knowledge-pipeline"),
+    ("personal_memory_claims", "local-personal-memory"),
+    ("personal_memory_extraction_state", "local-personal-memory-scheduler"),
+    (
+        "personal_memory_decisions",
+        "local-personal-memory-decisions",
+    ),
+    (
+        "personal_memory_grants",
+        "local-personal-memory-permissions",
+    ),
+    ("personal_memory_policy", "local-personal-memory-policy"),
+    ("personal_memory_receipts", "local-personal-memory-usage"),
+    ("personal_memory_goal_links", "local-personal-memory-goals"),
+    (
+        "personal_memory_inspections",
+        "local-personal-memory-restrictions",
+    ),
     // 实体/洞察等本地 AI 产物，可由事件重算。
     ("daily_review_sources", "local-ai-artifacts"),
     ("daily_reviews", "local-ai-artifacts"),

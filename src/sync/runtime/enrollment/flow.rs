@@ -688,7 +688,14 @@ pub(crate) fn advance(
         // 「building 就重发一份」看起来无害。照老样子重发会一拍烧掉一个
         // `snapshot_attempts`，三拍后整场交接死于 `snapshot_attempt_limit`,
         // 接收端只好去追一串永远不会到达的 `snapshot-start`。
-        if record.snapshot.is_none() || matches!(export.as_deref(), Some("aborted")) {
+        let resumable = record
+            .snapshot
+            .as_ref()
+            .map(|s| store.snapshot_export_cached(&s.id))
+            .transpose()?
+            .unwrap_or(false);
+        if record.snapshot.is_none() || (matches!(export.as_deref(), Some("aborted")) && !resumable)
+        {
             loan.mutate(|store| {
                 store.reserve_enrollment_snapshot(
                     &loan.installation,
@@ -706,7 +713,7 @@ pub(crate) fn advance(
         // 名单/offer 才会选中快照，才会去 `blob-ack` 分片；发送端在这个时候
         // 已经卡在窗口上等它。旧 mail 路径一拍把所有分片塞进 outbox，这条路
         // 从没被分开看过，于是「return 一下更干净」把两端锁成了一对互等。
-        if export.is_none() || matches!(export.as_deref(), Some("building")) {
+        if export.is_none() || matches!(export.as_deref(), Some("building" | "aborted")) {
             let vault = store.load_sync_vault(&loan.installation, &loan.master, loan.revision)?;
             prepare_snapshot(&loan, &store, &vault, record)?;
         }

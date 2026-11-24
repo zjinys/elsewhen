@@ -53,30 +53,36 @@ extension _TabsModel on _SettingsScreenState {
                   const SizedBox(height: AppTheme.space1),
                   _buildSettingsTabItem(
                     6,
+                    context.l10n.memoryManager,
+                    Icons.psychology_outlined,
+                  ),
+                  const SizedBox(height: AppTheme.space1),
+                  _buildSettingsTabItem(
+                    7,
                     context.l10n.knowledge,
                     Icons.auto_stories_outlined,
                   ),
                   const SizedBox(height: AppTheme.space1),
                   _buildSettingsTabItem(
-                    7,
+                    8,
                     context.l10n.habits,
                     Icons.notifications_active_outlined,
                   ),
                   const SizedBox(height: AppTheme.space1),
                   _buildSettingsTabItem(
-                    8,
+                    9,
                     context.l10n.data,
                     Icons.dataset_outlined,
                   ),
                   const SizedBox(height: AppTheme.space1),
                   _buildSettingsTabItem(
-                    9,
+                    10,
                     context.l10n.rules,
                     Icons.rule_outlined,
                   ),
                   const SizedBox(height: AppTheme.space1),
                   _buildSettingsTabItem(
-                    10,
+                    11,
                     context.l10n.security,
                     Icons.lock_outline,
                   ),
@@ -138,6 +144,10 @@ extension _TabsModel on _SettingsScreenState {
               ),
               Tab(text: 'MCP', icon: Icon(Icons.usb_outlined, size: 17)),
               Tab(
+                text: context.l10n.memoryManager,
+                icon: Icon(Icons.psychology_outlined, size: 17),
+              ),
+              Tab(
                 text: context.l10n.knowledge,
                 icon: Icon(Icons.auto_stories_outlined, size: 17),
               ),
@@ -181,7 +191,7 @@ extension _TabsModel on _SettingsScreenState {
             children: [
               Icon(
                 icon,
-                size: 16,
+                size: DesignTokens.iconMicro,
                 color: selected
                     ? AppTheme.accentPrimary
                     : AppTheme.textTertiary,
@@ -411,7 +421,7 @@ extension _TabsModel on _SettingsScreenState {
       }
       final result = await repository.exportWikiMarkdown(outDir: directory);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(
             context.l10n.exportSuccess(result.exported, result.outDir),
@@ -420,7 +430,7 @@ extension _TabsModel on _SettingsScreenState {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: AppErrorMessage(
             action: context.l10n.load,
@@ -512,7 +522,7 @@ extension _TabsModel on _SettingsScreenState {
       await _loadDbStats();
       if (!mounted) return;
       final saved = (result.beforeBytes - result.afterBytes) / 1024 / 1024;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: Text(
             saved >= 0.1
@@ -523,7 +533,7 @@ extension _TabsModel on _SettingsScreenState {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      FeedbackToast.of(context).show(
         SnackBar(
           content: AppErrorMessage(
             action: context.l10n.load,
@@ -658,7 +668,7 @@ extension _TabsModel on _SettingsScreenState {
                   children: [
                     Icon(
                       icon,
-                      size: 16,
+                      size: DesignTokens.iconMicro,
                       color: selected
                           ? AppTheme.accentPrimary
                           : AppTheme.textTertiary,
@@ -682,7 +692,7 @@ extension _TabsModel on _SettingsScreenState {
                 Text(
                   description,
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: 12,
                     color: AppTheme.textTertiary,
                     height: 1.45,
                   ),

@@ -133,7 +133,7 @@ class _ScoutPreferencesEditorState
                             if (context.mounted) Navigator.pop(context);
                           } catch (e) {
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              FeedbackToast.of(context).show(
                                 SnackBar(
                                   content: Text(
                                     context.errorMessage(

@@ -173,7 +173,7 @@ extension _UsageFonts on _SettingsScreenState {
                   ref.read(storageRepositoryProvider) as RustBridgeRepository;
               await repo.updateTweetFetchService(value);
               if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
+              FeedbackToast.of(context).show(
                 SnackBar(
                   content: Text(context.l10n.l6PostFetchingServiceUpdated1c8a1),
                   backgroundColor: AppTheme.accentPrimary,
@@ -185,7 +185,7 @@ extension _UsageFonts on _SettingsScreenState {
               );
             } catch (e) {
               if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
+              FeedbackToast.of(context).show(
                 SnackBar(
                   content: AppErrorMessage(
                     action: context.l10n.load,
@@ -247,7 +247,7 @@ extension _UsageFonts on _SettingsScreenState {
               await notifier.updateLanguage(value == 'system' ? null : value);
             } catch (e) {
               if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
+              FeedbackToast.of(context).show(
                 SnackBar(
                   content: AppErrorMessage(
                     action: context.l10n.language,
@@ -403,7 +403,7 @@ extension _UsageFonts on _SettingsScreenState {
                     ),
                     Icon(
                       Icons.font_download_outlined,
-                      size: 18,
+                      size: DesignTokens.icon,
                       color: AppTheme.textSecondary,
                     ),
                   ],

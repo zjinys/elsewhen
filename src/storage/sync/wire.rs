@@ -188,7 +188,7 @@ impl Store {
     ) -> Result<Vec<PendingWireEnvelope>> {
         ensure!((1..=16).contains(&limit), "sync_wire_batch_limit_invalid");
         self.require_local_sync_membership()?;
-        let mut query=self.connection.prepare("SELECT message_id,encrypted_envelope,seq_hint FROM sync_wire_outbox w WHERE recipient_device_id=?1 AND state='pending' AND available_at_ms<=?2 AND EXISTS(SELECT 1 FROM sync_members WHERE device_id=?1 AND active=1) AND NOT EXISTS(SELECT 1 FROM sync_snapshot_export_wires x JOIN sync_snapshot_exports s ON s.id=x.snapshot_id WHERE x.recipient_device_id=w.recipient_device_id AND x.message_id=w.message_id AND s.state!='ready') ORDER BY available_at_ms,rowid LIMIT ?3")?;
+        let mut query=self.connection.prepare("SELECT message_id,encrypted_envelope,seq_hint FROM sync_wire_outbox w WHERE recipient_device_id=?1 AND state='pending' AND available_at_ms<=?2 AND EXISTS(SELECT 1 FROM sync_members WHERE device_id=?1 AND active=1) AND NOT EXISTS(SELECT 1 FROM sync_snapshot_export_wires x JOIN sync_snapshot_exports s ON s.id=x.snapshot_id WHERE x.recipient_device_id=w.recipient_device_id AND x.message_id=w.message_id AND s.state!='ready') ORDER BY CASE WHEN message_id LIKE 'membership:%' THEN 0 ELSE 1 END,available_at_ms,rowid LIMIT ?3")?;
         let rows = query.query_map(params![peer, now_ms, limit as i64], |r| {
             Ok(PendingWireEnvelope {
                 message_id: r.get(0)?,

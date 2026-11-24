@@ -195,7 +195,7 @@ return failed(_that.events,_that.error);case _:
 
 class KnowledgeDigestTickResult_Reading extends KnowledgeDigestTickResult {
   const KnowledgeDigestTickResult_Reading({required this.eventId, required this.state, this.error}): super._();
-
+  
 
  final  String eventId;
  final  String state;
@@ -267,7 +267,7 @@ as String?,
 
 class KnowledgeDigestTickResult_NoProvider extends KnowledgeDigestTickResult {
   const KnowledgeDigestTickResult_NoProvider(): super._();
-
+  
 
 
 
@@ -299,7 +299,7 @@ String toString() {
 
 class KnowledgeDigestTickResult_Idle extends KnowledgeDigestTickResult {
   const KnowledgeDigestTickResult_Idle(): super._();
-
+  
 
 
 
@@ -331,7 +331,7 @@ String toString() {
 
 class KnowledgeDigestTickResult_Processed extends KnowledgeDigestTickResult {
   const KnowledgeDigestTickResult_Processed({required this.events, required  List<String> createdSlugs, required  List<String> updatedSlugs, required  List<String> protectedSlugs}): _createdSlugs = createdSlugs,_updatedSlugs = updatedSlugs,_protectedSlugs = protectedSlugs,super._();
-
+  
 
  final  PlatformInt64 events;
  final  List<String> _createdSlugs;
@@ -423,7 +423,7 @@ as List<String>,
 
 class KnowledgeDigestTickResult_Failed extends KnowledgeDigestTickResult {
   const KnowledgeDigestTickResult_Failed({required this.events, required this.error}): super._();
-
+  
 
  final  PlatformInt64 events;
  final  String error;

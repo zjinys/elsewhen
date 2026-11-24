@@ -30,9 +30,6 @@ extension RepoWorkerReminders on RustBridgeRepository {
   void _wakeAnalysisWorker() {
     _idleWakes = 0;
     if (!_initialized || _disposed || !runBackgroundWorker) return;
-    // 终态失败（未配置同步身份/库被换）退避窗口内直接返回：不跑 tick、不刷日志。
-    // 瞬时失败不进这里（policy 只对领域错误码退避），重试节奏完全不变。
-    if (_failurePolicy.blocked) return;
     if (_analysisWorkerRunning) {
       _analysisRerunRequested = true;
       return;
@@ -43,37 +40,27 @@ extension RepoWorkerReminders on RustBridgeRepository {
       _analysisWorkerScheduled = false;
       if (_analysisWorkerRunning || _disposed) return;
       _analysisWorkerRunning = true;
+      _analysisRerunRequested = false;
       try {
-        do {
-          _analysisRerunRequested = false;
-          // 定时提醒/习惯问候由 5s 定时器单独驱动（含空闲退避期间），
-          // 这里不再重复 tick，避免同一拍做两次本地查询。
-          // Keep draining bounded Rust batches while pending work is
-          // immediately available. Retry jobs are revisited by the timer once
-          // available_at expires.
-          _pushAiActivity(AiActivity.analysis);
-          try {
-            while (!_disposed) {
-              final result = await triggerAnalysis();
-              // 结构化结果取代字符串契约（P2-9）：只有明确“已处理”才继续
-              // 排空下一批；NoProvider 停表，交给启动/周期 5s timer 重唤。
-              if (result is! api.AnalysisTriggerResult_Processed ||
-                  result.count <= 0) {
-                break;
-              }
-              final stats = await getAnalysisJobStats();
-              if (stats.pending == 0) break;
-            }
-          } finally {
-            _popAiActivity(AiActivity.analysis);
-          }
-        } while (_analysisRerunRequested && !_disposed);
-        // 分析排空后再做知识消化：同一 worker 串行，避免与分析并发调用 provider；
-        // 消化依赖分析结果（可记录性），先分析后消化也最省重试。
+        // Sync has its own failure boundary and runs even while AI is backed
+        // off. All phases remain serial: Rust protects them with one lease.
+        await _runNetworkSyncTick();
+        if (_disposed || _failurePolicy.blocked) return;
+        final result = await _withAiActivity(
+          AiActivity.analysis,
+          triggerAnalysis,
+        );
+        if (_disposed) return;
+        // One bounded native batch, then yield to sync. A growing AI queue
+        // must never require draining completely before remote changes move.
+        if (result is api.AnalysisTriggerResult_Processed && result.count > 0) {
+          _analysisRerunRequested = true;
+        }
+        await _runNetworkSyncTick();
+        if (_disposed) return;
         await _drainKnowledgeDigest();
-        // 周期报告 + 偏差检测（R3）：同一 worker 串行（Q4：同一 timer）；
-        // 内部自带幂等/空窗跳过/检测退避，仅在有事发生时记日志
-        //（该 tick 在空闲期每 ≈30s 一次，逐拍打印会刷屏）。
+        await _runNetworkSyncTick();
+        if (_disposed) return;
         try {
           final reportTick = await _withAiActivity(
             AiActivity.periodReport,
@@ -88,16 +75,6 @@ extension RepoWorkerReminders on RustBridgeRepository {
         } catch (e) {
           debugPrint('period report tick failed: $e');
         }
-        // 网络同步与分析/消化串行复用同一条 worker 通道：P3 的有界 tick
-        // （每 peer ≤3 封 × ≤4 页，≤8 peer）复用持久重试与回执台账，防线在
-        // Rust 侧（确认会话 + 工作区租约 + 活跃成员 + 受信路由）。到达的新
-        // 事件/知识会让下一拍分析与消化自然接续；视图刷新走知识修订号。
-        final before = knowledgeRevision.value;
-        await _runNetworkSyncTick();
-        if (!_disposed && knowledgeRevision.value == before) {
-          // 有新到达时分析与消化已在上面跑过；这里无需额外动作，保留分支
-          // 以便将来按到达内容做定向刷新。
-        }
         if (!_disposed && !_analysisRerunRequested) {
           final changed = await _withAiActivity(
             AiActivity.insights,
@@ -107,17 +84,13 @@ extension RepoWorkerReminders on RustBridgeRepository {
         }
         _failurePolicy.recordSuccess();
       } catch (e) {
-        // Queue state remains durable; the next wake retries after startup or
-        // the periodic timer without surfacing an error in the save path.
-        //
-        // 不上抛是有意的（保存路径不该被后台 worker 的失败带崩），但**完全静默**
-        // 不好：若每 tick 都因同一个原因失败（比如抢锁 BUSY），就会永远查不出来。
-        // 这里只记不抛，让问题在日志里留下痕迹；**终态**失败（例如同步未配置）
-        // 同一个原因只记一次并退避，避免每拍一条同样的话把真故障淹掉。
         if (_failurePolicy.recordFailure(e)) {
           debugPrint('analysis worker failed: $e');
         }
       } finally {
+        // Native calls release their workspace lease before completing. Even
+        // analysis/digest errors therefore cannot skip the independent tick.
+        await _runNetworkSyncTick();
         _analysisWorkerRunning = false;
         if (_analysisRerunRequested) _wakeAnalysisWorker();
       }
@@ -328,16 +301,14 @@ extension RepoWorkerReminders on RustBridgeRepository {
   Future<void> _drainKnowledgeDigest() async {
     _pushAiActivity(AiActivity.digest);
     try {
-      while (!_disposed && !_analysisRerunRequested) {
-        final result = await api.triggerKnowledgeDigest();
-        // A reading node yields to the next timer tick; never drain the full
-        // long event in this loop. Progress refreshes the existing queue view.
-        if (result is api.KnowledgeDigestTickResult_Reading) {
-          if (!_disposed) knowledgeRevision.value++;
-          break;
-        }
-        if (result is! api.KnowledgeDigestTickResult_Processed) break;
-        if (!_disposed) knowledgeRevision.value++;
+      if (_disposed) return;
+      final result = await api.triggerKnowledgeDigest();
+      if (_disposed) return;
+      if (result is api.KnowledgeDigestTickResult_Reading) {
+        knowledgeRevision.value++;
+      } else if (result is api.KnowledgeDigestTickResult_Processed) {
+        knowledgeRevision.value++;
+        _analysisRerunRequested = true;
       }
     } finally {
       _popAiActivity(AiActivity.digest);

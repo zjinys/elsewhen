@@ -11,7 +11,6 @@ import 'package:flutter/services.dart';
 import '../bridge/api.dart' as api;
 import '../sync/sync_setup_controller.dart';
 import 'sync_pairing_steps.dart';
-import 'sync_tick_status.dart';
 import '../utils/desktop_prefs.dart';
 import '../theme/app_theme.dart';
 
@@ -35,29 +34,19 @@ class OwnerSyncPairingSettings extends StatefulWidget {
 class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
   final _relay = TextEditingController();
   bool _consent = false;
-  Timer? _joinPoll;
+  Timer? _clock;
 
   @override
   void initState() {
     super.initState();
-    // 新设备扫码后自行发起加入请求；owner 端不必手动点「检查」——
-    // 邀请存续期间自动收件（收审批界面上可见即停）。
-    _joinPoll = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (!mounted) return;
-      final c = widget.controller;
-      if (c.busy) return;
-      // 已批准但投递未确认：自动重投，直到中继确认。
-      if (c.pendingPairingId != null && !c.approvalDelivered) {
-        c.autoRedeliverPendingApproval();
-        return;
-      }
-      if (c.invitation == null || c.pairingPreview != null) return;
-      c.inspectInvitation();
+    _clock = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (mounted && widget.controller.invitation != null) setState(() {});
     });
+    _relay.text = widget.controller.state?.relayUrl ?? '';
     try {
       final prefs = const DesktopPrefsStore();
       final last = prefs.loadLastOwnerRelayUrl();
-      if (last != null && last.isNotEmpty) {
+      if (_relay.text.isEmpty && last != null && last.isNotEmpty) {
         _relay.text = last;
       }
     } catch (_) {}
@@ -65,7 +54,7 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
 
   @override
   void dispose() {
-    _joinPoll?.cancel();
+    _clock?.cancel();
     _relay.dispose();
     super.dispose();
   }
@@ -114,7 +103,7 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
             ),
             FilledButton(
               onPressed: consent ? () => Navigator.pop(context, true) : null,
-              child: Text(context.l10n.l6ApproveThisDeviced11af),
+              child: Text(context.l10n.pairingAllow),
             ),
           ],
         ),
@@ -125,53 +114,60 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
     }
   }
 
+  Future<void> _create() async {
+    try {
+      const DesktopPrefsStore().saveLastOwnerRelayUrl(_relay.text.trim());
+    } catch (_) {}
+    await widget.controller.createInvitation(_relay.text, consent: true);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final controller = widget.controller;
+    final c = widget.controller;
     return ListenableBuilder(
-      listenable: Listenable.merge([controller, controller.enrollment]),
+      listenable: Listenable.merge([c, c.enrollment]),
       builder: (context, _) {
-        final offer = controller.invitation;
-        final preview = controller.pairingPreview;
-        final sending = controller.enrollment.states
-            .where(
-              (s) =>
-                  s.role == 'owner' &&
-                  const [
-                    'preparing_snapshot',
-                    'awaiting_snapshot_selection',
-                    'sending_snapshot',
-                  ].contains(s.phase) &&
-                  s.totalChunks > 0,
-            )
+        final offer = c.invitation;
+        final preview = c.pairingPreview;
+        final id = c.currentPairingId;
+        final states = c.enrollment.states
+            .where((s) => s.role == 'owner' && s.invitationId == id)
             .toList();
+        final complete = states.any((s) => s.phase == 'complete');
+        final approved = c.pendingPairingId != null;
+        final expired =
+            !approved &&
+            offer != null &&
+            DateTime.now().millisecondsSinceEpoch >= offer.expiresAtMs;
+        final device = preview ?? c.approvedDevice;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Divider(height: 32),
-            Text(
-              context.l10n.l6InviteADevice9f3fa,
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(context.l10n.l6NewDevicesCanRequestToJoinbe25a),
-            if (offer == null) ...[
-              const SizedBox(height: 12),
-              TextField(
-                controller: _relay,
-                enabled: !controller.busy,
-                keyboardType: TextInputType.url,
-                autocorrect: false,
-                style: AppTheme.fieldTextStyle,
-                cursorColor: AppTheme.accentPrimary,
-                decoration: AppTheme.fieldDecoration(
-                  labelText: context.l10n.l6YourRelayUrl9ff3a,
-                  hintText: 'https://…',
-                ),
+            if (id == null) ...[
+              Text(context.l10n.pairingConnectHint),
+              const SizedBox(height: 16),
+              if (_relay.text.isEmpty) Text(context.l10n.pairingNoRelay),
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                initiallyExpanded: _relay.text.isEmpty,
+                title: Text(context.l10n.pairingConnectionSettings),
+                children: [
+                  TextField(
+                    controller: _relay,
+                    enabled: !c.busy,
+                    keyboardType: TextInputType.url,
+                    autocorrect: false,
+                    decoration: AppTheme.fieldDecoration(
+                      labelText: context.l10n.l6YourRelayUrl9ff3a,
+                      hintText: 'https://…',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
               ),
               CheckboxListTile(
                 value: _consent,
-                enabled: !controller.busy,
+                enabled: !c.busy,
                 contentPadding: EdgeInsets.zero,
                 title: Text(
                   context.l10n.l6IUnderstandThatCreatingAnInvitation5f3db,
@@ -179,154 +175,156 @@ class _OwnerSyncPairingSettingsState extends State<OwnerSyncPairingSettings> {
                 onChanged: (value) => setState(() => _consent = value ?? false),
               ),
               FilledButton.icon(
-                onPressed: controller.busy || !_consent
-                    ? null
-                    : () async {
-                        try {
-                          const DesktopPrefsStore().saveLastOwnerRelayUrl(
-                            _relay.text.trim(),
-                          );
-                        } catch (_) {}
-                        await controller.createInvitation(
-                          _relay.text,
-                          consent: true,
-                        );
-                      },
+                onPressed: c.busy || !_consent ? null : _create,
                 icon: const Icon(Icons.add_link),
                 label: Text(context.l10n.l6CreateATemporaryInvitationa2809),
               ),
             ] else ...[
-              const SizedBox(height: 12),
               SyncPairingSteps(
                 steps: [
-                  context.l10n.l6InvitationCreatedShowTheQrCode15986,
-                  context.l10n.l6ANewDeviceHasRequestedTo3129b,
-                  context.l10n.l6ApprovedDeliveringApprovalc4bcf,
-                  context.l10n.l6ApprovalDeliveredWaitingForTheNewaeaa7,
-                  context.l10n.l6NewDeviceJoinsCheckTheDevice29220,
+                  context.l10n.pairingIdentify,
+                  context.l10n.pairingConfirm,
+                  context.l10n.pairingSyncData,
                 ],
-                current: ownerPairingStage(
-                  invitationId: offer.invitationId,
-                  hasPreview: preview != null,
-                  pendingPairingId: controller.pendingPairingId,
-                  approvalDelivered: controller.approvalDelivered,
-                  // 终态：enrollment 视图里这台新设备的交接已经 `complete`（对端
-                  // 已回执/已被确认）。没有它，第五步会永远转圈。
-                  deviceJoined: controller.enrollment.states.any(
-                    (s) => s.role == 'owner' && s.phase == 'complete',
-                  ),
-                ),
+                current: complete
+                    ? 3
+                    : approved
+                    ? 2
+                    : preview != null
+                    ? 1
+                    : 0,
               ),
-              const SizedBox(height: 8),
-              for (final snapshotState in sending) ...[
-                SyncSnapshotProgress(
-                  received: snapshotState.receivedChunks,
-                  total: snapshotState.totalChunks,
-                  label: switch (snapshotState.phase) {
-                    'preparing_snapshot' =>
-                      context.l10n.l6PreparingTheInitialSnapshotb1613,
-                    'awaiting_snapshot_selection' =>
-                      context.l10n.l6WaitingForInitialSnapshotSelectione32c8,
-                    _ => context.l10n.l6SendingTheInitialSnapshotfa3fd,
-                  },
+              const SizedBox(height: 16),
+              if (device != null) ...[
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.devices_outlined),
+                  title: Text(device.deviceName),
+                  subtitle: Text(device.devicePlatform),
                 ),
                 const SizedBox(height: 8),
               ],
-              // 交接轮询失联/失败时必须有可见原因：否则主设备也会停在同一帧转圈，
-              // 用户无法区分「还在搬」和「已经卡死」。
-              if (controller.enrollment.error != null) ...[
-                AppErrorMessage(
-                  error: controller.enrollment.error!,
-                  action: context.l10n.load,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-                const SizedBox(height: 8),
-              ],
-              // relay 信箱打满（507）时，发送被主动停拍退避：给一个明确提示，
-              // 避免用户把「在等空间」当成「卡死」。
-              if (controller.enrollment.states.any(
-                (s) => s.storageBlocked,
-              )) ...[
-                Text(
-                  context
-                      .l10n
-                      .l6RelayMailboxFullDeliveryResumesAutomatically4a933,
-                  style: TextStyle(fontSize: 12, color: AppTheme.warning),
-                ),
-                const SizedBox(height: 8),
-              ],
-              if (widget.deliveryStatuses != null) ...[
-                SyncDeliverStatusLine(statuses: widget.deliveryStatuses!),
-                const SizedBox(height: 8),
-              ],
-              Text(context.l10n.l6ShareInvitationsOnlyWithTrustedDevices47059),
-              Text(
-                context.l10n.l6ExpiresArg0a7daf(
-                  (DateTime.fromMillisecondsSinceEpoch(
-                    offer.expiresAtMs,
-                  ).toLocal()).toString(),
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  complete
+                      ? context.l10n.pairingOwnerDone
+                      : approved
+                      ? context.l10n.pairingTransferring
+                      : expired
+                      ? context.l10n.pairingExpired
+                      : preview != null
+                      ? context.l10n.l6VerifyTheDeviceAndFingerprintBefore5e3e6
+                      : context.l10n.pairingWaitingScan,
+                  style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
-              const SizedBox(height: 8),
-              Center(
-                child: Container(
-                  color: Colors.white,
-                  padding: const EdgeInsets.all(8),
-                  child: QrImageView(
-                    data: offer.code,
-                    version: QrVersions.auto,
-                    size: 220,
-                    backgroundColor: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  OutlinedButton(
-                    onPressed: controller.busy
-                        ? null
-                        : () => Clipboard.setData(
-                            ClipboardData(text: offer.code),
-                          ),
-                    child: Text(context.l10n.l6CopyInvitationf7293),
-                  ),
-                  TextButton(
-                    onPressed: controller.busy
-                        ? null
-                        : controller.cancelInvitation,
-                    child: Text(context.l10n.l6CancelInvitation17e4c),
-                  ),
-                ],
-              ),
-            ],
-            if (preview != null) ...[
               const SizedBox(height: 12),
-              Text(
-                context.l10n.l6AwaitingReviewArg0Arg17fa78(
-                  (preview.deviceName).toString(),
-                  (preview.devicePlatform).toString(),
+              if (approved && !complete) ...[
+                for (final s in states.where(
+                  (s) => const [
+                    'preparing_snapshot',
+                    'awaiting_snapshot_selection',
+                    'sending_snapshot',
+                  ].contains(s.phase),
+                ))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: SyncSnapshotProgress(
+                      received: s.receivedChunks,
+                      total: s.totalChunks,
+                      label: s.totalChunks > 0
+                          ? context.l10n.l6SendingTheInitialSnapshotfa3fd
+                          : context.l10n.pairingDataPrepared,
+                    ),
+                  ),
+                if (states.isEmpty) Text(context.l10n.pairingDataPrepared),
+                if (c.enrollment.errorFor(invitationId: id) != null)
+                  AppErrorMessage(
+                    error: c.enrollment.errorFor(invitationId: id)!,
+                    action: context.l10n.load,
+                  ),
+                if (states.any((s) => s.storageBlocked))
+                  Text(
+                    context
+                        .l10n
+                        .l6RelayMailboxFullDeliveryResumesAutomatically4a933,
+                    style: TextStyle(color: AppTheme.warning),
+                  ),
+              ],
+              if (!approved &&
+                  !expired &&
+                  preview == null &&
+                  offer != null) ...[
+                Center(
+                  child: Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.all(12),
+                    child: QrImageView(
+                      data: offer.code,
+                      version: QrVersions.auto,
+                      size: 196,
+                      backgroundColor: Colors.white,
+                    ),
+                  ),
                 ),
-              ),
-              FilledButton(
-                onPressed: controller.busy ? null : () => _review(preview),
-                child: Text(context.l10n.l6VerifyAndApprove5c161),
-              ),
-            ],
-            if (controller.pendingPairingId != null) ...[
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: controller.busy
-                    ? null
-                    : controller.resendPairingApproval,
-                child: Text(context.l10n.l6ResendSavedApproval48def),
-              ),
-            ],
-            if (controller.pairingNotice != null) ...[
-              const SizedBox(height: 8),
-              Text(context.notice(controller.pairingNotice!)),
+                const SizedBox(height: 12),
+                Text(
+                  context.l10n.pairingRemaining(
+                    (((offer.expiresAtMs -
+                                    DateTime.now().millisecondsSinceEpoch) /
+                                60000)
+                            .ceil()
+                            .clamp(1, 1440))
+                        .toString(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: c.busy
+                      ? null
+                      : () =>
+                            Clipboard.setData(ClipboardData(text: offer.code)),
+                  icon: const Icon(Icons.copy_outlined),
+                  label: Text(context.l10n.l6CopyInvitationf7293),
+                ),
+              ],
+              if (!approved && preview != null && !expired)
+                FilledButton(
+                  onPressed: c.busy ? null : () => _review(preview),
+                  child: Text(context.l10n.l6VerifyAndApprove5c161),
+                ),
+              if (complete || expired)
+                FilledButton.icon(
+                  onPressed: c.busy ? null : _create,
+                  icon: const Icon(Icons.add_link),
+                  label: Text(
+                    complete
+                        ? context.l10n.pairingAnother
+                        : context.l10n.pairingRegenerate,
+                  ),
+                ),
+              if (!approved)
+                TextButton(
+                  onPressed: c.busy ? null : c.cancelInvitation,
+                  child: Text(context.l10n.l6CancelInvitation17e4c),
+                ),
+              if (approved && c.approvalReady && c.error != null)
+                OutlinedButton(
+                  onPressed: c.busy ? null : c.resendPairingApproval,
+                  child: Text(context.l10n.pairingRetry),
+                ),
+              if (approved && c.enrollment.paused && states.isNotEmpty)
+                OutlinedButton(
+                  onPressed: c.busy ? null : () => c.enrollment.arm(),
+                  child: Text(context.l10n.pairingRetry),
+                ),
+              if (device != null)
+                ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  title: Text(context.l10n.pairingDetails),
+                  children: [SelectableText(device.fingerprint)],
+                ),
             ],
           ],
         );
