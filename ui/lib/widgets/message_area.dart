@@ -549,13 +549,7 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                           }
                         }
                       }
-                      return Align(
-                        alignment: Alignment.topCenter,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 780),
-                          child: item,
-                        ),
-                      );
+                      return item;
                     },
                   ),
                 ),
@@ -576,31 +570,19 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
         ),
 
         if (durable)
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 780),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 220),
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      ChatRunStatus(conversationId: selectedId),
-                      ChatInputQueue(conversationId: selectedId),
-                    ],
-                  ),
-                ),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 220),
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  ChatRunStatus(conversationId: selectedId),
+                  ChatInputQueue(conversationId: selectedId),
+                ],
               ),
             ),
           ),
         // Input area
-        Align(
-          alignment: Alignment.bottomCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 780),
-            child: _MessageInput(onMessageSent: _scrollController.scrollToLatest),
-          ),
-        ),
+        _MessageInput(onMessageSent: _scrollController.scrollToLatest),
       ],
     );
     return ChatCompanionWorkspace(child: content);

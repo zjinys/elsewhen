@@ -23,10 +23,10 @@
 - [x] **伴随工作区自动化单测套件**：补充 `switching directly from todo to goal updates panel and active companion` 单元测试，全量测试与 `dart analyze` 全绿。
 
 ### Phase 1: 核心视线流与呼吸感重构 (100% 已完成)
-- [x] **P1-1 主对话流 760px 黄金阅读宽度限制与居中锚定**：
-  - 在 `message_area.dart` 中对消息流容器施加 `BoxConstraints(maxWidth: 780)` 居中约束，大屏消除视线横向散漫，彻底防止面板影响正文排版。
-- [x] **P1-2 底部输入区微悬浮岛设计（Floating Composer Dock）**：
-  - 输入框整体对齐 780px 居中视线，并在 `composer_field.dart` 中赋予常态环境光微投影与 16px 底部留白微悬浮感。
+- [x] **P1-1 通栏沉浸式阅读流（无人工强制留白）**：
+  - 内容区与输入框保持通栏自然展开，彻底移除两侧人工大留白限制，让多行长文与代码完整利用全屏空间。
+- [x] **P1-2 底部输入区微悬浮胶囊设计（Floating Composer Dock）**：
+  - 在 `composer_field.dart` 中赋予常态环境光微投影与 16px 底部留白，全宽自然舒展，聚焦感与呼吸感兼备。
 - [x] **P1-3 时间轴分割线与翻篇记录质感优化**：
   - 微调 `_DayDivider` 为微胶囊芯片搭配 0.5px 发丝微光分割线，提升章节印记感。
 
