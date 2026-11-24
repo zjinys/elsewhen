@@ -16,6 +16,7 @@ import 'markdown_view.dart';
 import '../utils/pretty_time.dart';
 import '../l10n/localization.dart';
 
+import '../theme/app_theme.dart';
 import '../theme/design_tokens.dart';
 part 'chat_proposal_parts/proposal_review_dialog.dart';
 part 'chat_proposal_parts/proposal_batch_dialog.dart';
