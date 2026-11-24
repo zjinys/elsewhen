@@ -30,9 +30,9 @@ const MAX_SUB_QUESTIONS: usize = 6;
 const MAX_QUERIES: usize = 4;
 /// 交回主上下文的证据总量上限（quote 与 note 的字符数之和）。
 const MAX_EVIDENCE_CHARS: usize = 6000;
-/// 结果预算低于这个数（估算 token）就不开始：覆盖情况之外放不下几条证据，
-/// 不值得为此发起付费的子请求。
-const MIN_RESULT_TOKENS: usize = 4000;
+/// 结果预算低于这个数也允许开始：至少返回 coverage、来源和部分证据，
+/// 不把“部分可用结果”误报成整轮失败。最终证据数量由 assemble 再按预算裁剪。
+const MIN_RESULT_TOKENS: usize = 800;
 /// 连续这么多批失败就收手：多半是渠道故障，不逐批耗到超时。
 const MAX_CONSECUTIVE_FAILURES: usize = 2;
 /// 装批时给子请求的输出与估算误差留的余量（估算 token）。
@@ -129,9 +129,8 @@ pub(crate) fn synthesize(
     request: &Request,
 ) -> Result<String> {
     validate(request)?;
-    if let Some((tokens, _)) = channel.result_budget {
-        anyhow::ensure!(tokens >= MIN_RESULT_TOKENS, "synthesis_budget_exhausted");
-    }
+    // 低预算仍执行提取；assemble 会优先保留 coverage 与最少证据，
+    // 让上层可以继续分批或提示缺失页面，而不是丢掉已完成的读取。
     let started = Instant::now();
     let (pages, skipped) = select_pages(store, request)?;
     let terms: Vec<Vec<String>> = request
