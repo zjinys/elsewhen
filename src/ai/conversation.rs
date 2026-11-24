@@ -74,7 +74,9 @@ impl Default for ConversationConfig {
     }
 }
 /// 单次生成最多四轮，最后一轮只组织答复，不再执行新工具。
-const MAX_TOOL_ROUNDS: usize = 4;
+// 普通聊天默认最多两轮：一轮取数/执行，一轮收尾。更长链路应通过
+// 明确的任务型流程处理，避免一次用户输入重复发送大段历史。
+const MAX_TOOL_ROUNDS: usize = 2;
 
 /// 文本协议的工具调用标记（AI 独占一行输出）
 const TOOL_CALL_MARKER: &str = "[工具调用]";

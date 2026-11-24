@@ -1,6 +1,6 @@
 [package]
 name = "elsewhen"
-version = "0.8.0"
+version = "0.8.5"
 edition = "2024"
 autobins = false
 description = "Local-first personal event system (Rust core for the Flutter app)"
