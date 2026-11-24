@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/wiki_page.dart';
 import '../providers/wiki_provider.dart';
 import '../theme/app_theme.dart';
+import 'chat_companion_workspace.dart';
 import 'glass.dart';
 import 'markdown_view.dart';
 import '../l10n/localization.dart';
@@ -22,10 +23,14 @@ class KnowledgePageDialog extends ConsumerWidget {
   /// 加载或未找到时的备选标题提示
   final String? fallbackTitle;
 
+  /// 是否作为伴随工作区面板内嵌展示（非模态弹窗）
+  final bool embedded;
+
   const KnowledgePageDialog({
     super.key,
     required this.slug,
     this.fallbackTitle,
+    this.embedded = false,
   });
 
   /// 弹出知识页预览对话框
@@ -50,6 +55,48 @@ class KnowledgePageDialog extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cleanSlug = normalizeSlug(slug);
     final pageAsync = ref.watch(wikiPageProvider(cleanSlug));
+
+    if (embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: _buildTitle(context, cleanSlug, pageAsync.value),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: _buildContent(context, ref, cleanSlug, pageAsync),
+            ),
+          ),
+          if (pageAsync.value != null) ...[
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    icon: const Icon(Icons.open_in_new_rounded, size: 15),
+                    label: Text(context.l10n.openInKnowledgeBase),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.accentPrimary,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    onPressed: () {
+                      openWikiPageTab(ref, pageAsync.value!);
+                      ref.read(sidebarTabProvider.notifier).set(SidebarTab.wiki);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      );
+    }
 
     return GlassDialog(
       maxWidth: 720,
@@ -327,15 +374,21 @@ class KnowledgePageDialog extends ConsumerWidget {
   }
 }
 
-/// 全局便捷入口：直接根据 slug 弹出知识页预览窗口
+/// 全局便捷入口：直接根据 slug 打开知识页预览（优先接入伴随工作区无阻断呈现）
 Future<void> showKnowledgePageDialog(
   BuildContext context, {
   required String slug,
   String? fallbackTitle,
 }) {
-  return KnowledgePageDialog.show(
+  final cleanSlug = KnowledgePageDialog.normalizeSlug(slug);
+  return showChatCompanion(
     context,
-    slug: slug,
-    fallbackTitle: fallbackTitle,
+    id: 'wiki:$cleanSlug',
+    title: (ctx) => fallbackTitle ?? cleanSlug,
+    builder: (ctx, embedded) => KnowledgePageDialog(
+      slug: cleanSlug,
+      fallbackTitle: fallbackTitle,
+      embedded: embedded,
+    ),
   );
 }

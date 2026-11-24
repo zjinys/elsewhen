@@ -127,6 +127,26 @@ class _NowStatus extends ConsumerWidget {
         builder: (context, constraints) {
           // 自然宽度紧凑规范化后仅约 400px，断点取 480 留出安全余量，大屏绝不折行。
           final compact = constraints.maxWidth < 480;
+          final wide = constraints.maxWidth >= 720;
+          final String effectiveGoalLabel;
+          final String effectiveGoalTooltip;
+          if (activeGoals.isEmpty) {
+            effectiveGoalLabel = goalLabel;
+            effectiveGoalTooltip = context.l10n.goals;
+          } else {
+            final firstContent = activeGoals.first.content.trim();
+            final shortContent = firstContent.length > 14
+                ? '${firstContent.substring(0, 14)}…'
+                : firstContent;
+            effectiveGoalLabel = wide
+                ? (activeGoals.length > 1
+                    ? '$goalLabel · $shortContent'
+                    : '${context.l10n.goals}: $shortContent')
+                : goalLabel;
+            effectiveGoalTooltip = activeGoals.first.currentFocus != null
+                ? '${activeGoals.first.content}\n${context.l10n.actionWeeks}: ${activeGoals.first.currentFocus}'
+                : activeGoals.first.content;
+          }
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -150,9 +170,9 @@ class _NowStatus extends ConsumerWidget {
                   const SizedBox(width: 6),
                   if (!compact) ...[
                     NowStatusIconButton(
-                      tooltip: context.l10n.goals,
+                      tooltip: effectiveGoalTooltip,
                       icon: Icons.flag_outlined,
-                      label: goalLabel,
+                      label: effectiveGoalLabel,
                       color: activeGoals.isEmpty
                           ? AppTheme.accentPrimary
                           : AppTheme.textSecondary,
