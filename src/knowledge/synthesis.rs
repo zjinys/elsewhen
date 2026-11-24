@@ -684,6 +684,45 @@ fn assemble(
             );
         }
     }
+    // Build a compact, deterministic summary tree from verified evidence. The
+    // full quotes remain available in `evidence`, while the tree is what the
+    // chat model should use for multi-page synthesis.
+    let summary_tree = |chosen: &[&Evidence]| -> serde_json::Value {
+        let mut leaves = Vec::new();
+        for (page_index, page) in pages.iter().enumerate() {
+            let mut text = String::new();
+            for evidence in chosen.iter().filter(|e| e.page == page_index) {
+                let quote: String = page.chars[evidence.start..evidence.end]
+                    .iter().collect();
+                let note = evidence.note.trim();
+                if !note.is_empty() { text.push_str(note); text.push_str("；"); }
+                text.push_str(&quote.chars().take(420).collect::<String>());
+                text.push('\n');
+                if text.chars().count() >= 900 { break; }
+            }
+            if !text.trim().is_empty() {
+                leaves.push(serde_json::json!({
+                    "level":"leaf", "page_slug":page.page.slug,
+                    "title":page.page.title, "content_hash":page.citation.content_hash,
+                    "summary":text.chars().take(900).collect::<String>()
+                }));
+            }
+        }
+        let mut groups = Vec::new();
+        for (group_index, chunk) in leaves.chunks(3).enumerate() {
+            let summary = chunk.iter().filter_map(|v| v["summary"].as_str())
+                .collect::<Vec<_>>().join("\n");
+            groups.push(serde_json::json!({
+                "level":"group", "group":group_index + 1,
+                "pages":chunk.iter().filter_map(|v| v["page_slug"].as_str()).collect::<Vec<_>>(),
+                "summary":summary.chars().take(2400).collect::<String>()
+            }));
+        }
+        let root = groups.iter().filter_map(|v| v["summary"].as_str())
+            .collect::<Vec<_>>().join("\n");
+        serde_json::json!({"level":"root", "leaves":leaves, "groups":groups,
+            "summary":root.chars().take(4800).collect::<String>()})
+    };
     let render = |count: usize, warnings: Option<&[serde_json::Value]>| -> String {
         let chosen: Vec<&Evidence> = ordered[..count].iter().map(|&i| &merged[i].1).collect();
         // 只有留下了已校验引文的页才进引用白名单（引用本身不带摘录）。
@@ -717,6 +756,7 @@ fn assemble(
         }
         serde_json::json!({
             "knowledge_candidates":candidates,"knowledge_reading":reading,"evidence":evidence,
+            "knowledge_summary_tree":summary_tree(&chosen),
             "coverage":coverage,
             "skipped":skipped.iter().map(|(slug, reason)| serde_json::json!({"page_slug":slug,"reason":reason})).collect::<Vec<_>>(),
             "knowledge_warnings":warnings.unwrap_or_default()
