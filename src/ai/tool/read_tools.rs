@@ -152,7 +152,9 @@ impl Tool for GetWikiPageTool {
         if offset > 0 || args.get("content_hash").is_some() {
             anyhow::ensure!(
                 args.get("content_hash").and_then(Value::as_str) == Some(hash.as_str()),
-                "wiki_read_version_changed"
+                format!(
+                    "wiki_read_version_changed: 页面版本已更新；请从 offset=0 重新读取，当前 content_hash={hash}"
+                )
             );
         }
         let total = page.content_md.chars().count();
