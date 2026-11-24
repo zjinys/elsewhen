@@ -100,7 +100,7 @@ class _ReadingState extends ConsumerState<KnowledgeReadingControl> {
               child: Text(
                 context.l10n.knowledgeReadingTitle,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: AppTheme.textPrimary,
                 ),

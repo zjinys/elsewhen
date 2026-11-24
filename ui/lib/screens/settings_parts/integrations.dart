@@ -142,7 +142,7 @@ extension _Integrations on _SettingsScreenState {
           context.l10n.l6ConnectModelContextProtocolServersTo6e5c7,
           style: TextStyle(
             color: AppTheme.textSecondary,
-            fontSize: 13,
+            fontSize: 14,
             height: 1.6,
           ),
         ),

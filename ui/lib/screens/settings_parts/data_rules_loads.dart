@@ -206,7 +206,7 @@ extension _DataRulesLoads on _SettingsScreenState {
         context.l10n.l6NoRelationshipsOrEmotionAnnotationsYetbecb5,
         style: TextStyle(
           color: AppTheme.textSecondary,
-          fontSize: 13,
+          fontSize: 14,
           height: 1.6,
         ),
       );
@@ -228,7 +228,7 @@ extension _DataRulesLoads on _SettingsScreenState {
                         '${_userModelRelations[i].fromSlug}  ——  ${_userModelRelations[i].relation}  ——  ${_userModelRelations[i].toSlug}',
                         style: TextStyle(
                           color: AppTheme.textPrimary,
-                          fontSize: 13,
+                          fontSize: 14,
                           height: 1.4,
                         ),
                       ),
@@ -309,7 +309,7 @@ extension _DataRulesLoads on _SettingsScreenState {
                                 ),
                           style: TextStyle(
                             color: AppTheme.textPrimary,
-                            fontSize: 13,
+                            fontSize: 14,
                             height: 1.4,
                           ),
                         ),

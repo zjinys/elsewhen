@@ -174,7 +174,7 @@ class EventCard extends StatelessWidget {
             analysis.summary,
             style: TextStyle(
               color: AppTheme.textSecondary,
-              fontSize: 13,
+              fontSize: 14,
               height: 1.5,
             ),
           ),

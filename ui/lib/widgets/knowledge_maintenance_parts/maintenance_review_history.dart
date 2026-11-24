@@ -171,7 +171,7 @@ class _ReviewHistoryState extends ConsumerState<KnowledgeReviewHistorySection> {
                       title: Text(
                         item.title,
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -209,7 +209,7 @@ class _ReviewHistoryState extends ConsumerState<KnowledgeReviewHistorySection> {
                                     Text(
                                       item.description,
                                       style: TextStyle(
-                                        fontSize: 13,
+                                        fontSize: 14,
                                         height: 1.5,
                                         color: AppTheme.textPrimary,
                                       ),

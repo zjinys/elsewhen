@@ -176,7 +176,7 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
             Text(
               '${size.toStringAsFixed(size == size.roundToDouble() ? 0 : 1)} pt',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: TypographyTokens.secondary,
                 color: AppTheme.textTertiary,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
@@ -237,7 +237,7 @@ class WikiReadingSettingsDialog extends ConsumerWidget {
             Text(
               '${height.toStringAsFixed(1)}×',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: TypographyTokens.secondary,
                 color: AppTheme.textTertiary,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),

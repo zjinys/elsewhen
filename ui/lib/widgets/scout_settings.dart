@@ -175,7 +175,7 @@ class _ScoutSettingsState extends ConsumerState<ScoutSettings> {
         padding: const EdgeInsets.all(16),
         child: Text(
           context.l10n.scoutNotConfigured,
-          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
         ),
       );
     }

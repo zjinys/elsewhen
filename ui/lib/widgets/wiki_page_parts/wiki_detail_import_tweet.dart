@@ -225,7 +225,7 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
                   Text(
                     context.l10n.tweetDiscuss,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textSecondary,
                     ),
@@ -531,7 +531,7 @@ class _TweetTabBodyState extends ConsumerState<_TweetTabBody> {
               decoration: InputDecoration(
                 hintText: context.l10n.tweetChatHint,
                 hintStyle: TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   color: AppTheme.textTertiary,
                 ),
                 filled: true,

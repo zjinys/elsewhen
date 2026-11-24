@@ -75,7 +75,7 @@ extension _ProvidersView on _SettingsScreenState {
           const SizedBox(height: 8),
           Text(
             context.l10n.noProviders,
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
           ),
         ],
       ),
@@ -173,7 +173,7 @@ extension _ProvidersView on _SettingsScreenState {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: AppTheme.textPrimary,
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
                     height: 1.3,
                   ),

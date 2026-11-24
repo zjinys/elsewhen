@@ -133,9 +133,11 @@ class _ChatCompanionWorkspaceState
     key: _panelKey,
     color: Colors.transparent,
     child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+          padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
           child: Row(
             children: [
               Expanded(
@@ -143,6 +145,7 @@ class _ChatCompanionWorkspaceState
                   request.title(context),
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
+                    fontSize: TypographyTokens.title,
                   ),
                 ),
               ),
@@ -150,12 +153,13 @@ class _ChatCompanionWorkspaceState
                 tooltip: context.l10n.close,
                 onPressed: _close,
                 icon: const Icon(Icons.close, size: 18),
+                visualDensity: VisualDensity.compact,
               ),
             ],
           ),
         ),
         const Divider(height: 1),
-        Expanded(
+        Flexible(
           child: KeyedSubtree(
             key: ValueKey(request.id),
             child: request.builder(context, true),
@@ -200,28 +204,37 @@ class _ChatCompanionWorkspaceState
                     child: widget.child,
                   ),
                 ),
-                if (wide && request != null)
-                  Positioned(
-                    top: 58,
-                    right: 16,
-                    bottom: 24,
-                    width: math.min(
-                      440,
-                      math.max(360, constraints.maxWidth * 0.42),
+                if (wide && request != null) ...[
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: _close,
                     ),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: AppTheme.surface1,
-                        borderRadius: BorderRadius.circular(14),
-                        border: DesignTokens.hairlineBorder(dark),
-                        boxShadow: ShadowTokens.overlay(dark),
+                  ),
+                  Positioned(
+                    top: 54,
+                    right: 16,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: 400,
+                        minWidth: 340,
+                        maxHeight: math.min(540, constraints.maxHeight - 74),
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: _panel(request),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface1,
+                          borderRadius: BorderRadius.circular(14),
+                          border: DesignTokens.hairlineBorder(dark),
+                          boxShadow: ShadowTokens.overlay(dark),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: _panel(request),
+                        ),
                       ),
                     ),
                   ),
+                ],
                 if (!wide && request != null) ...[
                   ModalBarrier(
                     key: const ValueKey("companion-modal-barrier"),

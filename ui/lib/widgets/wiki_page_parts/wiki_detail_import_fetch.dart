@@ -157,7 +157,7 @@ class _ImportFetchTabBodyState extends ConsumerState<_ImportFetchTabBody> {
                 controller: _tagsController,
                 enabled: !_saving && !_saved,
                 hintText: context.l10n.wikiImportTagsHint,
-                style: TextStyle(fontSize: 13, color: AppTheme.textPrimary),
+                style: TextStyle(fontSize: 14, color: AppTheme.textPrimary),
               ),
               const SizedBox(height: AppTheme.space2),
               Row(

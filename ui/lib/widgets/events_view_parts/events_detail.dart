@@ -115,7 +115,7 @@ class _EventDetailBody extends ConsumerWidget {
             child: SelectableText(
               detail.summary!,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 14,
                 color: AppTheme.textPrimary,
                 height: 1.6,
               ),

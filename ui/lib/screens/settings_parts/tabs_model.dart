@@ -201,7 +201,7 @@ extension _TabsModel on _SettingsScreenState {
                 child: Text(
                   label,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: TypographyTokens.body,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                     color: selected
                         ? AppTheme.textPrimary
@@ -321,8 +321,8 @@ extension _TabsModel on _SettingsScreenState {
           context.l10n.digestDescription,
           style: TextStyle(
             color: AppTheme.textSecondary,
-            fontSize: 13,
-            height: 1.6,
+            fontSize: TypographyTokens.body,
+            height: 1.5,
           ),
         ),
         const SizedBox(height: AppTheme.space3),
@@ -384,8 +384,8 @@ extension _TabsModel on _SettingsScreenState {
           context.l10n.wikiExportDescription,
           style: TextStyle(
             color: AppTheme.textSecondary,
-            fontSize: 13,
-            height: 1.6,
+            fontSize: TypographyTokens.body,
+            height: 1.5,
           ),
         ),
         const SizedBox(height: AppTheme.space3),
@@ -454,7 +454,7 @@ extension _TabsModel on _SettingsScreenState {
             _dbStatsError == null
                 ? context.l10n.loading
                 : context.notice(_dbStatsError),
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
           )
         else ...[
           Text(
@@ -467,7 +467,7 @@ extension _TabsModel on _SettingsScreenState {
             ),
             style: TextStyle(
               color: AppTheme.textSecondary,
-              fontSize: 13,
+              fontSize: 14,
               height: 1.6,
             ),
           ),
@@ -679,7 +679,7 @@ extension _TabsModel on _SettingsScreenState {
                           ? context.l10n.minimizeToTray
                           : context.l10n.quitApp,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: selected
                             ? AppTheme.accentPrimary

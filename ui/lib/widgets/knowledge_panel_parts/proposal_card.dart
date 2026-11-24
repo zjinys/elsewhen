@@ -270,7 +270,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                                     (i + 1).toString(),
                                   ),
                                   style: const TextStyle(
-                                    fontSize: 13,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -365,7 +365,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                   contentPadding: EdgeInsets.zero,
                   title: Text(
                     context.l10n.l6AlsoAcceptTheSuggestedConditionsbd478,
-                    style: TextStyle(fontSize: 13),
+                    style: TextStyle(fontSize: 14),
                   ),
                   subtitle: Text(
                     p.applicableWhen,
@@ -393,7 +393,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                     contentPadding: EdgeInsets.zero,
                     title: Text(
                       issue.description,
-                      style: const TextStyle(fontSize: 13),
+                      style: const TextStyle(fontSize: 14),
                     ),
                     value: _resolvedIssues.contains(issue.fingerprint),
                     onChanged: _busy
@@ -484,7 +484,7 @@ class _KnowledgeProposalCardState extends ConsumerState<KnowledgeProposalCard> {
                               child: Text(
                                 _comparisonTitle!,
                                 style: const TextStyle(
-                                  fontSize: 13,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),

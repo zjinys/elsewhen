@@ -346,7 +346,7 @@ class _HabitNudgeDialogState extends ConsumerState<HabitNudgeDialog> {
                                         ),
                                   style: TextStyle(
                                     color: AppTheme.textSecondary,
-                                    fontSize: 13,
+                                    fontSize: 14,
                                   ),
                                 ),
                                 const SizedBox(height: 6),

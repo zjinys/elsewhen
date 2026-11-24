@@ -242,7 +242,7 @@ class _ImportTabState extends ConsumerState<_ImportTab> {
                 decoration: InputDecoration(
                   hintText: context.l10n.wikiUrlHint,
                   hintStyle: TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     color: AppTheme.textTertiary,
                   ),
                   isDense: true,

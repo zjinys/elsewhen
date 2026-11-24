@@ -275,7 +275,7 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
                                     Text(
                                       context.l10n.wikiAskAi,
                                       style: TextStyle(
-                                        fontSize: 13,
+                                        fontSize: TypographyTokens.secondary,
                                         fontWeight: FontWeight.w500,
                                         color: AppTheme.textSecondary,
                                       ),
@@ -563,7 +563,7 @@ extension _WikiPageBodyImmersive on _WikiPageBodyState {
         ),
         content: Text(
           dialogContext.l10n.wikiDeleteHelp(widget.page.title),
-          style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+          style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
         ),
         actions: [
           TextButton(

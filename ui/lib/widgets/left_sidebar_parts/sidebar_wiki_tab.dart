@@ -157,6 +157,15 @@ class _WikiTabState extends ConsumerState<_WikiTab> {
 /// 每种 kind 一个主题色：统一切换至 AppTheme.knowledgeColor 低饱和色谱
 Color _kindColor(String kind) => AppTheme.knowledgeColor(kind);
 
+String _cleanSnippet(String text) {
+  return text
+      .replaceAll(RegExp(r'!\[.*?\](\(.*?\)|\[.*?\])?'), '')
+      .replaceAll(RegExp(r'\[(.*?)\](\(.*?\)|\[.*?\])?'), r'$1')
+      .replaceAll(RegExp(r'#+\s*'), '')
+      .replaceAll(RegExp(r'(\*\*|__|\*|_|`)'), '')
+      .trim();
+}
+
 /// kind 色点 + 首字徽标：与分组标题同色的条目级视觉锚点
 class _KindBadge extends StatelessWidget {
   final String kind;
@@ -278,10 +287,10 @@ class _WikiPageItem extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (page.summary.isNotEmpty) ...[
+                if (_cleanSnippet(page.summary).isNotEmpty) ...[
                   const SizedBox(height: AppTheme.space1),
                   Text(
-                    page.summary,
+                    _cleanSnippet(page.summary),
                     style: TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 12,

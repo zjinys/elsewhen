@@ -236,7 +236,7 @@ class AppTheme {
         ),
         contentPadding: const EdgeInsets.all(space4),
         hintStyle: TextStyle(color: palette.textTertiary, fontSize: 14),
-        labelStyle: TextStyle(color: palette.textSecondary, fontSize: 13),
+        labelStyle: TextStyle(color: palette.textSecondary, fontSize: 12),
       ),
       // 滚动条：桌面常驻细轨（4px，hover 加粗由 Scrollbar 自身处理），
       // 移动端自动隐去（thumbVisibility 由平台缺省决定，移动端捏合不出现）。
@@ -274,7 +274,7 @@ class AppTheme {
         backgroundColor: palette.surface2.withValues(alpha: 0.98),
         contentTextStyle: TextStyle(
           color: palette.textPrimary,
-          fontSize: 13,
+          fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
         elevation: 8,
@@ -342,9 +342,9 @@ class AppTheme {
     );
     return InputDecoration(
       hintText: hintText,
-      hintStyle: TextStyle(fontSize: 13, color: textTertiary),
+      hintStyle: TextStyle(fontSize: 14, color: textTertiary),
       labelText: labelText,
-      labelStyle: TextStyle(fontSize: 13, color: textSecondary),
+      labelStyle: TextStyle(fontSize: 12, color: textSecondary),
       prefixIcon: prefixIcon,
       prefixIconConstraints: prefixIcon == null
           ? null

@@ -85,8 +85,8 @@ extension _UsageFonts on _SettingsScreenState {
         context.l10n.noAiUsage,
         style: TextStyle(
           color: AppTheme.textSecondary,
-          fontSize: 13,
-          height: 1.6,
+          fontSize: TypographyTokens.body,
+          height: 1.5,
         ),
       );
     }
@@ -335,11 +335,28 @@ extension _UsageFonts on _SettingsScreenState {
             Text(
               '${size.toStringAsFixed(size == size.roundToDouble() ? 0 : 1)} pt',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: TypographyTokens.secondary,
                 color: AppTheme.textTertiary,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
+            if (size != AppFonts.defaultFontSize) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () {
+                  notifier
+                    ..updateFontSize(AppFonts.defaultFontSize)
+                    ..saveTheme();
+                },
+                child: Text(
+                  context.l10n.restoreDefault,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.accentPrimary,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
         const SizedBox(height: 4),
