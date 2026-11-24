@@ -208,7 +208,11 @@ pub struct ToolResultMsg {
     pub content: String,
     /// 本次调用是否真实成功（写声明核验用：WriteConfirm 只登记草稿不算写，见 conversation.rs）
     pub success: bool,
+    pub error_kind: Option<ToolErrorKind>,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToolErrorKind { Recoverable, InvalidInput, Stale, Permission, External, Fatal }
 
 impl ToolResultMsg {
     pub fn ok(call: &ToolCall, content: String) -> Self {
@@ -217,15 +221,29 @@ impl ToolResultMsg {
             call_name: call.name.clone(),
             content,
             success: true,
+            error_kind: None,
         }
     }
 
     pub fn err(call: &ToolCall, err: impl std::fmt::Display) -> Self {
+        let text = err.to_string();
+        let error_kind = if text.contains("version_changed") || text.contains("source_changed") {
+            Some(ToolErrorKind::Stale)
+        } else if text.contains("缺少必填") || text.contains("invalid") || text.contains("不合法") {
+            Some(ToolErrorKind::InvalidInput)
+        } else if text.contains("未启用") || text.contains("等待确认") || text.contains("权限") {
+            Some(ToolErrorKind::Permission)
+        } else if text.contains("超时") || text.contains("unavailable") || text.contains("抓取") {
+            Some(ToolErrorKind::External)
+        } else {
+            Some(ToolErrorKind::Fatal)
+        };
         Self {
             id: call.id.clone(),
             call_name: call.name.clone(),
-            content: format!("工具执行失败：{err}"),
+            content: format!("工具执行失败：{text}"),
             success: false,
+            error_kind,
         }
     }
 }

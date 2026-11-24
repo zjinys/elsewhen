@@ -466,7 +466,7 @@ pub(crate) fn run_agent_loop_inner(
                 // 两个版本的正文。这样模型不会把可恢复的竞态误报成依据撤回。
                 if call.name == "get_wiki_page"
                     && !result.success
-                    && result.content.contains("wiki_read_version_changed")
+                    && result.error_kind == Some(crate::ai::tool::ToolErrorKind::Stale)
                 {
                     let mut restart = call.arguments.clone();
                     if let Some(object) = restart.as_object_mut() {
@@ -593,7 +593,7 @@ pub(crate) fn run_agent_loop_inner(
                 )?;
                 if call.name == "get_wiki_page"
                     && !result.success
-                    && result.content.contains("wiki_read_version_changed")
+                    && result.error_kind == Some(crate::ai::tool::ToolErrorKind::Stale)
                 {
                     let mut restart = call.arguments.clone();
                     if let Some(object) = restart.as_object_mut() {
