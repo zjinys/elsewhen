@@ -148,7 +148,7 @@ class _TodoListViewState extends ConsumerState<TodoListView> {
                 decoration: InputDecoration(
                   hintText: context.l10n.todoNoteHint,
                   hintStyle: TextStyle(
-                    fontSize: 12,
+                    fontSize: TypographyTokens.secondary,
                     color: AppTheme.textTertiary,
                   ),
                   isDense: true,

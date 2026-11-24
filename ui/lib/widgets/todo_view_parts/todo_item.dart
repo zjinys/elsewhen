@@ -30,13 +30,9 @@ class _TodoItem extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onOpenWorkItem ?? onToggle,
+        borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(
-            AppTheme.space3,
-            AppTheme.space2,
-            AppTheme.space2,
-            AppTheme.space2,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -120,7 +116,7 @@ class _TodoItem extends StatelessWidget {
                                     Text(
                                       context.l10n.knowledgePage,
                                       style: TextStyle(
-                                        fontSize: 11,
+                                        fontSize: TypographyTokens.micro,
                                         color: AppTheme.accentPrimary,
                                       ),
                                     ),
@@ -147,7 +143,7 @@ class _TodoItem extends StatelessWidget {
                                       _fmtDate(context, todo.dueAt!),
                                     ),
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: TypographyTokens.micro,
                                 color: AppTheme.textTertiary,
                               ),
                             ),
@@ -157,7 +153,7 @@ class _TodoItem extends StatelessWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: TypographyTokens.micro,
                                 color: AppTheme.textTertiary,
                               ),
                             ),
