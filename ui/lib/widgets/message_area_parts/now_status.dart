@@ -101,9 +101,8 @@ class _NowStatus extends ConsumerWidget {
       showHighlight: true,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // 宽形态一行的自然宽度实测约 500px（今天+目标+待办+审阅+创建主题+右侧操作按钮）；
-          // 断点取 640 留出安全余量。
-          final compact = constraints.maxWidth < 640;
+          // 自然宽度紧凑规范化后仅约 400px，断点取 480 留出安全余量，大屏绝不折行。
+          final compact = constraints.maxWidth < 480;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -115,7 +114,7 @@ class _NowStatus extends ConsumerWidget {
                     size: DesignTokens.iconMicro,
                     color: AppTheme.accentPrimary,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Text(
                     context.l10n.today,
                     style: TextStyle(
@@ -126,63 +125,32 @@ class _NowStatus extends ConsumerWidget {
                   ),
                   const SizedBox(width: 6),
                   if (!compact) ...[
-                    // 目标入口在宽屏才与草稿、待办并排：窄屏第一行放不下三个带文案的
-                    // 按钮（实测 360px 下会溢出 51px），窄屏改由第二行承载。
-                    const SizedBox(width: 6),
-                    TextButton.icon(
+                    NowStatusIconButton(
+                      tooltip: context.l10n.goals,
+                      icon: Icons.flag_outlined,
+                      label: goalLabel,
+                      color: activeGoals.isEmpty
+                          ? AppTheme.accentPrimary
+                          : AppTheme.textSecondary,
                       onPressed: onOpenGoals,
-                      icon: Icon(
-                        Icons.flag_outlined,
-                        size: DesignTokens.iconMicro,
-                        color: activeGoals.isEmpty
-                            ? AppTheme.accentPrimary
-                            : AppTheme.textSecondary,
-                      ),
-                      label: Text(
-                        goalLabel,
-                        style: TextStyle(
-                          color: activeGoals.isEmpty
-                              ? AppTheme.accentPrimary
-                              : AppTheme.textSecondary,
-                        ),
-                      ),
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        textStyle: const TextStyle(
-                          fontSize: TypographyTokens.secondary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
                     ),
-                    const SizedBox(width: 6),
-                    TextButton.icon(
+                    const SizedBox(width: 4),
+                    NowStatusIconButton(
+                      tooltip: context.l10n.todos,
+                      icon: Icons.check_circle_outlined,
+                      label: context.l10n.todoCountItems(openTodos ?? 0),
                       onPressed: onOpenTodos,
-                      icon: const Icon(Icons.check_circle_outlined, size: 16),
-                      label: Text(context.l10n.todoCountItems(openTodos ?? 0)),
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        textStyle: const TextStyle(
-                          fontSize: TypographyTokens.secondary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
                     ),
                     if (conversationId != null) ...[
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 4),
                       ChatProposalReviewButton(conversationId: conversationId),
                     ],
-                    const SizedBox(width: 6),
-                    TextButton.icon(
+                    const SizedBox(width: 4),
+                    NowStatusIconButton(
+                      tooltip: context.l10n.createTopic,
+                      icon: Icons.note_add_outlined,
+                      label: context.l10n.createTopic,
                       onPressed: onCreateTopic,
-                      icon: const Icon(Icons.note_add_outlined, size: 16),
-                      label: Text(context.l10n.createTopic),
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        textStyle: const TextStyle(
-                          fontSize: TypographyTokens.secondary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
                     ),
                     const Spacer(),
                     Row(

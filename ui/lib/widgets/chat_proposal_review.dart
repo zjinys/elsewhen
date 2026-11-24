@@ -120,11 +120,31 @@ class ChatProposalReviewButton extends ConsumerWidget {
             visualDensity: VisualDensity.compact,
             onPressed: () => _open(context),
           )
-        : TextButton.icon(
-            icon: icon,
-            label: Text(label ?? context.l10n.reviewProposals),
-            style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-            onPressed: () => _open(context),
+        : Tooltip(
+            message: label ?? context.l10n.reviewProposals,
+            child: InkWell(
+              onTap: () => _open(context),
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    icon,
+                    const SizedBox(width: 4),
+                    Text(
+                      label ?? context.l10n.reviewProposals,
+                      style: TextStyle(
+                        fontSize: TypographyTokens.secondary,
+                        color: hasPending
+                            ? AppTheme.accentPrimary
+                            : AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           );
   }
 }
