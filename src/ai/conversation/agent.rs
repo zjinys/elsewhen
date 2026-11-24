@@ -450,7 +450,7 @@ pub(crate) fn run_agent_loop_inner(
                     results.push(ToolResultMsg::err(call, text));
                     continue;
                 }
-                let result = dispatch_for_turn(
+                let mut result = dispatch_for_turn(
                     call,
                     registry,
                     store,
@@ -461,6 +461,36 @@ pub(crate) fn run_agent_loop_inner(
                     &enabled_tools,
                     runtime,
                 )?;
+                // 知识页在分页期间被后台同步/编辑时，自动丢弃旧分页游标，
+                // 从当前版本开头重读一次；仍保留工具内的 hash 校验，绝不拼接
+                // 两个版本的正文。这样模型不会把可恢复的竞态误报成依据撤回。
+                if call.name == "get_wiki_page"
+                    && !result.success
+                    && result.content.contains("wiki_read_version_changed")
+                {
+                    let mut restart = call.arguments.clone();
+                    if let Some(object) = restart.as_object_mut() {
+                        object.insert("offset".into(), serde_json::json!(0));
+                        object.remove("content_hash");
+                    }
+                    let retry_call = ToolCall {
+                        id: call.id.clone(),
+                        name: call.name.clone(),
+                        arguments: restart,
+                        raw_arguments: None,
+                    };
+                    result = dispatch_for_turn(
+                        &retry_call,
+                        registry,
+                        store,
+                        conversation_id,
+                        status_only,
+                        allow_record_event,
+                        &crate::knowledge::candidates_in_context(context),
+                        &enabled_tools,
+                        runtime,
+                    )?;
+                }
                 debug_eprintln!(
                     "[agent] dispatch tool={} -> {}",
                     call.name,

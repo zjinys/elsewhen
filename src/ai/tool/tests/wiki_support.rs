@@ -147,6 +147,8 @@ fn wiki_support_long_page_reading_reaches_tail_without_mixing_versions() {
     );
     assert!(!stale.success);
     assert!(stale.content.contains("wiki_read_version_changed"));
+    assert!(stale.content.contains("offset=0"));
+    assert!(stale.content.contains("content_hash="));
 }
 
 #[test]
