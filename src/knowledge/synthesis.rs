@@ -29,7 +29,8 @@ const MAX_PAGES: usize = 8;
 const MAX_SUB_QUESTIONS: usize = 6;
 const MAX_QUERIES: usize = 4;
 /// 交回主上下文的证据总量上限（quote 与 note 的字符数之和）。
-const MAX_EVIDENCE_CHARS: usize = 6000;
+// 证据只用于追溯，不再承担跨页总结的主输入；跨页任务主要消费摘要树。
+const MAX_EVIDENCE_CHARS: usize = 1800;
 /// 结果预算低于这个数也允许开始：至少返回 coverage、来源和部分证据，
 /// 不把“部分可用结果”误报成整轮失败。最终证据数量由 assemble 再按预算裁剪。
 const MIN_RESULT_TOKENS: usize = 800;
@@ -738,7 +739,7 @@ fn assemble(
                 serde_json::json!({
                     "q":e.questions,"kind":e.kind,"page_slug":pages[e.page].page.slug,
                     "start_char":e.start,"end_char":e.end,
-                    "quote":pages[e.page].chars[e.start..e.end].iter().collect::<String>(),
+                    "quote":pages[e.page].chars[e.start..e.end].iter().collect::<String>().chars().take(240).collect::<String>(),
                     "note":e.note
                 })
             })
