@@ -164,7 +164,10 @@ impl Tool for GetWikiPageTool {
         // 失败模式（run 564fe4bb/8fd94ade）。
         const MAX_READ_CHARS: usize = 8000;
         // 余量连这么多都放不下时不再返回碎片（读得完的页尾除外）。
-        const MIN_READ_CHARS: usize = 1500;
+        // 多页总结时每个调用共享同一轮余量；最低片段不能过大，否则
+        // 最后一个页面会被错误地判成整轮预算失败。短片段仍带完整
+        // reading 元数据，模型可以在下一轮继续读取。
+        const MIN_READ_CHARS: usize = 256;
         let available: Vec<char> = page
             .content_md
             .chars()
@@ -222,10 +225,14 @@ impl Tool for GetWikiPageTool {
                 }
             }
             length = low;
-            anyhow::ensure!(
-                length >= MIN_READ_CHARS.min(available.len()),
-                "wiki_read_budget_exhausted"
-            );
+            if length < MIN_READ_CHARS.min(available.len()) {
+                length = MIN_READ_CHARS.min(available.len());
+                if !fits(length) {
+                    // 预算只够传递游标时也返回成功的 reading 元数据，
+                    // 让 agent 能继续处理其他页面，而不是把整个任务打成失败。
+                    length = 0;
+                }
+            }
         }
         let access = uuid::Uuid::new_v4().to_string();
         ctx.store

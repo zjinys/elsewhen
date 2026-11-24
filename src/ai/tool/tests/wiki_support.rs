@@ -199,10 +199,10 @@ fn wiki_support_page_reading_fits_the_remaining_request_budget() {
     }
     assert_eq!(collected, body);
 
-    // 余量连最小片段都放不下：明确报错，不返回注定被截断的碎片。
+    // 余量不足时仍返回可继续读取的游标，不把整轮任务打成失败。
     let exhausted = f.call_with_budget("get_wiki_page", json!({"slug":page.slug}), 1200);
-    assert!(!exhausted.success);
-    assert!(exhausted.content.contains("wiki_read_budget_exhausted"));
+    assert!(exhausted.success);
+    assert!(exhausted.content.contains("next_offset") || exhausted.content.contains("end_char"));
     // 页尾剩下的一小段读得完时照常返回。
     let tail = body.chars().count() - 300;
     let last = f.call_with_budget(
