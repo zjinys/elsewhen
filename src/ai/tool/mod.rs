@@ -214,6 +214,17 @@ pub struct ToolResultMsg {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolErrorKind { Recoverable, InvalidInput, Stale, Permission, External, Fatal }
 
+impl ToolErrorKind {
+    pub fn classify(text: &str) -> Self {
+        let lower = text.to_ascii_lowercase();
+        if lower.contains("wiki_read_version_changed") || lower.contains("source_changed") || lower.contains("stale") { Self::Stale }
+        else if lower.contains("invalid") || lower.contains("缺少必填") || lower.contains("不合法") || lower.contains("offset") { Self::InvalidInput }
+        else if lower.contains("未启用") || lower.contains("等待确认") || lower.contains("权限") || lower.contains("permission") { Self::Permission }
+        else if lower.contains("超时") || lower.contains("timeout") || lower.contains("unavailable") || lower.contains("抓取") || lower.contains("connection") { Self::External }
+        else { Self::Fatal }
+    }
+}
+
 impl ToolResultMsg {
     pub fn ok(call: &ToolCall, content: String) -> Self {
         Self {
@@ -227,17 +238,7 @@ impl ToolResultMsg {
 
     pub fn err(call: &ToolCall, err: impl std::fmt::Display) -> Self {
         let text = err.to_string();
-        let error_kind = if text.contains("version_changed") || text.contains("source_changed") {
-            Some(ToolErrorKind::Stale)
-        } else if text.contains("缺少必填") || text.contains("invalid") || text.contains("不合法") {
-            Some(ToolErrorKind::InvalidInput)
-        } else if text.contains("未启用") || text.contains("等待确认") || text.contains("权限") {
-            Some(ToolErrorKind::Permission)
-        } else if text.contains("超时") || text.contains("unavailable") || text.contains("抓取") {
-            Some(ToolErrorKind::External)
-        } else {
-            Some(ToolErrorKind::Fatal)
-        };
+        let error_kind = Some(ToolErrorKind::classify(&text));
         Self {
             id: call.id.clone(),
             call_name: call.name.clone(),
