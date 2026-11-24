@@ -324,10 +324,8 @@ class _MessageInputState extends ConsumerState<_MessageInput> {
 
   @override
   Widget build(BuildContext context) {
-    // 输入框文字跟随对话流字号阶梯（原 14），并合入内容字体族
-    // （TextField 不走 DefaultTextStyle 继承，需显式 merge）。
+    // 输入框文字跟随对话流字号阶梯（原 14）。
     final scale = ref.watch(settingsProvider.select(chatTypeScaleOf));
-    final contentFontStyle = ContentFont.styleOf(context);
     final selectedId = ref.watch(selectedConversationIdProvider);
     // 「存为主题」预填：AI 气泡悬浮按钮写入 provider，这里填进输入框并聚焦。
     // 填一次即清空 provider（置 null），避免切会话/重建时重复填入。

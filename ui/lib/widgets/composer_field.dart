@@ -111,7 +111,13 @@ class _ComposerFieldState extends State<ComposerField> {
                     spreadRadius: 1.5,
                   ),
                 ]
-              : const [],
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.10),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
         child: ValueListenableBuilder<TextEditingValue>(
           valueListenable: widget.controller,

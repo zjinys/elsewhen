@@ -22,11 +22,11 @@
 - [x] **悬浮伴随工作区与无缝切换（In-place Companion Workspace）**：右侧抽屉升级为 14px 圆角悬浮磨砂卡片；引入 `activeCompanionIdProvider` 状态追踪，顶部按钮升级为 Active Pill 状态胶囊；修复事件冲突，实现待办 ↔ 目标原地平滑单跳切换。
 - [x] **伴随工作区自动化单测套件**：补充 `switching directly from todo to goal updates panel and active companion` 单元测试，全量测试与 `dart analyze` 全绿。
 
-### Phase 1: 核心视线流与呼吸感重构 (当前进行中)
-- [ ] **P1-1 主对话流 760px 黄金阅读宽度限制与居中锚定**：
+### Phase 1: 核心视线流与呼吸感重构 (进行中)
+- [x] **P1-1 主对话流 760px 黄金阅读宽度限制与居中锚定**：
   - 在 `message_area.dart` 中对消息流容器施加 `BoxConstraints(maxWidth: 780)` 居中约束，大屏消除视线横向散漫，彻底防止面板影响正文排版。
-- [ ] **P1-2 底部输入区微悬浮岛设计（Floating Composer Dock）**：
-  - 改造 `message_area_parts/input.dart`，与底部保持 16px 留白微悬浮，搭配 14px 圆角与柔和微光阴影，将模式切换（对话/灵感/记录）精致化整合为微胶囊。
+- [x] **P1-2 底部输入区微悬浮岛设计（Floating Composer Dock）**：
+  - 输入框整体对齐 780px 居中视线，并在 `composer_field.dart` 中赋予常态环境光微投影与 16px 底部留白微悬浮感。
 - [ ] **P1-3 时间轴分割线与翻篇记录质感优化**：
   - 微调 `DateChip` 与 `PageMark` 翻篇标记的线条透明度与排版，提升章节印记感。
 

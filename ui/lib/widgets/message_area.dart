@@ -486,63 +486,76 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
                     padding: const EdgeInsets.all(AppTheme.space4),
                     itemCount: rows.length + (hasMore ? 1 : 0) + tailCount,
                     itemBuilder: (context, index) {
+                      Widget item;
                       if (hasMore && index == 0) {
-                        return _buildLoadMoreButton(total, shownSince);
-                      }
-                      final libIndex = index - (hasMore ? 1 : 0);
-                      if (libIndex < rows.length) {
-                        final row = rows[libIndex];
-                        if (row is String) return _DayDivider(label: row);
-                        final message = row as Message;
-                        // 「重新生成」出现在**待回复的那条用户消息**上：会话最后一条
-                        // user 消息（生成失败、或还没生成），或上一轮被记为失败的那条。
-                        // 生成期间不显示（此时以「AI 正在思考…」占位反馈）。
-                        final needsReply =
-                            message.isUser &&
-                            !isAiTyping &&
-                            (!durable ||
-                                (durableRunInput != message.id &&
-                                    message.conversationId == selectedId)) &&
-                            ((message.id == latestUserMessageId &&
-                                    !latestUserHasReply) ||
-                                (failedReplyId != null &&
-                                    message.id == failedReplyId));
-                        if (message.isHabitNudge ||
-                            message.isHabitNudgeSuggest) {
-                          final base = _habitNudgeBaseRef(message.messageRef);
-                          final latestAsk = base == null
-                              ? 1
-                              : (latestHabitAsk[base] ?? 1);
-                          return HabitNudgeBubble(
-                            message: message,
-                            checkin: habitCheckins[message.messageRef],
-                            supersededByNewer:
-                                message.messageRef != null &&
-                                latestAsk > _habitNudgeAsk(message.messageRef!),
-                          );
+                        item = _buildLoadMoreButton(total, shownSince);
+                      } else {
+                        final libIndex = index - (hasMore ? 1 : 0);
+                        if (libIndex < rows.length) {
+                          final row = rows[libIndex];
+                          if (row is String) {
+                            item = _DayDivider(label: row);
+                          } else {
+                            final message = row as Message;
+                            // 「重新生成」出现在**待回复的那条用户消息**上：会话最后一条
+                            // user 消息（生成失败、或还没生成），或上一轮被记为失败的那条。
+                            // 生成期间不显示（此时以「AI 正在思考…」占位反馈）。
+                            final needsReply =
+                                message.isUser &&
+                                !isAiTyping &&
+                                (!durable ||
+                                    (durableRunInput != message.id &&
+                                        message.conversationId == selectedId)) &&
+                                ((message.id == latestUserMessageId &&
+                                        !latestUserHasReply) ||
+                                    (failedReplyId != null &&
+                                        message.id == failedReplyId));
+                            if (message.isHabitNudge ||
+                                message.isHabitNudgeSuggest) {
+                              final base = _habitNudgeBaseRef(message.messageRef);
+                              final latestAsk = base == null
+                                  ? 1
+                                  : (latestHabitAsk[base] ?? 1);
+                              item = HabitNudgeBubble(
+                                message: message,
+                                checkin: habitCheckins[message.messageRef],
+                                supersededByNewer:
+                                    message.messageRef != null &&
+                                    latestAsk > _habitNudgeAsk(message.messageRef!),
+                              );
+                            } else if (message.isDigestInsight) {
+                              item = DigestInsightBubble(message: message);
+                            } else if (message.isScoutBrief) {
+                              item = ScoutBriefBubble(message: message);
+                            } else {
+                              item = _scrollController.anchorMessage(
+                                message,
+                                _MessageBubble(
+                                  message: message,
+                                  showRetry: needsReply,
+                                  onRetry: () =>
+                                      _retryAiGeneration(selectedId, message.id),
+                                  isLastMessage: libIndex == rows.length - 1,
+                                ),
+                              );
+                            }
+                          }
+                        } else {
+                          final tailIndex = libIndex - rows.length;
+                          if (tailIndex < notices.length) {
+                            item = _NoticeBubble(text: notices[tailIndex]);
+                          } else {
+                            item = const _AiTypingBubble();
+                          }
                         }
-                        if (message.isDigestInsight) {
-                          return DigestInsightBubble(message: message);
-                        }
-                        if (message.isScoutBrief) {
-                          return ScoutBriefBubble(message: message);
-                        }
-                        return _scrollController.anchorMessage(
-                          message,
-                          _MessageBubble(
-                            message: message,
-                            showRetry: needsReply,
-                            onRetry: () =>
-                                _retryAiGeneration(selectedId, message.id),
-                            isLastMessage: libIndex == rows.length - 1,
-                          ),
-                        );
                       }
-                      final tailIndex = libIndex - rows.length;
-                      if (tailIndex < notices.length) {
-                        return _NoticeBubble(text: notices[tailIndex]);
-                      }
-                      return const _AiTypingBubble();
+                      return Align(
+                        alignment: Alignment.topCenter,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 780),
+                          child: item,
+                        ),
+                      );
                     },
                   ),
                 ),
@@ -563,19 +576,31 @@ class _MessageAreaState extends ConsumerState<MessageArea> {
         ),
 
         if (durable)
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 220),
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  ChatRunStatus(conversationId: selectedId),
-                  ChatInputQueue(conversationId: selectedId),
-                ],
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 780),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 220),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      ChatRunStatus(conversationId: selectedId),
+                      ChatInputQueue(conversationId: selectedId),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
         // Input area
-        _MessageInput(onMessageSent: _scrollController.scrollToLatest),
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 780),
+            child: _MessageInput(onMessageSent: _scrollController.scrollToLatest),
+          ),
+        ),
       ],
     );
     return ChatCompanionWorkspace(child: content);
