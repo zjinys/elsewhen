@@ -345,12 +345,24 @@ class _ChatProposalReviewDialogState
     final isViewing =
         _viewing != null && '${_viewing!.kind}:${_viewing!.id}' == key;
     final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       elevation: 0,
       color: isViewing
-          ? theme.colorScheme.primaryContainer
-          : theme.colorScheme.surfaceContainerHighest,
+          ? (dark
+              ? AppTheme.accentPrimary.withValues(alpha: 0.18)
+              : AppTheme.accentPrimary.withValues(alpha: 0.12))
+          : (dark ? AppTheme.surface1 : AppTheme.surface2),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: isViewing
+            ? BorderSide(
+                color: AppTheme.accentPrimary.withValues(alpha: 0.35),
+                width: 0.5,
+              )
+            : DesignTokens.hairlineSide(dark),
+      ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _review(proposal),
@@ -426,12 +438,24 @@ class _ChatProposalReviewDialogState
         _viewingReceipt != null &&
         '${_viewingReceipt!.kind}:${_viewingReceipt!.id}' == key;
     final (icon, color) = _statusIcon(receipt.status, theme);
+    final dark = theme.brightness == Brightness.dark;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       elevation: 0,
       color: isViewing
-          ? theme.colorScheme.primaryContainer
-          : theme.colorScheme.surfaceContainerHighest,
+          ? (dark
+              ? AppTheme.accentPrimary.withValues(alpha: 0.18)
+              : AppTheme.accentPrimary.withValues(alpha: 0.12))
+          : (dark ? AppTheme.surface1 : AppTheme.surface2),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: isViewing
+            ? BorderSide(
+                color: AppTheme.accentPrimary.withValues(alpha: 0.35),
+                width: 0.5,
+              )
+            : DesignTokens.hairlineSide(dark),
+      ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _reviewReceipt(receipt),

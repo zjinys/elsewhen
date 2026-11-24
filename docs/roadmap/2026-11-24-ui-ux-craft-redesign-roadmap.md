@@ -31,8 +31,8 @@
   - 微调 `_DayDivider` 为微胶囊芯片搭配 0.5px 发丝微光分割线，提升章节印记感。
 
 ### Phase 2: 交互内嵌卡片与信息闭环 (进行中)
-- [ ] **P2-1 对话流内提议卡片工匠化（Inline Proposal Card）**：
-  - 去除大灰色厚重卡片，采用内嵌工匠卡片风格，左侧 3px 微光主题指示线，操作按钮统一为微型高光胶囊。
+- [x] **P2-1 对话流内提议卡片工匠化（Inline Proposal Card）**：
+  - 在 `proposal_review_dialog.dart` 中去除 Material 3 原生粗硬卡片，引入 10px 圆角、`DesignTokens.hairlineSide` 发丝微光描边，高亮项采用微透明主题强调色衬底（`accentPrimary.withValues(alpha: 0.18)`）。
 - [ ] **P2-2 采纳提议与伴随卡片数量联动微动效**：
   - 点击采纳后，提议卡片平滑淡出或收拢，右上角伴随卡片的待办计数与清单无感实时同步。
 - [ ] **P2-3 悬浮伴随卡片内容细节打磨**：
