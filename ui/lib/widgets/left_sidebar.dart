@@ -9,11 +9,9 @@ import 'adaptive.dart';
 import 'app_pressable.dart';
 
 import '../models/wiki_page.dart';
-import '../models/goal.dart';
 import '../bridge/api.dart' as api;
 import '../providers/app_provider.dart';
 import '../providers/conversation_provider.dart';
-import '../providers/goal_provider.dart';
 import '../providers/knowledge_provider.dart';
 import '../providers/wiki_provider.dart';
 import '../providers/scout_provider.dart';
@@ -259,21 +257,35 @@ class LeftSidebar extends ConsumerWidget {
                           color: Colors.transparent,
                           child: ListTile(
                             dense: true,
+                            horizontalTitleGap: 10,
+                            minLeadingWidth: 16,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 1,
+                            ),
                             leading: Icon(
                               page.kind == 'topic'
                                   ? Icons.tag_outlined
                                   : Icons.description_outlined,
-                              size: DesignTokens.iconMicro,
+                              size: 15,
+                              color: AppTheme.textSecondary,
                             ),
                             title: Text(
                               page.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: TypographyTokens.secondary,
+                                color: AppTheme.textPrimary,
+                              ),
                             ),
                             subtitle: Text(
                               context.pageKindLabel(page.kind),
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: TypographyTokens.micro,
                                 color: AppTheme.textTertiary,
                               ),
                             ),

@@ -258,6 +258,32 @@ class AppTheme {
         backgroundColor: palette.surface1,
         shape: const RoundedRectangleBorder(),
       ),
+      navigationDrawerTheme: NavigationDrawerThemeData(
+        backgroundColor: palette.surface1,
+        indicatorColor: palette.accentPrimary.withValues(alpha: 0.14),
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => TextStyle(
+            fontSize: TypographyTokens.body,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w600
+                : FontWeight.w500,
+            color: states.contains(WidgetState.selected)
+                ? palette.accentPrimary
+                : palette.textSecondary,
+          ),
+        ),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            size: 20,
+            color: states.contains(WidgetState.selected)
+                ? palette.accentPrimary
+                : palette.textSecondary,
+          ),
+        ),
+      ),
       popupMenuTheme: PopupMenuThemeData(
         color: palette.surface2,
         elevation: 6,
