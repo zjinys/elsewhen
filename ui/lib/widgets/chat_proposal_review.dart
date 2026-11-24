@@ -104,16 +104,22 @@ class ChatProposalReviewButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final activeCompanion = ref.watch(activeCompanionIdProvider);
+    final isActive = activeCompanion != null && activeCompanion.startsWith('review');
+    final dark = Theme.of(context).brightness == Brightness.dark;
     // 有待审提议时显示徽标（只探测是否有，不取全量）。
     final pending = ref.watch(_hasPendingProvider(conversationId));
     final hasPending = pending.value == true;
+    final effectiveColor = isActive
+        ? AppTheme.accentPrimary
+        : (hasPending ? AppTheme.accentPrimary : AppTheme.textSecondary);
     final icon = hasPending
         ? Badge(
             label: const Text(' '),
             smallSize: 8,
-            child: const Icon(Icons.fact_check_outlined, size: 16),
+            child: Icon(Icons.fact_check_outlined, size: 15, color: effectiveColor),
           )
-        : const Icon(Icons.fact_check_outlined, size: 16);
+        : Icon(Icons.fact_check_outlined, size: 15, color: effectiveColor);
     return compact
         ? IconButton(
             tooltip: label ?? context.l10n.reviewProposals,
@@ -123,26 +129,43 @@ class ChatProposalReviewButton extends ConsumerWidget {
           )
         : Tooltip(
             message: label ?? context.l10n.reviewProposals,
-            child: InkWell(
-              onTap: () => _open(context),
+            child: Material(
+              color: isActive
+                  ? (dark
+                      ? AppTheme.accentPrimary.withValues(alpha: 0.18)
+                      : AppTheme.accentPrimary.withValues(alpha: 0.12))
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(6),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    icon,
-                    const SizedBox(width: 4),
-                    Text(
-                      label ?? context.l10n.reviewProposals,
-                      style: TextStyle(
-                        fontSize: TypographyTokens.secondary,
-                        color: hasPending
-                            ? AppTheme.accentPrimary
-                            : AppTheme.textSecondary,
+              child: InkWell(
+                onTap: () => _open(context),
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  decoration: isActive
+                      ? BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: AppTheme.accentPrimary.withValues(alpha: 0.35),
+                            width: 0.5,
+                          ),
+                        )
+                      : null,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      icon,
+                      const SizedBox(width: 4),
+                      Text(
+                        label ?? context.l10n.reviewProposals,
+                        style: TextStyle(
+                          fontSize: TypographyTokens.secondary,
+                          fontWeight:
+                              isActive ? FontWeight.w600 : FontWeight.normal,
+                          color: effectiveColor,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

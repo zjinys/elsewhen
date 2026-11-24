@@ -258,6 +258,63 @@ void main() {
     expect(find.byType(ChatProposalReviewDialog), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'switching directly from todo to goal updates panel and active companion',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1200, 900);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      final repo = _WorkspaceRepo();
+      final container = ProviderContainer(
+        overrides: [
+          storageRepositoryProvider.overrideWithValue(repo),
+          conversationRepositoryProvider.overrideWithValue(
+            ConversationRepository(repo),
+          ),
+          selectedConversationIdProvider.overrideWith(
+            () => StateHolder('conversation'),
+          ),
+          activeGoalsProvider.overrideWith((ref) async => []),
+          todosProvider.overrideWith((ref) async => []),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            localizationsDelegates: appTestLocalizationDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const Scaffold(body: MessageArea()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Initially no companion is active
+      expect(container.read(activeCompanionIdProvider), isNull);
+
+      // 1. Click Todos -> Todos panel opens
+      await tester.tap(find.byIcon(Icons.check_circle_outlined));
+      await tester.pumpAndSettle();
+      expect(container.read(activeCompanionIdProvider), 'todos');
+
+      // 2. Click Goals -> directly switches to Goals without closing!
+      await tester.tap(find.byIcon(Icons.flag_outlined));
+      await tester.pumpAndSettle();
+      expect(container.read(activeCompanionIdProvider), 'goals');
+
+      // 3. Click Goals again -> toggles closed
+      await tester.tap(find.byIcon(Icons.flag_outlined));
+      await tester.pumpAndSettle();
+      expect(container.read(activeCompanionIdProvider), isNull);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 class _WorkspaceRepo extends FakeGoalChatRepo {

@@ -7,9 +7,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/localization.dart';
 import '../providers/conversation_provider.dart';
+import '../providers/state_holder.dart';
 import '../theme/app_theme.dart';
 import '../theme/design_tokens.dart';
 import 'adaptive_panel.dart';
+
+/// Active companion panel identifier (e.g. 'todos', 'goals', 'review:...'),
+/// or null when no companion panel is currently presented.
+final activeCompanionIdProvider =
+    NotifierProvider<StateHolder<String?>, String?>(
+  () => StateHolder<String?>(null),
+);
 
 /// Only a mounted conversation workspace registers a host. Other screens keep
 /// their existing modal presentation, including the mobile title-bar entries.
@@ -105,6 +113,7 @@ class _ChatCompanionWorkspaceState
     if (_request == null) _previousFocus = FocusManager.instance.primaryFocus;
     _request?.complete();
     setState(() => _request = request);
+    ref.read(activeCompanionIdProvider.notifier).set(request.id);
     await request.done.future;
   }
 
@@ -112,6 +121,7 @@ class _ChatCompanionWorkspaceState
     if (_request == null) return;
     _request!.complete();
     setState(() => _request = null);
+    ref.read(activeCompanionIdProvider.notifier).set(null);
     final previous = _previousFocus;
     _previousFocus = null;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -204,13 +214,7 @@ class _ChatCompanionWorkspaceState
                     child: widget.child,
                   ),
                 ),
-                if (wide && request != null) ...[
-                  Positioned.fill(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onTap: _close,
-                    ),
-                  ),
+                if (wide && request != null)
                   Positioned(
                     top: 54,
                     right: 16,
@@ -234,7 +238,6 @@ class _ChatCompanionWorkspaceState
                       ),
                     ),
                   ),
-                ],
                 if (!wide && request != null) ...[
                   ModalBarrier(
                     key: const ValueKey("companion-modal-barrier"),

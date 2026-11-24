@@ -8,6 +8,7 @@ class NowStatusIconButton extends StatelessWidget {
   final String label;
   final Color? color;
   final VoidCallback? onPressed;
+  final bool isActive;
 
   const NowStatusIconButton({
     super.key,
@@ -16,31 +17,53 @@ class NowStatusIconButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.color,
+    this.isActive = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final effective = color ?? AppTheme.textSecondary;
+    final effective = isActive
+        ? AppTheme.accentPrimary
+        : (color ?? AppTheme.textSecondary);
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Tooltip(
       message: tooltip,
-      child: InkWell(
-        onTap: onPressed,
+      child: Material(
+        color: isActive
+            ? (dark
+                ? AppTheme.accentPrimary.withValues(alpha: 0.18)
+                : AppTheme.accentPrimary.withValues(alpha: 0.12))
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(6),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 15, color: effective),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: TypographyTokens.secondary,
-                  color: effective,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            decoration: isActive
+                ? BoxDecoration(
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: AppTheme.accentPrimary.withValues(alpha: 0.35),
+                      width: 0.5,
+                    ),
+                  )
+                : null,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 15, color: effective),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: TypographyTokens.secondary,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                    color: effective,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -91,6 +114,7 @@ class _NowStatus extends ConsumerWidget {
     // 目标为空时入口仍必须显示：目标功能没有独立一级 tab，这里是唯一入口，
     // 显示为「目标 0」会让人以为无路可走。
     final goalLabel = context.l10n.goalSummaryCount(activeGoals.length);
+    final activeCompanion = ref.watch(activeCompanionIdProvider);
     final dark = AppTheme.brightness == Brightness.dark;
     return GlassPanel(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 2),
@@ -132,6 +156,7 @@ class _NowStatus extends ConsumerWidget {
                       color: activeGoals.isEmpty
                           ? AppTheme.accentPrimary
                           : AppTheme.textSecondary,
+                      isActive: activeCompanion == 'goals',
                       onPressed: onOpenGoals,
                     ),
                     const SizedBox(width: 4),
@@ -139,6 +164,7 @@ class _NowStatus extends ConsumerWidget {
                       tooltip: context.l10n.todos,
                       icon: Icons.check_circle_outlined,
                       label: context.l10n.todoCountItems(openTodos ?? 0),
+                      isActive: activeCompanion == 'todos',
                       onPressed: onOpenTodos,
                     ),
                     if (conversationId != null) ...[
@@ -196,6 +222,11 @@ class _NowStatus extends ConsumerWidget {
                       label: Text(context.l10n.todoCountItems(openTodos ?? 0)),
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,
+                        backgroundColor: activeCompanion == 'todos'
+                            ? (dark
+                                ? AppTheme.accentPrimary.withValues(alpha: 0.18)
+                                : AppTheme.accentPrimary.withValues(alpha: 0.12))
+                            : null,
                         textStyle: const TextStyle(
                           fontSize: TypographyTokens.secondary,
                           fontWeight: FontWeight.w500,
@@ -220,6 +251,7 @@ class _NowStatus extends ConsumerWidget {
                           color: activeGoals.isEmpty
                               ? AppTheme.accentPrimary
                               : AppTheme.textTertiary,
+                          isActive: activeCompanion == 'goals',
                           onPressed: onOpenGoals,
                         ),
                         const SizedBox(width: 4),
